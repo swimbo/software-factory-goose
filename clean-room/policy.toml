@@ -1,0 +1,10 @@
+# R13 command policy — deterministic pre-execution rules (see crates/execution/src/policy.rs).
+# Blocked binaries are denied outright; writes are allowed only under `allowed_write_paths`.
+
+blocked_binaries = ["dd", "mkfs", "mkfs.ext4", "shutdown", "reboot", "fdisk", "parted"]
+
+# Commands whose absolute-path arguments are checked against the write allowlist.
+write_commands = ["rm", "mv", "cp", "chmod", "chown", "tee", "truncate", "install"]
+
+# Only writes under these roots are permitted (relative paths are under the worktree cwd).
+allowed_write_paths = ["/tmp/sfactory-worktrees"]

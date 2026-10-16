@@ -1,0 +1,42 @@
+{
+  "$schema": "https://www.getbifrost.ai/schema",
+  "client": {
+    "drop_excess_requests": false
+  },
+  "providers": {
+    "openrouter": {
+      "keys": [
+        {
+          "name": "openrouter",
+          "value": "env.OPENROUTER_API_KEY",
+          "models": ["*"],
+          "weight": 1.0
+        }
+      ]
+    }
+  },
+  "governance": {
+    "virtual_keys": [
+      {
+        "id": "vk-factory-workers",
+        "name": "factory-workers",
+        "value": "env.BIFROST_VK",
+        "is_active": true,
+        "provider_configs": [
+          {
+            "provider": "openrouter",
+            "weight": 1.0,
+            "allowed_models": ["*"],
+            "key_ids": ["*"]
+          }
+        ],
+        "budgets": [
+          { "max_limit": 100.0, "reset_duration": "1M" }
+        ]
+      }
+    ]
+  },
+  "config_store": {
+    "enabled": false
+  }
+}

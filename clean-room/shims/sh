@@ -1,0 +1,16 @@
+#!/bin/sh
+# R13 PATH shim — gate every `sh -c "<cmd>"` through the policy engine before exec'ing the real
+# shell. Install by placing this directory first on the agent's PATH.
+#
+#   SFACTORY_EXECUTION_BIN  path to the `execution` binary (default: `execution` on PATH)
+REAL_SH=/bin/sh
+POLICY_BIN="${SFACTORY_EXECUTION_BIN:-execution}"
+
+if [ "$1" = "-c" ]; then
+  if ! "$POLICY_BIN" --check-policy "$2" >/dev/null 2>&1; then
+    echo "policy: command denied" >&2
+    exit 126
+  fi
+fi
+
+exec "$REAL_SH" "$@"

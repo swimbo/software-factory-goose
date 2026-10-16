@@ -1,0 +1,38 @@
+[package]
+name = "control-plane"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+shared.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ulid.workspace = true
+chrono.workspace = true
+restate-sdk = { workspace = true, optional = true }
+axum.workspace = true
+sqlx.workspace = true
+dotenvy.workspace = true
+reqwest.workspace = true
+tree-sitter = { workspace = true, optional = true }
+tree-sitter-rust = { workspace = true, optional = true }
+
+[features]
+default = []
+# Opt-in: the durable orchestration layer (workflow.rs). Gated because the exact Restate 0.12
+# SDK surface must be verified against a live build before it compiles.
+restate = ["dep:restate-sdk"]
+# Opt-in: the AST knowledge graph (memory.rs `parse_rust`). Gated so the core builds without the
+# tree-sitter grammars.
+ast = ["dep:tree-sitter", "dep:tree-sitter-rust"]
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
