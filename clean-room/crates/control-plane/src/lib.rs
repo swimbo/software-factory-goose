@@ -6,6 +6,7 @@ pub mod driver;
 pub mod gateway;
 pub mod gates;
 pub mod memory;
+pub mod pipeline;
 pub mod projection;
 pub mod qualifier;
 pub mod state;

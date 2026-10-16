@@ -11,18 +11,19 @@ use axum::{
     extract::State,
     routing::{get, post},
 };
-use control_plane::{driver, memory, projection, qualifier};
+use control_plane::{memory, pipeline, projection, qualifier};
 use serde_json::{Value, json};
 use shared::{new_id, QualifierDecision};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Application state. The in-memory intent cache is the stand-in for the Postgres read model;
-/// `pool` is the real projection when `DATABASE_URL` is set; `tasks` is the R15 driver graph.
+/// `pool` is the real projection when `DATABASE_URL` is set; `pipelines` are the R15 driver
+/// pipelines (intent → task DAG → merge).
 struct AppState {
     intents: Mutex<HashMap<String, QualifierDecision>>,
     pool: Option<sqlx::PgPool>,
-    tasks: Mutex<Vec<shared::Task>>,
+    pipelines: Mutex<HashMap<String, pipeline::Pipeline>>,
 }
 
 impl Default for AppState {
@@ -30,7 +31,7 @@ impl Default for AppState {
         AppState {
             intents: Mutex::new(HashMap::new()),
             pool: None,
-            tasks: Mutex::new(Vec::new()),
+            pipelines: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -49,6 +50,8 @@ fn app(state: SharedState) -> Router {
         .route("/v1/budget/raise", post(raise_budget))
         .route("/v1/work-packages/{id}/stop", post(stop_work_package))
         .route("/v1/memory/dependents/{symbol}", get(memory_dependents))
+        .route("/v1/pipelines/{id}", get(get_pipeline))
+        .route("/v1/pipelines/{id}/dispatch", post(dispatch_pipeline))
         .with_state(state)
 }
 
@@ -77,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         intents: Mutex::new(HashMap::new()),
         pool,
-        tasks: Mutex::new(Vec::new()),
+        pipelines: Mutex::new(HashMap::new()),
     });
     let app = app(state);
 
@@ -123,10 +126,11 @@ async fn submit_intent(
     };
     let decision = qualifier::decide(&intent_id, &features);
     state.intents.lock().unwrap().insert(intent_id.clone(), decision.clone());
-    // R15: a dark-lane intent becomes a dispatchable task in the driver's graph.
+    // R15: a dark-lane intent is decomposed into a work-package pipeline (goal cascade).
     if decision.lane == shared::Lane::Dark {
-        let task = shared::Task::new(intent_id.clone(), body.get("title").and_then(|t| t.as_str()).unwrap_or("intent"));
-        state.tasks.lock().unwrap().push(task);
+        let spec = body.get("description").and_then(|d| d.as_str()).unwrap_or("");
+        let p = pipeline::Pipeline::new(&intent_id, spec, decision.lane);
+        state.pipelines.lock().unwrap().insert(intent_id.clone(), p);
     }
     if let Some(pool) = &state.pool {
         let _ = projection::project_qualifier_decision(pool, &decision).await;
@@ -146,11 +150,77 @@ async fn inspect_intent(
     }
 }
 
-/// GET /v1/work-packages — the tasks the driver reports as dispatchable (R15).
+/// GET /v1/work-packages — dispatchable tasks across all pipelines (R15).
 async fn list_work_packages(State(state): State<SharedState>) -> Json<Value> {
-    let tasks = state.tasks.lock().unwrap();
-    let ready: Vec<&shared::Task> = driver::dispatchable(&tasks);
-    Json(json!({ "work_packages": ready, "total": tasks.len() }))
+    let pipes = state.pipelines.lock().unwrap();
+    let mut ready: Vec<shared::Task> = Vec::new();
+    for p in pipes.values() {
+        ready.extend(p.next_work().into_iter().cloned());
+    }
+    Json(json!({ "work_packages": ready, "pipelines": pipes.len() }))
+}
+
+/// GET /v1/pipelines/{intent_id} — the pipeline stage + task DAG.
+async fn get_pipeline(
+    State(state): State<SharedState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Json<Value> {
+    let pipes = state.pipelines.lock().unwrap();
+    match pipes.get(&id) {
+        Some(p) => Json(json!({
+            "intent_id": p.intent_id,
+            "stage": format!("{:?}", p.stage()),
+            "spent_usd": p.spent_usd,
+            "tasks": p.tasks,
+        })),
+        None => Json(json!({ "error": "not found" })),
+    }
+}
+
+/// POST /v1/pipelines/{id}/dispatch — submit the pipeline's unblocked work packages to Restate.
+///
+/// This is the seam that turns the pipeline from a description into a driver: each ready task
+/// starts a `WorkPackageWorkflow.run`, which then awaits its worker's durable promise (R5).
+async fn dispatch_pipeline(
+    State(state): State<SharedState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Json<Value> {
+    let restate_url =
+        std::env::var("RESTATE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
+
+    // Collect ready task ids under the lock, then release it before awaiting (guards aren't Send).
+    let ready: Vec<String> = {
+        let pipes = state.pipelines.lock().unwrap();
+        match pipes.get(&id) {
+            Some(p) => p.next_work().iter().map(|t| t.id.clone()).collect(),
+            None => return Json(json!({ "error": "not found" })),
+        }
+    };
+
+    let client = reqwest::Client::new();
+    let mut submitted = Vec::new();
+    for task_id in &ready {
+        let url = format!("{restate_url}/restate/call/WorkPackageWorkflow/{task_id}/run");
+        let ok = client
+            .post(url)
+            .json(task_id)
+            .send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false);
+        if ok {
+            submitted.push(task_id.clone());
+        }
+    }
+
+    if let Ok(mut pipes) = state.pipelines.lock()
+        && let Some(p) = pipes.get_mut(&id)
+    {
+        for task_id in &submitted {
+            p.dispatch(task_id);
+        }
+    }
+    Json(json!({ "dispatched": submitted, "restate_url": restate_url }))
 }
 
 async fn get_work_package(
