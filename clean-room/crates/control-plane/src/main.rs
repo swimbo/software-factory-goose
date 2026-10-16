@@ -11,7 +11,7 @@ use axum::{
     extract::State,
     routing::{get, post},
 };
-use control_plane::{memory, pipeline, projection, qualifier};
+use control_plane::{gates, memory, pipeline, projection, qualifier};
 use serde_json::{Value, json};
 use shared::{new_id, QualifierDecision};
 use std::collections::HashMap;
@@ -49,6 +49,7 @@ fn app(state: SharedState) -> Router {
         .route("/v1/grants/{id}/approve", post(approve_grant))
         .route("/v1/budget/raise", post(raise_budget))
         .route("/v1/work-packages/{id}/stop", post(stop_work_package))
+        .route("/v1/work-packages/{id}/result", post(work_package_result))
         .route("/v1/memory/dependents/{symbol}", get(memory_dependents))
         .route("/v1/pipelines/{id}", get(get_pipeline))
         .route("/v1/pipelines/{id}/dispatch", post(dispatch_pipeline))
@@ -230,11 +231,84 @@ async fn get_work_package(
     Json(json!({"error": "not found"}))
 }
 
-/// POST /v1/promotions/{id}/approve — Gate 1 (first promotion is a human act).
+/// POST /v1/promotions/{task_id}/approve — Gate 1: a human completes a gated work package.
 async fn approve_promotion(
-    axum::extract::Path(_id): axum::extract::Path<String>,
+    State(state): State<SharedState>,
+    axum::extract::Path(task_id): axum::extract::Path<String>,
 ) -> Json<Value> {
-    Json(json!({"status": "approved", "gate": "first-promotion"}))
+    let mut pipes = state.pipelines.lock().unwrap();
+    for p in pipes.values_mut() {
+        if p.tasks.iter().any(|t| t.id == task_id) {
+            p.on_eval(&task_id, true);
+            return Json(json!({ "status": "approved", "stage": format!("{:?}", p.stage()) }));
+        }
+    }
+    Json(json!({ "error": "task not found" }))
+}
+
+/// POST /v1/work-packages/{task_id}/result — the build→evaluate runtime callback.
+///
+/// Body: `{ "pipeline_id", "receipt", "worktree", "is_first_promotion"? }`. Applies the build
+/// result, runs the wall (deterministic verifier), then the promotion gate, and advances the
+/// pipeline: merge (auto) | awaiting_gate (human) | wall_failed | build_failed.
+async fn work_package_result(
+    State(state): State<SharedState>,
+    axum::extract::Path(task_id): axum::extract::Path<String>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    let pipeline_id = body.get("pipeline_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let worktree = body.get("worktree").and_then(|v| v.as_str()).unwrap_or(".").to_string();
+    let is_first = body.get("is_first_promotion").and_then(|v| v.as_bool()).unwrap_or(true);
+    let receipt: shared::Receipt = match serde_json::from_value(
+        body.get("receipt").cloned().unwrap_or(Value::Null),
+    ) {
+        Ok(r) => r,
+        Err(e) => return Json(json!({ "error": format!("bad receipt: {e}") })),
+    };
+
+    // 1. Build result.
+    let built = {
+        let mut pipes = state.pipelines.lock().unwrap();
+        match pipes.get_mut(&pipeline_id) {
+            Some(p) => p.on_build(&task_id, &receipt),
+            None => return Json(json!({ "error": "pipeline not found" })),
+        }
+    };
+    if !built {
+        return Json(json!({ "outcome": "build_failed" }));
+    }
+
+    // 2. The wall — the deterministic verifier (R2/R11).
+    let wall_passed = evaluator::verify_worktree(std::path::Path::new(&worktree), &receipt).all_pass();
+
+    // 3. Gate 1 — the first promotion is a human act.
+    let needs_human = gates::promotion_requires_human(is_first, wall_passed);
+
+    // 4. Advance the pipeline.
+    let (outcome, stage) = {
+        let mut pipes = state.pipelines.lock().unwrap();
+        match pipes.get_mut(&pipeline_id) {
+            Some(p) => {
+                let outcome = if !wall_passed {
+                    p.on_eval(&task_id, false);
+                    "wall_failed"
+                } else if !needs_human {
+                    p.on_eval(&task_id, true);
+                    "merged"
+                } else {
+                    "awaiting_gate"
+                };
+                (outcome, format!("{:?}", p.stage()))
+            }
+            None => ("unknown", "unknown".to_string()),
+        }
+    };
+    Json(json!({
+        "outcome": outcome,
+        "wall_passed": wall_passed,
+        "needs_human": needs_human,
+        "stage": stage,
+    }))
 }
 
 /// POST /v1/grants/{id}/approve — Gate 3 (privileged credential).

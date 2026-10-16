@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 shared.workspace = true
+evaluator = { path = "../evaluator" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

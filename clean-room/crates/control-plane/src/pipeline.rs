@@ -71,19 +71,29 @@ impl Pipeline {
         }
     }
 
-    /// Apply a worker result: a completed Receipt advances the task; anything else retries
-    /// once, then fails the task (and the pipeline).
-    pub fn on_result(&mut self, task_id: &str, receipt: &Receipt) {
+    /// Apply a worker **build** result (the build callback): a completed Receipt keeps the task
+    /// in progress, awaiting the wall; anything else fails the task (and the pipeline).
+    /// Returns whether the build completed (i.e. is ready for evaluation).
+    pub fn on_build(&mut self, task_id: &str, receipt: &Receipt) -> bool {
         let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) else {
-            return;
+            return false;
         };
         if receipt.is_completed() {
-            t.status = TaskStatus::Completed;
-            // Unblock dependents.
-            let id = t.id.clone();
-            let _ = driver::complete(&mut self.tasks, &id);
+            true // stays InProgress, awaiting evaluation
         } else {
-            t.status = TaskStatus::Deleted; // terminal failure for this work package
+            t.status = TaskStatus::Deleted;
+            false
+        }
+    }
+
+    /// Apply the **wall's** verdict (the evaluate callback): a pass completes the task and
+    /// unblocks its dependents; a fail terminates it.
+    pub fn on_eval(&mut self, task_id: &str, passed: bool) {
+        if passed {
+            let id = task_id.to_string();
+            let _ = driver::complete(&mut self.tasks, &id);
+        } else if let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) {
+            t.status = TaskStatus::Deleted;
         }
     }
 
@@ -145,7 +155,8 @@ mod tests {
     fn completing_scaffold_unblocks_implement() {
         let mut p = Pipeline::new("int1", "spec", Lane::Dark);
         p.dispatch("int1:scaffold");
-        p.on_result("int1:scaffold", &complete());
+        assert!(p.on_build("int1:scaffold", &complete()));
+        p.on_eval("int1:scaffold", true);
         let ready = p.next_work();
         assert_eq!(ready[0].id, "int1:implement");
     }
@@ -156,16 +167,28 @@ mod tests {
         assert_eq!(p.stage(), Stage::Decomposed);
         for id in ["int1:scaffold", "int1:implement", "int1:test"] {
             p.dispatch(id);
-            p.on_result(id, &complete());
+            p.on_build(id, &complete());
+            p.on_eval(id, true);
         }
         assert_eq!(p.stage(), Stage::Merged);
     }
 
     #[test]
-    fn failed_result_fails_the_pipeline() {
+    fn failed_build_fails_the_pipeline() {
         let mut p = Pipeline::new("int1", "spec", Lane::Dark);
         p.dispatch("int1:scaffold");
-        p.on_result("int1:scaffold", &failed());
+        assert!(!p.on_build("int1:scaffold", &failed()));
+        assert_eq!(p.stage(), Stage::Failed);
+    }
+
+    #[test]
+    fn failed_eval_fails_the_pipeline() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.dispatch("int1:scaffold");
+        let built = p.on_build("int1:scaffold", &complete());
+        assert!(built);
+        // Build completed but the wall rejected it.
+        p.on_eval("int1:scaffold", false);
         assert_eq!(p.stage(), Stage::Failed);
     }
 

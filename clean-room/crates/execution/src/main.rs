@@ -204,6 +204,27 @@ async fn resolve_workflow(
     Ok(())
 }
 
+/// Report the receipt to the control plane's pipeline so it can run the wall + gates.
+async fn report_result(
+    control_url: &str,
+    work_package_id: &str,
+    pipeline_id: &str,
+    receipt: &Receipt,
+    worktree: &str,
+) -> anyhow::Result<()> {
+    let body = serde_json::json!({
+        "pipeline_id": pipeline_id,
+        "receipt": receipt,
+        "worktree": worktree,
+    });
+    let url = format!("{control_url}/v1/work-packages/{work_package_id}/result");
+    let resp = reqwest::Client::new().post(url).json(&body).send().await?;
+    if !resp.status().is_success() {
+        anyhow::bail!("report_result failed: {}", resp.status());
+    }
+    Ok(())
+}
+
 /// Worker entry: read config from env, run Goose in the worktree, resolve the workflow promise.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -246,6 +267,13 @@ async fn main() -> anyhow::Result<()> {
 
     if !work_package_id.is_empty() {
         resolve_workflow(&restate_url, &work_package_id, &receipt).await?;
+        // Report to the pipeline so it runs the wall + gates (the build→evaluate callback).
+        let control_url = std::env::var("SFACTORY_CONTROL_URL")
+            .unwrap_or_else(|_| "http://localhost:8081".to_string());
+        let pipeline_id = std::env::var("SFACTORY_PIPELINE_ID").unwrap_or_default();
+        if !pipeline_id.is_empty() {
+            report_result(&control_url, &work_package_id, &pipeline_id, &receipt, &worktree).await?;
+        }
     }
     Ok(())
 }
