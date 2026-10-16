@@ -189,14 +189,22 @@ async fn dispatch_pipeline(
     let restate_url =
         std::env::var("RESTATE_URL").unwrap_or_else(|_| "http://localhost:8090".to_string());
 
-    // Collect ready task ids under the lock, then release it before awaiting (guards aren't Send).
-    let ready: Vec<String> = {
+    // Collect ready task ids (and the budget state) under the lock, then release it before
+    // awaiting (guards aren't Send).
+    let (ready, exhausted) = {
         let pipes = state.pipelines.lock().unwrap();
         match pipes.get(&id) {
-            Some(p) => p.next_work().iter().map(|t| t.id.clone()).collect(),
+            Some(p) => (
+                p.next_work().iter().map(|t| t.id.clone()).collect::<Vec<_>>(),
+                p.budget_exhausted(),
+            ),
             None => return Json(json!({ "error": "not found" })),
         }
     };
+    // Gate 2 (R7): a unit that has spent its ceiling does not dispatch — it loops to a human.
+    if exhausted {
+        return Json(json!({ "outcome": "budget_exhausted" }));
+    }
 
     let client = reqwest::Client::new();
     let mut submitted = Vec::new();
@@ -276,6 +284,22 @@ async fn work_package_result(
     };
     if !built {
         return Json(json!({ "outcome": "build_failed" }));
+    }
+
+    // Accrue the run's cost and enforce the per-unit ceiling (R7) — a terminal state.
+    if let Ok(mut pipes) = state.pipelines.lock()
+        && let Some(p) = pipes.get_mut(&pipeline_id)
+    {
+        p.accrue(receipt.spend_usd());
+        if p.budget_exhausted() {
+            p.on_eval(&task_id, false);
+            let (spent, stage) = (p.spent_usd, format!("{:?}", p.stage()));
+            return Json(json!({
+                "outcome": "budget_exhausted",
+                "spent_usd": spent,
+                "stage": stage,
+            }));
+        }
     }
 
     // 2. The wall — the deterministic verifier (R2/R11).

@@ -28,6 +28,8 @@ pub enum Receipt {
         turn_count: u32,
         exit_code: i32,
         wall_time_ms: u64,
+        /// Cost accrued by this run (R7) — the pipeline's budget ledger consumes this.
+        spend_usd: f64,
     },
     TimedOut {
         sha: String,
@@ -48,6 +50,14 @@ impl Receipt {
     /// True only for a positively-asserted, complete result.
     pub fn is_completed(&self) -> bool {
         matches!(self, Receipt::Completed { .. })
+    }
+
+    /// Cost accrued by this run (R7) — 0 for non-completions.
+    pub fn spend_usd(&self) -> f64 {
+        match self {
+            Receipt::Completed { spend_usd, .. } => *spend_usd,
+            _ => 0.0,
+        }
     }
 }
 
@@ -237,6 +247,7 @@ mod tests {
             turn_count: 3,
             exit_code: 0,
             wall_time_ms: 1000,
+            spend_usd: 0.0,
         };
         let s = serde_json::to_string(&r).unwrap();
         assert!(s.contains("\"status\":\"completed\""));

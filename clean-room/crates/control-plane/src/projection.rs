@@ -70,7 +70,7 @@ pub async fn project_receipt(
     work_package_id: &str,
 ) -> anyhow::Result<()> {
     let (status, sha, wall_time_ms, turn_count, exit_code, diff) = match r {
-        shared::Receipt::Completed { sha, diff, turn_count, exit_code, wall_time_ms } => {
+        shared::Receipt::Completed { sha, diff, turn_count, exit_code, wall_time_ms, .. } => {
             ("completed", sha.as_str(), *wall_time_ms, *turn_count, *exit_code, diff.as_str())
         }
         shared::Receipt::TimedOut { sha, turn_count, wall_time_ms } => {

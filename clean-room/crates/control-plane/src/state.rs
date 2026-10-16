@@ -101,6 +101,7 @@ mod tests {
             turn_count: 1,
             exit_code: 0,
             wall_time_ms: 1,
+            spend_usd: 0.0,
         }
     }
 

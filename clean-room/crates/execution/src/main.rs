@@ -86,12 +86,14 @@ fn finish(
         // Positive completion assertion (R6): exit 0 + a diff is present.
         let diff = git_diff(worktree).unwrap_or_default();
         let turn_count = parse_turn_count(&stdout.text);
+        let spend_usd = parse_spend_usd(&stdout.text, turn_count);
         Ok(Receipt::Completed {
             sha,
             diff,
             turn_count,
             exit_code: 0,
             wall_time_ms,
+            spend_usd,
         })
     } else if let Some(signal) = status.signal() {
         Ok(Receipt::Crashed {
@@ -161,6 +163,18 @@ fn parse_turn_count(stdout: &str) -> u32 {
         .and_then(|v| v.get("turn_count").or_else(|| v.get("turns")).and_then(|t| t.as_u64()))
         .map(|n| n as u32)
         .unwrap_or(0)
+}
+
+/// Cost from Goose's JSON output if present, else a flat per-turn estimate (R7).
+fn parse_spend_usd(stdout: &str, turn_count: u32) -> f64 {
+    serde_json::from_str::<serde_json::Value>(stdout)
+        .ok()
+        .and_then(|v| {
+            ["spend_usd", "cost", "total_cost"]
+                .iter()
+                .find_map(|k| v.get(*k).and_then(|c| c.as_f64()))
+        })
+        .unwrap_or(turn_count as f64 * 0.01)
 }
 
 fn read_stdout(pipe: &mut Option<std::process::ChildStdout>) -> String {

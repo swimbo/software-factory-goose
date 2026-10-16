@@ -7,7 +7,11 @@
 //! `dispatch` / `on_result` seams.
 
 use crate::driver::{self, DriverError};
-use shared::{Receipt, Task, TaskStatus, Lane};
+use crate::gates;
+use shared::{Lane, Receipt, Task, TaskStatus};
+
+/// Default per-unit dollar ceiling (R7) — the pipeline's hard spend bound.
+pub const DEFAULT_PER_UNIT_CAP_USD: f64 = 0.75;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
@@ -42,6 +46,8 @@ pub struct Pipeline {
     pub tasks: Vec<Task>,
     /// Spend accumulated across the pipeline (R7 — the per-unit dollar ceiling).
     pub spent_usd: f64,
+    /// The hard ceiling for this unit; only a human raises it (Gate 2).
+    pub ceiling_usd: f64,
 }
 
 impl Pipeline {
@@ -51,7 +57,29 @@ impl Pipeline {
             lane,
             tasks: decompose(intent_id, spec),
             spent_usd: 0.0,
+            ceiling_usd: DEFAULT_PER_UNIT_CAP_USD,
         }
+    }
+
+    /// The pure budget check (R7): may the pipeline spend `estimate_usd` more?
+    pub fn can_spend(&self, estimate_usd: f64) -> bool {
+        gates::Budget {
+            per_unit_cap_usd: self.ceiling_usd,
+            per_day_cap_usd: f64::INFINITY,
+            spent_today_usd: 0.0,
+            unit_spent_usd: self.spent_usd,
+        }
+        .can_spend(estimate_usd)
+    }
+
+    /// Accrue spend from a worker result (R7).
+    pub fn accrue(&mut self, usd: f64) {
+        self.spent_usd += usd;
+    }
+
+    /// Whether the budget is exhausted — a terminal state that loops to a human.
+    pub fn budget_exhausted(&self) -> bool {
+        self.spent_usd >= self.ceiling_usd
     }
 
     /// Tasks ready to dispatch (pending with all blockers completed).
@@ -126,6 +154,7 @@ mod tests {
             turn_count: 1,
             exit_code: 0,
             wall_time_ms: 1,
+            spend_usd: 0.0,
         }
     }
 
@@ -199,5 +228,21 @@ mod tests {
             p.order().unwrap(),
             vec!["int1:scaffold", "int1:implement", "int1:test"]
         );
+    }
+
+    #[test]
+    fn budget_blocks_when_it_would_exceed_the_ceiling() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        assert!(p.can_spend(0.10));
+        p.accrue(0.70);
+        assert!(!p.can_spend(0.10)); // 0.80 > 0.75 ceiling → denied
+        assert!(p.can_spend(0.05));
+    }
+
+    #[test]
+    fn budget_is_exhausted_at_the_ceiling() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.accrue(DEFAULT_PER_UNIT_CAP_USD);
+        assert!(p.budget_exhausted());
     }
 }
