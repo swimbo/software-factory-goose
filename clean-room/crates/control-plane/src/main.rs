@@ -13,7 +13,7 @@ use axum::{
 };
 use control_plane::{gates, memory, pipeline, projection, qualifier};
 use serde_json::{Value, json};
-use shared::{new_id, QualifierDecision};
+use shared::{new_id, CredentialGrant, CredentialKind, QualifierDecision};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -24,6 +24,7 @@ struct AppState {
     intents: Mutex<HashMap<String, QualifierDecision>>,
     pool: Option<sqlx::PgPool>,
     pipelines: Mutex<HashMap<String, pipeline::Pipeline>>,
+    grants: Mutex<HashMap<String, CredentialGrant>>,
 }
 
 impl Default for AppState {
@@ -32,6 +33,7 @@ impl Default for AppState {
             intents: Mutex::new(HashMap::new()),
             pool: None,
             pipelines: Mutex::new(HashMap::new()),
+            grants: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -50,6 +52,7 @@ fn app(state: SharedState) -> Router {
         .route("/v1/budget/raise", post(raise_budget))
         .route("/v1/work-packages/{id}/stop", post(stop_work_package))
         .route("/v1/work-packages/{id}/result", post(work_package_result))
+        .route("/v1/work-packages/{id}/credentials", post(request_credential))
         .route("/v1/memory/dependents/{symbol}", get(memory_dependents))
         .route("/v1/pipelines/{id}", get(get_pipeline))
         .route("/v1/pipelines/{id}/dispatch", post(dispatch_pipeline))
@@ -82,6 +85,7 @@ async fn main() -> anyhow::Result<()> {
         intents: Mutex::new(HashMap::new()),
         pool,
         pipelines: Mutex::new(HashMap::new()),
+        grants: Mutex::new(HashMap::new()),
     });
     let app = app(state);
 
@@ -335,9 +339,60 @@ async fn work_package_result(
     }))
 }
 
-/// POST /v1/grants/{id}/approve — Gate 3 (privileged credential).
-async fn approve_grant(axum::extract::Path(_id): axum::extract::Path<String>) -> Json<Value> {
-    Json(json!({"status": "approved", "gate": "credential"}))
+/// POST /v1/grants/{id}/approve — Gate 3: a human approves a privileged credential grant.
+async fn approve_grant(
+    State(state): State<SharedState>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Json<Value> {
+    let mut grants = state.grants.lock().unwrap();
+    match grants.get_mut(&id) {
+        Some(g) if g.human_approval_required => {
+            g.approved_by = Some("operator".to_string());
+            Json(json!({ "grant_id": id, "status": "issued" }))
+        }
+        Some(_) => Json(json!({ "grant_id": id, "status": "already_issued" })),
+        None => Json(json!({ "error": "grant not found" })),
+    }
+}
+
+/// POST /v1/work-packages/{id}/credentials — request a task-scoped grant (Gate 3 / R8).
+///
+/// Body: `{ "scope", "kind"?, "ttl_secs"? }`. A privileged grant is `pending` (human approval);
+/// self-issued and broker-issued grants are issued immediately. The secret value is never
+/// returned — only a grant id (the broker injects the token out-of-band).
+async fn request_credential(
+    State(state): State<SharedState>,
+    axum::extract::Path(wp_id): axum::extract::Path<String>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    let scope = body.get("scope").and_then(|v| v.as_str()).unwrap_or("*").to_string();
+    let kind = match body.get("kind").and_then(|v| v.as_str()) {
+        Some("privileged") => CredentialKind::Privileged,
+        Some("broker_issued") => CredentialKind::BrokerIssued,
+        _ => CredentialKind::SelfIssued,
+    };
+    let needs_human = gates::credential_requires_human(kind);
+    let ttl = body.get("ttl_secs").and_then(|v| v.as_u64()).unwrap_or(900);
+    let now = chrono::Utc::now();
+    let grant = CredentialGrant {
+        id: new_id(),
+        work_package_id: wp_id,
+        scope,
+        kind,
+        ttl_secs: ttl,
+        issued_at: now,
+        expires_at: now + chrono::Duration::seconds(ttl as i64),
+        human_approval_required: needs_human,
+        approved_by: if needs_human { None } else { Some("auto".to_string()) },
+    };
+    let (id, expires) = (grant.id.clone(), grant.expires_at);
+    state.grants.lock().unwrap().insert(id.clone(), grant);
+    Json(json!({
+        "grant_id": id,
+        "status": if needs_human { "pending" } else { "issued" },
+        "human_approval_required": needs_human,
+        "expires_at": expires,
+    }))
 }
 
 /// POST /v1/budget/raise — Gate 2 (human-only).
