@@ -1,0 +1,498 @@
+   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+   Compiling watchdog v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/watchdog)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.65s
+     Running unittests src/lib.rs (target/debug/deps/control_plane-edb5befd5e1d2cfa)
+
+running 160 tests
+test approval::tests::wrong_peer_audience_and_time_fail_closed ... ok
+test approval_workflow::tests::expiry_and_changed_presentation_fail_without_consuming ... ok
+test approval::tests::invalid_ttl_hash_and_reference_are_rejected ... ok
+test approval::tests::credential_and_budget_parameters_are_bound ... ok
+test approval::tests::exact_action_can_be_consumed_only_once ... ok
+test approval_workflow::tests::reissuance_cannot_reset_consumption_or_extend_expiry ... ok
+test approval::tests::every_significant_field_is_bound ... ok
+test approval_workflow::tests::same_nonce_cannot_change_action_lifetime_or_audience ... ok
+test driver::tests::completion_unblocks_dependent ... ok
+test driver::tests::only_unblocked_tasks_dispatch ... ok
+test driver::tests::completing_unknown_task_errors ... ok
+test gates::tests::below_bar_promotion_never_auto_approves ... ok
+test approval_workflow::tests::payloads_cannot_deserialize_identity_authority ... ok
+test approval::tests::submitted_authority_or_comparison_flags_are_not_part_of_the_contract ... ok
+test gates::tests::first_promotion_needs_human ... ok
+test gates::tests::budget_fails_closed_at_day_cap ... ok
+test gates::tests::invalid_budget_numbers_fail_closed ... ok
+test gates::tests::budget_fails_closed_at_unit_cap ... ok
+test gates::tests::only_privileged_credentials_need_human ... ok
+test gates::tests::promotion_approval_is_idempotent ... ok
+test driver::tests::topological_order_respects_blockers ... ok
+test driver::tests::cycle_is_rejected ... ok
+test gateway::tests::denies_over_budget ... ok
+test gateway::tests::allows_within_budget ... ok
+test gateway::tests::duplicate_key_records_are_ambiguous_and_fail_closed ... ok
+test gateway::tests::contract_and_payload_validation_precede_network_or_reservation ... ok
+test approval::tests::serialized_record_keeps_consumption_and_replay_rejection ... ok
+test gateway::tests::governance_never_borrows_another_keys_budget_or_defaults_missing_usage ... ok
+test gateway::tests::governance_uses_tightest_valid_budget ... ok
+test approval::tests::serialized_racing_consumers_have_one_winner ... ok
+test gateway::tests::negative_or_nonfinite_estimates_are_denied ... ok
+test gateway::tests::unreadable_budget_fails_closed ... ok
+test gateway::tests::upper_bound_reserves_full_reviewed_limits_and_rounds_each_component_up ... ok
+test gateway::tests::missing_negative_zero_and_overflowing_price_or_token_bounds_fail_closed ... ok
+test intake::tests::distinct_keys_remain_distinct_and_principal_cannot_take_over_existing_intake ... ok
+test intake::tests::accepted_ref_subset_is_deliberately_canonical ... ok
+test intake::tests::every_immutable_request_binding_rejects_key_reuse ... ok
+test intake::tests::invalid_key_schema_revision_ref_and_text_are_rejected ... ok
+test intake::tests::no_identity_risk_approval_or_budget_authority_can_enter_through_payload ... ok
+test intake::tests::identical_retry_returns_original_record_after_serialization_and_clock_change ... ok
+test intake::tests::stored_corruption_and_reordered_criteria_do_not_become_fresh_admission ... ok
+test intake::tests::explicit_size_limits_bound_durable_record ... ok
+test gateway::tests::absent_or_expired_model_review_and_unpriced_payload_make_no_http_calls ... ok
+test intake_adapter::tests::missing_peer_and_principal_or_service_mismatch_fail_closed ... ok
+test intake_adapter::tests::foreign_journal_record_is_not_disclosed ... ok
+test memory::tests::blast_radius_conservatively_includes_all_ambiguous_callers ... ok
+test memory::tests::blast_radius_ignores_non_dependency_edges ... ok
+test memory::tests::defines_edges_are_not_dependents ... ok
+test memory::tests::blast_radius_returns_dependent_files ... ok
+test gateway::tests::governance_redirect_does_not_forward_admin_credential ... ok
+test memory::tests::dependents_returns_callers ... ok
+test gateway::tests::inference_redirect_does_not_forward_virtual_key ... ok
+test intake_adapter::tests::real_peer_retry_conflict_and_inspection ... ok
+test memory::tests::rust_parser_connects_direct_calls_to_their_owner ... ok
+test memory::tests::rust_parser_preserves_scoped_calls_and_nested_function_ownership ... ok
+test gateway::tests::oversized_responses_deny_without_additional_inference ... ok
+test operator_adapter::tests::missing_connection_context_denies_before_authority_or_journal ... ok
+test intake_adapter::tests::forged_identity_unknown_routes_and_oversized_reject_before_backend ... ok
+test gateway::tests::inference_requires_successful_governance_and_atomic_reservation ... ok
+test gateway::tests::gateway_ignores_environment_proxy_and_keeps_credentials_on_their_routes ... ok
+test operator_adapter::tests::actual_mismatched_peer_cannot_override_identity_with_header ... ok
+test operator_adapter::tests::changed_authoritative_generation_and_stopped_state_prevent_consumption ... ok
+test operator_transport::tests::account_and_group_parser_is_strict ... ok
+test operator_adapter::tests::real_unix_peer_gets_server_resolved_action_and_exact_single_consume ... ok
+test operator_adapter::tests::oversized_input_and_expired_approval_never_reach_consume ... ok
+test operator_transport::tests::missing_and_failed_peer_lookup_deny_before_handler ... ok
+test operator_adapter::tests::wrong_journal_identity_or_audience_never_returns_approval ... ok
+test pipeline::tests::blocked_task_cannot_be_dispatched ... ok
+test pipeline::tests::budget_blocks_when_it_would_exceed_the_ceiling ... ok
+test pipeline::tests::budget_is_exhausted_at_the_ceiling ... ok
+test pipeline::tests::completing_scaffold_unblocks_implement ... ok
+test pipeline::tests::decompose_builds_a_scaffold_implement_test_dag ... ok
+test pipeline::tests::evaluation_alone_never_claims_a_git_merge ... ok
+test pipeline::tests::evaluation_cannot_complete_an_undispatched_task ... ok
+test pipeline::tests::failed_build_fails_the_pipeline ... ok
+test pipeline::tests::failed_eval_fails_the_pipeline ... ok
+test pipeline::tests::failed_pipeline_never_dispatches_more_work ... ok
+test pipeline::tests::only_scaffold_dispatches_first ... ok
+test operator_adapter::tests::spoofed_uid_client_evidence_and_wrong_presentation_are_refused ... ok
+test pipeline::tests::order_is_dependency_sorted ... ok
+test pipeline::tests::pending_or_unknown_tasks_cannot_accept_results ... ok
+test operator_transport::tests::public_entry_rejects_same_uid_without_provisioning ... ok
+test projection::safe_snapshot_tests::arbitrary_timeout_revision_is_withheld_from_receipt_summary ... ok
+test projection::tests::receipt_redelivery_reuses_identity_but_attempts_do_not ... ok
+test projection::safe_snapshot_tests::nested_capabilities_and_unscanned_text_are_not_valid_projection_fields ... ok
+test promotion_decision::tests::duplicate_publication_and_issue_cannot_reset_consumption_or_extend_lifetime ... ok
+test operator_transport::tests::existing_entries_and_symlink_parent_are_never_removed ... ok
+test operator_transport::tests::insecure_parent_and_replaced_endpoint_fail_closed ... ok
+test promotion_decision::tests::execution_requires_current_consumed_exact_decision_and_prepared_cannot_survive_invalidation ... ok
+test promotion_decision::tests::dropped_queued_execution_does_not_start_after_blocking_pool_frees ... ok
+test promotion_decision::tests::expiry_forgery_and_wrong_operator_are_nonmutating ... ok
+test promotion_decision::tests::stale_exact_update_retry_returns_historical_receipt_without_reopening_state ... ok
+test promotion_decision::tests::stale_generation_invalidation_and_changed_action_fail_without_consumption ... ok
+test promotion_decision::tests::one_state_write_contains_consumption_and_exact_decision_after_roundtrip ... ok
+test promotion_decision::tests::two_approvals_have_only_one_decision_for_the_generation ... ok
+test promotion_decision::tests::unresolved_prepared_attempt_quarantines_new_generations_even_after_invalidation ... ok
+test promotion_decision::tests::exhausted_publication_capacity_still_allows_final_invalidation ... ok
+test promotion_decision::tests::publication_binding_and_capacity_fail_closed ... ok
+test operator_adapter::tests::guard_is_held_during_call_but_timeout_does_not_claim_remote_atomicity ... ok
+test operator_adapter::tests::lost_consume_ack_returns_unknown_without_execution_and_status_reconciles ... ok
+test operator_adapter::tests::lost_issue_ack_returns_recovery_nonce_without_presentation ... ok
+test operator_transport::tests::real_connection_identity_wins_over_body_and_synthetic_mismatch_denies ... ok
+test gateway::tests::bounded_json_rejects_oversized_stream_and_invalid_json ... ok
+test promotion_execution::tests::internal_link_alternate_object_store_and_changed_intent_are_refused ... ok
+test qualifier::tests::fatal_overrides_score ... ok
+test qualifier::tests::high_blast_radius_goes_human ... ok
+test qualifier::tests::invalid_risk_inputs_never_enter_dark_lane ... ok
+test qualifier::tests::low_risk_goes_dark ... ok
+test qualifier::tests::missing_knowledge_penalized ... ok
+test state::tests::backoff_grows_and_caps ... ok
+test state::tests::callbacks_cannot_skip_stages_or_resurrect_terminal_work ... ok
+test state::tests::claim_requires_queued ... ok
+test state::tests::completed_build_moves_to_evaluating ... ok
+test state::tests::evaluation_pass_requires_promotion ... ok
+test state::tests::failed_build_retries_then_fails ... ok
+test worker_adapter::tests::actual_peer_wins_over_headers_and_body_and_wrong_uid_denies ... ok
+test worker_adapter::tests::completion_read_only_lookup_exact_retry_and_changed_result ... ok
+test worker_adapter::tests::deadline_and_stale_state_deny_replayed_delivery ... ok
+test worker_adapter::tests::missing_connection_metadata_and_oversized_payload_fail_before_backend ... ok
+test worker_adapter::tests::policy_never_accepts_shared_or_root_identity ... ok
+test worker_adapter::tests::pull_requires_authoritative_binding_and_live_deadline ... ok
+test promotion_execution::tests::legacy_nonce_fence_is_not_silently_replaced_by_ref_fence ... ok
+test worker_adapter::tests::unknown_outcome_preserves_request_identity_for_caller_retry ... ok
+test worker_queue::tests::capacity_and_invalid_inputs_fail_closed ... ok
+test worker_queue::tests::completion_is_bound_to_delivery_and_exact_lease ... ok
+test worker_queue::tests::empty_poll_is_stable_and_new_id_can_observe_new_work ... ok
+test worker_queue::tests::inconsistent_child_assignment_cannot_mutate_queue ... ok
+test worker_queue::tests::lost_ack_returns_original_assignment_without_new_claim ... ok
+test worker_queue::tests::pull_capacity_preserves_prior_receipts_and_does_not_evict ... ok
+test worker_queue::tests::schedule_is_immutable_and_survives_serialization ... ok
+test worker_queue::tests::unavailable_task_is_retained_without_blocking_next_task ... ok
+test workflow::lease_tests::active_state_roundtrip_preserves_fence_and_expired_receipt_is_denied ... ok
+test workflow::lease_tests::attempt_limit_survives_serialization_and_never_resets ... ok
+test workflow::lease_tests::conditional_first_claim_cannot_reassign_after_expiry ... ok
+test workflow::lease_tests::duplicate_completion_requires_its_matching_terminal_stage ... ok
+test workflow::lease_tests::duplicate_event_key_or_wrong_next_version_cannot_enter_history ... ok
+test workflow::lease_tests::duplicate_receipt_is_idempotent_but_changed_receipt_is_rejected ... ok
+test workflow::lease_tests::exclusive_claim_and_wrong_worker_fencing ... ok
+test workflow::lease_tests::expiry_cooldown_reassignment_rejects_stale_receipt ... ok
+test workflow::lease_tests::inconsistent_active_attempt_or_stage_cannot_renew_or_complete ... ok
+test workflow::lease_tests::inconsistent_lease_state_cannot_be_reassigned_even_after_expiry ... ok
+test workflow::lease_tests::invalid_ttl_token_revision_and_spend_fail_closed ... ok
+test workflow::lease_tests::outbox_versions_only_real_transitions_including_rejected_expiry ... ok
+test workflow::lease_tests::renewal_is_fenced_expiry_checked_and_hard_bounded ... ok
+test promotion_execution::tests::untrusted_paths_permissions_symlinks_and_changed_identity_fail_closed ... ok
+test workflow::lease_tests::retained_history_preserves_original_keys_and_rejects_gaps_or_legacy_state ... ok
+test workflow::lease_tests::sql_claim_events_withhold_lease_capabilities_and_unscanned_receipt_text ... ok
+test workflow::tests::integer_reservations_are_exact_and_fail_closed_on_overage_or_overflow ... ok
+test workflow::tests::malformed_completion_is_terminal_before_promise_resolution ... ok
+test workflow::tests::old_and_integer_handlers_cannot_open_two_ledgers_for_one_budget_key ... ok
+test workflow::tests::reservations_cannot_reduce_or_corrupt_the_counter ... ok
+test worker_adapter::tests::unix_backend_uses_exact_routes_json_and_rejects_changed_socket_permissions ... ok
+test promotion_execution::tests::already_at_candidate_is_only_an_unattributed_observation ... ok
+test workflow::lease_tests::retained_history_never_evicts_at_count_or_byte_limit ... ok
+test promotion_execution::tests::marker_before_cas_crash_never_reexecutes_fresh_action ... ok
+test promotion_execution::tests::decoded_nonpromotion_and_noop_intents_cannot_reach_git ... ok
+test promotion_execution::tests::repository_ref_fence_survives_sigkill_and_new_process_identity ... ok
+test promotion_execution::tests::stale_base_dirty_source_and_unregistered_scope_refuse_ref_change ... ok
+test promotion_execution::tests::repository_ref_fence_blocks_other_tasks_and_new_generations ... ok
+test promotion_execution::tests::real_exact_cas_and_lost_receipt_reconcile_without_second_ref_write ... ok
+
+test result: ok. 160 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.37s
+
+     Running unittests src/main.rs (target/debug/deps/control_plane-cdc9a070a95300fb)
+
+running 6 tests
+test tests::unsupported_gates_never_report_success_or_complete_tasks ... ok
+test tests::inspect_returns_stored_intent ... ok
+test tests::status_inspects_an_existing_task ... ok
+test tests::status_lists_in_progress_and_blocked_tasks ... ok
+test tests::missing_repository_knowledge_routes_to_human ... ok
+test tests::submit_intent_returns_dark_lane ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/promotion_eligibility.rs (target/debug/deps/promotion_eligibility-bb62c4b4d1ca56fd)
+
+running 7 tests
+test every_ineligible_state_and_noop_is_refused ... ok
+test absent_failed_foreign_or_stale_holdout_evidence_is_rejected ... ok
+test authoritative_snapshot_derives_exact_action_and_stable_evidence_digest ... ok
+test failed_or_wrong_revision_wall_evidence_cannot_authorize ... ok
+test malformed_snapshot_fields_fail_before_action_issuance ... ok
+test changing_any_authoritative_binding_after_issuance_preserves_unconsumed_record ... ok
+test consumption_revalidates_presentation_time_identity_and_single_use ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/claim_recovery_fixture.rs (target/debug/examples/claim_recovery_fixture-2a889bcbf7924b9d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/intake_backend_fixture.rs (target/debug/examples/intake_backend_fixture-ed240611749f6c76)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/operator_backend_fixture.rs (target/debug/examples/operator_backend_fixture-3dc27a556228d87a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/promotion_decision_fixture.rs (target/debug/examples/promotion_decision_fixture-98680a4420d65959)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/restate_replay_fixture.rs (target/debug/examples/restate_replay_fixture-2d30d31f380b432a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/verify_operator_socket.rs (target/debug/examples/verify_operator_socket-01a58b6dbd3af845)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/verify_projection.rs (target/debug/examples/verify_projection-be91266d958a68f5)
+
+running 1 test
+test tests::only_explicit_disposable_loopback_database_is_accepted ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/worker_backend_fixture.rs (target/debug/examples/worker_backend_fixture-ea0ef3fe0887f688)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/evaluator-f5442978b1c4811b)
+
+running 21 tests
+test holdout_transfer::tests::public_client_refuses_wrong_role_duplicate_root_and_bad_limits ... ok
+test holdout_transfer::tests::wrong_evaluator_peer_receives_no_manifest ... ok
+test holdout_transfer::tests::oversized_and_truncated_requests_are_bounded ... ok
+test holdout_transfer::tests::wrong_store_peer_receives_no_request ... ok
+test tests::aggregate_is_ninety_percent_with_three_runs_per_scenario ... ok
+test tests::aggregate_rejects_malformed_scenarios_even_among_successes ... ok
+test tests::empty_aggregate_fails_closed ... ok
+test tests::failed_scenario_cannot_be_washed_out_by_other_successes ... ok
+test tests::non_completed_receipt_fails_deterministic_verify ... ok
+test tests::opaque_feedback_exposes_only_a_safe_identifier ... ok
+test tests::scenario_rejects_every_length_except_three ... ok
+test tests::secret_scan_flags_credentials ... ok
+test tests::two_of_three_requires_two ... ok
+test holdout_transfer::tests::real_kernel_peer_roundtrip_preserves_exact_manifest_digest ... ok
+test holdout_transfer::tests::forged_identity_wrong_digest_and_malformed_request_are_refused_without_body ... ok
+test holdout_transfer::tests::response_size_digest_and_schema_fail_closed ... ok
+test holdout_transfer::tests::public_store_server_refuses_same_owner_connected_to_real_listener ... ok
+test bounded_git::tests::exited_leader_retains_group_ownership_until_descendant_cleanup ... ok
+test bounded_git::tests::real_stalled_input_and_output_overflow_are_bounded ... ok
+test holdout_transfer::tests::trailing_response_or_missing_end_of_stream_is_refused ... ok
+test holdout_transfer::tests::stalled_headers_and_bodies_time_out ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running unittests src/main.rs (target/debug/deps/evaluator-ab0e3048d6e86533)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/exact_revision.rs (target/debug/deps/exact_revision-acee27eb5003d622)
+
+running 9 tests
+test malicious_git_filter_configuration_is_rejected_before_status ... ok
+test completed_receipt_does_not_prove_missing_checkout_or_project_passes ... ok
+test exact_revision_and_clean_tree_are_required ... ok
+test scan_uses_committed_content_not_worker_claimed_diff ... ok
+test promotion_rejects_dirty_changed_and_non_bare_targets ... ok
+test promotion_advances_only_exact_approved_fast_forward ... ok
+test explicit_promotion_cannot_follow_a_changed_head_or_symbolic_target ... ok
+test sandbox_build_script_cannot_read_or_write_outside_or_use_network ... ok
+test actual_isolated_check_and_tests_determine_verdict ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.14s
+
+     Running tests/holdout.rs (target/debug/deps/holdout-6b03f1c4eda0c45f)
+
+running 8 tests
+test invalid_or_unbounded_configuration_is_refused ... ok
+test omitted_scenario_is_incomplete_even_when_every_supplied_run_passes ... ok
+test duplicate_run_cannot_replace_a_failure_or_be_ignored ... ok
+test aggregate_failure_does_not_invent_a_failed_scenario ... ok
+test feedback_has_only_server_assigned_ids_and_never_internal_bindings ... ok
+test exact_manifest_accepts_only_complete_ninety_percent_evidence ... ok
+test unavailable_run_is_not_a_negative_vote_that_other_successes_can_outvote ... ok
+test wrong_revision_manifest_session_or_slot_invalidates_evidence ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/holdout_runner.rs (target/debug/deps/holdout_runner-aebb3d449295dcc4)
+
+running 8 tests
+test invalid_manifests_and_unbounded_limits_are_rejected ... ok
+test runner_refuses_zero_or_excessive_resource_limits ... ok
+test changed_revision_and_dirty_candidate_refuse_before_scenario_execution ... ok
+test actual_negative_assertion_is_opaque_rejection ... ok
+test executes_snapshot_checks_three_times_with_fresh_attempt_state ... ok
+test host_reads_writes_and_inherited_home_are_denied ... ok
+test timeout_is_bounded_incomplete_not_a_failed_vote ... ok
+test malformed_output_nonzero_exit_and_oversize_never_leak_raw_data ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.09s
+
+     Running tests/holdout_store.rs (target/debug/deps/holdout_store-507b3981f1196c49)
+
+running 10 tests
+test wrong_or_nonseparate_identity_configuration_fails_closed ... ok
+test hardlinked_manifest_is_refused ... ok
+test named_pipe_and_directory_are_refused_without_blocking_on_open ... ok
+test replaced_root_cannot_redirect_an_open_handle ... ok
+test symlinked_root_ancestor_and_manifest_are_refused ... ok
+test protected_current_owner_manifest_loads_exact_digest ... ok
+test insecure_modes_are_refused_initially_and_after_store_open ... ok
+test traversal_tampering_oversize_and_invalid_json_have_opaque_errors ... ok
+test actual_acl_grants_are_rejected_despite_safe_posix_modes ... ok
+test loaded_manifest_runs_but_scenario_cannot_read_protected_store ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running unittests src/main.rs (target/debug/deps/execution-e208323f8268247e)
+
+running 37 tests
+test policy::tests::denies_piped_to_shell ... ok
+test policy::tests::denies_blocked_binary ... ok
+test policy::tests::allows_normal_commands ... ok
+test policy::tests::allows_write_inside_worktree ... ok
+test policy::tests::denies_root_removal ... ok
+test policy::tests::catches_chained_command ... ok
+test policy::tests::empty_write_allowlist_denies_relative_targets ... ok
+test policy::tests::denies_write_outside_worktree ... ok
+test policy::tests::quote_aware_split ... ok
+test policy::tests::denies_traversal_substitution_and_background_bypass ... ok
+test tool_boundary::tests::request_bounds_and_invalid_shapes_fail_closed ... ok
+test tool_boundary::tests::partial_request_without_eof_cannot_hold_boundary_open ... ok
+test tool_output::tests::incomplete_cancelled_and_truncated_never_release_partial_content ... ok
+test tool_output::tests::invalid_limits_are_rejected ... ok
+test tool_output::tests::invalid_or_unfinished_utf8_never_becomes_lossy_text ... ok
+test tool_output::tests::exact_cap_succeeds_but_one_extra_byte_permanently_fails ... ok
+test tool_boundary::tests::trusted_cwd_controls_policy_and_execution_without_global_chdir ... ok
+test tool_output::tests::redaction_expansion_cannot_exceed_release_limit ... ok
+test tool_output::tests::single_oversize_chunk_is_rejected_without_retaining_it ... ok
+test mask::tests::leaves_benign_output_unchanged ... ok
+test mask::tests::masks_aws_key_and_home_path ... ok
+test tool_output::tests::unsupported_content_poisons_preceding_and_subsequent_text ... ok
+test worker_tests::accepts_positive_upstream_json_with_known_cost ... ok
+test worker_tests::explicit_goose_binary_is_not_replaced_with_path_lookup ... ok
+test worker_tests::live_run_cannot_be_enabled_by_environment_flags ... ok
+test tool_output::tests::split_utf8_and_empty_chunks_are_reassembled_without_loss ... ok
+test mask::tests::masks_email_and_ipv4 ... ok
+test worker_tests::rejects_missing_malformed_and_negative_completion ... ok
+test mask::tests::masks_provider_keys ... ok
+test tool_output::tests::every_secret_split_is_masked_after_complete_assembly ... ok
+test mask::tests::masks_pem_block ... ok
+test worker_tests::normal_exit_keeps_pid_unreaped_until_single_group_cleanup ... ok
+test worker_tests::zero_exit_with_garbage_is_failed_receipt ... ok
+test worker_tests::exited_parent_does_not_leave_grandchild_holding_pipes ... ok
+test tool_boundary::tests::timeout_and_limit_withhold_partial_successful_output ... ok
+test worker_tests::timeout_kills_group_and_returns_promptly ... ok
+test worker_tests::drains_both_pipes_past_capture_limit_without_deadlock ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/shim.rs (target/debug/deps/shim-fb4f132b9b3cef51)
+
+running 4 tests
+test explicitly_missing_policy_is_not_silently_replaced_by_defaults ... ok
+test shim_masks_stdout_and_stderr_before_returning_them ... ok
+test inherited_secret_is_not_available_to_shell_child ... ok
+test shim_preserves_nonzero_exit_and_never_executes_denied_command ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+
+     Running tests/tool_request.rs (target/debug/deps/tool_request-7c04413c329d2fe7)
+
+running 6 tests
+test inherited_auto_reaping_refuses_before_shell_spawn ... ok
+test split_secret_output_is_masked_and_nonzero_status_preserved ... ok
+test caller_cannot_supply_policy_cwd_environment_or_timeout ... ok
+test invalid_utf8_in_either_stream_withholds_both_streams ... ok
+test denied_command_never_executes_with_runnable_fixture_positive_control ... ok
+test termination_signals_withhold_output_and_stop_in_group_descendants ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+
+     Running unittests src/main.rs (target/debug/deps/sfctl-0c3b8ea0deebe149)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (target/debug/deps/cli-9cf65097edacf455)
+
+running 3 tests
+test legacy_error_payload_is_a_cli_failure_even_with_http_200 ... ok
+test successful_status_keeps_machine_readable_stdout ... ok
+test unavailable_stop_is_a_failure_not_a_success_message ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running unittests src/lib.rs (target/debug/deps/shared-f9ecdb8b1045e5f4)
+
+running 5 tests
+test tests::contradictory_completion_receipts_fail_closed ... ok
+test tests::receipt_failed_is_not_completed ... ok
+test tests::new_id_is_unique ... ok
+test tests::receipt_tag_roundtrips ... ok
+test tests::published_legacy_shapes_match_derived_contracts ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/check_legacy_contract.rs (target/debug/examples/check_legacy_contract-7fe4fa09ea0cfd91)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/contract_schemas.rs (target/debug/examples/contract_schemas-418910868e9dfaa8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/watchdog-b9a991d7d4daf526)
+
+running 12 tests
+test broker::tests::identity_overlap_and_missing_children_are_rejected ... ok
+test broker::tests::fixture_cannot_open_production_router ... ok
+test tests::ordinary_identity_and_wrong_brake_key_cannot_authenticate ... ok
+test broker::tests::expired_approval_is_permanently_rejected_without_spawning ... ok
+test tests::registry_rejects_unowned_target_without_signalling ... ok
+test broker::tests::changed_executable_is_rejected_and_restoring_it_does_not_reset_approval ... ok
+test tests::real_kernel_peer_mismatch_and_missing_connection_info_deny ... ok
+test tests::family_stop_covers_multiple_owned_groups_and_closes_admission ... ok
+test tests::actual_owned_child_is_killed_reaped_and_repeat_is_idempotent ... ok
+test tests::racing_spawn_and_stop_never_leaves_an_unregistered_group ... ok
+test tests::naturally_exited_leader_is_not_reaped_before_group_signal ... ok
+test tests::post_reap_numeric_pid_reuse_never_sends_another_kill ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+
+     Running unittests src/main.rs (target/debug/deps/sf_watchdog_fixture-bb8bfb25d5a9ae59)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/captured_launch.rs (target/debug/deps/captured_launch-13e1bd2d157530ba)
+
+running 2 tests
+test owned_capture_preserves_nonzero_stdout_stderr_and_never_waits_outside_registry ... ok
+test invalid_utf8_and_oversized_output_are_withheld_in_full ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/independent.rs (target/debug/deps/independent-1064cf081305404f)
+
+running 2 tests
+test directly_owned_family_stops_three_groups_with_unresponsive_worker ... ok
+test separate_watchdog_stops_entire_owned_group_without_main_or_database ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.37s
+
+     Running tests/spawn_broker.rs (target/debug/deps/spawn_broker-26be4b7f0d98bc46)
+
+running 2 tests
+test kernel_identity_cannot_be_replaced_with_claimed_uid ... ok
+test authenticated_broker_replays_and_stops_all_roots_with_hung_worker ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests examples/blocked_spawn_probe.rs (target/debug/examples/blocked_spawn_probe-79e9b19bf7192056)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests examples/broker_capture_fixture.rs (target/debug/examples/broker_capture_fixture-1a5279f79df035e0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

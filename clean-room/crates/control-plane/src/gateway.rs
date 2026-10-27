@@ -164,6 +164,23 @@ fn current_time_ms() -> anyhow::Result<u64> {
     Ok(u64::try_from(elapsed.as_millis())?)
 }
 
+// Bound decoded HTTP bodies before parsing, including responses without Content-Length.
+// Never include upstream body data in errors, which may contain sensitive content.
+async fn read_bounded_json<T: serde::de::DeserializeOwned>(
+    mut response: reqwest::Response,
+    limit: usize,
+) -> anyhow::Result<T> {
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        anyhow::ensure!(
+            chunk.len() <= limit.saturating_sub(body.len()),
+            "gateway response exceeds limit"
+        );
+        body.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&body).map_err(|_| anyhow::anyhow!("invalid gateway JSON response"))
+}
+
 fn prepare_chat(
     contract: &ReviewedModelContract,
     model: &str,
@@ -227,6 +244,10 @@ pub struct GatewayClient {
     base_url: String,
     /// Sent as `x-bf-vk` on inference calls (`sk-bf-*`).
     virtual_key: String,
+    /// Configured alongside the credential by trusted bootstrap; never selected by a caller.
+    governance_key_id: Option<String>,
+    /// Exact trusted endpoint and unit ledger; per-call input cannot select either.
+    budget_authority: Option<(String, String)>,
     /// Management bearer token for reading governance (budgets) — distinct from the VK.
     admin_key: String,
     http: reqwest::Client,
@@ -242,6 +263,8 @@ impl GatewayClient {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             virtual_key: virtual_key.into(),
+            governance_key_id: None,
+            budget_authority: None,
             admin_key: admin_key.into(),
             reviewed_models: HashMap::new(),
             http: reqwest::Client::builder()
@@ -251,6 +274,52 @@ impl GatewayClient {
                 .build()
                 .expect("valid HTTP client configuration"),
         }
+    }
+
+    /// Bind the governance identity to this client's virtual-key credential at trusted
+    /// bootstrap. The deployment must separately verify that the pair refers to the same key.
+    pub fn with_governance_key_id(mut self, id: impl Into<String>) -> anyhow::Result<Self> {
+        let id = id.into();
+        anyhow::ensure!(
+            self.governance_key_id.is_none(),
+            "governance identity already bound"
+        );
+        anyhow::ensure!(
+            !id.is_empty() && id.len() <= 256 && id.bytes().all(|b| b.is_ascii_graphic()),
+            "invalid governance identity"
+        );
+        self.governance_key_id = Some(id);
+        Ok(self)
+    }
+
+    /// Bind one unit's reservation authority at trusted bootstrap. A client is scoped to
+    /// that unit; callers cannot replace the endpoint or obtain a fresh ledger per call.
+    pub fn with_budget_authority(mut self, base: &str, unit: &str) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            self.budget_authority.is_none(),
+            "budget authority already bound"
+        );
+        let url = reqwest::Url::parse(base)?;
+        anyhow::ensure!(
+            matches!(url.scheme(), "http" | "https")
+                && url.host_str().is_some()
+                && url.username().is_empty()
+                && url.password().is_none()
+                && url.query().is_none()
+                && url.fragment().is_none(),
+            "invalid budget authority URL"
+        );
+        anyhow::ensure!(
+            !unit.is_empty()
+                && unit.len() <= 256
+                && unit
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'),
+            "invalid unit budget key"
+        );
+        budget_reservation_url(base, unit)?;
+        self.budget_authority = Some((base.to_owned(), unit.to_owned()));
+        Ok(self)
     }
 
     /// Trusted bootstrap only. An unconfigured client denies all models. Duplicate model
@@ -274,6 +343,16 @@ impl GatewayClient {
         messages: &[serde_json::Value],
         budget: &InferenceBudget<'_>,
     ) -> anyhow::Result<serde_json::Value> {
+        anyhow::ensure!(
+            self.governance_key_id.as_deref() == Some(budget.virtual_key_id),
+            "governance identity is not bound to this client"
+        );
+        anyhow::ensure!(
+            self.budget_authority
+                .as_ref()
+                .is_some_and(|(base, unit)| base == budget.restate_url && unit == budget.budget_id),
+            "budget authority is not bound to this client"
+        );
         let contract = self
             .reviewed_models
             .get(model)
@@ -291,15 +370,14 @@ impl GatewayClient {
         );
         // The virtual object's exclusive handler serializes concurrent reservations.
         let reservation_url = budget_reservation_url(budget.restate_url, budget.budget_id)?;
-        let reserved: bool = self
+        let reservation_response = self
             .http
             .post(reservation_url)
             .json(&reservation_microusd)
             .send()
             .await?
-            .error_for_status()?
-            .json()
-            .await?;
+            .error_for_status()?;
+        let reserved: bool = read_bounded_json(reservation_response, 64).await?;
         anyhow::ensure!(reserved, "unit budget exhausted");
         // Governance/reservation can block long enough for a price review to expire. Retain
         // any reservation conservatively, but do not forward under expired configuration.
@@ -311,7 +389,7 @@ impl GatewayClient {
             .json(&body)
             .send()
             .await?;
-        Ok(resp.error_for_status()?.json().await?)
+        read_bounded_json(resp.error_for_status()?, 1024 * 1024).await
     }
 
     /// Read the remaining budget for a virtual key via Bifrost's governance API.
@@ -330,8 +408,9 @@ impl GatewayClient {
             .ok()?
             .error_for_status()
             .ok()?;
-        let json: serde_json::Value = resp.json().await.ok()?;
-        parse_remaining_budget(&json, vk_id)
+        let raw: Box<serde_json::value::RawValue> =
+            read_bounded_json(resp, 1024 * 1024).await.ok()?;
+        parse_remaining_budget(raw.get(), vk_id)
     }
 }
 
@@ -352,41 +431,318 @@ fn budget_reservation_url(base: &str, budget_id: &str) -> anyhow::Result<reqwest
     Ok(url)
 }
 
-fn parse_remaining_budget(json: &serde_json::Value, vk_id: &str) -> Option<f64> {
+#[derive(serde::Deserialize)]
+struct GovernanceBudget {
+    max_limit: Box<serde_json::value::RawValue>,
+    current_usage: Box<serde_json::value::RawValue>,
+}
+#[derive(serde::Deserialize)]
+struct GovernanceKey {
+    id: String,
+    budgets: Vec<GovernanceBudget>,
+}
+#[derive(serde::Deserialize)]
+struct GovernanceEnvelope {
+    virtual_keys: Vec<GovernanceKey>,
+}
+
+fn parse_remaining_budget(json: &str, vk_id: &str) -> Option<f64> {
     if vk_id.is_empty() {
         return None;
     }
-    let vks = json
-        .get("virtual_keys")
-        .and_then(|v| v.as_array())
-        .or_else(|| json.as_array())?;
-    let mut matching = vks
-        .iter()
-        .filter(|v| v.get("id").and_then(|i| i.as_str()) == Some(vk_id));
+    let vks = serde_json::from_str::<Vec<GovernanceKey>>(json)
+        .ok()
+        .or_else(|| {
+            serde_json::from_str::<GovernanceEnvelope>(json)
+                .ok()
+                .map(|e| e.virtual_keys)
+        })?;
+    let mut matching = vks.iter().filter(|v| v.id == vk_id);
     let vk = matching.next()?;
     if matching.next().is_some() {
         return None;
     }
-    let budgets = vk.get("budgets")?.as_array()?;
+    let budgets = &vk.budgets;
     if budgets.is_empty() {
         return None;
     }
     let mut remaining = f64::INFINITY;
     for b in budgets {
         // Missing usage or a malformed budget cannot be silently ignored.
-        let max = b.get("max_limit")?.as_f64()?;
-        let used = b.get("current_usage")?.as_f64()?;
-        if !max.is_finite() || !used.is_finite() || max < 0.0 || used < 0.0 {
-            return None;
-        }
-        remaining = remaining.min((max - used).max(0.0));
+        // RawValue retains each original decimal token for integer conversion.
+        let max = decimal_microusd(b.max_limit.get(), false)?;
+        let used = decimal_microusd(b.current_usage.get(), true)?;
+        let micro = max.saturating_sub(used);
+        let conservative = ((micro as f64) / 1_000_000.0).next_down().max(0.0);
+        remaining = remaining.min(conservative);
     }
     Some(remaining)
+}
+
+// Conservative whole microdollars, flooring maxima and ceiling usage. Reject decimals
+// outside the deliberately bounded integer representation rather than guessing.
+fn decimal_microusd(value: &str, ceil: bool) -> Option<u64> {
+    // Validate JSON numeric syntax without using its binary floating point value.
+    if !serde_json::from_str::<serde_json::Value>(value)
+        .ok()?
+        .is_number()
+    {
+        return None;
+    }
+    if value.len() > 128 || value.starts_with('-') {
+        return None;
+    }
+    let (mantissa, exp) = match value.find(['e', 'E']) {
+        Some(i) => (&value[..i], value[i + 1..].parse::<i32>().ok()?),
+        None => (value, 0),
+    };
+    if !(-1000..=1000).contains(&exp) {
+        return None;
+    }
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = format!("{whole}{fraction}");
+    let trimmed = digits.trim_start_matches('0');
+    if trimmed.is_empty() {
+        return Some(0);
+    }
+    let significand = trimmed.parse::<u128>().ok()?;
+    let power = exp
+        .checked_sub(i32::try_from(fraction.len()).ok()?)?
+        .checked_add(6)?;
+    let amount = if power >= 0 {
+        significand.checked_mul(10_u128.checked_pow(u32::try_from(power).ok()?)?)?
+    } else if power < -38 {
+        u128::from(ceil)
+    } else {
+        let denominator = 10_u128.checked_pow(power.unsigned_abs())?;
+        let quotient = significand / denominator;
+        quotient.checked_add(u128::from(ceil && significand % denominator != 0))?
+    };
+    // Conversion to f64 is exact in this range; the subsequent division is rounded down.
+    if amount > (1_u128 << 53) {
+        return None;
+    }
+    u64::try_from(amount).ok()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn caller_cannot_change_bound_budget_authority_or_unit() {
+        use axum::{Router, http::StatusCode};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let app = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::OK
+            }
+        });
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+            .with_governance_key_id("key")
+            .unwrap()
+            .with_reviewed_model(reviewed_model())
+            .unwrap();
+        let budget = InferenceBudget {
+            restate_url: &base,
+            budget_id: "unit",
+            virtual_key_id: "key",
+            max_output_tokens: 1,
+        };
+        assert!(client.chat("test", &messages(), &budget).await.is_err());
+        let client = client.with_budget_authority(&base, "unit").unwrap();
+        let wrong_unit = InferenceBudget {
+            budget_id: "other",
+            ..budget
+        };
+        assert!(client.chat("test", &messages(), &wrong_unit).await.is_err());
+        let other_base = format!("{base}/");
+        let wrong_base = InferenceBudget {
+            restate_url: &other_base,
+            budget_id: "unit",
+            ..budget
+        };
+        assert!(client.chat("test", &messages(), &wrong_base).await.is_err());
+        assert!(client.with_budget_authority(&base, "unit").is_err());
+        for bad in ["", ".", "..", "a/b", "a%2Fb", "é"] {
+            assert!(
+                GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                    .with_budget_authority(&base, bad)
+                    .is_err()
+            );
+        }
+        for bad in [
+            "file:///tmp/test",
+            "http://user:pass@localhost",
+            "http://localhost/?query=x",
+            "http://localhost/#fragment",
+        ] {
+            assert!(
+                GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                    .with_budget_authority(bad, "unit")
+                    .is_err()
+            );
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn caller_cannot_select_governance_key_for_a_different_virtual_key() {
+        use axum::{Router, http::StatusCode};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let app = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::OK
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let budget = InferenceBudget {
+            restate_url: &base,
+            budget_id: "unit",
+            virtual_key_id: "other",
+            max_output_tokens: 1,
+        };
+        let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+            .with_budget_authority(&base, "unit")
+            .unwrap()
+            .with_reviewed_model(reviewed_model())
+            .unwrap();
+        assert!(client.chat("test", &messages(), &budget).await.is_err());
+        let client = client.with_governance_key_id("key").unwrap();
+        assert!(client.chat("test", &messages(), &budget).await.is_err());
+        assert!(client.with_governance_key_id("other").is_err());
+        for invalid in ["", "two words", "\n", "é"] {
+            assert!(
+                GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                    .with_governance_key_id(invalid)
+                    .is_err()
+            );
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn bounded_json_rejects_oversized_stream_and_invalid_json() {
+        use axum::{Router, routing::get};
+        let app = Router::new()
+            .route("/good", get(|| async { "{\"a\":1}" }))
+            .route("/large", get(|| async { " ".repeat(1024) }))
+            .route("/invalid", get(|| async { "not json" }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = reqwest::Client::new();
+        let good = client.get(format!("{base}/good")).send().await.unwrap();
+        assert_eq!(
+            read_bounded_json::<serde_json::Value>(good, 7)
+                .await
+                .unwrap(),
+            serde_json::json!({"a":1})
+        );
+        let large = client.get(format!("{base}/large")).send().await.unwrap();
+        assert!(
+            read_bounded_json::<serde_json::Value>(large, 64)
+                .await
+                .is_err()
+        );
+        let invalid = client.get(format!("{base}/invalid")).send().await.unwrap();
+        assert!(
+            read_bounded_json::<serde_json::Value>(invalid, 64)
+                .await
+                .is_err()
+        );
+        server.abort();
+
+        // A chunked response has no Content-Length; cumulative size still must be limited.
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = socket.local_addr().unwrap();
+        let sender = tokio::spawn(async move {
+            let (mut stream, _) = socket.accept().await.unwrap();
+            let mut request = [0_u8; 2048];
+            assert!(stream.read(&mut request).await.unwrap() > 0);
+            stream.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n4\r\n    \r\n4\r\n    \r\n0\r\n\r\n").await.unwrap();
+        });
+        let response = client.get(format!("http://{addr}/")).send().await.unwrap();
+        assert!(
+            read_bounded_json::<serde_json::Value>(response, 7)
+                .await
+                .is_err()
+        );
+        sender.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn oversized_responses_deny_without_additional_inference() {
+        use axum::{
+            Json, Router,
+            routing::{get, post},
+        };
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        for oversized_at in ["governance", "reservation", "inference"] {
+            let inference_count = Arc::new(AtomicUsize::new(0));
+            let observed = inference_count.clone();
+            let app = Router::new()
+                .route("/api/governance/virtual-keys", get(move || async move {
+                    if oversized_at == "governance" { " ".repeat(1024 * 1024 + 1) } else {
+                        serde_json::json!([{"id":"key", "budgets":[{"max_limit":1,"current_usage":0}]}]).to_string()
+                    }
+                }))
+                .route("/restate/call/BudgetCounter/unit/try_spend_microusd", post(move || async move {
+                    if oversized_at == "reservation" { " ".repeat(65) } else { "true".to_string() }
+                }))
+                .route("/v1/chat/completions", post(move || { let observed = observed.clone(); async move {
+                    observed.fetch_add(1, Ordering::SeqCst);
+                    if oversized_at == "inference" { " ".repeat(1024 * 1024 + 1) } else { Json(serde_json::json!({})).0.to_string() }
+                }}));
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+            let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                .with_governance_key_id("key")
+                .unwrap()
+                .with_budget_authority(&base, "unit")
+                .unwrap()
+                .with_reviewed_model(reviewed_model())
+                .unwrap();
+            let budget = InferenceBudget {
+                restate_url: &base,
+                budget_id: "unit",
+                virtual_key_id: "key",
+                max_output_tokens: 1,
+            };
+            assert!(client.chat("test", &messages(), &budget).await.is_err());
+            assert_eq!(
+                inference_count.load(Ordering::SeqCst),
+                usize::from(oversized_at == "inference")
+            );
+            server.abort();
+        }
+    }
 
     fn budget(cap: f64) -> Budget {
         Budget {
@@ -428,7 +784,7 @@ mod tests {
         let json = serde_json::json!({"virtual_keys": [{"id": "other", "budgets": [
             {"max_limit": 100, "current_usage": 0}
         ]}]});
-        assert_eq!(parse_remaining_budget(&json, "requested"), None);
+        assert_eq!(parse_remaining_budget(&json.to_string(), "requested"), None);
         for bad in [
             serde_json::json!([]),
             serde_json::json!([{"max_limit": 100}]),
@@ -436,7 +792,7 @@ mod tests {
             serde_json::json!([{"max_limit": 100, "current_usage": 0}, {}]),
         ] {
             let json = serde_json::json!([{"id": "key", "budgets": bad}]);
-            assert_eq!(parse_remaining_budget(&json, "key"), None);
+            assert_eq!(parse_remaining_budget(&json.to_string(), "key"), None);
         }
     }
 
@@ -446,16 +802,58 @@ mod tests {
             {"max_limit": 100, "current_usage": 2},
             {"max_limit": 1, "current_usage": 0.75}
         ]}]);
-        assert_eq!(parse_remaining_budget(&json, "key"), Some(0.25));
+        let remaining = parse_remaining_budget(&json.to_string(), "key").unwrap();
+        assert!(remaining <= 0.25 && remaining > 0.249);
     }
 
+    #[test]
+    fn decimal_rounding_never_inflates_governance_headroom() {
+        for (input, floor, ceiling) in [
+            ("1.0000001", 1_000_000, 1_000_001),
+            ("1e-6", 1, 1),
+            ("1e-7", 0, 1),
+            ("1.234567e2", 123_456_700, 123_456_700),
+            ("1e-400", 0, 1),
+        ] {
+            assert_eq!(decimal_microusd(input, false), Some(floor));
+            assert_eq!(decimal_microusd(input, true), Some(ceiling));
+        }
+        for input in ["-1", "1e1001", "9007199254.740993"] {
+            assert_eq!(decimal_microusd(input, false), None);
+        }
+        let exact = r#"[{"id":"key","budgets":[{"max_limit":1000000000.0000009,"current_usage":1000000000}]}]"#;
+        assert_eq!(parse_remaining_budget(exact, "key"), Some(0.0));
+        for invalid in ["\"1\"", "null", "true", "{}"] {
+            assert_eq!(decimal_microusd(invalid, false), None);
+        }
+        for cents in 1..100 {
+            let source = format!(
+                r#"[{{"id":"key","budgets":[{{"max_limit":1000000000000000.{cents:02},"current_usage":1000000000000000}}]}}]"#
+            );
+            assert_eq!(parse_remaining_budget(&source, "key"), None);
+        }
+        for (max, used, upper) in [
+            ("1.00000000000000009e15", "1e15", 0.09),
+            ("1e-6", "9.999999999e-7", 1e-16),
+            ("9007199254740993", "9007199254740992", 1.0),
+            ("1e-320", "9e-321", 1e-321),
+            ("1e-400", "0", 0.0),
+        ] {
+            let source = format!(
+                r#"[{{"id":"key","budgets":[{{"max_limit":{max},"current_usage":{used}}}]}}]"#
+            );
+            if let Some(actual) = parse_remaining_budget(&source, "key") {
+                assert!(actual <= upper, "max={max} used={used} actual={actual}");
+            }
+        }
+    }
     #[test]
     fn duplicate_key_records_are_ambiguous_and_fail_closed() {
         let json = serde_json::json!([
             {"id":"key", "budgets":[{"max_limit":100,"current_usage":0}]},
             {"id":"key", "budgets":[{"max_limit":1,"current_usage":1}]}
         ]);
-        assert_eq!(parse_remaining_budget(&json, "key"), None);
+        assert_eq!(parse_remaining_budget(&json.to_string(), "key"), None);
     }
 
     fn reviewed_model() -> ReviewedModelContract {
@@ -625,6 +1023,10 @@ mod tests {
                 axum::serve(listener, app).await.unwrap();
             });
             let client = GatewayClient::new(&base, "test-vk", "test-admin")
+                .with_governance_key_id("key")
+                .unwrap()
+                .with_budget_authority(&base, "unit")
+                .unwrap()
                 .with_reviewed_model(reviewed_model())
                 .unwrap();
             let budget = InferenceBudget {
@@ -673,7 +1075,11 @@ mod tests {
             virtual_key_id: "key",
             max_output_tokens: 1,
         };
-        let client = GatewayClient::new(&base, "test-vk", "test-admin");
+        let client = GatewayClient::new(&base, "test-vk", "test-admin")
+            .with_governance_key_id("key")
+            .unwrap()
+            .with_budget_authority(&base, "unit")
+            .unwrap();
         assert!(client.chat("test", &messages(), &budget).await.is_err());
         let reviewed = client.with_reviewed_model(reviewed_model()).unwrap();
         assert!(
@@ -696,6 +1102,10 @@ mod tests {
         let mut expired = reviewed_model();
         expired.valid_until_ms = 1;
         let expired_client = GatewayClient::new(&base, "test-vk", "test-admin")
+            .with_governance_key_id("key")
+            .unwrap()
+            .with_budget_authority(&base, "unit")
+            .unwrap()
             .with_reviewed_model(expired)
             .unwrap();
         assert!(
@@ -721,6 +1131,10 @@ mod tests {
         };
         if let Ok(base) = std::env::var("SF_GATEWAY_PROXY_TEST_CHILD") {
             let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                .with_governance_key_id("key")
+                .unwrap()
+                .with_budget_authority(&base, "unit")
+                .unwrap()
                 .with_reviewed_model(reviewed_model())
                 .unwrap();
             let budget = InferenceBudget {
@@ -862,6 +1276,10 @@ mod tests {
             axum::serve(listener, app).await.unwrap();
         });
         let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+            .with_governance_key_id("key")
+            .unwrap()
+            .with_budget_authority(&base, "unit")
+            .unwrap()
             .with_reviewed_model(reviewed_model())
             .unwrap();
         let budget = InferenceBudget {

@@ -123,7 +123,7 @@ async fn serve_restate() {
         .await;
 }
 
-/// POST /v1/intents — score + route via the qualifier, then project the decision (R3).
+/// POST /v1/intents — diagnostic score and in-memory demonstration only.
 async fn submit_intent(State(state): State<SharedState>, Json(body): Json<Value>) -> Json<Value> {
     let intent_id = new_id();
     let features = qualifier::IntentFeatures {
@@ -162,9 +162,8 @@ async fn submit_intent(State(state): State<SharedState>, Json(body): Json<Value>
         let p = pipeline::Pipeline::new(&intent_id, spec, decision.lane);
         state.pipelines.lock().unwrap().insert(intent_id.clone(), p);
     }
-    if let Some(pool) = &state.pool {
-        let _ = projection::project_qualifier_decision(pool, &decision).await;
-    }
+    // These provisional features do not come from the durable qualifier authority. Never
+    // write the result to its read model, where the diagnostic-only label would be lost.
     Json(inspection)
 }
 
@@ -557,7 +556,72 @@ mod tests {
         assert_eq!(value["task"]["status"], "pending");
     }
 
-    /// INT-01: submitting an intent returns a lane decision (dark for low-risk greenfield).
+    /// A disposable SQL fixture verifies that diagnostic output is not projected as authority.
+    #[tokio::test]
+    #[ignore = "requires the disposable diagnostic PostgreSQL fixture"]
+    async fn diagnostic_submission_does_not_write_authoritative_qualifier_projection() {
+        let url = std::env::var("SFACTORY_DIAGNOSTIC_FIXTURE_DATABASE_URL")
+            .expect("run through the disposable diagnostic fixture");
+        assert!(url.starts_with("postgres://sfactory@127.0.0.1:"));
+        assert!(url.ends_with("/sfactory_diagnostic_fixture"));
+        let pool = sqlx::PgPool::connect(&url).await.unwrap();
+        projection::migrate(&pool).await.unwrap();
+        let count = || async {
+            sqlx::query_scalar::<_, i64>("SELECT count(*) FROM qualifier_decisions")
+                .fetch_one(&pool)
+                .await
+                .unwrap()
+        };
+        assert_eq!(count().await, 0, "fixture database must start empty");
+        let knowledge = KnowledgeFixture::new();
+        let state = Arc::new(AppState {
+            pool: Some(pool.clone()),
+            ..AppState::default()
+        });
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/intents")
+                    .header("content-type", "application/json")
+                    .body(Body::from(knowledge.intent()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let value: Value =
+            serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes())
+                .unwrap();
+        assert_eq!(value["authority"], "diagnostic_only");
+        assert_eq!(value["lane"], "dark");
+        assert_eq!(
+            count().await,
+            0,
+            "diagnostic decision must not enter authoritative read model"
+        );
+        let separately_produced = qualifier::decide(
+            "fixture-projection",
+            &qualifier::IntentFeatures {
+                spec_clarity: 0.0,
+                blast_radius: 1.0,
+                novelty: 1.0,
+                reversibility: 1.0,
+                has_codified_knowledge: false,
+                fatal: true,
+            },
+        );
+        projection::project_qualifier_decision(&pool, &separately_produced)
+            .await
+            .unwrap();
+        assert_eq!(
+            count().await,
+            1,
+            "separate projection API remains available"
+        );
+        pool.close().await;
+    }
+
+    /// INT-01: submitting an intent returns a diagnostic lane decision.
     #[tokio::test]
     async fn submit_intent_returns_dark_lane() {
         let knowledge = KnowledgeFixture::new();

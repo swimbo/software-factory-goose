@@ -10,7 +10,7 @@ shared.workspace = true
 evaluator = { path = "../evaluator" }
 tokio.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 sha2 = "=0.10.9"
 libc = "=0.2.190"
 anyhow.workspace = true

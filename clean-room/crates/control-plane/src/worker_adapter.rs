@@ -3,7 +3,7 @@
 //! Private ingress, process launch/reap, and runtime replay remain separate activation gates.
 use crate::{
     worker_queue::{PullOutcome, PullRequest, QueueCompletion},
-    workflow::{ClaimLeaseState, LeaseStage},
+    workflow::{ClaimLeaseState, LeaseStage, completion_stage_matches},
 };
 use axum::{
     Extension, Json, Router,
@@ -245,6 +245,7 @@ async fn complete<B: WorkerBackend>(
         || result.spec != state.spec
         || result.active.is_some()
         || result.attempts != lease.attempt
+        || !completion_stage_matches(&request.receipt, result.attempts, &result.stage)
         || !result
             .last_completion
             .as_ref()
@@ -323,6 +324,7 @@ fn validate_completion(
         && state.spec == *spec
         && state.active.is_none()
         && state.attempts == lease.attempt
+        && completion_stage_matches(&request.receipt, state.attempts, &state.stage)
         && lease.worker_id == binding.worker_id
         && state
             .last_completion
@@ -614,9 +616,13 @@ mod tests {
         claim: Mutex<ClaimLeaseState>,
         pulls: AtomicUsize,
         completions: AtomicUsize,
+        contradictory_stage: bool,
     }
     impl MockBackend {
         fn live() -> Arc<Self> {
+            Self::live_with_bad_stage(false)
+        }
+        fn live_with_bad_stage(contradictory_stage: bool) -> Arc<Self> {
             let now = clock_ms().unwrap();
             let active = ActiveLease {
                 issued_at_ms: now - 1,
@@ -635,6 +641,7 @@ mod tests {
                 claim: Mutex::new(current),
                 pulls: AtomicUsize::new(0),
                 completions: AtomicUsize::new(0),
+                contradictory_stage,
             })
         }
     }
@@ -669,11 +676,16 @@ mod tests {
             self.completions.fetch_add(1, Ordering::SeqCst);
             let mut state = self.claim.lock().unwrap();
             if let Some(active) = state.active.take() {
+                let stage = if self.contradictory_stage {
+                    LeaseStage::Evaluating
+                } else {
+                    crate::workflow::expected_completion_stage(&request.receipt, state.attempts)
+                };
                 state.last_completion = Some(LeaseCompletion {
                     lease: active,
                     receipt: request.receipt,
                 });
-                state.stage = LeaseStage::Evaluating;
+                state.stage = stage;
             }
             Ok(state.clone())
         }
@@ -803,6 +815,7 @@ mod tests {
             claim: Mutex::new(claim()),
             pulls: AtomicUsize::new(0),
             completions: AtomicUsize::new(0),
+            contradictory_stage: false,
         });
         let fixture = Fixture::start(scoped_router(fixture_policy(actual_uid()), expired)).await;
         assert_eq!(fixture.post("/pull", pull_body()).await.status(), 410);
@@ -833,6 +846,23 @@ mod tests {
         assert_eq!(fixture.post("/complete", changed).await.status(), 409);
         assert_eq!(backend.completions.load(Ordering::SeqCst), 2);
         assert_eq!(backend.pulls.load(Ordering::SeqCst), 0);
+    }
+    #[tokio::test]
+    async fn contradictory_completion_stage_is_unknown_and_retry_is_rejected() {
+        let backend = MockBackend::live_with_bad_stage(true);
+        let fixture =
+            Fixture::start(scoped_router(fixture_policy(actual_uid()), backend.clone())).await;
+        // The mock deliberately reports Evaluating for a failed receipt.
+        assert_eq!(
+            fixture.post("/complete", completion_body()).await.status(),
+            502
+        );
+        assert_eq!(backend.completions.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            fixture.post("/complete", completion_body()).await.status(),
+            409
+        );
+        assert_eq!(backend.completions.load(Ordering::SeqCst), 1);
     }
     #[tokio::test]
     async fn missing_connection_metadata_and_oversized_payload_fail_before_backend() {

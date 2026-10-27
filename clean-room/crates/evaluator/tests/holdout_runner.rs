@@ -100,6 +100,40 @@ async fn timeout_is_bounded_incomplete_not_a_failed_vote() {
 }
 
 #[tokio::test]
+async fn unavailable_first_run_stops_before_later_runs() {
+    let repo = Fixture::new();
+    let fixture = FixtureManifest::parse_trusted(
+        &serde_json::to_vec(&serde_json::json!({
+            "version": 1,
+            "scenarios": [
+                {"script": "/bin/sleep 10; printf '{\"passed\":true}'"},
+                {"script": "/bin/sleep 10; printf '{\"passed\":true}'"}
+            ]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let started = Instant::now();
+    let report = run_fixture_holdouts(
+        &repo.0,
+        &repo.sha(),
+        &fixture,
+        FixtureLimits {
+            per_run_timeout: Duration::from_secs(2),
+            output_limit: 1024,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(report.feedback().status, PrefilterStatus::Incomplete);
+    // A second timed-out run alone takes another two seconds, before setup overhead.
+    assert!(
+        started.elapsed() < Duration::from_millis(3600),
+        "additional timed run started after unavailable observation"
+    );
+}
+
+#[tokio::test]
 async fn malformed_output_nonzero_exit_and_oversize_never_leak_raw_data() {
     let repo = Fixture::new();
     for script in [

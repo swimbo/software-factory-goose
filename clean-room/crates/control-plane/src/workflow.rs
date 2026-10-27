@@ -531,6 +531,120 @@ mod lease_tests {
         assert_eq!(s, snapshot);
     }
     #[test]
+    fn inconsistent_active_attempt_or_stage_cannot_renew_or_complete() {
+        for variant in 0..3 {
+            let mut s = state();
+            let lease = claim_next(&mut s, "worker", shared::new_id(), 1000, 0).unwrap();
+            match variant {
+                0 => s.stage = LeaseStage::Queued,
+                1 => s.stage = LeaseStage::Failed,
+                _ => s.attempts += 1,
+            }
+            let snapshot = s.clone();
+            assert!(renew_lease(&mut s, "worker", proof(&lease), 100, 10).is_err());
+            assert_eq!(s, snapshot);
+            assert!(complete_lease(&mut s, "worker", proof(&lease), receipt(), 10).is_err());
+            assert_eq!(s, snapshot);
+        }
+    }
+    #[test]
+    fn inconsistent_lease_state_cannot_be_reassigned_even_after_expiry() {
+        for variant in 0..3 {
+            let mut s = state();
+            let lease = claim_next(&mut s, "worker", shared::new_id(), 1000, 0).unwrap();
+            match variant {
+                0 => s.stage = LeaseStage::Failed,
+                1 => s.attempts += 1,
+                _ => s.active = None,
+            }
+            let snapshot = s.clone();
+            assert!(
+                claim_next(
+                    &mut s,
+                    "worker",
+                    shared::new_id(),
+                    1000,
+                    lease.expires_at_ms + 5000
+                )
+                .is_err()
+            );
+            assert_eq!(s, snapshot);
+        }
+    }
+    #[test]
+    fn duplicate_completion_requires_its_matching_terminal_stage() {
+        for failed in [false, true] {
+            let mut s = state();
+            let lease = claim_next(&mut s, "worker", shared::new_id(), 1000, 0).unwrap();
+            let result = if failed {
+                shared::Receipt::Failed {
+                    exit_code: 1,
+                    stderr_tail: "failed".into(),
+                }
+            } else {
+                receipt()
+            };
+            complete_lease(&mut s, "worker", proof(&lease), result.clone(), 10).unwrap();
+            let legitimate = s.clone();
+            complete_lease(&mut s, "worker", proof(&lease), result.clone(), 11).unwrap();
+            assert_eq!(s, legitimate);
+            for stage in [
+                LeaseStage::Queued,
+                LeaseStage::Leased,
+                if failed {
+                    LeaseStage::Evaluating
+                } else {
+                    LeaseStage::CoolingDown
+                },
+            ] {
+                s.stage = stage;
+                let snapshot = s.clone();
+                assert!(
+                    complete_lease(&mut s, "worker", proof(&lease), result.clone(), 11).is_err()
+                );
+                assert_eq!(s, snapshot);
+            }
+        }
+    }
+    #[test]
+    fn completion_stage_checks_preserve_the_fail_closed_overflow_case() {
+        let failure = shared::Receipt::Failed {
+            exit_code: 1,
+            stderr_tail: "failure".into(),
+        };
+        assert!(completion_stage_matches(
+            &failure,
+            1,
+            &LeaseStage::CoolingDown
+        ));
+        assert!(completion_stage_matches(&failure, 1, &LeaseStage::Failed));
+        assert!(!completion_stage_matches(
+            &failure,
+            1,
+            &LeaseStage::Evaluating
+        ));
+        assert!(completion_stage_matches(
+            &failure,
+            crate::state::MAX_ATTEMPTS,
+            &LeaseStage::Failed
+        ));
+        assert!(!completion_stage_matches(
+            &failure,
+            crate::state::MAX_ATTEMPTS,
+            &LeaseStage::CoolingDown
+        ));
+        assert!(completion_stage_matches(
+            &receipt(),
+            1,
+            &LeaseStage::Evaluating
+        ));
+        assert!(!completion_stage_matches(
+            &receipt(),
+            1,
+            &LeaseStage::Failed
+        ));
+    }
+    #[test]
     fn invalid_ttl_token_revision_and_spend_fail_closed() {
         assert!(
             new_lease_state(
@@ -1170,6 +1284,13 @@ fn claim_next(
     ttl: u64,
     now: u64,
 ) -> Result<ActiveLease, TerminalError> {
+    if match (&state.stage, &state.active) {
+        (LeaseStage::Leased, Some(active)) => active.attempt != state.attempts,
+        (LeaseStage::Leased, None) | (_, Some(_)) => true,
+        _ => false,
+    } {
+        return Err(lease_error(409, "inconsistent lease state"));
+    }
     if !canonical_lease_text(worker)
         || ulid::Ulid::from_string(&token).is_err()
         || ulid::Ulid::from_string(&token).is_ok_and(|n| n.to_string() != token)
@@ -1204,6 +1325,9 @@ fn matching_lease(
     worker: &str,
     proof: &LeaseProof,
 ) -> Result<ActiveLease, TerminalError> {
+    if state.stage != LeaseStage::Leased || state.attempts != proof.attempt {
+        return Err(lease_error(409, "inconsistent lease stage or attempt"));
+    }
     state
         .active
         .as_ref()
@@ -1244,6 +1368,7 @@ fn complete_lease(
         return Err(lease_error(400, "invalid receipt revision or spend"));
     }
     if state.active.is_none()
+        && completion_stage_matches(&receipt, state.attempts, &state.stage)
         && let Some(last) = &state.last_completion
         && last.lease.attempt == state.attempts
         && last.lease.attempt == proof.attempt
@@ -1267,4 +1392,25 @@ fn complete_lease(
         retry_or_fail(state, now);
     }
     Ok(())
+}
+
+/// Stage expected immediately after this journal's completion; not an authorization decision.
+pub(crate) fn expected_completion_stage(receipt: &shared::Receipt, attempts: u32) -> LeaseStage {
+    if receipt.is_completed() {
+        LeaseStage::Evaluating
+    } else if attempts >= crate::state::MAX_ATTEMPTS {
+        LeaseStage::Failed
+    } else {
+        LeaseStage::CoolingDown
+    }
+}
+
+pub(crate) fn completion_stage_matches(
+    receipt: &shared::Receipt,
+    attempts: u32,
+    stage: &LeaseStage,
+) -> bool {
+    // Failed is also possible before the attempt limit if cooldown arithmetic overflowed.
+    *stage == expected_completion_stage(receipt, attempts)
+        || (!receipt.is_completed() && *stage == LeaseStage::Failed)
 }
