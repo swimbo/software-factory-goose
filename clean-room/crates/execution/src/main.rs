@@ -1,27 +1,40 @@
-//! The execution plane — the worker daemon that runs Goose headless in a disposable worktree.
+//! Worker execution and local subprocess supervision.
 //!
-//! Consensus R4/R5/R6/R9/R10: a *separate* binary from the control plane. It spawns Goose in
-//! its own process group, parses a typed Receipt from stdout, kills the whole group on timeout
-//! (`kill -pgid`), and isolates by identity (distinct uid/env, not scrubbing).
-//! R14: captured output is masked before it is logged or returned.
+//! Live Goose execution is intentionally disabled until the planned distinct-UID Seatbelt
+//! launcher and the installed CLI's completion protocol are verified. The supervisor is also
+//! used by the opt-in shell shim; that shim is not an OS isolation or universal tool boundary.
 
 use shared::Receipt;
+use std::io::Read;
+use std::os::fd::AsRawFd;
+use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
-
-use std::os::unix::process::{CommandExt, ExitStatusExt};
 
 mod mask;
 mod policy;
 
-/// Run Goose headless and produce a typed Receipt (R6).
-///
-/// `git diff` is recovered from the worktree as *payload*; the status discriminator comes from
-/// a positive completion assertion (exit 0) vs timeout/failure/crash.
-pub fn run_goose(prompt: &str, worktree: &std::path::Path, timeout: Duration) -> anyhow::Result<Receipt> {
-    let start = Instant::now();
+const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 
-    let mut cmd = std::process::Command::new("goose");
+/// No environment toggle substitutes for verified UID/Seatbelt/network isolation.
+pub fn run_goose(
+    prompt: &str,
+    worktree: &std::path::Path,
+    _timeout: Duration,
+) -> anyhow::Result<Receipt> {
+    let binary = std::env::var_os("GOOSE_BIN").unwrap_or_else(|| "goose".into());
+    let _command = goose_command(&binary, prompt, worktree);
+    anyhow::bail!(
+        "live Goose execution blocked: distinct-UID Seatbelt launcher, empty home, network restrictions, mandatory tool interception, and compatible JSON CLI have not been verified"
+    )
+}
+
+fn goose_command(
+    binary: &std::ffi::OsStr,
+    prompt: &str,
+    worktree: &std::path::Path,
+) -> std::process::Command {
+    let mut cmd = std::process::Command::new(binary);
     cmd.args([
         "run",
         "--no-session",
@@ -31,107 +44,236 @@ pub fn run_goose(prompt: &str, worktree: &std::path::Path, timeout: Duration) ->
         prompt,
     ])
     .current_dir(worktree)
-    .stdin(Stdio::null())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    // New process group so we can kill the whole tree, not just the direct child (R9).
-    .process_group(0);
+    .env_clear()
+    .env("PATH", "/usr/bin:/bin");
+    cmd
+}
 
-    // R13: put the policy shim dir first on PATH so the agent's `sh` resolves to the shim.
-    if let Ok(shims) = std::env::var("SFACTORY_SHIMS_DIR") {
-        let path = std::env::var("PATH").unwrap_or_default();
-        cmd.env("PATH", format!("{shims}:{path}"));
-        cmd.env("SFACTORY_EXECUTION_BIN", std::env::current_exe().unwrap_or_default());
+#[derive(Default)]
+struct Capture {
+    bytes: Vec<u8>,
+    truncated: bool,
+    eof: bool,
+}
+
+impl Capture {
+    fn drain(&mut self, pipe: &mut impl Read) -> std::io::Result<()> {
+        // Interleave bounded reads of both pipes; an endlessly writing child cannot starve
+        // the other pipe or the deadline check. Excess output is drained but not retained.
+        let mut block = [0u8; 8192];
+        for _ in 0..8 {
+            match pipe.read(&mut block) {
+                Ok(0) => {
+                    self.eof = true;
+                    break;
+                }
+                Ok(n) => {
+                    let retained = n.min(MAX_OUTPUT_BYTES.saturating_sub(self.bytes.len()));
+                    self.bytes.extend_from_slice(&block[..retained]);
+                    self.truncated |= retained < n;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(())
     }
+}
 
-    let mut child = cmd.spawn()?;
-    let pgid = child.id();
+struct Captured {
+    status: std::process::ExitStatus,
+    stdout: Capture,
+    stderr: Capture,
+    timed_out: bool,
+}
 
-    // Poll to completion with a hard timeout.
-    loop {
-        if let Some(status) = child.try_wait()? {
-            return finish(status, pgid, worktree, start, &mut child);
+struct ProcessGroup(std::process::Child);
+impl Drop for ProcessGroup {
+    fn drop(&mut self) {
+        kill_process_group(self.0.id());
+        let _ = self.0.wait();
+    }
+}
+
+fn nonblocking(pipe: &impl AsRawFd) -> std::io::Result<()> {
+    // SAFETY: pipe owns the valid descriptor; preserve all existing descriptor flags.
+    unsafe {
+        let flags = libc::fcntl(pipe.as_raw_fd(), libc::F_GETFL);
+        if flags < 0 || libc::fcntl(pipe.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) < 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+    }
+    Ok(())
+}
+
+fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Result<Captured> {
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .process_group(0);
+    let mut child = ProcessGroup(cmd.spawn()?);
+    let mut stdout_pipe = child.0.stdout.take().expect("piped stdout");
+    let mut stderr_pipe = child.0.stderr.take().expect("piped stderr");
+    nonblocking(&stdout_pipe)?;
+    nonblocking(&stderr_pipe)?;
+    let start = Instant::now();
+    let mut stdout = Capture::default();
+    let mut stderr = Capture::default();
+    let mut timed_out = false;
+    let status = loop {
+        stdout.drain(&mut stdout_pipe)?;
+        stderr.drain(&mut stderr_pipe)?;
+        if let Some(status) = child.0.try_wait()? {
+            break status;
         }
         if start.elapsed() >= timeout {
-            // Kill the entire process group; a direct-child kill leaves grandchildren (R9).
-            kill_process_group(pgid);
-            let _ = child.wait();
-            return Ok(timeout_receipt(worktree, start));
+            timed_out = true;
+            kill_process_group(child.0.id());
+            break child.0.wait()?;
         }
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(5));
+    };
+    // Also clean descendants after a normal parent exit. Never block waiting for a pipe
+    // held by a descendant that escaped the process group (OS sandbox must forbid escape).
+    kill_process_group(child.0.id());
+    let cleanup = Instant::now();
+    while !(stdout.eof && stderr.eof) && cleanup.elapsed() < Duration::from_millis(250) {
+        stdout.drain(&mut stdout_pipe)?;
+        stderr.drain(&mut stderr_pipe)?;
+        std::thread::sleep(Duration::from_millis(1));
     }
+    stdout.truncated |= !stdout.eof;
+    stderr.truncated |= !stderr.eof;
+    Ok(Captured {
+        status,
+        stdout,
+        stderr,
+        timed_out,
+    })
 }
 
-fn finish(
-    status: std::process::ExitStatus,
-    _pgid: u32,
-    worktree: &std::path::Path,
-    start: Instant,
-    child: &mut std::process::Child,
-) -> anyhow::Result<Receipt> {
-    let wall_time_ms = start.elapsed().as_millis() as u64;
-    let sha = current_sha(worktree);
-    // R14: mask secrets in captured output before it is used or logged.
-    let stdout = mask::mask(&read_stdout(&mut child.stdout));
-    let stderr = mask::mask(&read_stderr(&mut child.stderr));
-    if !stdout.redactions.is_empty() || !stderr.redactions.is_empty() {
-        tracing::info!(
-            stdout = ?stdout.redactions,
-            stderr = ?stderr.redactions,
-            "R14: masked secrets in worker output"
-        );
-    }
-
-    if status.success() {
-        // Positive completion assertion (R6): exit 0 + a diff is present.
-        let diff = git_diff(worktree).unwrap_or_default();
-        let turn_count = parse_turn_count(&stdout.text);
-        let spend_usd = parse_spend_usd(&stdout.text, turn_count);
-        Ok(Receipt::Completed {
-            sha,
-            diff,
-            turn_count,
-            exit_code: 0,
-            wall_time_ms,
-            spend_usd,
-        })
-    } else if let Some(signal) = status.signal() {
-        Ok(Receipt::Crashed {
-            signal,
-            core_dumped: false,
-        })
-    } else {
-        let code = status.code().unwrap_or(-1);
-        // stderr tail is free-form logs — never parsed as status, only captured (R6).
-        let stderr_tail = stderr
-            .text
-            .chars()
-            .rev()
-            .take(400)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect();
-        Ok(Receipt::Failed {
-            exit_code: code,
-            stderr_tail,
-        })
-    }
-}
-
-fn timeout_receipt(worktree: &std::path::Path, start: Instant) -> Receipt {
-    Receipt::TimedOut {
-        sha: current_sha(worktree),
-        turn_count: 0,
-        wall_time_ms: start.elapsed().as_millis() as u64,
-    }
-}
-
-/// `kill(-pgid, SIGKILL)` — terminate the whole process group (R9).
 fn kill_process_group(pgid: u32) {
-    // SAFETY: negative pid targets the process group; SIGKILL is not catchable.
+    // SAFETY: negative child pid selects its private process group.
     unsafe {
         libc::kill(-(pgid as i32), libc::SIGKILL);
+    }
+}
+
+// Current upstream schema, not a claim about the incompatible installed CLI. See README.
+#[derive(serde::Deserialize)]
+struct Completion {
+    messages: Vec<CompletionMessage>,
+    metadata: CompletionMetadata,
+}
+#[derive(serde::Deserialize)]
+struct CompletionMessage {
+    role: String,
+    content: Vec<serde_json::Value>,
+}
+#[derive(serde::Deserialize)]
+struct CompletionMetadata {
+    status: String,
+    cost_usd: f64,
+}
+struct CompletionMetrics {
+    turn_count: u32,
+    spend_usd: f64,
+}
+
+fn parse_completion(stdout: &str) -> anyhow::Result<CompletionMetrics> {
+    let output: Completion = serde_json::from_str(stdout)?;
+    anyhow::ensure!(
+        output.metadata.status == "completed",
+        "no positive completion status"
+    );
+    anyhow::ensure!(
+        output.metadata.cost_usd.is_finite() && output.metadata.cost_usd >= 0.0,
+        "invalid cost"
+    );
+    anyhow::ensure!(
+        output
+            .messages
+            .iter()
+            .all(|m| matches!(m.role.as_str(), "assistant" | "user")
+                && m.content.iter().all(serde_json::Value::is_object)),
+        "invalid messages"
+    );
+    let turns = output
+        .messages
+        .iter()
+        .filter(|m| m.role == "assistant")
+        .count();
+    anyhow::ensure!(turns > 0, "no assistant completion");
+    Ok(CompletionMetrics {
+        turn_count: u32::try_from(turns)?,
+        spend_usd: output.metadata.cost_usd,
+    })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn finish(output: Captured, worktree: &std::path::Path, start: Instant) -> Receipt {
+    let wall_time_ms = start.elapsed().as_millis() as u64;
+    if output.timed_out {
+        return Receipt::TimedOut {
+            sha: current_sha(worktree),
+            turn_count: 0,
+            wall_time_ms,
+        };
+    }
+    if let Some(signal) = output.status.signal() {
+        return Receipt::Crashed {
+            signal,
+            core_dumped: output.status.core_dumped(),
+        };
+    }
+    if !output.status.success() {
+        let stderr = mask::mask(&String::from_utf8_lossy(&output.stderr.bytes)).text;
+        return Receipt::Failed {
+            exit_code: output.status.code().unwrap_or(-1),
+            stderr_tail: stderr
+                .chars()
+                .rev()
+                .take(400)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect(),
+        };
+    }
+    // A truncated stream or missing cost cannot silently become zero-cost success.
+    if output.stdout.truncated || output.stderr.truncated {
+        return protocol_failure("worker output exceeded capture limit or did not close");
+    }
+    let metrics = match std::str::from_utf8(&output.stdout.bytes)
+        .ok()
+        .and_then(|s| parse_completion(s).ok())
+    {
+        Some(metrics) => metrics,
+        None => return protocol_failure("invalid JSON completion or missing verified cost"),
+    };
+    let sha = current_sha(worktree);
+    let diff = std::process::Command::new("git")
+        .args(["diff", "HEAD"])
+        .current_dir(worktree)
+        .output();
+    match diff {
+        Ok(diff) if diff.status.success() && !sha.is_empty() => Receipt::Completed {
+            sha,
+            diff: String::from_utf8_lossy(&diff.stdout).into_owned(),
+            turn_count: metrics.turn_count,
+            exit_code: 0,
+            wall_time_ms,
+            spend_usd: metrics.spend_usd,
+        },
+        _ => protocol_failure("unable to recover worktree payload"),
+    }
+}
+
+fn protocol_failure(message: &str) -> Receipt {
+    Receipt::Failed {
+        exit_code: 65,
+        stderr_tail: message.to_string(),
     }
 }
 
@@ -141,58 +283,9 @@ fn current_sha(worktree: &std::path::Path) -> String {
         .current_dir(worktree)
         .output()
         .ok()
+        .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default()
-}
-
-/// `git diff` is *payload* (R6) — recovered after a positive completion, never the status.
-fn git_diff(worktree: &std::path::Path) -> Option<String> {
-    let o = std::process::Command::new("git")
-        .args(["diff"])
-        .current_dir(worktree)
-        .output()
-        .ok()?;
-    Some(String::from_utf8_lossy(&o.stdout).into_owned())
-}
-
-/// Goose's `--output-format json` stdout: parse a turn count defensively. If unparseable,
-/// return 0 — the status discriminator already came from the exit code (R6).
-fn parse_turn_count(stdout: &str) -> u32 {
-    serde_json::from_str::<serde_json::Value>(stdout)
-        .ok()
-        .and_then(|v| v.get("turn_count").or_else(|| v.get("turns")).and_then(|t| t.as_u64()))
-        .map(|n| n as u32)
-        .unwrap_or(0)
-}
-
-/// Cost from Goose's JSON output if present, else a flat per-turn estimate (R7).
-fn parse_spend_usd(stdout: &str, turn_count: u32) -> f64 {
-    serde_json::from_str::<serde_json::Value>(stdout)
-        .ok()
-        .and_then(|v| {
-            ["spend_usd", "cost", "total_cost"]
-                .iter()
-                .find_map(|k| v.get(*k).and_then(|c| c.as_f64()))
-        })
-        .unwrap_or(turn_count as f64 * 0.01)
-}
-
-fn read_stdout(pipe: &mut Option<std::process::ChildStdout>) -> String {
-    use std::io::Read;
-    let mut buf = String::new();
-    if let Some(p) = pipe.as_mut() {
-        let _ = p.read_to_string(&mut buf);
-    }
-    buf
-}
-
-fn read_stderr(pipe: &mut Option<std::process::ChildStderr>) -> String {
-    use std::io::Read;
-    let mut buf = String::new();
-    if let Some(p) = pipe.as_mut() {
-        let _ = p.read_to_string(&mut buf);
-    }
-    buf
 }
 
 /// Resolve the workflow's durable promise by POSTing the receipt to its `complete` handler.
@@ -209,7 +302,7 @@ async fn resolve_workflow(
     let resp = reqwest::Client::new()
         .post(url)
         .header("content-type", "application/json")
-        .body(body)
+        .json(&body)
         .send()
         .await?;
     if !resp.status().is_success() {
@@ -239,30 +332,63 @@ async fn report_result(
     Ok(())
 }
 
+fn load_policy() -> anyhow::Result<policy::RuleSet> {
+    match std::env::var_os("SFACTORY_POLICY") {
+        Some(path) => policy::RuleSet::from_toml(&std::fs::read_to_string(path)?),
+        None => Ok(policy::RuleSet::default_rules(
+            &std::env::current_dir()?.to_string_lossy(),
+        )),
+    }
+}
+
 /// Worker entry: read config from env, run Goose in the worktree, resolve the workflow promise.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    // R13: the PATH shim calls back here to gate a command before it executes.
+    // Only the supported `sh -c <command>` route is accepted by the shim.
     let args: Vec<String> = std::env::args().collect();
-    if args.get(1).map(String::as_str) == Some("--check-policy") {
-        let cmd = args.get(2).cloned().unwrap_or_default();
-        let root = std::env::var("WORKTREE_ROOT")
-            .unwrap_or_else(|_| "/tmp/sfactory-worktrees".to_string());
-        // Load rules from $SFACTORY_POLICY if set, else fall back to built-in defaults.
-        let rules = std::env::var("SFACTORY_POLICY")
-            .ok()
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| policy::RuleSet::from_toml(&s).ok())
-            .unwrap_or_else(|| policy::RuleSet::default_rules(&root));
-        match policy::evaluate(&rules, &cmd) {
-            policy::Decision::Allow => return Ok(()),
-            policy::Decision::Deny(reason) => {
-                eprintln!("policy denied: {reason}");
-                std::process::exit(126);
-            }
+    if matches!(
+        args.get(1).map(String::as_str),
+        Some("--check-policy" | "--run-shell")
+    ) {
+        anyhow::ensure!(args.len() == 3, "expected one shell command");
+        let command = &args[2];
+        let rules = load_policy()?;
+        if let policy::Decision::Deny(reason) = policy::evaluate(&rules, command) {
+            eprintln!("policy denied: {}", mask::mask(&reason).text);
+            std::process::exit(126);
         }
+        if args[1] == "--check-policy" {
+            return Ok(());
+        }
+        let mut shell = std::process::Command::new("/bin/sh");
+        shell
+            .args(["-c", command])
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin");
+        let result = supervise(&mut shell, Duration::from_secs(180))?;
+        if result.timed_out || result.stdout.truncated || result.stderr.truncated {
+            eprintln!("shell output withheld: timeout, incomplete pipe, or output limit");
+            std::process::exit(if result.timed_out { 124 } else { 74 });
+        }
+        use std::io::Write;
+        std::io::stdout().write_all(
+            mask::mask(&String::from_utf8_lossy(&result.stdout.bytes))
+                .text
+                .as_bytes(),
+        )?;
+        std::io::stderr().write_all(
+            mask::mask(&String::from_utf8_lossy(&result.stderr.bytes))
+                .text
+                .as_bytes(),
+        )?;
+        std::process::exit(
+            result
+                .status
+                .code()
+                .unwrap_or(128 + result.status.signal().unwrap_or(0)),
+        );
     }
 
     let prompt = std::env::var("SFACTORY_PROMPT").unwrap_or_default();
@@ -277,7 +403,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(Duration::from_secs(180));
 
     let receipt = run_goose(&prompt, std::path::Path::new(&worktree), timeout)?;
-    tracing::info!(work_package_id, "goose finished: {:?}", receipt);
+    tracing::info!(work_package_id, "goose finished; receipt ready");
 
     if !work_package_id.is_empty() {
         resolve_workflow(&restate_url, &work_package_id, &receipt).await?;
@@ -286,30 +412,18 @@ async fn main() -> anyhow::Result<()> {
             .unwrap_or_else(|_| "http://localhost:8081".to_string());
         let pipeline_id = std::env::var("SFACTORY_PIPELINE_ID").unwrap_or_default();
         if !pipeline_id.is_empty() {
-            report_result(&control_url, &work_package_id, &pipeline_id, &receipt, &worktree).await?;
+            report_result(
+                &control_url,
+                &work_package_id,
+                &pipeline_id,
+                &receipt,
+                &worktree,
+            )
+            .await?;
         }
     }
     Ok(())
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn turn_count_parses_json() {
-        assert_eq!(parse_turn_count(r#"{"turn_count": 7}"#), 7);
-        assert_eq!(parse_turn_count(r#"{"turns": 3}"#), 3);
-    }
-
-    #[test]
-    fn turn_count_falls_back_on_garbage() {
-        assert_eq!(parse_turn_count("not json"), 0);
-    }
-
-    #[test]
-    fn kill_pgid_is_negative() {
-        // Just assert the arithmetic we rely on: negative pid = process group.
-        assert_eq!(-(1234i32), -1234);
-    }
-}
+mod worker_tests;

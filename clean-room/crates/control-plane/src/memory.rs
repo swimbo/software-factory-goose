@@ -51,7 +51,13 @@ pub fn blast_radius(graph: &AstGraph, file: &str) -> Vec<String> {
         .edges
         .iter()
         .filter(|e| defined.contains(&e.to.as_str()))
-        .filter_map(|e| graph.nodes.iter().find(|n| n.symbol == e.from).map(|n| n.file.clone()))
+        .filter_map(|e| {
+            graph
+                .nodes
+                .iter()
+                .find(|n| n.symbol == e.from)
+                .map(|n| n.file.clone())
+        })
         .collect();
     files.sort();
     files.dedup();
@@ -62,7 +68,10 @@ pub fn blast_radius(graph: &AstGraph, file: &str) -> Vec<String> {
 #[cfg(feature = "ast")]
 pub fn parse_rust(source: &str, file: &str) -> AstGraph {
     let mut parser = tree_sitter::Parser::new();
-    if parser.set_language(&tree_sitter_rust::LANGUAGE.into()).is_err() {
+    if parser
+        .set_language(&tree_sitter_rust::LANGUAGE.into())
+        .is_err()
+    {
         return AstGraph::default();
     }
     let Some(tree) = parser.parse(source, None) else {
@@ -70,8 +79,8 @@ pub fn parse_rust(source: &str, file: &str) -> AstGraph {
     };
 
     let mut graph = AstGraph::default();
-    let mut stack = vec![tree.root_node()];
-    while let Some(node) = stack.pop() {
+    let mut stack = vec![(tree.root_node(), None::<String>)];
+    while let Some((node, mut owner)) = stack.pop() {
         let kind = match node.kind() {
             "function_item" => Some("fn"),
             "struct_item" => Some("struct"),
@@ -79,18 +88,40 @@ pub fn parse_rust(source: &str, file: &str) -> AstGraph {
             "mod_item" => Some("mod"),
             _ => None,
         };
-        if let Some(kind) = kind {
-            if let Some(name) = node.child_by_field_name("name") {
-                graph.nodes.push(AstNode {
-                    symbol: name.utf8_text(source.as_bytes()).unwrap_or("").to_string(),
-                    kind: kind.to_string(),
-                    file: file.to_string(),
-                });
+        if let Some(kind) = kind
+            && let Some(name) = node.child_by_field_name("name")
+        {
+            let symbol = name.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+            graph.nodes.push(AstNode {
+                symbol: symbol.clone(),
+                kind: kind.to_string(),
+                file: file.to_string(),
+            });
+            if kind == "fn" {
+                owner = Some(symbol);
             }
+        }
+        // This syntax graph records direct/scoped calls only; it does not pretend to
+        // resolve traits, methods, macros, or cross-module symbol identity.
+        if node.kind() == "call_expression"
+            && let Some(from) = owner.as_ref()
+            && let Some(function) = node.child_by_field_name("function")
+            && matches!(function.kind(), "identifier" | "scoped_identifier")
+            && let Ok(to) = function.utf8_text(source.as_bytes())
+            && !graph
+                .edges
+                .iter()
+                .any(|e| e.from == *from && e.to == to && e.kind == "calls")
+        {
+            graph.edges.push(AstEdge {
+                from: from.clone(),
+                to: to.to_string(),
+                kind: "calls".into(),
+            });
         }
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            stack.push(child);
+            stack.push((child, owner.clone()));
         }
     }
     graph
@@ -119,7 +150,11 @@ pub async fn store_embedding(
     // pgvector accepts the `[v1,v2,…]` textual form via a cast.
     let vec_literal = format!(
         "[{}]",
-        vector.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(",")
+        vector
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
     );
     sqlx::query(
         r#"
@@ -142,15 +177,18 @@ pub async fn store_embedding(
 pub async fn recall(pool: &PgPool, query_vec: &[f32], k: i64) -> anyhow::Result<Vec<String>> {
     let vec_literal = format!(
         "[{}]",
-        query_vec.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(",")
+        query_vec
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
     );
-    let rows: Vec<(String,)> = sqlx::query_as(
-        r#"SELECT content FROM embeddings ORDER BY vector <=> $1::vector LIMIT $2"#,
-    )
-    .bind(vec_literal)
-    .bind(k)
-    .fetch_all(pool)
-    .await?;
+    let rows: Vec<(String,)> =
+        sqlx::query_as(r#"SELECT content FROM embeddings ORDER BY vector <=> $1::vector LIMIT $2"#)
+            .bind(vec_literal)
+            .bind(k)
+            .fetch_all(pool)
+            .await?;
     Ok(rows.into_iter().map(|(c,)| c).collect())
 }
 
@@ -158,13 +196,50 @@ pub async fn recall(pool: &PgPool, query_vec: &[f32], k: i64) -> anyhow::Result<
 mod tests {
     use super::*;
 
+    #[cfg(feature = "ast")]
+    #[test]
+    fn rust_parser_connects_direct_calls_to_their_owner() {
+        let graph = parse_rust("fn helper() {} fn caller() { helper(); }", "src/lib.rs");
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .any(|n| n.symbol == "helper" && n.kind == "fn")
+        );
+        assert_eq!(dependents(&graph, "helper"), vec!["caller"]);
+        assert!(dependents(&graph, "caller").is_empty());
+    }
+
+    #[cfg(feature = "ast")]
+    #[test]
+    fn rust_parser_preserves_scoped_calls_and_nested_function_ownership() {
+        let graph = parse_rust(
+            "fn outer() { fn inner() { tools::run(); } inner(); }",
+            "src/lib.rs",
+        );
+        assert_eq!(dependents(&graph, "tools::run"), vec!["inner"]);
+        assert_eq!(dependents(&graph, "inner"), vec!["outer"]);
+    }
+
     fn graph() -> AstGraph {
         AstGraph {
             nodes: vec![
-                AstNode { symbol: "alpha".into(), kind: "fn".into(), file: "a.rs".into() },
-                AstNode { symbol: "beta".into(), kind: "fn".into(), file: "b.rs".into() },
+                AstNode {
+                    symbol: "alpha".into(),
+                    kind: "fn".into(),
+                    file: "a.rs".into(),
+                },
+                AstNode {
+                    symbol: "beta".into(),
+                    kind: "fn".into(),
+                    file: "b.rs".into(),
+                },
             ],
-            edges: vec![AstEdge { from: "beta".into(), to: "alpha".into(), kind: "calls".into() }],
+            edges: vec![AstEdge {
+                from: "beta".into(),
+                to: "alpha".into(),
+                kind: "calls".into(),
+            }],
         }
     }
 
@@ -184,7 +259,11 @@ mod tests {
     fn defines_edges_are_not_dependents() {
         let g = AstGraph {
             nodes: vec![],
-            edges: vec![AstEdge { from: "f".into(), to: "x".into(), kind: "defines".into() }],
+            edges: vec![AstEdge {
+                from: "f".into(),
+                to: "x".into(),
+                kind: "defines".into(),
+            }],
         };
         assert!(dependents(&g, "x").is_empty());
     }

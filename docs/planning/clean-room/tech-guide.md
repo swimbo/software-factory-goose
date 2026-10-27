@@ -58,13 +58,12 @@ Concrete stack, pinned versions, conventions, and dev-environment setup. Grounde
 - **Required services**: Postgres 16 (Docker Compose), `restate-server` binary, **Bifrost gateway** (external, operator-run — set `BIFROST_URL`), Goose (`cargo install goose` or binary), git.
 - **Env contract** (`.env`):
   - `DATABASE_URL`, `RESTATE_URL`, `BIFROST_URL`, `BIFROST_VK`, `BIFROST_ADMIN_KEY`, `GOOSE_BIN`, `WORKTREE_ROOT`.
-- **Setup**:
-  ```bash
-  cargo install cargo-watch  # optional
-  docker compose up -d postgres
-  restate-server &           # or docker run restatedev/restate
-  # Bifrost runs externally on your network; just export BIFROST_URL (+ BIFROST_VK, BIFROST_ADMIN_KEY)
-  ```
+- **Setup**: use [the staged setup guide](../../../clean-room/SETUP.md). `./setup.sh check`
+  validates configuration without starting services; `up` explicitly starts Compose infrastructure;
+  `register` runs only after the host SDK and its reviewed private ingress are available.
+  Restate admin is `127.0.0.1:9070`, ingress is `127.0.0.1:8090`. `RESTATE_IMAGE` must identify
+  a reviewed server release/digest; SDK 0.12.1 is not a server-version pin. `POSTGRES_PASSWORD`
+  has no default. The current loopback SDK listener is not assumed Docker-reachable.
 
 ## Build & Run commands
 
@@ -101,4 +100,5 @@ The architecture debate (see `consensus-plan.md`, `debate-transcript.md`) valida
 - **`Receipt` contract** (R6) replaces the loose "exit code + git diff"; parse `--output-format json` stdout.
 - **Gateway**: **Bifrost** (resolved 2026-10-15) — the operator runs it externally on their network. Inference uses the OpenAI-compatible `/v1/chat/completions` with the `x-bf-vk` virtual-key header; budgets are read from the governance API (`/api/governance/virtual-keys`), and the pure `gate_call` defaults-deny when that read fails (R7). See `decisions/2026-10-15-gateway-bifrost.md`.
 - **Rust MSRV 1.90** already reflects Restate 0.12.1's requirement.
-- **Cost anchor corrected**: ~4× (not 15×), and the serving backend is O1 / NEEDS_HUMAN_DECISION.
+- **Cost anchor**: historical planning estimate only; actual gateway prices and spend require runtime evidence. O1 is resolved to hosted open-weights.
+- **Operator authentication (2026-10-26)**: separate local operator account, kernel Unix peer credentials and action-bound single-use approvals; no MFA claim. See `decisions/2026-10-26-operator-auth.md`. Axum/Tokio Unix transport and feature-gated Restate approval journal compile against the lockfile. The journal remains unregistered until private ingress, identity separation and authoritative action eligibility are verified.

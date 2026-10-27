@@ -1,14 +1,16 @@
 # Phase 9 — Implementation
 
-**Status: pending.**
+**Status: in progress — existing implementation; resume with remaining gaps and runtime verification.**
+
+Restart audit (2026-10-26): the checklist below predates committed implementation and is not a reliable indicator of absent code. Do not restart scaffolding. See `restart-audit-2026-10-26.md` for current evidence and remaining gaps.
 
 ## Objective
 Build the working MVP vertical slice: greenfield demo end-to-end (intent → spec → decompose → Goose build in worktree → holdout eval → merge), with the three gates enforced.
 
 ## Prerequisites (resolve open items first)
-- O1 serving backend (NEEDS_HUMAN_DECISION).
-- O4 operator auth/MFA.
-- O3 qualifier spec (draft before the qualifier module).
+- O1 resolved: hosted open-weights through the operator's external Bifrost gateway.
+- O4 resolved by user on 2026-10-26: separate local operator account and action-bound approval channel; **no MFA claim**. See `decisions/2026-10-26-operator-auth.md`. Runtime provisioning and per-request authority wiring remain implementation/verification work.
+- O3 scoring contract implemented; calibration and intake feature extraction remain provisional.
 
 ## Workspace (monorepo, `clean-room/`)
 ```
@@ -21,7 +23,7 @@ crates/
 ```
 
 ## Task checklist (subagent delegation plan)
-- [ ] **T1** Scaffold workspace + `git init` + `cargo` workspaces + CI shape. (blocker for all)
+- [x] **T1** Scaffold workspace + `git init` + `cargo` workspaces + CI shape. Existing committed five-crate workspace, lockfile and Git repository verified; `tech-guide.md > CI shape` explicitly scopes CI itself out of the MVP. No re-scaffolding or CI-provider adoption needed.
 - [ ] **T2** `shared`: typed `Receipt`/`Claim`/`CredentialGrant` + JSON schema (R6, blind-spot contract schema).
 - [ ] **T3** Control plane: Restate workflow (goal cascade + claim/lease/attempt/cooldown + budget state object, R3/R7).
 - [ ] **T4** Control plane: Postgres read projection via idempotent outbox (R3).
@@ -37,7 +39,7 @@ T2/T3/T4/T5 (shared+control-plane) are interdependent → sequence; T6 (executio
 
 ## Verification (Hard Gates)
 - [ ] Full loop runs: greenfield intent → merged diff + wall pass (INT-LOOP).
-- [ ] `cargo test` green; `clippy -D warnings` clean; `fmt --check` clean.
+- [x] Local component gate: all-target/all-feature locked offline suite **135 passed, 0 failed, 0 ignored**; Clippy with warnings denied, formatting and build passed. See `verification/2026-10-26-*-final.log`. This does not close INT-LOOP or live safety gates.
 - [ ] Receipt bound to exact git SHA (US-16).
 - [ ] Budget cap hard-stops an overage unit (US-9).
 - [ ] Negative test: generator cannot read holdout store (US-6/INT-02).

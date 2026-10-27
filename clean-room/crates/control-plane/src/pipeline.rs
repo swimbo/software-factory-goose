@@ -18,7 +18,7 @@ pub enum Stage {
     Decomposed,
     Dispatched,
     Building,
-    Merged,
+    Verified,
     Failed,
 }
 
@@ -36,7 +36,11 @@ pub fn decompose(intent_id: &str, spec: &str) -> Vec<Task> {
     };
     let scaffold = mk("scaffold", "Scaffold the project", vec![]);
     let implement = mk("implement", "Implement the spec", vec![scaffold.id.clone()]);
-    let test = mk("test", "Add and pass the acceptance test", vec![implement.id.clone()]);
+    let test = mk(
+        "test",
+        "Add and pass the acceptance test",
+        vec![implement.id.clone()],
+    );
     vec![scaffold, implement, test]
 }
 
@@ -65,7 +69,7 @@ impl Pipeline {
     pub fn can_spend(&self, estimate_usd: f64) -> bool {
         gates::Budget {
             per_unit_cap_usd: self.ceiling_usd,
-            per_day_cap_usd: f64::INFINITY,
+            per_day_cap_usd: f64::MAX,
             spent_today_usd: 0.0,
             unit_spent_usd: self.spent_usd,
         }
@@ -74,16 +78,26 @@ impl Pipeline {
 
     /// Accrue spend from a worker result (R7).
     pub fn accrue(&mut self, usd: f64) {
-        self.spent_usd += usd;
+        if !usd.is_finite() || usd < 0.0 {
+            self.spent_usd = f64::INFINITY;
+        } else {
+            self.spent_usd += usd;
+        }
     }
 
     /// Whether the budget is exhausted — a terminal state that loops to a human.
     pub fn budget_exhausted(&self) -> bool {
-        self.spent_usd >= self.ceiling_usd
+        !self.spent_usd.is_finite()
+            || !self.ceiling_usd.is_finite()
+            || self.spent_usd < 0.0
+            || self.spent_usd >= self.ceiling_usd
     }
 
     /// Tasks ready to dispatch (pending with all blockers completed).
     pub fn next_work(&self) -> Vec<&Task> {
+        if self.stage() == Stage::Failed || self.budget_exhausted() {
+            return Vec::new();
+        }
         driver::dispatchable(&self.tasks)
     }
 
@@ -94,6 +108,9 @@ impl Pipeline {
 
     /// Mark a task dispatched to a worker.
     pub fn dispatch(&mut self, task_id: &str) {
+        if !self.next_work().iter().any(|t| t.id == task_id) {
+            return;
+        }
         if let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) {
             t.status = TaskStatus::InProgress;
         }
@@ -106,6 +123,9 @@ impl Pipeline {
         let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) else {
             return false;
         };
+        if t.status != TaskStatus::InProgress {
+            return false;
+        }
         if receipt.is_completed() {
             true // stays InProgress, awaiting evaluation
         } else {
@@ -117,6 +137,13 @@ impl Pipeline {
     /// Apply the **wall's** verdict (the evaluate callback): a pass completes the task and
     /// unblocks its dependents; a fail terminates it.
     pub fn on_eval(&mut self, task_id: &str, passed: bool) {
+        if !self
+            .tasks
+            .iter()
+            .any(|t| t.id == task_id && t.status == TaskStatus::InProgress)
+        {
+            return;
+        }
         if passed {
             let id = task_id.to_string();
             let _ = driver::complete(&mut self.tasks, &id);
@@ -131,9 +158,13 @@ impl Pipeline {
             return Stage::Failed;
         }
         if self.tasks.iter().all(|t| t.status == TaskStatus::Completed) {
-            return Stage::Merged;
+            return Stage::Verified;
         }
-        if self.tasks.iter().any(|t| t.status == TaskStatus::InProgress) {
+        if self
+            .tasks
+            .iter()
+            .any(|t| t.status == TaskStatus::InProgress)
+        {
             return Stage::Building;
         }
         if self.tasks.iter().any(|t| t.status == TaskStatus::Completed) {
@@ -147,6 +178,37 @@ impl Pipeline {
 mod tests {
     use super::*;
 
+    #[test]
+    fn pending_or_unknown_tasks_cannot_accept_results() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        assert!(!p.on_build("int1:scaffold", &complete()));
+        assert!(!p.on_build("int1:implement", &complete()));
+        assert!(!p.on_build("unknown", &complete()));
+        assert_eq!(p.stage(), Stage::Decomposed);
+    }
+
+    #[test]
+    fn blocked_task_cannot_be_dispatched() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.dispatch("int1:implement");
+        assert_eq!(p.tasks[1].status, TaskStatus::Pending);
+    }
+
+    #[test]
+    fn failed_pipeline_never_dispatches_more_work() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.dispatch("int1:scaffold");
+        p.on_eval("int1:scaffold", false);
+        assert!(p.next_work().is_empty());
+    }
+
+    #[test]
+    fn evaluation_cannot_complete_an_undispatched_task() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.on_eval("int1:scaffold", true);
+        assert_eq!(p.tasks[0].status, TaskStatus::Pending);
+    }
+
     fn complete() -> Receipt {
         Receipt::Completed {
             sha: "abc".into(),
@@ -159,7 +221,10 @@ mod tests {
     }
 
     fn failed() -> Receipt {
-        Receipt::Failed { exit_code: 1, stderr_tail: "boom".into() }
+        Receipt::Failed {
+            exit_code: 1,
+            stderr_tail: "boom".into(),
+        }
     }
 
     #[test]
@@ -191,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn stage_advances_to_merged_when_all_done() {
+    fn evaluation_alone_never_claims_a_git_merge() {
         let mut p = Pipeline::new("int1", "spec", Lane::Dark);
         assert_eq!(p.stage(), Stage::Decomposed);
         for id in ["int1:scaffold", "int1:implement", "int1:test"] {
@@ -199,7 +264,7 @@ mod tests {
             p.on_build(id, &complete());
             p.on_eval(id, true);
         }
-        assert_eq!(p.stage(), Stage::Merged);
+        assert_eq!(p.stage(), Stage::Verified);
     }
 
     #[test]

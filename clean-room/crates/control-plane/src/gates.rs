@@ -19,7 +19,16 @@ pub struct Budget {
 impl Budget {
     /// True iff a call of `estimate_usd` may proceed (consensus R7: fail-closed).
     pub fn can_spend(&self, estimate_usd: f64) -> bool {
-        self.unit_spent_usd + estimate_usd <= self.per_unit_cap_usd
+        [
+            estimate_usd,
+            self.unit_spent_usd,
+            self.spent_today_usd,
+            self.per_unit_cap_usd,
+            self.per_day_cap_usd,
+        ]
+        .iter()
+        .all(|n| n.is_finite() && *n >= 0.0)
+            && self.unit_spent_usd + estimate_usd <= self.per_unit_cap_usd
             && self.spent_today_usd + estimate_usd <= self.per_day_cap_usd
     }
 }
@@ -37,10 +46,7 @@ pub fn credential_requires_human(kind: CredentialKind) -> bool {
 }
 
 /// State transition for a promotion under human approval.
-pub fn apply_promotion_approval(
-    current: ApprovalState,
-    human_approved: bool,
-) -> ApprovalState {
+pub fn apply_promotion_approval(current: ApprovalState, human_approved: bool) -> ApprovalState {
     match (current, human_approved) {
         (ApprovalState::Pending, true) => ApprovalState::Approved,
         (ApprovalState::Pending, false) => ApprovalState::Denied,
@@ -51,6 +57,47 @@ pub fn apply_promotion_approval(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_budget_numbers_fail_closed() {
+        let valid = Budget {
+            per_unit_cap_usd: 0.75,
+            per_day_cap_usd: 10.0,
+            spent_today_usd: 0.0,
+            unit_spent_usd: 0.0,
+        };
+        for invalid in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            assert!(!valid.can_spend(invalid));
+            assert!(
+                !Budget {
+                    unit_spent_usd: invalid,
+                    ..valid.clone()
+                }
+                .can_spend(0.1)
+            );
+            assert!(
+                !Budget {
+                    spent_today_usd: invalid,
+                    ..valid.clone()
+                }
+                .can_spend(0.1)
+            );
+            assert!(
+                !Budget {
+                    per_unit_cap_usd: invalid,
+                    ..valid.clone()
+                }
+                .can_spend(0.1)
+            );
+            assert!(
+                !Budget {
+                    per_day_cap_usd: invalid,
+                    ..valid.clone()
+                }
+                .can_spend(0.1)
+            );
+        }
+    }
 
     #[test]
     fn budget_fails_closed_at_unit_cap() {

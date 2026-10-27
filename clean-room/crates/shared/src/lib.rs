@@ -49,7 +49,8 @@ pub enum Receipt {
 impl Receipt {
     /// True only for a positively-asserted, complete result.
     pub fn is_completed(&self) -> bool {
-        matches!(self, Receipt::Completed { .. })
+        matches!(self, Receipt::Completed { exit_code: 0, spend_usd, .. }
+            if spend_usd.is_finite() && *spend_usd >= 0.0)
     }
 
     /// Cost accrued by this run (R7) — 0 for non-completions.
@@ -262,6 +263,21 @@ mod tests {
             stderr_tail: "boom".into(),
         };
         assert!(!r.is_completed());
+    }
+
+    #[test]
+    fn contradictory_completion_receipts_fail_closed() {
+        for (exit_code, spend_usd) in [(1, 0.1), (0, -0.1), (0, f64::NAN), (0, f64::INFINITY)] {
+            let receipt = Receipt::Completed {
+                sha: "abc".into(),
+                diff: String::new(),
+                turn_count: 1,
+                exit_code,
+                wall_time_ms: 1,
+                spend_usd,
+            };
+            assert!(!receipt.is_completed());
+        }
     }
 
     #[test]

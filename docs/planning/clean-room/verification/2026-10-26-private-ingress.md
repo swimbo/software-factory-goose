@@ -1,0 +1,32 @@
+# Private Restate ingress: compatibility and authorization evidence
+
+Date: 2026-10-26. Read-only investigation; no runtime, account, credential, or deployment changes. This is an implementation boundary assessment, not a passing isolation gate.
+
+**Conclusion:** the locked Rust/Axum/Tokio/Restate architecture has the primitives needed for an authenticated local adapter. Configuration alone does not implement per-action authorization, and adding the unregistered services to `main.bind` would be unsafe. The remaining work is a bounded adapter plus verified backend isolation, not evidence that O4 must be reopened. O4 remains a separate local operator account with action-bound approval, without a human-presence or MFA claim. The compatible server release and host/container transport still require proof; this note selects neither.
+
+## Verified capabilities and limitations
+
+| Boundary | Evidence | Consequence |
+|---|---|---|
+| Self-hosted ingress and admin | Official server-security guidance assigns ingress authentication to a reverse proxy; management interfaces intentionally lack application authentication. Admin can inspect and change system state. | Do not give a generator raw ingress/admin reachability or assume an arbitrary bearer header grants scoped access. No native self-hosted per-service scoped API-key facility was established by this research. Cloud authentication is a separate offering, not evidence for this local installation. |
+| Restate → SDK | Pinned SDK 0.12.1 has `EndpointBuilder::identity_key`; `Endpoint::handle` verifies request identity before discovery/invocation. | This authenticates the Restate instance. It does **not** distinguish an operator call from a worker call that the same Restate server forwards. |
+| Private service flag | SDK 0.12.1 exposes `ingress_private` at service/handler configuration. Documentation says private services reject HTTP/Kafka ingress but remain callable from other handlers. | Useful defense in depth; not an operator-role rule. It also blocks an ordinary HTTP operator proxy from directly invoking that private handler. Do not enable the flag and assume the adapter path works. |
+| Unix listeners | Current server networking documentation supports `listen-mode = "unix"`, including ingress/admin overrides, with sockets in the node data directory. | Potential filesystem boundary, subject to the actual server release and socket ownership/mode verification. Defaults also expose TCP; merely creating a Unix socket does not remove that bypass. |
+| SDK HTTP transport | Pinned `HttpServer::serve` accepts `TcpListener`; `listen_and_serve` accepts `SocketAddr`. Public `Endpoint::handle` accepts an HTTP request generically. | Built-in server has no Unix-listener overload. Adapting the endpoint with existing HTTP/Unix machinery is plausible, but untested; server-to-deployment Unix transport must not be assumed. |
+
+Sources: [server security](https://docs.restate.dev/server/security), [service request identity](https://docs.restate.dev/services/security), [service configuration](https://docs.restate.dev/services/configuration), [server networking](https://docs.restate.dev/server/networking). Local SDK source: Cargo.lock package `restate-sdk` 0.12.1; registry `src/http_server.rs:91-105`, `src/endpoint/builder.rs:88,235,347`, and `src/endpoint/mod.rs:195-245`.
+
+## Bounded implementation path to verify
+
+1. Keep the operator-facing Unix socket distinct from Restate sockets. The existing operator transport supplies actual connection kernel UID to each routed request, denies missing/mismatched identity, and enforces the separate-account/group filesystem contract. Derive identity exclusively from that trusted extraction. Resolve authoritative task, revision, evidence and action eligibility before invoking issuance or consumption.
+2. Give workers only narrow claim/result operations with their own claim binding. Do not expose a generic HTTP forwarding route, arbitrary service/handler selector, admin operation, or caller-supplied upstream URL. The generator must not possess or reach the adapter's backend authority. Restrict the complete ingress surface, including invocation-management/state-related APIs, not only the obvious approval URL.
+3. Make raw Restate ingress, admin, fabric, deployment endpoints and signing material inaccessible to generator/evaluator principals. Candidate mechanisms already compatible with the design are protected server Unix sockets where supported, or the existing process/network isolation with a trusted local proxy. Neither loopback binding nor a shared backend bearer token proves this separation. If Docker supplies Restate while adapters run on macOS, prove the host/VM path explicitly; a Linux-container socket is not assumed usable by the host adapter.
+4. Authenticate Restate-to-deployment requests with the pinned SDK identity-key API. Strip external identity/authorization headers at the trusted adapter; the official security guide warns ingress headers enter durable journals. Do not place infrastructure secrets in forwarded invocation metadata.
+
+These are proposed verification obligations, not a selected new deployment architecture. The existing Compose file requires an explicitly reviewed `RESTATE_IMAGE`; SDK version 0.12.1 does not select a server release. Validate that exact image/binary, listener configuration and compatibility before choosing between the bounded transport arrangements. A genuine need to change the locked runtime or deployment model would warrant a decision then; an implementation spike does not require another operator-auth debate.
+
+## Activation gate
+
+Current `control-plane/src/main.rs` binds only `WorkPackageWorkflow` and `BudgetCounter` on loopback9080, without request identity. `ApprovalJournal` explicitly remains unregistered and treats its constructor as configuration, not per-request authentication. `ClaimLeaseJournal` must likewise remain behind its verified adapter boundary.
+
+Before activation, demonstrate permitted operator success and generator/evaluator refusal over actual separate principals; forged body/header identity refusal; no alternate TCP/Unix/admin bypass; backend and signing-secret denial; correct handling of missing credentials; authoritative eligibility plus exact action/revision binding; expiry/replay rejection; and durable crash/restart behavior. Confirm external mutation completion separately from an approval record. Public binding is the final integration step after these controls and evidence, not their substitute.

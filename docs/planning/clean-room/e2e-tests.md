@@ -23,7 +23,7 @@ This project is a Rust backend/CLI control-plane system with **no browser UI**. 
 | INT-06 | US-13 | isolated worktree | each unit gets a fresh worktree; outbound network denied except allowlist; no host secrets present |
 | INT-07 | US-16 | receipt binds to revision | receipt records result→claim→stage→exact SHA; a simulated timeout is reconciled |
 | INT-08 | US-9 | budget cap stops overage | a unit exceeding per-unit cap fails and loops to human; retries capped at 3 |
-| INT-09 | US-11 | first-promotion gate | promotion blocked until `verification.yaml` passes AND human approves; later drift bypasses |
+| INT-09 | US-11 | human-promotion gate | promotion blocked until `verification.yaml` passes AND exact-revision/evidence-bound human approval is consumed; R11 supersedes the original later-drift bypass |
 | INT-10 | US-12 | brokered credentials | no secret value in agent context; grants are task-scoped with TTL |
 | INT-11 | US-4 | stage observability | every stage transition is an audit event; `sfctl status` lists stage/spend/revision |
 | INT-12 | US-3 | codified-knowledge prerequisite | unit against a repo lacking `AGENTS.md` is flagged human-lane |
@@ -44,7 +44,19 @@ crates/control-plane/tests/intent_flow.rs
 crates/control-plane/tests/qualifier.rs
 crates/evaluator/tests/wall_isolation.rs   # INT-02 negative test
 crates/evaluator/tests/triple_run_gate.rs  # INT-03, INT-04
-crates/worker/tests/goose_contract.rs      # INT-05, INT-13/14
+crates/execution/tests/goose_contract.rs   # INT-05, worker isolation/receipt evidence
 crates/sfctl/tests/cli.rs                  # INT-01, INT-09, INT-11
 crates/control-plane/tests/full_loop.rs    # INT-LOOP
 ```
+
+## Coverage Matrix
+
+The current per-story/per-scenario matrix is `verification/2026-10-26-story-coverage.md`. It distinguishes passing component fixtures from missing runtime tests. The generated inventory above remains proposed; missing tests are not counted as passing or silently ignored. Actual Cargo-discovered integration suites currently include evaluator `exact_revision.rs`, execution `shim.rs`, and sfctl `cli.rs`, plus in-module route and journal contract tests.
+
+## Selector Policy
+
+CLI tests assert exit status and parsed JSON fields. API fixtures assert status and named JSON fields; subprocess/OS fixtures assert observable denial, actual failing build/test outcomes and exact Git refs. Browser selectors are not applicable.
+
+## Waiting Strategy
+
+Use process completion, bounded pipe drains, socket readiness or response completion. Short sleeps are permitted only inside documented bounded OS/process polling loops; they do not substitute for success assertions. No ignored tests or automatic retries may hide a missing scenario or failed security boundary.

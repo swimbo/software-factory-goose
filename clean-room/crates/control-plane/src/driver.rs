@@ -109,6 +109,9 @@ mod tests {
     #[test]
     fn completing_unknown_task_errors() {
         let mut tasks = vec![task("a", &[])];
-        assert_eq!(complete(&mut tasks, "z"), Err(DriverError::UnknownTask("z".into())));
+        assert_eq!(
+            complete(&mut tasks, "z"),
+            Err(DriverError::UnknownTask("z".into()))
+        );
     }
 }

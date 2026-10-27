@@ -89,4 +89,13 @@ A comparative review of the `code-machine` agent CLI (forked from Pi) surfaced f
 ## NEEDS_HUMAN_DECISION
 
 - **O1 serving backend — RESOLVED (2026-10-13): hosted open-weights API** (OpenRouter / Z.ai / together.ai). Self-hosted GPUs deferred. See `consensus-plan.md` O1.
-- Remaining open items (reasonable defaults exist, no blocking decision): O2 gate sample size, O3 qualifier spec, O4 operator auth/MFA, O5 scenario authoring/drift, O6 supply-chain.
+- **O4 operator authentication — RESOLVED (2026-10-26):** user chose a separate local operator account and action-bound approval channel, with no MFA claim. See `decisions/2026-10-26-operator-auth.md`. Distinct-account provisioning, private ingress, exact-evidence eligibility, and replay-safe execution still require implementation and live verification; the decision itself is no longer blocked.
+- Remaining open items: O2 gate sample size, O3 qualifier calibration, O5 scenario authoring/drift, O6 supply-chain. Existing scoped defaults do not establish production readiness.
+
+## Phase 10 Kickoff Research
+
+2026-10-26: this project uses Rust/CLI integration testing, not browser Playwright. The local toolchain is rustc/cargo1.94.0; package MSRV remains1.90. Checked local `cargo test --help` and the [official Cargo test reference](https://doc.rust-lang.org/cargo/commands/cargo-test.html): `--workspace --all-features` includes the optional Restate/AST code, `--all-targets` covers libraries/binaries/integration tests/examples, and `-- --list` provides test discovery. Documentation tests are a separate run when selecting all targets. CLI fixtures use Cargo-provided binary paths and observable status/JSON outcomes, without a new testing dependency. Keep lockfile/offline verification separate from live external-service acceptance.
+
+## Follow-ups from current verification
+
+The pinned Goose protocol audit (`verification/2026-10-26-goose-protocol.md`) invalidates the assumption that its `completed` JSON field proves task completion or hooks enforce all tool masking. The prepared `decisions/2026-10-26-goose-tool-boundary.md` awaits confirmation for its required focused debate. Keep runtime refusal in place. O4 remains resolved; the private-ingress note identifies implementation proof requirements, not a new identity choice.

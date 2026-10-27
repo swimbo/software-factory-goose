@@ -3,8 +3,8 @@
 //! future wiring call into it without dead-code warnings.
 
 pub mod driver;
-pub mod gateway;
 pub mod gates;
+pub mod gateway;
 pub mod memory;
 pub mod pipeline;
 pub mod projection;
@@ -14,4 +14,8 @@ pub mod state;
 #[cfg(feature = "restate")]
 pub mod workflow;
 
-pub use qualifier::{decide, IntentFeatures, DARK_LANE_THRESHOLD};
+pub use qualifier::{DARK_LANE_THRESHOLD, IntentFeatures, decide};
+pub mod approval;
+#[cfg(feature = "restate")]
+pub mod approval_workflow;
+pub mod operator_transport;

@@ -1,13 +1,13 @@
 # Phase 11 — Testing & Verification
 
-**Status: pending.**
+**Status: local component checks passing; runtime acceptance pending (Phase 9 remains open).**
 
 ## Objective
 Run the full suite, verify requirements met, verify the gates actually gate.
 
 ## Task checklist
-- [ ] `cargo test` (unit + integration) green.
-- [ ] `cargo clippy -- -D warnings` clean; `cargo fmt --check` clean.
+- [x] Existing unit/integration/example-guard suite: 135 passed, 0 failed, 0 ignored with all targets/features. Missing runtime scenarios remain open below.
+- [x] All-target/all-feature `cargo clippy -- -D warnings`, `cargo fmt --all -- --check`, and all-feature build passed; saved final logs in `verification/`.
 - [ ] INT-LOOP end-to-end pass.
 - [ ] Gate-verification tests: first-promotion blocks without human approval; budget-raise blocks below threshold; privileged credential blocks without approval.
 - [ ] Kill-switch test: `sfctl stop` terminates the whole process group.

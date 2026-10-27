@@ -1,46 +1,32 @@
-# Clean-room software factory — infrastructure services.
-#
-# Brings up the factory's own infra. The control-plane and execution planes run on the host via
-# `cargo run` and register with Restate. The MODEL GATEWAY (Bifrost) is NOT containerized here —
-# it runs externally on your network; point the factory at it with BIFROST_URL.
-#
-# Ports:
-#   restate  :8080 (HTTP ingress)  :9071 (admin)  :9070 (gRPC)
-#   postgres :5432
-#
-# Host-run planes:
-#   Axum (sfctl API)  :8081
-#   Restate SDK svc   :9080  (registered with restate via the admin API)
-#
-# External (you run this):
-#   Bifrost gateway   e.g. http://localhost:8080  (set BIFROST_URL)
-#
-# Usage:
-#   docker compose up -d
-#   curl -X POST localhost:9071/deployments -H 'content-type: application/json' \
-#        -d '{"uri":"http://host.docker.internal:9080"}'
-
+# Local infrastructure only. The host planes and external Bifrost are not started here.
+# SDK 0.12.1 does not identify a compatible server image: choose/test RESTATE_IMAGE explicitly.
 services:
   restate:
-    image: docker.io/restatedev/restate:latest
-    container_name: sfactory-restate
+    image: ${RESTATE_IMAGE:?Set RESTATE_IMAGE to a reviewed release or immutable digest}
+    command: ["--node-name=sfactory-restate"]
     ports:
-      - "8090:8080"   # HTTP ingress — submit/call handlers (RESTATE_URL points here; 8090 avoids Bifrost's 8080)
-      - "9070:9070"   # gRPC ingress
-      - "9071:9071"   # admin API — registration + introspection
-    # Restate 0.12 stores in its embedded log + RocksDB + S3 snapshots; no Postgres needed.
+      - "127.0.0.1:8090:8080" # HTTP ingress; avoid external Bifrost's common 8080
+      - "127.0.0.1:9070:9070" # Admin API; not gRPC
+    volumes:
+      - restate-data:/restate-data
 
   postgres:
-    image: postgres:16
-    container_name: sfactory-postgres
+    # Planning explicitly selects the pg16 image so migration 0002 can enable vector.
+    image: ${PGVECTOR_IMAGE:-pgvector/pgvector:pg16}
     environment:
       POSTGRES_USER: sfactory
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sfactory}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD locally}
       POSTGRES_DB: sfactory
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sfactory -d sfactory"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
 volumes:
+  restate-data:
   pgdata:

@@ -1,0 +1,11 @@
+   Compiling typify-macro v0.6.2
+   Compiling sqlx-postgres v0.8.6
+    Checking tree-sitter v0.25.10
+    Checking execution v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/execution)
+   Compiling typify v0.6.2
+   Compiling restate-sdk v0.12.1
+   Compiling sqlx-macros-core v0.8.6
+   Compiling sqlx-macros v0.8.6
+    Checking sqlx v0.8.6
+    Checking control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 18s

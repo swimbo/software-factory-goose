@@ -13,7 +13,7 @@ pub enum Stage {
     Claimed,
     Building,
     Evaluating,
-    Merged,
+    AwaitingPromotion,
     Failed,
     HumanLane,
 }
@@ -53,6 +53,9 @@ pub fn claim(state: &mut WorkPackageState) -> Result<(), &'static str> {
 
 /// A completed Goose run advances Building → Evaluating; a non-completion triggers retry.
 pub fn on_build_complete(state: &mut WorkPackageState, receipt: &Receipt) {
+    if state.stage != Stage::Building {
+        return;
+    }
     state.attempts += 1;
     if receipt.is_completed() {
         state.stage = Stage::Evaluating;
@@ -72,10 +75,13 @@ pub fn backoff(attempts: u32) -> Duration {
     Duration::from_secs(1u64 << attempts.min(6))
 }
 
-/// The wall passes → Merged; otherwise retry or fail.
+/// A wall pass awaits human promotion; evaluation does not execute a Git merge.
 pub fn on_evaluation(state: &mut WorkPackageState, passed: bool) {
+    if state.stage != Stage::Evaluating {
+        return;
+    }
     if passed {
-        state.stage = Stage::Merged;
+        state.stage = Stage::AwaitingPromotion;
     } else if state.attempts >= MAX_ATTEMPTS {
         state.stage = Stage::Failed;
     } else {
@@ -93,6 +99,25 @@ pub fn to_human_lane(state: &mut WorkPackageState) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn callbacks_cannot_skip_stages_or_resurrect_terminal_work() {
+        let mut queued = WorkPackageState::default();
+        on_evaluation(&mut queued, true);
+        assert_eq!(queued.stage, Stage::Queued);
+        on_build_complete(&mut queued, &completed());
+        assert_eq!(queued.stage, Stage::Queued);
+        for stage in [Stage::Failed, Stage::AwaitingPromotion, Stage::HumanLane] {
+            let mut state = WorkPackageState {
+                stage,
+                ..WorkPackageState::default()
+            };
+            on_build_complete(&mut state, &completed());
+            on_evaluation(&mut state, true);
+            assert_eq!(state.stage, stage);
+            assert_eq!(state.attempts, 0);
+        }
+    }
 
     fn completed() -> Receipt {
         Receipt::Completed {
@@ -148,12 +173,12 @@ mod tests {
     }
 
     #[test]
-    fn evaluation_pass_merges() {
+    fn evaluation_pass_requires_promotion() {
         let mut s = WorkPackageState::default();
         claim(&mut s).unwrap();
         s.stage = Stage::Evaluating;
         on_evaluation(&mut s, true);
-        assert_eq!(s.stage, Stage::Merged);
+        assert_eq!(s.stage, Stage::AwaitingPromotion);
     }
 
     #[test]

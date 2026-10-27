@@ -46,6 +46,7 @@ As an operator, I want acceptance scenarios stored where the generator cannot re
 ### US-7 — Triple-run holdout evaluation with a hard gate (P0)
 As an operator, I want each scenario run three times against an ephemeral deployment, requiring 2-of-3 passes and a 90% aggregate, so a bad change can't slip through a single lucky run.
 - **Acceptance criteria**: the evaluator runs each scenario 3×; a unit with <2-of-3 on any scenario or <90% aggregate is rejected and looped back with an opaque one-line failure.
+- **Controlling consensus R2/R11**: passing this pre-filter is advisory and never sufficient for promotion; deterministic checks and the human promotion oracle remain required.
 
 ### US-8 — Failures feed back as opaque one-liners (P0)
 As an operator, I want the generator to receive only "`<Scenario>` failed: endpoint returned 500" — never the scenario text — so it can't game the test.
@@ -60,8 +61,8 @@ As an operator, I want destructive ops (drop DB, rotate root key, cross regulate
 - **Acceptance criteria**: a destructive op in a runbook/patch is blocked until a human approves; there is a human kill switch.
 
 ### US-11 — First production promotion is a human act (P1)
-As an operator, I want the first time a unit is promoted to production to require my approval of the promotion decision (not just the diff), after which subsequent drift goes dark.
-- **Acceptance criteria**: `verification.yaml` passing is necessary but not sufficient; a human signs off before first promotion; later drift bypasses this gate.
+As an operator, I want promotion to require my approval of the promotion decision (not just the diff), bound to its exact revision and verification evidence.
+- **Acceptance criteria (reconciled to controlling consensus R11 and O4)**: `verification.yaml` passing is necessary but not sufficient; human approval must bind the exact candidate/base revision and evidence. The earlier automatic-drift bypass is superseded by R11's human promotion oracle. No deployment is inferred from verification alone.
 
 ### US-12 — Credentials are brokered, short-lived, and task-scoped (P1)
 As an operator, I want agents to receive short-lived, single-repo, single-action tokens via a broker (never a raw secret in their context), with a human approval step for the destructive/privileged class.

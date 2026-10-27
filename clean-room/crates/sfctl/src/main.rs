@@ -11,7 +11,12 @@ use std::process::ExitCode;
 #[command(name = "sfctl", version, about = "Clean-room software factory CLI")]
 struct Cli {
     /// Base URL of the control plane (default $SFCTL_URL or http://localhost:8081).
-    #[arg(long, global = true, env = "SFCTL_URL", default_value = "http://localhost:8081")]
+    #[arg(
+        long,
+        global = true,
+        env = "SFCTL_URL",
+        default_value = "http://localhost:8081"
+    )]
     url: String,
 
     /// Emit machine-readable JSON on stdout.
@@ -47,7 +52,12 @@ enum Command {
         reason: String,
     },
     /// Deny a gate decision.
-    Deny { kind: String, id: String, #[arg(long)] reason: String },
+    Deny {
+        kind: String,
+        id: String,
+        #[arg(long)]
+        reason: String,
+    },
     /// Raise the budget envelope (Gate 2 — human only).
     Budget {
         #[arg(long)]
@@ -71,16 +81,27 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> anyhow::Result<()> {
     let Cli { url, json, command } = cli;
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
     match command {
-        Command::Submit { title, description, acceptance, repo } => {
+        Command::Submit {
+            title,
+            description,
+            acceptance,
+            repo,
+        } => {
             let body = json!({
                 "title": title,
                 "description": description,
                 "acceptance": acceptance,
                 "repo": repo,
             });
-            let resp = client.post(format!("{url}/v1/intents")).json(&body).send().await?;
+            let resp = client
+                .post(format!("{url}/v1/intents"))
+                .json(&body)
+                .send()
+                .await?;
             print_resp(json, resp).await
         }
         Command::Inspect { id } => {
@@ -97,12 +118,20 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
         }
         Command::Approve { kind, id, reason } => {
             let url = format!("{url}/v1/{kind}/{id}/approve");
-            let resp = client.post(url).json(&json!({"reason": reason})).send().await?;
+            let resp = client
+                .post(url)
+                .json(&json!({"reason": reason}))
+                .send()
+                .await?;
             print_resp(json, resp).await
         }
         Command::Deny { kind, id, reason } => {
             let url = format!("{url}/v1/{kind}/{id}/deny");
-            let resp = client.post(url).json(&json!({"reason": reason})).send().await?;
+            let resp = client
+                .post(url)
+                .json(&json!({"reason": reason}))
+                .send()
+                .await?;
             print_resp(json, resp).await
         }
         Command::Budget { to_usd } => {
@@ -114,7 +143,10 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             print_resp(json, resp).await
         }
         Command::Stop { id } => {
-            let resp = client.post(format!("{url}/v1/work-packages/{id}/stop")).send().await?;
+            let resp = client
+                .post(format!("{url}/v1/work-packages/{id}/stop"))
+                .send()
+                .await?;
             print_resp(json, resp).await
         }
     }
@@ -130,6 +162,11 @@ async fn print_resp(json: bool, resp: reqwest::Response) -> anyhow::Result<()> {
     }
     if !status.is_success() {
         anyhow::bail!("request failed with status {status}");
+    }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
+        && value.get("error").is_some()
+    {
+        anyhow::bail!("server reported an operation error");
     }
     Ok(())
 }

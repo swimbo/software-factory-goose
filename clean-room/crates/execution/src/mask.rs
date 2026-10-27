@@ -8,9 +8,17 @@ use regex::{Regex, RegexSet};
 use std::sync::LazyLock;
 
 /// Redaction kinds, in the same order as `PATTERNS`.
-const KINDS: [&str; 6] = ["api_key", "aws_key", "pem", "home_path", "ipv4", "email"];
+const KINDS: [&str; 7] = [
+    "api_key",
+    "aws_key",
+    "pem",
+    "home_path",
+    "ipv4",
+    "email",
+    "credential_assignment",
+];
 
-const PATTERNS: [&str; 6] = [
+const PATTERNS: [&str; 7] = [
     // provider key shapes: OpenAI/Anthropic (sk-), GitHub (ghp_), GitLab (glpat-)
     r"(?:sk-[A-Za-z0-9_\-]{16,}|ghp_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_\-]{16,})",
     // AWS access-key id
@@ -23,6 +31,8 @@ const PATTERNS: [&str; 6] = [
     r"\b(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\b",
     // email
     r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b",
+    // Common credential labels and authorization headers. This is heuristic, not DLP.
+    r#"(?i)(?:[a-z0-9_]*(?:token|password|secret|api_key)[a-z0-9_]*\s*[:=]\s*["']?[^\s"']+|authorization\s*:\s*(?:bearer|basic)\s+[^\s]+)"#,
 ];
 
 static COMPILED: LazyLock<(RegexSet, Vec<Regex>)> = LazyLock::new(|| {
@@ -56,7 +66,9 @@ pub fn mask(input: &str) -> Masked {
     let mut redactions = Vec::new();
     for idx in matched {
         if individual[idx].is_match(&text) {
-            text = individual[idx].replace_all(&text, "[REDACTED]").into_owned();
+            text = individual[idx]
+                .replace_all(&text, "[REDACTED]")
+                .into_owned();
             redactions.push(KINDS[idx]);
         }
     }

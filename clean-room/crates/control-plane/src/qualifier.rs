@@ -6,7 +6,7 @@
 use shared::{Lane, QualifierDecision};
 
 /// Raw features the qualifier scores from an incoming intent.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IntentFeatures {
     /// 0..1 — how precisely the acceptance criteria are machine-checkable (executable
     /// assertions vs. vague prose). Higher = more machine-derivable = safer to automate.
@@ -25,6 +25,9 @@ pub struct IntentFeatures {
 
 /// The qualifier: pure, deterministic, unit-testable.
 pub fn score(features: &IntentFeatures) -> f64 {
+    if invalid_features(features) {
+        return 1.0;
+    }
     // Higher Q = higher risk = more likely human lane. Weighted mean of the risk factors,
     // with blast-radius and irreversibility carrying the most weight (they dominate the
     // decision, per the report's "irreversible changes" framing).
@@ -42,7 +45,13 @@ pub const DARK_LANE_THRESHOLD: f64 = 0.60;
 /// - `fatal` (a safety sub-score is a hard zero), and
 /// - missing codified knowledge (`AGENTS.md` etc.) — "automating chaos" (report §4).
 fn hard_blocked(f: &IntentFeatures) -> bool {
-    f.fatal || !f.has_codified_knowledge
+    f.fatal || !f.has_codified_knowledge || invalid_features(f)
+}
+
+fn invalid_features(f: &IntentFeatures) -> bool {
+    [f.spec_clarity, f.blast_radius, f.novelty, f.reversibility]
+        .iter()
+        .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
 }
 
 pub fn decide(intent_id: &str, features: &IntentFeatures) -> QualifierDecision {
@@ -62,6 +71,9 @@ pub fn decide(intent_id: &str, features: &IntentFeatures) -> QualifierDecision {
 }
 
 fn reason(f: &IntentFeatures, q: f64) -> String {
+    if invalid_features(f) {
+        return "invalid qualifier input — human lane".to_string();
+    }
     if f.fatal {
         return "fatal safety flag set".to_string();
     }
@@ -74,7 +86,10 @@ fn reason(f: &IntentFeatures, q: f64) -> String {
             q, DARK_LANE_THRESHOLD, f.blast_radius, f.reversibility
         )
     } else {
-        format!("risk score {:.2} < {:.2} — dark lane", q, DARK_LANE_THRESHOLD)
+        format!(
+            "risk score {:.2} < {:.2} — dark lane",
+            q, DARK_LANE_THRESHOLD
+        )
     }
 }
 
@@ -125,5 +140,24 @@ mod tests {
         let d = decide("i4", &f);
         assert_eq!(d.lane, Lane::Human);
         assert!(d.fatal);
+    }
+
+    #[test]
+    fn invalid_risk_inputs_never_enter_dark_lane() {
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -0.1, 1.1] {
+            for field in 0..4 {
+                let mut f = low_risk();
+                match field {
+                    0 => f.spec_clarity = invalid,
+                    1 => f.blast_radius = invalid,
+                    2 => f.novelty = invalid,
+                    _ => f.reversibility = invalid,
+                }
+                let decision = decide("invalid", &f);
+                assert_eq!(decision.lane, Lane::Human);
+                assert!(decision.score.is_finite());
+                assert!(decision.reason.contains("invalid"));
+            }
+        }
     }
 }

@@ -93,8 +93,8 @@ The debate produced a tension: statistical rigor wants more samples (n=400 Clopp
 ### O3 — Qualifier spec is a required follow-on document
 Inputs (executable spec, artifact, trace, run metadata, env fingerprint) → score Q ∈ [0,1] + fatal flag → dark-lane threshold (Q < 0.60 or fatal) → calibration loop (weekly human re-rate, agreement threshold, re-weight). The qualifier "is the real product" and needs its own spec doc before implementation of the qualifier module.
 
-### O4 — Operator auth, MFA on gates, key rotation/revocation
-No persona specified a concrete operator authz model (mTLS? OIDC? local CLI token?). Must be decided before the gates are implemented. Gate approval should carry a second factor / out-of-band confirmation.
+### O4 — Operator authentication — resolved 2026-10-26
+User selected a **separate local operator account and action-bound approval channel; no MFA claim** after the three-reviewer debate. Unix kernel peer identity authenticates the OS principal. Approvals bind operation parameters, task/repository/ref, exact candidate/base revisions, evidence digest, audience, nonce and expiry; consumption is single-use and durable. The independent brake remains a separate authority path. This supersedes the original unspecified second-factor requirement, without asserting human presence or MFA. See `decisions/2026-10-26-operator-auth.md` and its scoped consensus. Privileged runtime activation still requires distinct-account and private-ingress verification, authoritative eligibility, and replay-safe external execution.
 
 ### O5 — Scenario authoring, coverage, and drift sweep
 Who writes holdout scenarios, how coverage is measured, and a drift-sweep loop that adds scenarios through the same gate (to prevent overfitting to a fixed set). Unowned in the original plan.
