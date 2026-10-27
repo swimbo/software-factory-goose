@@ -235,6 +235,34 @@ pub struct InferenceBudget<'a> {
     pub max_output_tokens: u64,
 }
 
+// Credential and budget authority traffic must not use cleartext networks. Literal loopback HTTP is
+// permitted for isolated local fixtures; hostnames are not trusted as loopback aliases.
+fn validate_transport_base(base: &str) -> anyhow::Result<()> {
+    let url =
+        reqwest::Url::parse(base).map_err(|_| anyhow::anyhow!("invalid transport endpoint"))?;
+    anyhow::ensure!(
+        url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none(),
+        "invalid transport endpoint"
+    );
+    let allowed = match url.scheme() {
+        "https" => url.host().is_some(),
+        "http" => url
+            .host_str()
+            .and_then(|host| {
+                host.trim_matches(['[', ']'])
+                    .parse::<std::net::IpAddr>()
+                    .ok()
+            })
+            .is_some_and(|ip| ip.is_loopback()),
+        _ => false,
+    };
+    anyhow::ensure!(allowed, "endpoint requires HTTPS or literal loopback HTTP");
+    Ok(())
+}
+
 /// HTTP client for the Bifrost gateway (the credential broker + budget choke point).
 ///
 /// Bifrost is OpenAI-compatible for inference but authenticates callers with the `x-bf-vk`
@@ -299,16 +327,7 @@ impl GatewayClient {
             self.budget_authority.is_none(),
             "budget authority already bound"
         );
-        let url = reqwest::Url::parse(base)?;
-        anyhow::ensure!(
-            matches!(url.scheme(), "http" | "https")
-                && url.host_str().is_some()
-                && url.username().is_empty()
-                && url.password().is_none()
-                && url.query().is_none()
-                && url.fragment().is_none(),
-            "invalid budget authority URL"
-        );
+        validate_transport_base(base)?;
         anyhow::ensure!(
             !unit.is_empty()
                 && unit.len() <= 256
@@ -343,6 +362,7 @@ impl GatewayClient {
         messages: &[serde_json::Value],
         budget: &InferenceBudget<'_>,
     ) -> anyhow::Result<serde_json::Value> {
+        validate_transport_base(&self.base_url)?;
         anyhow::ensure!(
             self.governance_key_id.as_deref() == Some(budget.virtual_key_id),
             "governance identity is not bound to this client"
@@ -398,6 +418,7 @@ impl GatewayClient {
     /// `None` = unreadable → `gate_call` fails closed (R7: a gateway that cannot read the budget
     /// spends nothing).
     pub async fn remaining_budget(&self, vk_id: &str) -> Option<f64> {
+        validate_transport_base(&self.base_url).ok()?;
         let resp = self
             .http
             .get(format!("{}/api/governance/virtual-keys", self.base_url))
@@ -528,6 +549,77 @@ fn decimal_microusd(value: &str, ceil: bool) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gateway_transport_rejects_cleartext_remote_or_ambiguous_addresses() {
+        for base in [
+            "http://example.com",
+            "http://localhost:8080",
+            "http://192.0.2.1",
+            "https://user@example.com",
+            "https://example.com/#fragment",
+            "file:///tmp/gateway",
+        ] {
+            assert!(validate_transport_base(base).is_err(), "accepted {base}");
+        }
+        for base in [
+            "https://gateway.example.com",
+            "http://127.0.0.1:8080",
+            "http://[::1]:8080",
+        ] {
+            assert!(validate_transport_base(base).is_ok(), "rejected {base}");
+        }
+    }
+
+    #[test]
+    fn reservation_authority_rejects_cleartext_remote_endpoints() {
+        let client = || GatewayClient::new("http://127.0.0.1:1", "vk", "admin");
+        assert!(
+            client()
+                .with_budget_authority("http://192.0.2.1:8080", "unit")
+                .is_err()
+        );
+        assert!(
+            client()
+                .with_budget_authority("https://authority.example", "unit")
+                .is_ok()
+        );
+        assert!(
+            client()
+                .with_budget_authority("http://127.0.0.1:8080", "unit")
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn malformed_gateway_base_never_sends_admin_credential() {
+        use axum::{Router, http::StatusCode};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let app = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::OK
+            }
+        });
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        for base in [
+            format!("http://user:password@{address}"),
+            format!("http://{address}/?unexpected=1"),
+        ] {
+            let client = GatewayClient::new(base, "synthetic-vk", "synthetic-admin");
+            assert!(client.remaining_budget("key").await.is_none());
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+    }
 
     #[tokio::test]
     async fn caller_cannot_change_bound_budget_authority_or_unit() {

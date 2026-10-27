@@ -33,6 +33,7 @@ pub use verification::{
 };
 pub mod holdout;
 pub mod holdout_runner;
+pub mod holdout_selection;
 pub mod holdout_store;
 #[cfg(unix)]
 pub mod holdout_transfer;

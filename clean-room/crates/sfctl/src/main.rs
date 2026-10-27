@@ -83,6 +83,8 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
     let Cli { url, json, command } = cli;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .no_proxy()
         .build()?;
     match command {
         Command::Submit {
@@ -105,18 +107,23 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             print_resp(json, resp).await
         }
         Command::Inspect { id } => {
+            validate_identifier(&id)?;
             let resp = client.get(format!("{url}/v1/intents/{id}")).send().await?;
             print_resp(json, resp).await
         }
         Command::Status { id } => {
             let url = match id {
-                Some(id) => format!("{url}/v1/work-packages/{id}"),
+                Some(id) => {
+                    validate_identifier(&id)?;
+                    format!("{url}/v1/work-packages/{id}")
+                }
                 None => format!("{url}/v1/work-packages"),
             };
             let resp = client.get(url).send().await?;
             print_resp(json, resp).await
         }
         Command::Approve { kind, id, reason } => {
+            validate_gate(&kind, &id)?;
             let url = format!("{url}/v1/{kind}/{id}/approve");
             let resp = client
                 .post(url)
@@ -126,6 +133,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             print_resp(json, resp).await
         }
         Command::Deny { kind, id, reason } => {
+            validate_gate(&kind, &id)?;
             let url = format!("{url}/v1/{kind}/{id}/deny");
             let resp = client
                 .post(url)
@@ -143,6 +151,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             print_resp(json, resp).await
         }
         Command::Stop { id } => {
+            validate_identifier(&id)?;
             let resp = client
                 .post(format!("{url}/v1/work-packages/{id}/stop"))
                 .send()
@@ -152,20 +161,59 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-async fn print_resp(json: bool, resp: reqwest::Response) -> anyhow::Result<()> {
+fn validate_identifier(id: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !id.is_empty()
+            && id.len() <= 256
+            && id != "."
+            && id != ".."
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.:".contains(&b)),
+        "invalid identifier"
+    );
+    Ok(())
+}
+
+fn validate_gate(kind: &str, id: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(matches!(kind, "promotions" | "grants"), "invalid gate kind");
+    validate_identifier(id)
+}
+
+const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
+
+async fn print_resp(json: bool, mut resp: reqwest::Response) -> anyhow::Result<()> {
     let status = resp.status();
-    let text = resp.text().await?;
+    anyhow::ensure!(
+        resp.content_length()
+            .is_none_or(|size| size <= MAX_RESPONSE_BYTES as u64),
+        "response body exceeds limit"
+    );
+    let mut bytes = Vec::new();
+    while let Some(chunk) = resp.chunk().await? {
+        anyhow::ensure!(
+            chunk.len() <= MAX_RESPONSE_BYTES - bytes.len(),
+            "response body exceeds limit"
+        );
+        bytes.extend_from_slice(&chunk);
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    if !status.is_success() {
+        if json {
+            println!("{text}");
+        } else {
+            println!("[{status}] {text}");
+        }
+        anyhow::bail!("request failed with status {status}");
+    }
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|_| anyhow::anyhow!("server returned invalid JSON"))?;
     if json {
         println!("{text}");
     } else {
         println!("[{status}] {text}");
     }
-    if !status.is_success() {
-        anyhow::bail!("request failed with status {status}");
-    }
-    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text)
-        && value.get("error").is_some()
-    {
+    if value.get("error").is_some() {
         anyhow::bail!("server reported an operation error");
     }
     Ok(())

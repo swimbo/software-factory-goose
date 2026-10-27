@@ -79,7 +79,11 @@ fn valid_scope(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 256
         && value.trim() == value
-        && !value.chars().any(char::is_control)
+        && value != "."
+        && value != ".."
+        && !value
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '/' | '\\' | '%' | '?' | '#'))
 }
 
 /// Constructed solely from the accepted stream. No Deserialize or public UID constructor.
@@ -336,6 +340,19 @@ fn validate_completion(
     validate_delivery(binding, delivery, Some(state), now)
 }
 
+// Reject path ambiguity before socket checks or network I/O. The URL library silently
+// drops dot segments, and proxies may differ in how they decode path delimiters.
+fn restate_call_url(service: &str, key: &str, handler: &str) -> Result<reqwest::Url, AdapterError> {
+    if ![service, key, handler].into_iter().all(valid_scope) {
+        return Err(AdapterError::new(400, "invalid durable call scope"));
+    }
+    let mut url = reqwest::Url::parse("http://localhost/").expect("constant URL");
+    url.path_segments_mut()
+        .expect("constant base")
+        .extend(["restate", "call", service, key, handler]);
+    Ok(url)
+}
+
 /// Real bounded HTTP backend over a service-private Unix ingress/proxy socket, with no TCP
 /// fallback or environment proxies. This does NOT provision a Restate proxy or prove that
 /// its upstream Restate service is inaccessible to workers; that remains an activation gate.
@@ -376,6 +393,7 @@ impl UnixRestateBackend {
         handler: &str,
         payload: Option<&T>,
     ) -> Result<R, AdapterError> {
+        let url = restate_call_url(service, key, handler)?;
         let check = || check_private_socket(&self.path, self.uid).ok() == Some(self.identity);
         if !check() {
             return Err(AdapterError::new(
@@ -396,10 +414,6 @@ impl UnixRestateBackend {
         if peer.peer_cred().ok().map(|p| p.uid()) != Some(self.uid) {
             return Err(AdapterError::new(503, "private ingress peer mismatch"));
         }
-        let mut url = reqwest::Url::parse("http://localhost/").expect("constant URL");
-        url.path_segments_mut()
-            .expect("constant base")
-            .extend(["restate", "call", service, key, handler]);
         let request = self.client.post(url);
         // SDK no-argument handlers reject JSON null: omit both body and Content-Type.
         let request = if let Some(payload) = payload {
@@ -587,6 +601,50 @@ mod tests {
             last_completion: None,
         }
     }
+    #[test]
+    fn policy_rejects_ambiguous_transport_keys() {
+        for bad in [
+            ".",
+            "..",
+            "a/b",
+            "a\\b",
+            "%2e%2e",
+            "%252e%252e",
+            "a?b",
+            "a#b",
+            "",
+            "space ",
+        ] {
+            let mut candidate = binding(503);
+            candidate.queue_id = bad.into();
+            assert!(
+                WorkerPolicy::new(500, 501, 502, vec![candidate]).is_err(),
+                "accepted {bad}"
+            );
+        }
+        assert!(WorkerPolicy::new(500, 501, 502, vec![binding(503)]).is_ok());
+        for bad in [
+            ".",
+            "..",
+            "%2e",
+            "%2e%2e",
+            "%252e%252e",
+            "a/b",
+            "a\\b",
+            "a?b",
+            "a#b",
+        ] {
+            assert!(restate_call_url("WorkerQueueJournal", bad, "pull").is_err());
+            assert!(restate_call_url(bad, "worker-1", "pull").is_err());
+            assert!(restate_call_url("WorkerQueueJournal", "worker-1", bad).is_err());
+        }
+        let url = restate_call_url("WorkerQueueJournal", "task:one-1", "pull").unwrap();
+        assert_eq!(
+            url.path(),
+            "/restate/call/WorkerQueueJournal/task:one-1/pull"
+        );
+    }
+
     #[test]
     fn pull_requires_authoritative_binding_and_live_deadline() {
         assert!(validate_delivery(&binding(501), &assignment(), Some(&claim()), 101).is_ok());
@@ -984,6 +1042,14 @@ mod tests {
                 "/restate/call/WorkerQueueJournal/queue/complete".into(),
                 completion_body()
             )
+        );
+        for key in [".", "..", "%2e%2e", "a/b", "a?b", "a#b"] {
+            assert!(backend.status(key.into()).await.is_err());
+        }
+        assert_eq!(
+            calls.lock().unwrap().len(),
+            4,
+            "invalid keys reached ingress"
         );
         assert!(
             UnixRestateBackend::new(fixture.path.clone(), uid + 1)

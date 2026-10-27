@@ -1,0 +1,12 @@
+{
+  "fixture_only": true,
+  "production_enabled": false,
+  "upstream_requests": 12,
+  "reservations": 12,
+  "spent_microusd": 14400,
+  "reservation_microusd_per_call": 1200,
+  "proxy_only_network_profile": true,
+  "direct_upstream_denials": 6,
+  "six_cases_passed": true,
+  "passed": true
+}

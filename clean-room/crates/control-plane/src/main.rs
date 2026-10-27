@@ -12,7 +12,7 @@ use axum::{
     extract::State,
     routing::{get, post},
 };
-use control_plane::{memory, pipeline, projection, qualifier};
+use control_plane::{pipeline, projection, qualifier};
 use serde_json::{Value, json};
 use shared::new_id;
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 /// pipelines (intent → task DAG → merge).
 struct AppState {
     intents: Mutex<HashMap<String, Value>>,
-    pool: Option<sqlx::PgPool>,
+    _pool: Option<sqlx::PgPool>,
     pipelines: Mutex<HashMap<String, pipeline::Pipeline>>,
 }
 
@@ -31,7 +31,7 @@ impl Default for AppState {
     fn default() -> Self {
         AppState {
             intents: Mutex::new(HashMap::new()),
-            pool: None,
+            _pool: None,
             pipelines: Mutex::new(HashMap::new()),
         }
     }
@@ -93,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(AppState {
         intents: Mutex::new(HashMap::new()),
-        pool,
+        _pool: pool,
         pipelines: Mutex::new(HashMap::new()),
     });
     let app = app(state);
@@ -444,18 +444,10 @@ async fn stop_work_package() -> (axum::http::StatusCode, Json<Value>) {
     unavailable("stop unavailable: independent watchdog is not provisioned; no process was stopped")
 }
 
-/// GET /v1/memory/dependents/{symbol} — R16 AST-graph query (deterministic, no LLM).
-async fn memory_dependents(
-    State(state): State<SharedState>,
-    axum::extract::Path(symbol): axum::extract::Path<String>,
-) -> Json<Value> {
-    match &state.pool {
-        Some(pool) => match memory::dependents_from_db(pool, &symbol).await {
-            Ok(deps) => Json(json!({ "symbol": symbol, "dependents": deps })),
-            Err(e) => Json(json!({ "error": e.to_string() })),
-        },
-        None => Json(json!({ "error": "no database configured" })),
-    }
+/// An unscoped AST lookup cannot safely serve a caller until private identity and
+/// repository/revision scoping are implemented and verified.
+async fn memory_dependents() -> (axum::http::StatusCode, Json<Value>) {
+    unavailable("memory lookup unavailable: authenticated repository and revision scope required")
 }
 
 #[cfg(test)]
@@ -465,6 +457,25 @@ mod tests {
     use axum::http::Request;
     use http_body_util::BodyExt;
     use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn unscoped_memory_query_is_unavailable_without_private_identity() {
+        let response = app(Arc::new(AppState::default()))
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/memory/dependents/sensitive_symbol")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        );
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(!String::from_utf8_lossy(&body).contains("sensitive_symbol"));
+    }
 
     struct KnowledgeFixture(std::path::PathBuf);
     impl KnowledgeFixture {
@@ -575,10 +586,10 @@ mod tests {
         assert_eq!(count().await, 0, "fixture database must start empty");
         let knowledge = KnowledgeFixture::new();
         let state = Arc::new(AppState {
-            pool: Some(pool.clone()),
+            _pool: Some(pool.clone()),
             ..AppState::default()
         });
-        let response = app(state)
+        let response = app(state.clone())
             .oneshot(
                 Request::builder()
                     .method("POST")
@@ -599,6 +610,31 @@ mod tests {
             0,
             "diagnostic decision must not enter authoritative read model"
         );
+        sqlx::query("INSERT INTO ast_edges (from_symbol, to_symbol, kind) VALUES ('fixture_private_caller', 'fixture_target', 'calls')")
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            control_plane::memory::dependents_from_db(&pool, "fixture_target")
+                .await
+                .unwrap(),
+            vec!["fixture_private_caller"]
+        );
+        let response = app(state)
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/memory/dependents/fixture_target")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        );
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        assert!(!String::from_utf8_lossy(&body).contains("fixture_private_caller"));
         let separately_produced = qualifier::decide(
             "fixture-projection",
             &qualifier::IntentFeatures {

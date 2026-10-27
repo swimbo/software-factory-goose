@@ -39,7 +39,7 @@ def run():
         def sql(query):
             return subprocess.check_output(pgargs('psql')+['-d','sfactory_verification','-v','ON_ERROR_STOP=1','-tAc',query],env=env,text=True).strip()
         def snapshot(key='recovery-task'):
-            assert key in ('recovery-task', 'recovery-second')
+            assert key in ('recovery-task', 'recovery-second', 'retry-claim')
             return json.loads(sql("SELECT coalesce(jsonb_agg(jsonb_build_object('invocation_id',invocation_id,'step_seq',step_seq,'payload',payload) ORDER BY (payload->>'version')::bigint),'[]'::jsonb) FROM outbox WHERE step_kind='claim_transition_v1' AND payload->>'work_package_id'='" + key + "'"))
         def discover_claim_keys(admin_port):
             # Fixture-only read-only admin introspection. No claim payloads or lease tokens.
@@ -140,6 +140,26 @@ def run():
             quarantined_report={**report,'quarantined':True}
             assert call('reexport_claim_history')==(200,quarantined_report) and snapshot()==original
             assert call('complete',completion)[0]==503  # recovery never silently clears quarantine
+            # The stricter evaluating binding must also accept a legitimate second attempt.
+            retry_key='retry-claim'
+            assert call('initialize',spec,key=retry_key)[0]==200
+            code,first=call('claim',{'ttl_ms':300000,'expected_previous_attempt':0},key=retry_key);assert code==200
+            failed={'proof':{'attempt':first['attempt'],'token':first['token']},'receipt':{'status':'failed','exit_code':1,'stderr_tail':'fixture failure'}}
+            code,failed_state=call('complete',failed,key=retry_key);assert code==200 and failed_state['stage']=='CoolingDown'
+            deadline=time.monotonic()+10
+            while True:
+                code,second=call('claim',{'ttl_ms':300000,'expected_previous_attempt':1},key=retry_key)
+                if code==200:break
+                assert code==409 and time.monotonic()<deadline,(code,'retry unavailable')
+                time.sleep(.1)
+            assert second['attempt']==2
+            succeeded={'proof':{'attempt':second['attempt'],'token':second['token']},'receipt':{'status':'completed','sha':'c'*40,'diff':'','turn_count':1,'exit_code':0,'wall_time_ms':1,'spend_usd':0.01}}
+            code,retried=call('complete',succeeded,key=retry_key);assert code==200 and retried['stage']=='Evaluating'
+            retry_events=snapshot(retry_key);assert len(retry_events)==5
+            projected=retry_events[-1]['payload']['snapshot']
+            assert projected['attempts']==projected['last_completion']['lease']['attempt']==2
+            assert projected['last_completion']['receipt']['sha']=='c'*40
+            assert call('reexport_claim_history',key=retry_key)[0]==200 and snapshot(retry_key)==retry_events
             # Known-object retention cap: no silent eviction or state mutation on rejection.
             assert call('initialize',spec,key='retention-cap')[0]==200
             code,lease=call('claim',{'ttl_ms':10000,'expected_previous_attempt':0},key='retention-cap');assert code==200
@@ -155,7 +175,7 @@ def run():
             subprocess.run(pgargs('createdb')+['sfactory_verification'],env=env,check=True)
             projection_env={**env,'SFACTORY_TEST_DATABASE_URL':env['SFACTORY_FIXTURE_DATABASE_URL']}
             subprocess.run([str(ROOT/'target/debug/examples/verify_projection')],env=projection_env,stdout=subprocess.DEVNULL,check=True)
-            print(json.dumps({'result':'PASS','database_loss':'dropped/recreated owned sfactory_verification database','pgvector':vector_version,'original_event_count':3,'original_ids_preserved':True,'admin_discovery_fixture_keys':2,'admin_discovery_is_complete_inventory':False,'reexports_across_restarts':3,'terminal_conflict_rollback':True,'retention_cap':128,'production_authentication':False,'sql_safe_schema':2,'claim_capabilities_and_raw_text_absent':True,'receipt_diff_stderr_canaries_absent':True},sort_keys=True))
+            print(json.dumps({'result':'PASS','database_loss':'dropped/recreated owned sfactory_verification database','pgvector':vector_version,'original_event_count':3,'original_ids_preserved':True,'admin_discovery_fixture_keys':2,'admin_discovery_is_complete_inventory':False,'reexports_across_restarts':3,'terminal_conflict_rollback':True,'retention_cap':128,'second_attempt_evaluating_and_reexport':True,'production_authentication':False,'sql_safe_schema':2,'claim_capabilities_and_raw_text_absent':True,'receipt_diff_stderr_canaries_absent':True},sort_keys=True))
         finally:
             for p in reversed(processes):stop(p)
             for log in logs:log.close()

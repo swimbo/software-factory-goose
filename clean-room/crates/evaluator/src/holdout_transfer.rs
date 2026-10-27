@@ -190,6 +190,17 @@ async fn send_manifest(
         if request.version != 1 || request.digest != manifest.digest() {
             return Err(TransferError);
         }
+        // Require end-of-request before releasing secret bytes; timeout covers peers
+        // that send a valid frame but keep the write half open.
+        let mut trailing = [0u8; 1];
+        if stream
+            .read(&mut trailing)
+            .await
+            .map_err(|_| TransferError)?
+            != 0
+        {
+            return Err(TransferError);
+        }
         write_frame(&mut stream, manifest.source_bytes()).await?;
         stream.shutdown().await.map_err(|_| TransferError)
     })
@@ -210,6 +221,8 @@ async fn receive_manifest(
         })
         .map_err(|_| TransferError)?;
         write_frame(&mut stream, &request).await?;
+        // Half-close the request direction without closing the response direction.
+        stream.shutdown().await.map_err(|_| TransferError)?;
         let raw = read_frame(&mut stream, MAX_MANIFEST_BYTES).await?;
         let manifest = FixtureManifest::parse_trusted(&raw).map_err(|_| TransferError)?;
         if manifest.digest() != digest {
@@ -309,6 +322,46 @@ mod tests {
             );
             assert!(received.is_empty());
         }
+    }
+
+    #[tokio::test]
+    async fn trailing_request_bytes_are_refused_without_manifest() {
+        let (a, mut b) = UnixStream::pair().unwrap();
+        let m = manifest();
+        let request = serde_json::to_vec(&Request {
+            version: 1,
+            digest: m.digest().into(),
+        })
+        .unwrap();
+        let (result, received) = tokio::join!(send_manifest(a, uid(), &m, WAIT), async {
+            write_frame(&mut b, &request).await.unwrap();
+            b.write_all(b"unexpected trailing bytes").await.unwrap();
+            b.shutdown().await.unwrap();
+            let mut bytes = Vec::new();
+            b.read_to_end(&mut bytes).await.unwrap();
+            bytes
+        });
+        assert!(result.is_err());
+        assert!(
+            received.is_empty(),
+            "manifest released after trailing request data"
+        );
+    }
+
+    #[tokio::test]
+    async fn valid_request_without_eof_times_out_without_manifest() {
+        let (a, mut b) = UnixStream::pair().unwrap();
+        let m = manifest();
+        let request = serde_json::to_vec(&Request {
+            version: 1,
+            digest: m.digest().into(),
+        })
+        .unwrap();
+        write_frame(&mut b, &request).await.unwrap();
+        assert!(send_manifest(a, uid(), &m, WAIT).await.is_err());
+        let mut bytes = Vec::new();
+        b.read_to_end(&mut bytes).await.unwrap();
+        assert!(bytes.is_empty());
     }
 
     #[tokio::test]

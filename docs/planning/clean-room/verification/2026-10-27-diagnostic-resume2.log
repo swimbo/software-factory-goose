@@ -1,0 +1,9 @@
+   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.01s
+     Running unittests src/main.rs (target/debug/deps/control_plane-67c18ff560ecc378)
+
+running 1 test
+test tests::diagnostic_submission_does_not_write_authoritative_qualifier_projection ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.06s
+

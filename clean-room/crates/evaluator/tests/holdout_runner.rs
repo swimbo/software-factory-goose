@@ -241,3 +241,49 @@ async fn runner_refuses_zero_or_excessive_resource_limits() {
         assert_eq!(error.to_string(), "invalid fixture runner limits");
     }
 }
+
+#[tokio::test]
+async fn selected_runner_uses_pinned_manifest_and_candidate() {
+    use evaluator::holdout_selection::{
+        EvaluationSelection, SelectionConfig, run_selected_fixture,
+    };
+    let repo = Fixture::new();
+    let fixture = manifest("printf '{\"passed\":true}'");
+    let other = manifest("printf '{\"passed\":false}'");
+    let sha = repo.sha();
+    let selection = EvaluationSelection::from_trusted_config(SelectionConfig {
+        task_id: "task-1".into(),
+        repository: "repo-1".into(),
+        target_ref: "refs/heads/main".into(),
+        base_sha: "b".repeat(40),
+        candidate_sha: sha,
+        manifest_digest: fixture.digest().into(),
+        generation: 1,
+    })
+    .unwrap();
+    assert!(
+        run_selected_fixture(&selection, &repo.0, &other, limits())
+            .await
+            .is_err()
+    );
+    let wrong_revision = EvaluationSelection::from_trusted_config(SelectionConfig {
+        task_id: "task-1".into(),
+        repository: "repo-1".into(),
+        target_ref: "refs/heads/main".into(),
+        base_sha: "b".repeat(40),
+        candidate_sha: "f".repeat(40),
+        manifest_digest: fixture.digest().into(),
+        generation: 1,
+    })
+    .unwrap();
+    assert!(
+        run_selected_fixture(&wrong_revision, &repo.0, &fixture, limits())
+            .await
+            .is_err()
+    );
+    let report = run_selected_fixture(&selection, &repo.0, &fixture, limits())
+        .await
+        .unwrap();
+    let bound = selection.bind_report(&selection, report).unwrap();
+    assert_eq!(bound.report().feedback().status, PrefilterStatus::Passed);
+}

@@ -9,6 +9,7 @@
 use crate::driver::{self, DriverError};
 use crate::gates;
 use shared::{Lane, Receipt, Task, TaskStatus};
+use std::collections::HashSet;
 
 /// Default per-unit dollar ceiling (R7) — the pipeline's hard spend bound.
 pub const DEFAULT_PER_UNIT_CAP_USD: f64 = 0.75;
@@ -52,6 +53,8 @@ pub struct Pipeline {
     pub spent_usd: f64,
     /// The hard ceiling for this unit; only a human raises it (Gate 2).
     pub ceiling_usd: f64,
+    // Diagnostic state only: production must bind persisted receipts to durable claims.
+    completed_builds: HashSet<String>,
 }
 
 impl Pipeline {
@@ -62,6 +65,7 @@ impl Pipeline {
             tasks: decompose(intent_id, spec),
             spent_usd: 0.0,
             ceiling_usd: DEFAULT_PER_UNIT_CAP_USD,
+            completed_builds: HashSet::new(),
         }
     }
 
@@ -95,7 +99,7 @@ impl Pipeline {
 
     /// Tasks ready to dispatch (pending with all blockers completed).
     pub fn next_work(&self) -> Vec<&Task> {
-        if self.stage() == Stage::Failed || self.budget_exhausted() {
+        if self.lane != Lane::Dark || self.stage() == Stage::Failed || self.budget_exhausted() {
             return Vec::new();
         }
         driver::dispatchable(&self.tasks)
@@ -123,10 +127,11 @@ impl Pipeline {
         let Some(t) = self.tasks.iter_mut().find(|t| t.id == task_id) else {
             return false;
         };
-        if t.status != TaskStatus::InProgress {
+        if t.status != TaskStatus::InProgress || self.completed_builds.contains(task_id) {
             return false;
         }
         if receipt.is_completed() {
+            self.completed_builds.insert(task_id.to_owned());
             true // stays InProgress, awaiting evaluation
         } else {
             t.status = TaskStatus::Deleted;
@@ -144,6 +149,10 @@ impl Pipeline {
         {
             return;
         }
+        if passed && !self.completed_builds.contains(task_id) {
+            return;
+        }
+        self.completed_builds.remove(task_id);
         if passed {
             let id = task_id.to_string();
             let _ = driver::complete(&mut self.tasks, &id);
@@ -206,6 +215,37 @@ mod tests {
     fn evaluation_cannot_complete_an_undispatched_task() {
         let mut p = Pipeline::new("int1", "spec", Lane::Dark);
         p.on_eval("int1:scaffold", true);
+        assert_eq!(p.tasks[0].status, TaskStatus::Pending);
+    }
+
+    #[test]
+    fn passing_evaluation_requires_a_completed_build_for_the_same_task() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.dispatch("int1:scaffold");
+        p.on_eval("int1:scaffold", true);
+        assert_eq!(p.tasks[0].status, TaskStatus::InProgress);
+        assert!(p.next_work().is_empty());
+        assert!(p.on_build("int1:scaffold", &complete()));
+        p.on_eval("int1:implement", true);
+        assert_eq!(p.tasks[1].status, TaskStatus::Pending);
+        p.on_eval("int1:scaffold", true);
+        assert_eq!(p.tasks[0].status, TaskStatus::Completed);
+        assert_eq!(p.next_work()[0].id, "int1:implement");
+    }
+
+    #[test]
+    fn duplicate_completed_build_is_not_applied_twice() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Dark);
+        p.dispatch("int1:scaffold");
+        assert!(p.on_build("int1:scaffold", &complete()));
+        assert!(!p.on_build("int1:scaffold", &complete()));
+    }
+
+    #[test]
+    fn human_lane_is_not_automatically_dispatchable() {
+        let mut p = Pipeline::new("int1", "spec", Lane::Human);
+        assert!(p.next_work().is_empty());
+        p.dispatch("int1:scaffold");
         assert_eq!(p.tasks[0].status, TaskStatus::Pending);
     }
 

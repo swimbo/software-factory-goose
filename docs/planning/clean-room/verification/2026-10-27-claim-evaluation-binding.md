@@ -1,0 +1,9 @@
+# Claim evaluation projection binding — 2026-10-27
+
+The schema-2 claim projection now rejects an `Evaluating` snapshot unless it has no active lease and its completion carries the current, nonzero attempt, a successful completed receipt, and a full canonical candidate revision. The package identity, base revision, and completion remain in the existing snapshot format; no new wire field or endpoint was introduced. This checks the journal's own consistency and does not prove that the Git object exists, descends from the base, belongs to the claimed repository, or has passed evaluation.
+
+Test-first: the added negative control initially failed because a prior attempt's completion was accepted. After the change, all five invalid cases (attempt mismatch, missing candidate, nonzero exit, missing completion, and active lease) reject; the valid case accepts. The all-features control-plane library suite passed 172 tests on this working tree.
+
+Rebuilt `claim_recovery_fixture` and `verify_projection` offline and ran `clean-room/tests/fixtures/claim_projection_recovery.py` against disposable Restate 1.8 and PostgreSQL 17 with pgvector 0.8.2. Existing database-loss re-export, quarantine, retention, and successful completion checks passed. A new real second-attempt sequence failed the first attempt, observed cooldown, claimed again, completed on attempt two, and verified the projected attempt/revision and an idempotent re-export. The first run of this new fixture stopped at its fixture-only SQL key allowlist; adding the fixed synthetic key resolved it, and the rerun passed. Only fixture-owned processes and databases were used.
+
+This is not a trusted task-to-queue handoff, revision provenance proof, live worker execution, deployed authentication, or full recovery proof. A contradictory retained projection now fails closed and requires a separately reviewed repair; the compatibility of arbitrary historical production data has not been established.

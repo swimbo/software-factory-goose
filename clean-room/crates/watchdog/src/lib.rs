@@ -140,6 +140,8 @@ pub struct GroupStopResult {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StopResult {
     pub target: String,
+    /// Launches admitted before stop but still inside the OS spawn operation.
+    pub pending_launches: usize,
     /// Aggregate fields require every registered group, not merely the worker leader.
     pub signal_sent: bool,
     pub leader_reaped: bool,
@@ -158,6 +160,7 @@ struct OwnedChild {
 struct OwnedFamily {
     children: Vec<OwnedChild>,
     closed: bool,
+    pending_launches: usize,
 }
 impl OwnedFamily {
     fn snapshot(&self, target: &str) -> StopResult {
@@ -169,9 +172,12 @@ impl OwnedFamily {
         let signal = groups.first().and_then(|group| group.leader_signal);
         StopResult {
             target: target.into(),
-            signal_sent: !groups.is_empty() && groups.iter().all(|g| g.signal_sent),
-            leader_reaped: groups.iter().all(|g| g.leader_reaped),
-            group_absent: groups.iter().all(|g| g.group_absent),
+            pending_launches: self.pending_launches,
+            signal_sent: self.pending_launches == 0
+                && !groups.is_empty()
+                && groups.iter().all(|g| g.signal_sent),
+            leader_reaped: self.pending_launches == 0 && groups.iter().all(|g| g.leader_reaped),
+            group_absent: self.pending_launches == 0 && groups.iter().all(|g| g.group_absent),
             leader_signal: signal.filter(|_| groups.iter().all(|g| g.leader_signal == signal)),
             groups,
         }
@@ -182,7 +188,7 @@ impl OwnedFamily {
 /// Each target is a managed family of directly spawned group roots, not a discovered PID tree.
 /// Records never evict or reuse IDs. Restart recovery is deliberately not implemented.
 pub struct Registry {
-    entries: Mutex<BTreeMap<String, OwnedFamily>>,
+    entries: Mutex<BTreeMap<String, Arc<Mutex<OwnedFamily>>>>,
 }
 impl Registry {
     pub fn new() -> Result<Self> {
@@ -209,18 +215,25 @@ impl Registry {
             "registry capacity exhausted; no tombstones evicted"
         );
         let target = ulid::Ulid::new().to_string();
+        ensure!(
+            !entries.contains_key(&target),
+            "family identifier collision"
+        );
         entries.insert(
             target.clone(),
-            OwnedFamily {
+            Arc::new(Mutex::new(OwnedFamily {
                 children: Vec::new(),
                 closed: false,
-            },
+                pending_launches: 0,
+            })),
         );
         Ok(target)
     }
     /// Directly spawn another root (worker, Goose or tool) under the watchdog's ownership.
-    /// Admission and stop share the same mutex: either the child is retained before stop,
-    /// or stop closes admission before any spawn. There is no post-spawn registration gap.
+    /// Admission reserves a pending slot before spawning. A stop closes admission without
+    /// waiting for a stalled spawn and reports the unresolved reservation. A late child is
+    /// retained and stopped, but can briefly execute before spawn returns; this is not a
+    /// containment boundary and must not be used to claim that an unresolved stop succeeded.
     pub fn spawn_in_family(&self, target: &str, command: &mut Command) -> Result<String> {
         self.spawn_in_family_before(target, command, u64::MAX)
     }
@@ -241,11 +254,18 @@ impl Registry {
         environment: Option<&BTreeMap<String, String>>,
     ) -> Result<(String, Option<CapturedPipes>)> {
         check_reaping_policy()?;
-        let mut entries = self
+        let entries = self
             .entries
             .lock()
             .map_err(|_| anyhow::anyhow!("registry unavailable"))?;
-        let family = entries.get_mut(target).context("unknown managed family")?;
+        let family = entries
+            .get(target)
+            .context("unknown managed family")?
+            .clone();
+        drop(entries);
+        let mut family_state = family
+            .lock()
+            .map_err(|_| anyhow::anyhow!("family unavailable"))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_millis();
@@ -253,11 +273,13 @@ impl Registry {
             now < u128::from(expires_ms),
             "launch deadline elapsed while waiting for family admission"
         );
-        ensure!(!family.closed, "family is closed to further launches");
+        ensure!(!family_state.closed, "family is closed to further launches");
         ensure!(
-            family.children.len() < 16,
+            family_state.children.len() + family_state.pending_launches < 16,
             "family group capacity exhausted; no ownership records evicted"
         );
+        family_state.pending_launches += 1;
+        drop(family_state);
         command.env_clear();
         if let Some(environment) = environment {
             command
@@ -271,7 +293,29 @@ impl Registry {
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
         }
-        let mut child = command.process_group(0).spawn()?;
+        let spawned = command.process_group(0).spawn();
+        // A poisoned registry must not cause a successfully spawned Child to be dropped.
+        // Retain it in the recovered allocation, close admission, and attempt cleanup
+        // using only owned Child handles. The registry remains poisoned afterwards.
+        let (mut family_state, poisoned) = match family.lock() {
+            Ok(family) => (family, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        let family = &mut *family_state;
+        family.pending_launches = family.pending_launches.saturating_sub(1);
+        let registry_poisoned = self.entries.is_poisoned();
+        if poisoned || registry_poisoned {
+            family.closed = true;
+        }
+        let mut child = match spawned {
+            Ok(child) => child,
+            Err(error) => {
+                if poisoned || registry_poisoned {
+                    let _ = stop_family(target, family);
+                }
+                return Err(error.into());
+            }
+        };
         let pipes = environment.map(|_| {
             (
                 child.stdin.take().expect("piped stdin"),
@@ -295,6 +339,40 @@ impl Registry {
                 leader_signal: None,
             },
         });
+        // Admission can expire while the kernel or child setup is stalled. Quarantine
+        // the entire family rather than accepting an action after its deadline.
+        let expired = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(true, |now| now.as_millis() >= u128::from(expires_ms));
+        if expired {
+            family.closed = true;
+        }
+        if poisoned || registry_poisoned {
+            drop(pipes);
+            let cleanup = stop_family(target, family);
+            anyhow::bail!(
+                "registry unavailable after launch; owned cleanup: {}",
+                if cleanup
+                    .as_ref()
+                    .is_ok_and(|result| result.leader_reaped && result.group_absent)
+                {
+                    "completed"
+                } else {
+                    "unresolved"
+                }
+            );
+        }
+        let stopped_during_spawn = family.closed;
+        if stopped_during_spawn {
+            drop(pipes);
+            let result = stop_family(target, family)?;
+            ensure!(
+                result.leader_reaped && result.group_absent,
+                "late launch cleanup unresolved"
+            );
+            anyhow::bail!("family stopped or launch expired while launch was pending");
+        }
+        drop(family_state);
         Ok((member, pipes))
     }
     /// Fixture-only pipes, never Child/wait ownership. Exact environment belongs to trusted
@@ -316,13 +394,16 @@ impl Registry {
         target: &str,
         member: &str,
     ) -> Result<Option<(Option<i32>, Option<i32>)>> {
-        let mut entries = self
+        let entries = self
             .entries
             .lock()
             .map_err(|_| anyhow::anyhow!("registry unavailable"))?;
-        let record = entries
-            .get_mut(target)
-            .context("unknown family")?
+        let family = entries.get(target).context("unknown family")?.clone();
+        drop(entries);
+        let mut family_state = family
+            .lock()
+            .map_err(|_| anyhow::anyhow!("family unavailable"))?;
+        let record = family_state
             .children
             .iter_mut()
             .find(|r| r.result.member == member)
@@ -344,12 +425,20 @@ impl Registry {
                 return Ok(None);
             }
             // Natural exit still requires cleaning remaining group members BEFORE reaping.
-            if signal_owned_group(record).is_err() && !record.attempted {
-                anyhow::bail!("group ownership could not be established");
+            if let Err(error) = signal_owned_group(record) {
+                // Fixture-only availability concession: XNU returns EPERM when the
+                // unreaped zombie is the sole group member. Require positive complete
+                // enumeration and later absence. This is not an atomic containment proof.
+                let only_zombie = error.chain().any(|cause| {
+                    cause
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|e| e.raw_os_error() == Some(libc::EPERM))
+                }) && fixture_sole_unreaped_member(record.pgid);
+                if !only_zombie {
+                    return Err(error.context("group signal unresolved"));
+                }
+                record.attempted = true;
             }
-            // macOS may report EPERM for a zombie-only group. Do not infer success:
-            // reap this already-exited owned leader, never signal again, and require
-            // observed ESRCH for the group below before releasing captured output.
         }
         if let Some(child) = record.child.as_mut()
             && let Some(status) = child.try_wait()?
@@ -373,54 +462,101 @@ impl Registry {
         Ok(target)
     }
     pub fn stop(&self, target: &str) -> Result<StopResult> {
-        let mut entries = self
+        let entries = self
             .entries
             .lock()
             .map_err(|_| anyhow::anyhow!("registry unavailable"))?;
         let family = entries
-            .get_mut(target)
-            .context("target is not owned by this watchdog")?;
-        family.closed = true; // Permanent and atomic with spawn admission, including failures.
-        let mut fault = false;
-        // Signal ALL owned groups before waiting on any member. A hung worker must not
-        // delay signalling separately owned Goose/tool groups or require cooperation.
+            .get(target)
+            .context("target is not owned by this watchdog")?
+            .clone();
+        drop(entries);
+        let mut family_state = family
+            .lock()
+            .map_err(|_| anyhow::anyhow!("family unavailable"))?;
+        stop_family(target, &mut family_state)
+    }
+    fn try_stop(&self, target: &str) -> Result<StopResult> {
+        let entries = self
+            .entries
+            .try_lock()
+            .map_err(|_| anyhow::anyhow!("registry busy or unavailable"))?;
+        let family = entries
+            .get(target)
+            .context("target is not owned by this watchdog")?
+            .clone();
+        drop(entries);
+        let mut family_state = family
+            .try_lock()
+            .map_err(|_| anyhow::anyhow!("family busy or unavailable"))?;
+        stop_family(target, &mut family_state)
+    }
+}
+fn stop_family(target: &str, family: &mut OwnedFamily) -> Result<StopResult> {
+    family.closed = true; // Permanent and atomic with spawn admission, including failures.
+    let mut fault = false;
+    // Signal ALL owned groups before waiting on any member. A hung worker must not
+    // delay signalling separately owned Goose/tool groups or require cooperation.
+    for record in &mut family.children {
+        if !record.attempted && signal_owned_group(record).is_err() {
+            fault = true;
+        }
+    }
+    let deadline = Instant::now() + STOP_WAIT;
+    loop {
         for record in &mut family.children {
-            if !record.attempted && signal_owned_group(record).is_err() {
-                fault = true;
+            // Do not release a child PID if group signalling never became safe.
+            if !record.attempted {
+                continue;
+            }
+            if let Some(child) = record.child.as_mut()
+                && let Some(status) = child.try_wait()?
+            {
+                record.result.leader_signal = status.signal();
+                record.exit_code = status.code();
+                record.result.leader_reaped = true;
+                record.child = None;
+            }
+            if record.result.leader_reaped && !record.result.group_absent {
+                // Zero observes only; never kill a potentially recycled numeric ID.
+                let found = unsafe { libc::kill(-record.pgid, 0) };
+                record.result.group_absent = found == -1
+                    && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH);
             }
         }
-        let deadline = Instant::now() + STOP_WAIT;
-        loop {
-            for record in &mut family.children {
-                // Do not release a child PID if group signalling never became safe.
-                if !record.attempted {
-                    continue;
-                }
-                if let Some(child) = record.child.as_mut()
-                    && let Some(status) = child.try_wait()?
-                {
-                    record.result.leader_signal = status.signal();
-                    record.exit_code = status.code();
-                    record.result.leader_reaped = true;
-                    record.child = None;
-                }
-                if record.result.leader_reaped && !record.result.group_absent {
-                    // Zero observes only; never kill a potentially recycled numeric ID.
-                    let found = unsafe { libc::kill(-record.pgid, 0) };
-                    record.result.group_absent = found == -1
-                        && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH);
-                }
-            }
-            let result = family.snapshot(target);
-            if (result.leader_reaped && result.group_absent) || Instant::now() >= deadline {
-                ensure!(!fault, "at least one owned group stop is unresolved");
-                return Ok(result);
-            }
-            std::thread::sleep(Duration::from_millis(10));
+        let result = family.snapshot(target);
+        // A stalled spawn has no Child handle yet. Do not hold the registry lock waiting
+        // for it and do not present an empty group set as successful termination.
+        if result.pending_launches != 0
+            && (result
+                .groups
+                .iter()
+                .all(|group| group.leader_reaped && group.group_absent)
+                || Instant::now() >= deadline)
+        {
+            ensure!(!fault, "at least one owned group stop is unresolved");
+            return Ok(result);
         }
+        if (result.leader_reaped && result.group_absent) || Instant::now() >= deadline {
+            ensure!(!fault, "at least one owned group stop is unresolved");
+            return Ok(result);
+        }
+        std::thread::sleep(Duration::from_millis(10));
     }
 }
 fn signal_owned_group(record: &mut OwnedChild) -> Result<()> {
+    signal_owned_group_with(record, |pgid| {
+        if unsafe { libc::kill(-pgid, libc::SIGKILL) } == 0 {
+            Ok(())
+        } else {
+            Err(std::io::Error::last_os_error())
+        }
+    })
+}
+fn signal_owned_group_with(
+    record: &mut OwnedChild,
+    signal: impl FnOnce(i32) -> std::io::Result<()>,
+) -> Result<()> {
     check_reaping_policy()?;
     ensure!(record.child.is_some(), "ownership handle missing");
     // Do NOT reap before signalling. The retained Child keeps the PID reserved even if its
@@ -429,18 +565,36 @@ fn signal_owned_group(record: &mut OwnedChild) -> Result<()> {
         owned_group_is_safe(record.pgid),
         "owned process left its registered group; manual recovery required"
     );
-    record.attempted = true;
-    let result = unsafe { libc::kill(-record.pgid, libc::SIGKILL) };
-    if result == 0 {
-        record.result.signal_sent = true;
-    } else {
-        let error = std::io::Error::last_os_error();
-        ensure!(
-            error.raw_os_error() == Some(libc::ESRCH),
-            "owned group signal failed: {error}; outcome unresolved"
-        );
+    match signal(record.pgid) {
+        Ok(()) => record.result.signal_sent = true,
+        Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {}
+        Err(error) => {
+            return Err(
+                anyhow::Error::new(error).context("owned group signal failed; outcome unresolved")
+            );
+        }
     }
+    // Only release the owned leader for reaping once signalling succeeded or the
+    // group was already absent. Failed signals retain the handle for a safe retry.
+    record.attempted = true;
     Ok(())
+}
+#[cfg(all(feature = "fixture", target_os = "macos"))]
+fn fixture_sole_unreaped_member(pid: i32) -> bool {
+    let mut members = [0_i32; 1024];
+    let bytes = unsafe {
+        libc::proc_listpids(
+            2,
+            pid as u32,
+            members.as_mut_ptr().cast(),
+            std::mem::size_of_val(&members) as i32,
+        )
+    };
+    bytes == std::mem::size_of::<i32>() as i32 && members[0] == pid
+}
+#[cfg(all(feature = "fixture", not(target_os = "macos")))]
+fn fixture_sole_unreaped_member(_pid: i32) -> bool {
+    false
 }
 fn owned_group_is_safe(pid: i32) -> bool {
     // WNOWAIT proves the retained child relationship without releasing its PID. macOS
@@ -472,22 +626,26 @@ fn check_reaping_policy() -> Result<()> {
 }
 impl Drop for Registry {
     fn drop(&mut self) {
-        let Ok(entries) = self.entries.get_mut() else {
-            return;
-        };
-        for record in entries.values_mut().flat_map(|family| &mut family.children) {
-            if let Some(mut child) = record.child.take() {
-                // Best-effort owned-child cleanup, never a success report. No nonzero signal
-                // after an attempted stop; the background reap cannot target another PID.
-                if !record.attempted
-                    && check_reaping_policy().is_ok()
-                    && owned_group_is_safe(record.pgid)
-                {
-                    unsafe { libc::kill(-record.pgid, libc::SIGKILL) };
+        let entries = self
+            .entries
+            .get_mut()
+            .unwrap_or_else(|error| error.into_inner());
+        for family in entries.values_mut() {
+            let mut family_state = family.lock().unwrap_or_else(|error| error.into_inner());
+            for record in &mut family_state.children {
+                if let Some(mut child) = record.child.take() {
+                    // Best-effort owned-child cleanup, never a success report. No nonzero signal
+                    // after an attempted stop; the background reap cannot target another PID.
+                    if !record.attempted
+                        && check_reaping_policy().is_ok()
+                        && owned_group_is_safe(record.pgid)
+                    {
+                        unsafe { libc::kill(-record.pgid, libc::SIGKILL) };
+                    }
+                    std::thread::spawn(move || {
+                        let _ = child.wait();
+                    });
                 }
-                std::thread::spawn(move || {
-                    let _ = child.wait();
-                });
             }
         }
     }
@@ -515,7 +673,7 @@ fn scoped_router(policy: BrakePolicy, registry: Arc<Registry>) -> Router {
         .layer(middleware::from_fn(bounded_request))
         .with_state(ServerState {
             registry,
-            permit: Arc::new(tokio::sync::Semaphore::new(1)),
+            permit: Arc::new(tokio::sync::Semaphore::new(16)),
         })
 }
 async fn bounded_request(request: Request, next: Next) -> Response {
@@ -542,13 +700,13 @@ async fn stop_handler(
     let Ok(permit) = state.permit.try_acquire_owned() else {
         return (
             StatusCode::TOO_MANY_REQUESTS,
-            "stop already in progress; retry same target",
+            "brake capacity exhausted; retry same target",
         )
             .into_response();
     };
     let stopped = tokio::task::spawn_blocking(move || {
         let _permit = permit;
-        state.registry.stop(&request.target)
+        state.registry.try_stop(&request.target)
     });
     match tokio::time::timeout(Duration::from_secs(3), stopped).await {
         Ok(Ok(Ok(result))) => (
@@ -591,10 +749,145 @@ pub fn fixture_router(secret: BrakeSecret, registry: Arc<Registry>) -> Router {
 mod tests {
     use super::*;
     #[test]
+    fn failed_group_signal_keeps_owned_leader_for_retry() {
+        let registry = Registry::new().unwrap();
+        let target = registry
+            .spawn_owned(Command::new("/bin/sleep").arg("30"))
+            .unwrap();
+        let family = registry.entries.lock().unwrap()[&target].clone();
+        let (attempted, retained) = {
+            let mut state = family.lock().unwrap();
+            let record = &mut state.children[0];
+            assert!(
+                signal_owned_group_with(record, |_| Err(std::io::Error::from_raw_os_error(
+                    libc::EPERM
+                )))
+                .is_err()
+            );
+            let attempted = record.attempted;
+            let retained = record.child.is_some();
+            // Restore this owned fixture so even the red test cleans up safely.
+            record.attempted = false;
+            (attempted, retained)
+        };
+        let stopped = registry.stop(&target).unwrap();
+        assert!(stopped.signal_sent && stopped.leader_reaped && stopped.group_absent);
+        assert!(!attempted, "failed kill must not permit reap");
+        assert!(retained, "owned wait handle was lost");
+        let mut state = family.lock().unwrap();
+        let record = &mut state.children[0];
+        let called = std::cell::Cell::new(false);
+        assert!(
+            signal_owned_group_with(record, |_| {
+                called.set(true);
+                Ok(())
+            })
+            .is_err()
+        );
+        assert!(
+            !called.get(),
+            "must never signal after the owned leader is reaped"
+        );
+    }
+    #[test]
     fn registry_rejects_unowned_target_without_signalling() {
         let registry = Registry::new().unwrap();
         assert!(registry.stop("forged").is_err());
         assert_eq!(registry.len(), 0);
+    }
+    #[test]
+    fn slow_family_cleanup_does_not_block_another_family() {
+        let registry = Arc::new(Registry::new().unwrap());
+        let slow = registry
+            .spawn_owned(Command::new("/bin/sleep").arg("30"))
+            .unwrap();
+        let fast = registry
+            .spawn_owned(Command::new("/bin/sleep").arg("30"))
+            .unwrap();
+        assert!(registry.stop(&slow).unwrap().leader_reaped);
+        {
+            let family = registry.entries.lock().unwrap()[&slow].clone();
+            let mut state = family.lock().unwrap();
+            let record = &mut state.children[0];
+            // Simulate unresolved observation only; never signal this already reaped PID.
+            record.result.leader_reaped = false;
+            record.result.group_absent = false;
+        }
+        let slow_registry = registry.clone();
+        let slow_target = slow.clone();
+        let thread = std::thread::spawn(move || slow_registry.stop(&slow_target).unwrap());
+        let deadline = Instant::now() + Duration::from_secs(1);
+        let slow_family = registry.entries.lock().unwrap()[&slow].clone();
+        while slow_family.try_lock().is_ok() {
+            assert!(Instant::now() < deadline, "slow stop did not start");
+            std::thread::yield_now();
+        }
+        let started = Instant::now();
+        let result = registry.stop(&fast).unwrap();
+        let elapsed = started.elapsed();
+        let slow_result = thread.join().unwrap();
+        assert!(!slow_result.group_absent);
+        assert!(result.leader_reaped && result.group_absent);
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "unrelated stop waited {elapsed:?}"
+        );
+    }
+    #[tokio::test]
+    async fn brake_request_capacity_is_bounded_and_recovers() {
+        let registry = Arc::new(Registry::new().unwrap());
+        let target = registry
+            .spawn_owned(Command::new("/bin/sleep").arg("30"))
+            .unwrap();
+        let permit = Arc::new(tokio::sync::Semaphore::new(16));
+        let held = permit.clone().try_acquire_many_owned(16).unwrap();
+        let state = ServerState { registry, permit };
+        let response = stop_handler(
+            State(state.clone()),
+            Json(StopRequest {
+                target: target.clone(),
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        drop(held);
+        let response = stop_handler(State(state), Json(StopRequest { target })).await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn busy_family_request_does_not_consume_brake_capacity() {
+        let registry = Arc::new(Registry::new().unwrap());
+        let busy = registry.create_family().unwrap();
+        let fast = registry
+            .spawn_owned(Command::new("/bin/sleep").arg("30"))
+            .unwrap();
+        let family = registry.entries.lock().unwrap()[&busy].clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(0);
+        let (release_tx, release_rx) = std::sync::mpsc::sync_channel(0);
+        let holder = std::thread::spawn(move || {
+            let _guard = family.lock().unwrap();
+            ready_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+        });
+        ready_rx.recv_timeout(Duration::from_secs(3)).unwrap();
+        let state = ServerState {
+            registry: registry.clone(),
+            permit: Arc::new(tokio::sync::Semaphore::new(16)),
+        };
+        for _ in 0..32 {
+            let response = stop_handler(
+                State(state.clone()),
+                Json(StopRequest {
+                    target: busy.clone(),
+                }),
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+        }
+        let response = stop_handler(State(state), Json(StopRequest { target: fast })).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        release_tx.send(()).unwrap();
+        holder.join().unwrap();
     }
     #[test]
     fn actual_owned_child_is_killed_reaped_and_repeat_is_idempotent() {
@@ -623,7 +916,8 @@ mod tests {
         let mut command = Command::new("/bin/sh");
         command.args(["-c", "/bin/sleep 60 & exit 0"]);
         let target = registry.spawn_owned(&mut command).unwrap();
-        let pid = registry.entries.lock().unwrap()[&target].children[0].pgid;
+        let family = registry.entries.lock().unwrap()[&target].clone();
+        let pid = family.lock().unwrap().children[0].pgid;
         let deadline = Instant::now() + Duration::from_secs(2);
         loop {
             let output = Command::new("/bin/ps")
@@ -639,11 +933,7 @@ mod tests {
             );
             std::thread::sleep(Duration::from_millis(10));
         }
-        assert!(
-            registry.entries.lock().unwrap()[&target].children[0]
-                .child
-                .is_some()
-        );
+        assert!(family.lock().unwrap().children[0].child.is_some());
         let result = registry.stop(&target).unwrap();
         assert!(result.leader_reaped && result.group_absent && result.signal_sent);
         assert_eq!(
@@ -663,12 +953,14 @@ mod tests {
         let mut fresh = Command::new("/bin/sleep");
         fresh.arg("60");
         let fresh_target = other.spawn_owned(&mut fresh).unwrap();
-        let fresh_pid = other.entries.lock().unwrap()[&fresh_target].children[0].pgid;
+        let fresh_family = other.entries.lock().unwrap()[&fresh_target].clone();
+        let fresh_pid = fresh_family.lock().unwrap().children[0].pgid;
         // Fault injection simulates a recycled numeric group ID after the original reap.
         // The survivor is also this test's own child, never an existing user process.
         {
-            let mut entries = registry.entries.lock().unwrap();
-            let old = &mut entries.get_mut(&target).unwrap().children[0];
+            let family = registry.entries.lock().unwrap()[&target].clone();
+            let mut state = family.lock().unwrap();
+            let old = &mut state.children[0];
             old.pgid = fresh_pid;
             old.result.group_absent = false;
         }
@@ -804,9 +1096,212 @@ mod tests {
             barrier.wait();
             let launched = launcher.join().unwrap();
             let stopped = stopper.join().unwrap();
-            assert_eq!(stopped.groups.len(), usize::from(launched.is_ok()));
-            assert!(stopped.leader_reaped && stopped.group_absent);
-            assert_eq!(registry.stop(&family).unwrap(), stopped);
+            if stopped.pending_launches != 0 {
+                assert!(!stopped.leader_reaped && !stopped.group_absent);
+                assert!(launched.is_err());
+            }
+            let final_stop = registry.stop(&family).unwrap();
+            assert_eq!(final_stop.pending_launches, 0);
+            assert!(final_stop.leader_reaped && final_stop.group_absent);
+            if launched.is_ok() {
+                assert_eq!(final_stop.groups.len(), 1);
+            }
         }
+    }
+    #[test]
+    fn deadline_expiring_during_child_setup_quarantines_late_launch() {
+        use std::io::{Read, Write};
+        use std::os::fd::AsRawFd;
+        use std::os::unix::net::UnixStream;
+        let registry = Arc::new(Registry::new().unwrap());
+        let family = registry.create_family().unwrap();
+        let (mut parent, child) = UnixStream::pair().unwrap();
+        parent
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let fd = child.as_raw_fd();
+        let parent_fd = parent.as_raw_fd();
+        let deadline = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+            + 500;
+        let launch_registry = registry.clone();
+        let launch_family = family.clone();
+        let launcher = std::thread::spawn(move || {
+            let _socket = child;
+            let mut command = Command::new("/bin/sleep");
+            command.arg("30");
+            unsafe {
+                command.pre_exec(move || {
+                    libc::close(parent_fd);
+                    let b = [1_u8];
+                    if libc::write(fd, b.as_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    let mut release = [0_u8];
+                    if libc::read(fd, release.as_mut_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::other("probe release failed"));
+                    }
+                    Ok(())
+                });
+            }
+            launch_registry.spawn_in_family_before(&launch_family, &mut command, deadline)
+        });
+        let mut ready = [0];
+        parent.read_exact(&mut ready).unwrap();
+        while std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            <= u128::from(deadline)
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        parent.write_all(&[1]).unwrap();
+        assert!(launcher.join().unwrap().is_err());
+        let stopped = registry.stop(&family).unwrap();
+        assert_eq!(stopped.pending_launches, 0);
+        assert!(stopped.leader_reaped && stopped.group_absent);
+        assert!(
+            registry
+                .spawn_in_family(&family, &mut Command::new("/bin/true"))
+                .is_err()
+        );
+    }
+    #[test]
+    fn poisoned_registry_keeps_and_stops_child_returning_from_spawn() {
+        use std::io::{Read, Write};
+        use std::os::fd::AsRawFd;
+        use std::os::unix::net::UnixStream;
+        let registry = Arc::new(Registry::new().unwrap());
+        let family = registry.create_family().unwrap();
+        let (mut control, child_control) = UnixStream::pair().unwrap();
+        let (mut output, child_output) = UnixStream::pair().unwrap();
+        control
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        output
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let control_fd = child_control.as_raw_fd();
+        let output_fd = child_output.as_raw_fd();
+        let parent_control_fd = control.as_raw_fd();
+        let parent_output_fd = output.as_raw_fd();
+        let launch_registry = registry.clone();
+        let launch_family = family.clone();
+        let launcher = std::thread::spawn(move || {
+            let _sockets = (child_control, child_output);
+            let mut command = Command::new("/bin/sh");
+            command.args(["-c", "sleep 30 & echo ready; wait"]);
+            unsafe {
+                command.pre_exec(move || {
+                    libc::close(parent_control_fd);
+                    libc::close(parent_output_fd);
+                    let b = [1_u8];
+                    if libc::write(control_fd, b.as_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    let mut release = [0_u8];
+                    if libc::read(control_fd, release.as_mut_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::other("probe release failed"));
+                    }
+                    if libc::dup2(output_fd, libc::STDOUT_FILENO) < 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    Ok(())
+                });
+            }
+            launch_registry.spawn_in_family(&launch_family, &mut command)
+        });
+        let mut ready = [0];
+        control.read_exact(&mut ready).unwrap();
+        let poison_family = registry.entries.lock().unwrap()[&family].clone();
+        let (locked_tx, locked_rx) = std::sync::mpsc::sync_channel(0);
+        let (observed_tx, observed_rx) = std::sync::mpsc::sync_channel(0);
+        let poisoner = std::thread::spawn(move || {
+            let _guard = poison_family.lock().unwrap();
+            locked_tx.send(()).unwrap();
+            let mut line = [0_u8; 6];
+            let observed = output.read_exact(&mut line).is_ok() && &line == b"ready\n";
+            observed_tx.send((observed, output)).unwrap();
+            panic!("intentional registry poison");
+        });
+        locked_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        control.write_all(&[1]).unwrap();
+        let (observed, mut output) = observed_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(poisoner.join().is_err());
+        let result = launcher.join().unwrap();
+        assert!(result.is_err());
+        assert!(observed, "shell did not start its descendant");
+        let mut after = [0];
+        assert_eq!(
+            output.read(&mut after).unwrap(),
+            0,
+            "owned group still holds output open"
+        );
+        let poisoned_family = registry.entries.lock().unwrap()[&family].clone();
+        let state = match poisoned_family.lock() {
+            Err(error) => error.into_inner(),
+            Ok(_) => panic!("registry was not poisoned"),
+        };
+        let record = &state.children[0];
+        assert!(record.result.leader_reaped && record.result.group_absent);
+        assert!(record.child.is_none());
+    }
+    #[test]
+    fn poisoned_index_quarantines_a_child_returning_from_spawn() {
+        use std::io::{Read, Write};
+        use std::os::fd::AsRawFd;
+        use std::os::unix::net::UnixStream;
+        let registry = Arc::new(Registry::new().unwrap());
+        let family = registry.create_family().unwrap();
+        let owned_family = registry.entries.lock().unwrap()[&family].clone();
+        let (mut control, child_control) = UnixStream::pair().unwrap();
+        control
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let fd = child_control.as_raw_fd();
+        let parent_fd = control.as_raw_fd();
+        let launch_registry = registry.clone();
+        let launcher = std::thread::spawn(move || {
+            let _socket = child_control;
+            let mut command = Command::new("/bin/sleep");
+            command.arg("30");
+            unsafe {
+                command.pre_exec(move || {
+                    libc::close(parent_fd);
+                    let b = [1_u8];
+                    if libc::write(fd, b.as_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    let mut release = [0_u8];
+                    if libc::read(fd, release.as_mut_ptr().cast(), 1) != 1 {
+                        return Err(std::io::Error::other("probe release failed"));
+                    }
+                    Ok(())
+                });
+            }
+            launch_registry.spawn_in_family(&family, &mut command)
+        });
+        let mut ready = [0];
+        control.read_exact(&mut ready).unwrap();
+        let poison_registry = registry.clone();
+        assert!(
+            std::thread::spawn(move || {
+                let _guard = poison_registry.entries.lock().unwrap();
+                panic!("intentional index poison");
+            })
+            .join()
+            .is_err()
+        );
+        control.write_all(&[1]).unwrap();
+        assert!(launcher.join().unwrap().is_err());
+        let state = owned_family.lock().unwrap();
+        assert!(
+            state.closed
+                && state.children[0].result.leader_reaped
+                && state.children[0].result.group_absent
+        );
     }
 }

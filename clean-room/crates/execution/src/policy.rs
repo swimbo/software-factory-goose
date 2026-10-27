@@ -85,6 +85,7 @@ pub fn split_segments(cmd: &str) -> Vec<String> {
                     }
                     segs.push(std::mem::take(&mut cur));
                 }
+                '&' if cur.ends_with('>') => cur.push(c),
                 '&' => {
                     if chars.peek() == Some(&'&') {
                         chars.next();
@@ -107,14 +108,19 @@ pub fn split_segments(cmd: &str) -> Vec<String> {
 }
 
 /// Recognize the leading binary for the supported shell subset.
-fn first_binary(seg: &str) -> Option<String> {
-    let token = seg.split_whitespace().next()?.trim_matches(['\'', '"']);
-    // Leading assignments and wrappers are denied instead of pretending to parse their
-    // option grammars. They can change how the following tokens are interpreted.
-    if token.contains('=') {
-        return Some("env".to_string());
+fn first_binary(seg: &str) -> Result<Option<String>, ()> {
+    let Some(token) = seg.split(|c: char| c.is_whitespace() || c == '>').next() else {
+        return Ok(None);
+    };
+    if token.is_empty()
+        || token.bytes().all(|b| b.is_ascii_digit())
+        || !token
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-' | b'+'))
+    {
+        return Err(());
     }
-    Some(token.rsplit('/').next().unwrap_or(token).to_string())
+    Ok(Some(token.rsplit('/').next().unwrap_or(token).to_string()))
 }
 
 /// Detect simple redirection targets. This is a conservative subset, not a shell AST.
@@ -125,7 +131,11 @@ fn redirection_targets(seg: &str) -> Vec<String> {
     for part in parts {
         let p = part.trim_start_matches('>').trim();
         if let Some(tok) = p.split_whitespace().next() {
-            out.push(tok.to_string());
+            // The supported shell subset permits only fixed standard-descriptor
+            // duplication. Arbitrary descriptors and paths still go through denial.
+            if !matches!(tok, "&0" | "&1" | "&2") {
+                out.push(tok.to_string());
+            }
         }
     }
     out
@@ -192,8 +202,9 @@ pub fn evaluate_at(rules: &RuleSet, cmd: &str, cwd: &Path) -> Decision {
         return Decision::Deny("unbalanced shell quotes".to_string());
     }
     for seg in split_segments(cmd) {
-        let Some(bin) = first_binary(&seg) else {
-            continue;
+        let bin = match first_binary(&seg) {
+            Ok(Some(bin)) => bin,
+            _ => return Decision::Deny("unsupported executable syntax".to_string()),
         };
         if rules.blocked_binaries.iter().any(|b| b == &bin) {
             return Decision::Deny(format!("blocked binary: {bin}"));
@@ -213,12 +224,29 @@ pub fn evaluate_at(rules: &RuleSet, cmd: &str, cwd: &Path) -> Decision {
                 | "command"
                 | "nohup"
                 | "time"
+                | "if"
+                | "then"
+                | "else"
+                | "elif"
+                | "fi"
+                | "for"
+                | "while"
+                | "until"
+                | "do"
+                | "done"
+                | "case"
+                | "esac"
+                | "in"
+                | "function"
         ) {
             return Decision::Deny(
                 "nested shell or wrapper requires unsupported command parsing".to_string(),
             );
         }
         for t in redirection_targets(&seg) {
+            if t.starts_with('&') {
+                return Decision::Deny("unsupported descriptor redirection".to_string());
+            }
             if !path_allowed(&t, &rules.allowed_write_paths, cwd) {
                 return Decision::Deny(format!("write outside allowed paths: {t}"));
             }
@@ -253,6 +281,57 @@ mod tests {
     fn allows_normal_commands() {
         assert_eq!(evaluate(&rules(), "cargo build"), Decision::Allow);
         assert_eq!(evaluate(&rules(), "cargo test --offline"), Decision::Allow);
+    }
+
+    #[test]
+    fn denies_quoted_and_redirection_adjacent_executable_bypasses() {
+        for command in [
+            "d''d if=/dev/zero",
+            "d\"d\" if=/dev/zero",
+            "'/usr/'dd if=/dev/zero",
+            "dd>allowed-file",
+            "r''m /etc/passwd",
+            "r\"m\" /etc/passwd",
+            "2>allowed-file dd if=/dev/zero",
+            "! dd if=/dev/zero",
+            "if true; then dd if=/dev/zero; fi",
+            "d\\d if=/dev/zero",
+            "dd</dev/zero",
+            "dd<<EOF",
+            "dd<>allowed-file",
+            "dd|cat",
+            "dd||true",
+            "dd&&true",
+            "dd&true",
+            "dd;true",
+            "dd\ntrue",
+            "dd\tif=/dev/zero",
+            "(dd)",
+            "{ dd; }",
+            "dd>&2",
+            "dd 2>allowed-file",
+            "2>allowed-file dd",
+            ">allowed-file dd",
+            "0</dev/zero dd",
+            "2>>allowed-file dd",
+            "2>&1 dd",
+            "printf data >&2dd",
+            "printf data >&99",
+            "dd\r\ntrue",
+        ] {
+            assert!(
+                matches!(evaluate(&rules(), command), Decision::Deny(_)),
+                "allowed {command}"
+            );
+        }
+        assert_eq!(
+            evaluate(&rules(), "printf text>allowed-file"),
+            Decision::Allow
+        );
+        assert_eq!(evaluate(&rules(), "printf 'hello world'"), Decision::Allow);
+        assert_eq!(evaluate(&rules(), "/bin/printf text"), Decision::Allow);
+        assert_eq!(evaluate(&rules(), "printf text >&2"), Decision::Allow);
+        assert_eq!(evaluate(&rules(), "printf text 2>&1"), Decision::Allow);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Disposable falsification probe: a stalled child setup can block the family stop lock.
+//! Disposable probe: a stalled child setup leaves stop responsive but unresolved.
 //! No arbitrary PID or external process is targeted. This is not a production launcher.
 use std::{
     io::{Read, Write},
@@ -11,6 +11,10 @@ use std::{
 fn main() -> anyhow::Result<()> {
     let registry = Arc::new(watchdog::Registry::new()?);
     let target = registry.create_family()?;
+    let other = registry.spawn_owned(Command::new("/bin/sleep").arg("30"))?;
+    let mut existing = Command::new("/bin/sleep");
+    existing.arg("30");
+    let existing_member = registry.spawn_in_family(&target, &mut existing)?;
     let (mut parent, child) = UnixStream::pair()?;
     parent.set_read_timeout(Some(Duration::from_secs(5)))?;
     parent.set_write_timeout(Some(Duration::from_secs(5)))?;
@@ -45,33 +49,62 @@ fn main() -> anyhow::Result<()> {
     anyhow::ensure!(ready == [1], "child setup did not become blocked");
     let (tx, rx) = mpsc::channel();
     let (started_tx, started_rx) = mpsc::sync_channel(0);
+    let stop_registry = registry.clone();
+    let stop_target = target.clone();
     let stopper = std::thread::spawn(move || {
         let _ = started_tx.send(());
-        let result = registry.stop(&target);
+        let result = stop_registry.stop(&stop_target);
         let _ = tx.send(result);
     });
     started_rx.recv_timeout(Duration::from_secs(5))?;
-    let blocked = matches!(
-        rx.recv_timeout(Duration::from_millis(300)),
-        Err(mpsc::RecvTimeoutError::Timeout)
-    );
+    let interim = rx.recv_timeout(Duration::from_secs(2));
+    let rejected = if interim.is_ok() {
+        registry
+            .spawn_in_family(&target, &mut Command::new("/bin/true"))
+            .is_err()
+    } else {
+        false
+    };
+    let other_stopped = if interim.is_ok() {
+        registry
+            .stop(&other)
+            .is_ok_and(|result| result.leader_reaped && result.group_absent)
+    } else {
+        false
+    };
     // Release before asserting, so the owned child cannot remain stalled on a test failure.
     parent.write_all(&[1])?;
     let launch = launcher
         .join()
         .map_err(|_| anyhow::anyhow!("launcher panicked"))?;
-    let stop = rx.recv_timeout(Duration::from_secs(10))??;
+    let stop = interim??;
     stopper
         .join()
         .map_err(|_| anyhow::anyhow!("stopper panicked"))?;
-    launch?;
-    anyhow::ensure!(blocked, "stop unexpectedly returned during blocked spawn");
+    anyhow::ensure!(launch.is_err(), "late launch must be rejected");
+    anyhow::ensure!(rejected, "family accepted a launch after stop");
+    anyhow::ensure!(other_stopped, "unrelated family could not be stopped");
+    anyhow::ensure!(
+        stop.pending_launches == 1
+            && !stop.group_absent
+            && !stop.leader_reaped
+            && !stop.signal_sent,
+        "pending launch was reported as stopped"
+    );
+    anyhow::ensure!(
+        stop.groups.len() == 1
+            && stop.groups[0].member == existing_member
+            && stop.groups[0].leader_reaped
+            && stop.groups[0].group_absent,
+        "previously registered group was not stopped"
+    );
+    let stop = registry.stop(&target)?;
     anyhow::ensure!(
         stop.leader_reaped && stop.group_absent,
         "owned group cleanup incomplete"
     );
     println!(
-        "PASS: stop was blocked during child setup; after release the owned group was stopped and reaped"
+        "PASS: stop reported a pending launch; after release the late owned group was stopped and reaped"
     );
     Ok(())
 }

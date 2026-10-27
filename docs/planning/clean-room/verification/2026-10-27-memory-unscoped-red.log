@@ -1,0 +1,25 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.69s
+     Running unittests src/main.rs (target/debug/deps/control_plane-67c18ff560ecc378)
+
+running 1 test
+test tests::unscoped_memory_query_is_unavailable_without_private_identity ... FAILED
+
+failures:
+
+---- tests::unscoped_memory_query_is_unavailable_without_private_identity stdout ----
+
+thread 'tests::unscoped_memory_query_is_unavailable_without_private_identity' (28315010) panicked at crates/control-plane/src/main.rs:480:9:
+assertion `left == right` failed
+  left: 200
+ right: 503
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::unscoped_memory_query_is_unavailable_without_private_identity
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p control-plane --bin control-plane`

@@ -296,7 +296,27 @@ impl ClaimProjectionSnapshot {
                     }
                     _ => true,
                 });
-        if self.schema_version != 2 || !canonical_revision(&self.base_revision) || !valid_receipt {
+        // Evaluating means this claim's current attempt completed successfully. A syntactically
+        // valid revision alone is not proof of repository provenance or an evaluator verdict.
+        let evaluating_bound = self.stage != ClaimProjectionStage::Evaluating
+            || (self.active.is_none()
+                && self.attempts > 0
+                && self.last_completion.as_ref().is_some_and(|completion| {
+                    completion.lease.attempt == self.attempts
+                        && matches!(
+                            &completion.receipt,
+                            ReceiptProjectionSummary::Completed {
+                                sha: Some(sha),
+                                exit_code: 0,
+                                ..
+                            } if canonical_revision(sha)
+                        )
+                }));
+        if self.schema_version != 2
+            || !canonical_revision(&self.base_revision)
+            || !valid_receipt
+            || !evaluating_bound
+        {
             return Err(ClaimProjectionError::Conflict(
                 "unsafe or unsupported claim projection schema".into(),
             ));
@@ -571,5 +591,33 @@ mod safe_snapshot_tests {
             serde_json::to_value(summary).unwrap()["sha"],
             serde_json::Value::Null
         );
+    }
+
+    #[test]
+    fn evaluating_snapshot_requires_the_current_attempts_successful_exact_revision() {
+        let mut evaluated = event();
+        evaluated.snapshot["stage"] = "Evaluating".into();
+        evaluated.snapshot["attempts"] = 2.into();
+        evaluated.snapshot["last_completion"] = serde_json::json!({
+            "lease":{"attempt":2,"issued_at_ms":0,"expires_at_ms":10,"hard_deadline_ms":300000},
+            "receipt":{"status":"completed","sha":"b".repeat(40),"turn_count":1,"exit_code":0,"wall_time_ms":1,"spend_usd":0.01}
+        });
+        evaluated.validate().unwrap();
+        for field in 0..5 {
+            let mut corrupt = evaluated.clone();
+            match field {
+                0 => corrupt.snapshot["last_completion"]["lease"]["attempt"] = 1.into(),
+                1 => {
+                    corrupt.snapshot["last_completion"]["receipt"]["sha"] = serde_json::Value::Null
+                }
+                2 => corrupt.snapshot["last_completion"]["receipt"]["exit_code"] = 1.into(),
+                3 => corrupt.snapshot["last_completion"] = serde_json::Value::Null,
+                _ => {
+                    corrupt.snapshot["active"] =
+                        corrupt.snapshot["last_completion"]["lease"].clone()
+                }
+            }
+            assert!(corrupt.validate().is_err(), "accepted variant {field}");
+        }
     }
 }

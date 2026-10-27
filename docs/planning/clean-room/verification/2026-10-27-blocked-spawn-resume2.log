@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.35s
+     Running `target/debug/examples/blocked_spawn_probe`
+PASS: stop reported a pending launch; after release the late owned group was stopped and reaped

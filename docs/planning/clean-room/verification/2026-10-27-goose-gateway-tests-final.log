@@ -1,0 +1,8 @@
+test_bad_and_oversized_upstream_output_withheld_and_reservations_retained (test_goose_gateway_protocol_spike.ProtocolTests.test_bad_and_oversized_upstream_output_withheld_and_reservations_retained) ... ok
+test_denied_budget_never_calls_provider (test_goose_gateway_protocol_spike.ProtocolTests.test_denied_budget_never_calls_provider) ... ok
+test_malformed_oversize_unknown_fields_and_mismatched_tool_result_never_reserve_or_forward (test_goose_gateway_protocol_spike.ProtocolTests.test_malformed_oversize_unknown_fields_and_mismatched_tool_result_never_reserve_or_forward) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.529s
+
+OK
