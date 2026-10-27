@@ -358,6 +358,7 @@ dependencies = [
  "dotenvy",
  "evaluator",
  "http-body-util",
+ "libc",
  "reqwest",
  "restate-sdk",
  "serde",
@@ -716,6 +717,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "libc",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -3479,6 +3481,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23f0c9c52aa7cd7d77769a4cfe2a9adb1b331f489a41d912ce14513d5ab995c6"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "watchdog"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "libc",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tokio",
+ "tower",
+ "ulid",
 ]
 
 [[package]]

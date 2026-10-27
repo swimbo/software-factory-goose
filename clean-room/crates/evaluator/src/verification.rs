@@ -21,9 +21,24 @@ pub struct VerificationEvidence {
 fn git(repo: &Path, args: &[&str]) -> Result<Vec<u8>> {
     git_input(repo, args, None)
 }
+thread_local! {static GIT_DEADLINE:std::cell::Cell<Option<Instant>>=const{std::cell::Cell::new(None)};}
+struct GitBudget(Option<Instant>);
+impl GitBudget {
+    fn enter(duration: Duration) -> Self {
+        let deadline = Instant::now() + duration;
+        Self(GIT_DEADLINE.replace(Some(
+            GIT_DEADLINE.get().map_or(deadline, |old| old.min(deadline)),
+        )))
+    }
+}
+impl Drop for GitBudget {
+    fn drop(&mut self) {
+        GIT_DEADLINE.set(self.0);
+    }
+}
 fn git_input(repo: &Path, args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>> {
-    // Config, hooks, external diff and pager execution cannot become a code runner.
-    let mut child = Command::new("/usr/bin/git")
+    let mut command = Command::new("/usr/bin/git");
+    command
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
         .env("GIT_CONFIG_NOSYSTEM", "1")
@@ -42,27 +57,14 @@ fn git_input(repo: &Path, args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>
             "-C",
         ])
         .arg(repo)
-        .args(args)
-        .stdin(if input.is_some() {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()?;
-    if let Some(bytes) = input {
-        use std::io::Write;
-        child
-            .stdin
-            .take()
-            .context("missing Git input pipe")?
-            .write_all(bytes)?;
-    }
-    let result = child.wait_with_output()?;
-    ensure!(result.status.success(), "Git verification operation failed");
-    Ok(result.stdout)
+        .args(args);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = GIT_DEADLINE
+        .get()
+        .map_or(deadline, |budget| budget.min(deadline));
+    crate::bounded_git::run(command, input, deadline, 8 * 1024 * 1024)
 }
+
 fn git_text(repo: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8(git(repo, args)?)?.trim().to_owned())
 }
@@ -465,29 +467,26 @@ impl RestrictedRunner {
         command
     }
     fn run(&self, cwd: &Path, executable: &Path, args: &[&str]) -> Result<bool> {
-        let mut child = self.command(cwd, executable, args).spawn()?;
-        let start = Instant::now();
-        loop {
-            if let Some(status) = child.try_wait()? {
-                // Descendants cannot survive a check that exits before its children.
-                let _ = Command::new("/bin/kill")
-                    .args(["-KILL", &format!("-{}", child.id())])
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .status();
-                return Ok(status.success());
+        #[cfg(all(unix, any(target_os = "macos", target_os = "linux")))]
+        {
+            let mut group =
+                crate::bounded_git::OwnedGroup::new(self.command(cwd, executable, args).spawn()?);
+            let start = Instant::now();
+            loop {
+                if group.exited()? {
+                    return Ok(group.cleanup()?.success());
+                }
+                if start.elapsed() > Duration::from_secs(120) {
+                    let _ = group.cleanup();
+                    bail!("isolated check exceeded timeout");
+                }
+                std::thread::sleep(Duration::from_millis(20));
             }
-            if start.elapsed() > Duration::from_secs(120) {
-                let _ = Command::new("/bin/kill")
-                    .args(["-KILL", &format!("-{}", child.id())])
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .status();
-                let _ = child.kill();
-                let _ = child.wait();
-                bail!("isolated check exceeded timeout");
-            }
-            std::thread::sleep(Duration::from_millis(20));
+        }
+        #[cfg(not(all(unix, any(target_os = "macos", target_os = "linux"))))]
+        {
+            let _ = (cwd, executable, args);
+            bail!("owned subprocess groups unsupported")
         }
     }
     pub(crate) fn canary(&self) -> Result<()> {
@@ -567,6 +566,7 @@ pub fn promote_verified_commit_to_ref(
     expected_base: &str,
     approved_sha: &str,
 ) -> Result<()> {
+    let _budget = GitBudget::enter(Duration::from_secs(30));
     exact_sha(expected_base)?;
     exact_sha(approved_sha)?;
     safe_local_config(operator_repo)?;
@@ -585,7 +585,7 @@ pub fn promote_verified_commit_to_ref(
         "promotion target must be an operator-owned bare repository"
     );
     ensure!(
-        git_text(operator_repo, &["rev-parse", target_ref])? == expected_base,
+        promotion_target_revision(operator_repo, target_ref)? == expected_base,
         "operator base changed"
     );
     ensure!(
@@ -645,4 +645,60 @@ pub fn promote_verified_commit_to_ref(
         "promotion read-back mismatch"
     );
     Ok(())
+}
+
+/// Inspect an exact direct branch in a bare Git-root repository. This is read-only and
+/// supplies no authorization; executors must authenticate a durable decision separately.
+pub fn promotion_target_revision(operator_repo: &Path, target_ref: &str) -> Result<String> {
+    let _budget = GitBudget::enter(Duration::from_secs(5));
+    safe_local_config(operator_repo)?;
+    ensure!(
+        target_ref.starts_with("refs/heads/"),
+        "promotion target must be a branch"
+    );
+    git(operator_repo, &["check-ref-format", target_ref])?;
+    ensure!(
+        git(operator_repo, &["symbolic-ref", "-q", target_ref]).is_err(),
+        "symbolic target refused"
+    );
+    ensure!(
+        git_text(operator_repo, &["rev-parse", "--is-bare-repository"])? == "true",
+        "bare target required"
+    );
+    let actual = PathBuf::from(git_text(
+        operator_repo,
+        &["rev-parse", "--absolute-git-dir"],
+    )?)
+    .canonicalize()?;
+    ensure!(
+        actual == operator_repo.canonicalize()?,
+        "exact bare repository root required"
+    );
+    let revision = git_text(operator_repo, &["rev-parse", "--verify", target_ref])?;
+    exact_sha(&revision)?;
+    ensure!(
+        git_text(operator_repo, &["cat-file", "-t", &revision])? == "commit",
+        "branch must identify a commit"
+    );
+    Ok(revision)
+}
+
+/// Confirm only the desired target state and ancestry. A true result does not establish
+/// which actor moved the reference; reconciliation receipts must preserve that uncertainty.
+pub fn promotion_target_matches(
+    operator_repo: &Path,
+    target_ref: &str,
+    expected_base: &str,
+    approved_sha: &str,
+) -> Result<bool> {
+    exact_sha(expected_base)?;
+    exact_sha(approved_sha)?;
+    if promotion_target_revision(operator_repo, target_ref)? != approved_sha {
+        return Ok(false);
+    }
+    git(
+        operator_repo,
+        &["merge-base", "--is-ancestor", expected_base, approved_sha],
+    )?;
+    Ok(true)
 }

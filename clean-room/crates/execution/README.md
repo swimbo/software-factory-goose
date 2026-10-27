@@ -82,8 +82,8 @@ it delivered a JSON response; callers must inspect `status` and the child `exit_
 `executed` is **not** a work-package completion, cost reconciliation, artifact verification,
 or promotion receipt. Refusals do not echo input or subprocess errors.
 
-This local entry point is not connected to Goose or installed as its MCP adapter. It is
-not an OS sandbox, authentication boundary, or universal interceptor. The existing shim
+This local entry point is connected only to the experimental offline Goose fixture, not
+the live factory worker. It is not an OS sandbox, authentication boundary, or universal interceptor. The existing shim
 remains a separate route. A verified upstream adapter and distinct identities must make
 the request boundary mandatory before live execution can be enabled. The partial policy
 still cannot mediate arbitrary descendant code or remove symlink races. Masking covers
@@ -94,3 +94,27 @@ Fixture tests prove a runnable blocked command never executes, split stdout secr
 redacted, stderr credentials are redacted, nonzero exit status survives, invalid UTF-8 in
 either stream withholds both, request overrides fail, explicit cwd is honored, stalled
 input expires, and timeout/oversize output cannot be released. No external inference is used.
+
+`adapters/mcp_stdio.py` is an experimental stdlib-only bridge used by the protected offline
+Goose fixture. It exposes only `shell(command)`, forwards to this boundary using trusted
+executable/workdir/policy arguments, validates the response, withholds raw worker stderr,
+and marks refusals/nonzero exits as MCP tool errors. It is not installed or selected as the
+production adapter, and it does not supply identity isolation or universal interception.
+The six-case real-Goose integration evidence is in
+`docs/planning/clean-room/verification/2026-10-27-goose-factory-boundary-spike.md`.
+
+The experimental adapter accepts a trusted launcher `--timeout-secs` in `(0, 190]`
+(default 190), observes MCP cancellation while a tool runs, and stops active work on
+transport EOF or SIGTERM/SIGINT. It suppresses cancelled/disconnected results and
+withholds all output for timeout or unknown outcomes. The execution `--tool-request`
+route handles TERM/INT cooperatively and kills its shell group before returning a
+refusal. This does not prove SIGKILL, adapter death, escaped groups, or hung-supervisor
+cleanup; those remain deployment blockers.
+
+The Rust supervisor uses `waitid(WNOWAIT)` to observe exit without reaping, signals the
+owned process group before the single reap, and discards ownership afterwards. It
+requires default SIGCHLD disposition and rejects automatic child reaping before spawn.
+There is no process-group signal after leader reaping. The experimental Python adapter
+relies on this cooperative worker cleanup; it never signals a group after `communicate`.
+See `docs/planning/clean-room/verification/2026-10-27-goose-adapter-lifetime-spike.md`
+for the protected cancellation/timeout evidence and its exact limits.

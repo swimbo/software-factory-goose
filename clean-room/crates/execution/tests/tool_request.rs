@@ -99,3 +99,81 @@ fn invalid_utf8_in_either_stream_withholds_both_streams() {
     assert!(response.get("stdout").is_none());
     assert!(response.get("stderr").is_none());
 }
+
+#[test]
+fn termination_signals_withhold_output_and_stop_in_group_descendants() {
+    for signal in [libc::SIGTERM, libc::SIGINT] {
+        let f = Fixture::new();
+        let script = f.0.join("long-tool");
+        std::fs::write(&script, "#!/bin/sh\necho $$ > child.pid\nprintf partial-output\n(sleep 1; printf survived > late.marker) &\nwait\n").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let mut child = Command::new(env!("CARGO_BIN_EXE_execution"))
+            .arg("--tool-request")
+            .current_dir(&f.0)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(br#"{"command":"./long-tool"}"#)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while !f.0.join("child.pid").exists() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(f.0.join("child.pid").exists(), "fixture never started");
+        // SAFETY: this test owns the running child and sends only the selected signal.
+        unsafe {
+            libc::kill(child.id() as i32, signal);
+        }
+        let output = child.wait_with_output().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        assert!(
+            !f.0.join("late.marker").exists(),
+            "descendant survived signal {signal}"
+        );
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["status"], "refused");
+        assert_eq!(response["reason"], "execution_unavailable");
+        assert!(response.get("stdout").is_none());
+    }
+}
+
+#[test]
+fn inherited_auto_reaping_refuses_before_shell_spawn() {
+    use std::os::unix::process::CommandExt;
+    let f = Fixture::new();
+    let mut command = Command::new(env!("CARGO_BIN_EXE_execution"));
+    command
+        .arg("--tool-request")
+        .current_dir(&f.0)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    // SAFETY: pre_exec invokes only the async-signal-safe signal syscall in this child.
+    unsafe {
+        command.pre_exec(|| {
+            libc::signal(libc::SIGCHLD, libc::SIG_IGN);
+            Ok(())
+        });
+    }
+    let mut child = command.spawn().unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"command":"printf executed > marker"}"#)
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["reason"], "execution_unavailable");
+    assert!(!f.0.join("marker").exists());
+}

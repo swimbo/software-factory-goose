@@ -31,13 +31,15 @@ def execute(argv, cwd, env, timeout=25):
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         timed_out = True
-        os.killpg(proc.pid, signal.SIGKILL)
+        # communicate may already have reaped a leader while descendant pipes remain.
+        # Never signal a recycled numeric group id after that ownership is lost.
+        if proc.returncode is None:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         stdout, stderr = proc.communicate(timeout=5)
-    finally:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+    # No post-reap group signal. This fixture helper is not descendant-cleanup proof.
     return {"exit_code": proc.returncode, "timed_out": timed_out,
             "stdout": stdout.decode(errors="replace"),
             "stderr": stderr.decode(errors="replace")}

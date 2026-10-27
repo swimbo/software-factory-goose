@@ -98,4 +98,4 @@ A comparative review of the `code-machine` agent CLI (forked from Pi) surfaced f
 
 ## Follow-ups from current verification
 
-The pinned Goose protocol audit (`verification/2026-10-26-goose-protocol.md`) invalidates the assumption that its `completed` JSON field proves task completion or hooks enforce all tool masking. The prepared `decisions/2026-10-26-goose-tool-boundary.md` awaits confirmation for its required focused debate. Keep runtime refusal in place. O4 remains resolved; the private-ingress note identifies implementation proof requirements, not a new identity choice.
+The pinned Goose protocol audit (`verification/2026-10-26-goose-protocol.md`) invalidates the assumption that its `completed` JSON field proves task completion or hooks enforce all tool masking. The user approved the focused debate; its scoped outcome is recorded in `decisions/2026-10-26-goose-tool-boundary/`. Protected-configuration and narrow-patch tests are component evidence only. Keep runtime refusal in place until the remaining isolation and tool-boundary gates pass. O4 remains resolved; private ingress and distinct-account operation still require implementation and proof.

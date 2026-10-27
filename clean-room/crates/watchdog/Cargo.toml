@@ -1,0 +1,33 @@
+[package]
+name = "watchdog"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+fixture = []
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+libc = "=0.2.190"
+serde.workspace = true
+serde_json.workspace = true
+subtle = "=2.6.1"
+tokio.workspace = true
+ulid.workspace = true
+
+[dev-dependencies]
+reqwest.workspace = true
+tower = { version = "0.5", features = ["util"] }
+
+[[bin]]
+name = "sf-watchdog-fixture"
+path = "src/main.rs"
+required-features = ["fixture"]
+
+[[example]]
+name = "broker_capture_fixture"
+required-features = ["fixture"]

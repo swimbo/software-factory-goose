@@ -107,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
 
     let receipt = Receipt::Completed {
         sha: "a".repeat(40),
-        diff: "synthetic diff".into(),
+        diff: "SQL_DIFF_CANARY_MUST_BE_WITHHELD".into(),
         turn_count: 2,
         exit_code: 0,
         wall_time_ms: 42,
@@ -151,6 +151,50 @@ async fn main() -> anyhow::Result<()> {
             .await?;
     ensure!(stored == ("a".repeat(40), 42, 2), "receipt fields changed");
     println!("PASS: receipt redelivery = one row; distinct step_seq = two rows");
+    let failed = Receipt::Failed {
+        exit_code: 1,
+        stderr_tail: "SQL_STDERR_CANARY_MUST_BE_WITHHELD".into(),
+    };
+    projection::project_receipt(
+        &pool,
+        &failed,
+        "verification-work",
+        "verification-failure",
+        1,
+    )
+    .await?;
+    projection::project_receipt(
+        &pool,
+        &failed,
+        "verification-work",
+        "verification-failure",
+        1,
+    )
+    .await?;
+    ensure!(
+        count(&pool, "SELECT count(*) FROM receipts").await? == 3,
+        "failed receipt redelivery duplicated"
+    );
+    let receipts: String =
+        sqlx::query_scalar("SELECT jsonb_agg(to_jsonb(receipts))::text FROM receipts")
+            .fetch_one(&pool)
+            .await?;
+    ensure!(
+        !receipts.contains("SQL_DIFF_CANARY") && !receipts.contains("SQL_STDERR_CANARY"),
+        "unscanned receipt text leaked to SQL"
+    );
+    ensure!(
+        count(
+            &pool,
+            "SELECT count(*) FROM receipts WHERE diff IS NOT NULL"
+        )
+        .await?
+            == 0,
+        "raw receipt text was retained"
+    );
+    println!(
+        "PASS: raw diff/stderr absent from SQL receipt projection; redelivery counts preserved"
+    );
 
     let event = AuditEvent {
         id: "verification-audit".into(),
@@ -234,9 +278,23 @@ async fn verify_claim_outbox(pool: &PgPool) -> anyhow::Result<()> {
         step_seq: 0,
         work_package_id: task.into(),
         version,
-        snapshot: serde_json::json!({"work_package_id":task,"version":version,"stage":format!("v{version}")}),
+        snapshot: serde_json::json!({"schema_version":2,"work_package_id":task,"version":version,"base_revision":"a".repeat(40),"stage":"Queued","attempts":version,"cooldown_until_ms":0,"active":null,"last_completion":null}),
     };
     let first = event("claim-invocation-1", "claim-task", 1);
+    let mut unsafe_event = first.clone();
+    unsafe_event.snapshot["active"] = serde_json::json!({"attempt":1,"issued_at_ms":0,"expires_at_ms":1,"hard_deadline_ms":1,"token":"SQL_CAPABILITY_CANARY"});
+    ensure!(
+        matches!(
+            deliver_claim_event(pool, &unsafe_event).await,
+            Err(ClaimProjectionError::Conflict(_))
+        ),
+        "capability field accepted by SQL delivery"
+    );
+    ensure!(
+        count(pool, "SELECT count(*) FROM outbox").await? == 0,
+        "unsafe event reached SQL"
+    );
+
     let (a, b) = tokio::join!(
         deliver_claim_event(pool, &first),
         deliver_claim_event(pool, &first)
@@ -248,7 +306,7 @@ async fn verify_claim_outbox(pool: &PgPool) -> anyhow::Result<()> {
         "redelivery duplicated event"
     );
     let mut changed = first.clone();
-    changed.snapshot["stage"] = serde_json::json!("forged");
+    changed.snapshot["stage"] = serde_json::json!("Failed");
     ensure!(
         matches!(
             deliver_claim_event(pool, &changed).await,
@@ -267,7 +325,7 @@ async fn verify_claim_outbox(pool: &PgPool) -> anyhow::Result<()> {
     deliver_claim_event(pool, &event("claim-invocation-3", "claim-task", 3)).await?;
     deliver_claim_event(pool, &event("claim-invocation-2", "claim-task", 2)).await?;
     let mut old_conflict = event("old-version-conflict", "claim-task", 1);
-    old_conflict.snapshot["stage"] = serde_json::json!("contradictory-old-history");
+    old_conflict.snapshot["stage"] = serde_json::json!("CoolingDown");
     ensure!(
         matches!(
             deliver_claim_event(pool, &old_conflict).await,
@@ -345,6 +403,23 @@ async fn verify_claim_outbox(pool: &PgPool) -> anyhow::Result<()> {
     let unchanged: Vec<(String, i64, serde_json::Value)> = sqlx::query_as("SELECT work_package_id, version, snapshot FROM claim_lease_projection ORDER BY work_package_id").fetch_all(pool).await?;
     ensure!(unchanged == before, "failed rebuild changed projection");
     sqlx::query("UPDATE outbox SET payload=jsonb_set(payload,'{snapshot,version}','3') WHERE invocation_id='claim-invocation-3'").execute(pool).await?;
+    sqlx::query("UPDATE outbox SET payload=jsonb_set(payload,'{snapshot,unscanned_text}','\"SQL_REBUILD_CANARY\"') WHERE invocation_id='claim-invocation-3'").execute(pool).await?;
+    ensure!(
+        matches!(
+            rebuild_claim_projection(pool).await,
+            Err(ClaimProjectionError::Conflict(_))
+        ),
+        "unsafe legacy snapshot copied during rebuild"
+    );
+    let safe: String =
+        sqlx::query_scalar("SELECT jsonb_agg(snapshot)::text FROM claim_lease_projection")
+            .fetch_one(pool)
+            .await?;
+    ensure!(
+        !safe.contains("SQL_REBUILD_CANARY"),
+        "unsafe rebuild text reached projection"
+    );
+    sqlx::query("UPDATE outbox SET payload=payload #- '{snapshot,unscanned_text}' WHERE invocation_id='claim-invocation-3'").execute(pool).await?;
     // Simulate corrupted restored history missing its unique index. Rebuild must reject
     // version ties independently, rather than choose an arbitrary DISTINCT ON winner.
     sqlx::query("DROP INDEX outbox_claim_version")

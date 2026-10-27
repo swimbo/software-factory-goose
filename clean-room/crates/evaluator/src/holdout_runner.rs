@@ -21,7 +21,7 @@ use std::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
-const MAX_MANIFEST_BYTES: usize = 131_072;
+pub(crate) const MAX_MANIFEST_BYTES: usize = 131_072;
 const MAX_SCRIPT_BYTES: usize = 8192;
 const MAX_SCENARIOS: usize = 32;
 const EXECUTION_BUDGET: Duration = Duration::from_secs(30);
@@ -42,6 +42,7 @@ struct ScenarioWire {
 pub struct FixtureManifest {
     digest: String,
     scenarios: Vec<ScenarioWire>,
+    source: Vec<u8>,
 }
 impl FixtureManifest {
     /// Parse bytes already obtained by a trusted fixture loader. Naming this method "trusted"
@@ -65,10 +66,14 @@ impl FixtureManifest {
         Ok(Self {
             digest: format!("{:x}", Sha256::digest(bytes)),
             scenarios: wire.scenarios,
+            source: bytes.to_vec(),
         })
     }
     pub fn digest(&self) -> &str {
         &self.digest
+    }
+    pub(crate) fn source_bytes(&self) -> &[u8] {
+        &self.source
     }
 }
 

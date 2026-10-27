@@ -6,6 +6,7 @@ members = [
     "crates/execution",
     "crates/evaluator",
     "crates/sfctl",
+    "crates/watchdog",
 ]
 
 [workspace.package]

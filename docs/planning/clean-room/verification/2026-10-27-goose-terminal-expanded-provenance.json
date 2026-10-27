@@ -1,0 +1,62 @@
+{
+  "source_commit": "71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "source_provenance": "2026-10-27-goose-terminal-patch-provenance.json",
+  "source_verified_build_blobs": 763,
+  "patch_path": "clean-room/patches/goose-1.49.0/0001-headless-terminal-errors.patch",
+  "patch_sha256": "4b4c819643be4586dd9d1899baa49088e082b9c846ee2cece4c750128e444d1f",
+  "prior_patch_sha256": "ce5bd9493415bfcdfee761d26aee77193c179e681335209d76b5f9a2d6735ded",
+  "binary_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/goose-expanded-terminal-candidate",
+  "binary_sha256": "3297cff13a49781b7f4a4e8a33220b36259089a05e234a6c3e8aaafe352d1f17",
+  "build_exit_code": 0,
+  "build_log_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build-offline-expanded.log",
+  "build_log_sha256": "94c762374f4f032b8c31a4be58d71966cd0727f894b0824ff7a866d0fba336e4",
+  "build_duration_reported": "7m 04s",
+  "cargo_path": "/Users/bo/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin/cargo",
+  "cargo_arguments": [
+    "build",
+    "--locked",
+    "--offline",
+    "-p",
+    "goose-cli",
+    "--bin",
+    "goose",
+    "--no-default-features",
+    "--features",
+    "rustls-tls,disable-update"
+  ],
+  "build_environment": "Scrubbed; HOME, TMPDIR, CARGO_HOME, CARGO_TARGET_DIR inside existing task-specific temporary root; explicit existing RUSTC/RUSTDOC; jobs4; dev debug0.",
+  "sandbox_profile_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build.sb",
+  "sandbox_profile_sha256": "6c1c8f61702b1e38cd72f839cf90f916fd291368b424a3c42d9fbd7a3d5e2959",
+  "build_network": "denied",
+  "global_toolchain_changes_this_iteration": false,
+  "patch_clean_apply_and_source_identity_verified": true,
+  "tests": [
+    {
+      "artifact": "2026-10-27-goose-terminal-high-risk-patched.json",
+      "artifact_sha256": "4277560cb8826c4f06d49d07bf491c8f811ce100b3171a1865fe6ab21189cccb",
+      "cases": 12,
+      "passed": true
+    },
+    {
+      "artifact": "2026-10-27-goose-terminal-expanded-basic.json",
+      "artifact_sha256": "d5889e7d7086c20d9940807e9e94bdb95ebf5a37bca72a24b6a76839bfade4a9",
+      "cases": 6,
+      "passed": true
+    },
+    {
+      "artifact": "2026-10-27-goose-factory-boundary-expanded.json",
+      "artifact_sha256": "585f7d22b4ab1f9fbd93a89e6488c81291d06f53793c8bff7a6d59360af58612",
+      "cases": 6,
+      "passed": true
+    }
+  ],
+  "production_worker_enabled": false,
+  "upstream_cargo_tests": "Not rerun: offline env-lock1.0.2 absent; prior exact-source helper5 assertions remains separate bounded evidence.",
+  "limits": [
+    "restricted feature debug build",
+    "interactive rendering untested",
+    "successful compaction then repeated context-limit untested",
+    "alternate state machine and provider variants untested",
+    "all-path mandatory isolation/interception remains open"
+  ]
+}

@@ -71,6 +71,9 @@ fn read_with_deadline(input: BorrowedFd<'_>, timeout: Duration) -> Result<ShellR
     let start = Instant::now();
     let mut bytes = Vec::new();
     loop {
+        if crate::termination_requested() {
+            return Err(Response::refused("execution_unavailable"));
+        }
         let Some(remaining) = timeout.checked_sub(start.elapsed()) else {
             return Err(Response::refused("invalid_request"));
         };

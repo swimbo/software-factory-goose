@@ -58,6 +58,12 @@ pub struct OperatorPolicy {
     expected_uid: u32,
 }
 
+/// Internal same-account transport fixtures only; public policy still comes from safe bind.
+#[cfg(test)]
+pub(crate) fn fixture_policy(expected_uid: u32) -> OperatorPolicy {
+    OperatorPolicy { expected_uid }
+}
+
 /// Apply via from_fn_with_state(policy, require_operator), and serve with
 /// into_make_service_with_connect_info::<OperatorPeer>(). No request body/header
 /// participates in authentication; missing ConnectInfo fails closed.

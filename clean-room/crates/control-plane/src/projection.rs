@@ -74,21 +74,20 @@ pub async fn project_receipt(
 ) -> anyhow::Result<()> {
     anyhow::ensure!(!invocation_id.is_empty(), "missing receipt invocation ID");
     let receipt_id = receipt_event_id(invocation_id, step_seq);
-    let (status, sha, wall_time_ms, turn_count, exit_code, diff) = match r {
+    // Raw diff/stderr are authoritative receipt content, never a safe read-model field.
+    let (status, sha, wall_time_ms, turn_count, exit_code) = match r {
         shared::Receipt::Completed {
             sha,
-            diff,
             turn_count,
             exit_code,
             wall_time_ms,
             ..
         } => (
             "completed",
-            sha.as_str(),
+            Some(sha.as_str()).filter(|sha| canonical_revision(sha)),
             *wall_time_ms,
             *turn_count,
             *exit_code,
-            diff.as_str(),
         ),
         shared::Receipt::TimedOut {
             sha,
@@ -96,23 +95,19 @@ pub async fn project_receipt(
             wall_time_ms,
         } => (
             "timed_out",
-            sha.as_str(),
+            Some(sha.as_str()).filter(|sha| canonical_revision(sha)),
             *wall_time_ms,
             *turn_count,
             -1,
-            "",
         ),
-        shared::Receipt::Failed {
-            exit_code,
-            stderr_tail,
-        } => ("failed", "", 0, 0, *exit_code, stderr_tail.as_str()),
-        shared::Receipt::Crashed { signal, .. } => ("crashed", "", 0, 0, *signal, ""),
+        shared::Receipt::Failed { exit_code, .. } => ("failed", None, 0, 0, *exit_code),
+        shared::Receipt::Crashed { signal, .. } => ("crashed", None, 0, 0, *signal),
     };
     sqlx::query(
         r#"
         INSERT INTO receipts (id, work_package_id, status, git_revision, wall_time_ms, turn_count, exit_code, diff)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (id) DO NOTHING
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NULL)
+        ON CONFLICT (id) DO UPDATE SET diff=NULL
         "#,
     )
     .bind(receipt_id)
@@ -122,7 +117,6 @@ pub async fn project_receipt(
     .bind(i64::try_from(wall_time_ms)?)
     .bind(i32::try_from(turn_count)?)
     .bind(exit_code)
-    .bind(diff)
     .execute(pool)
     .await?;
     Ok(())
@@ -180,7 +174,138 @@ mod tests {
     }
 }
 
-/// Immutable full claim snapshot, produced once per mutation by the authoritative object.
+fn canonical_revision(value: &str) -> bool {
+    matches!(value.len(), 40 | 64)
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+/// Allowlisted read model. No lease token, worker/repository free text, diff or stderr field.
+/// Authoritative claim state retains those private values only in Restate.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimProjectionSnapshot {
+    pub schema_version: u8,
+    pub version: u64,
+    pub work_package_id: String,
+    pub base_revision: String,
+    pub stage: ClaimProjectionStage,
+    pub attempts: u32,
+    pub cooldown_until_ms: u64,
+    pub active: Option<LeaseProjectionSummary>,
+    pub last_completion: Option<CompletionProjectionSummary>,
+}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ClaimProjectionStage {
+    Queued,
+    Leased,
+    CoolingDown,
+    Evaluating,
+    Failed,
+}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LeaseProjectionSummary {
+    pub attempt: u32,
+    pub issued_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub hard_deadline_ms: u64,
+}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompletionProjectionSummary {
+    pub lease: LeaseProjectionSummary,
+    pub receipt: ReceiptProjectionSummary,
+}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ReceiptProjectionSummary {
+    Completed {
+        sha: Option<String>,
+        turn_count: u32,
+        exit_code: i32,
+        wall_time_ms: u64,
+        spend_usd: f64,
+    },
+    TimedOut {
+        sha: Option<String>,
+        turn_count: u32,
+        wall_time_ms: u64,
+    },
+    Failed {
+        exit_code: i32,
+    },
+    Crashed {
+        signal: i32,
+        core_dumped: bool,
+    },
+}
+impl From<&shared::Receipt> for ReceiptProjectionSummary {
+    fn from(receipt: &shared::Receipt) -> Self {
+        let revision = |s: &String| canonical_revision(s).then(|| s.clone());
+        match receipt {
+            shared::Receipt::Completed {
+                sha,
+                turn_count,
+                exit_code,
+                wall_time_ms,
+                spend_usd,
+                ..
+            } => Self::Completed {
+                sha: revision(sha),
+                turn_count: *turn_count,
+                exit_code: *exit_code,
+                wall_time_ms: *wall_time_ms,
+                spend_usd: *spend_usd,
+            },
+            shared::Receipt::TimedOut {
+                sha,
+                turn_count,
+                wall_time_ms,
+            } => Self::TimedOut {
+                sha: revision(sha),
+                turn_count: *turn_count,
+                wall_time_ms: *wall_time_ms,
+            },
+            shared::Receipt::Failed { exit_code, .. } => Self::Failed {
+                exit_code: *exit_code,
+            },
+            shared::Receipt::Crashed {
+                signal,
+                core_dumped,
+            } => Self::Crashed {
+                signal: *signal,
+                core_dumped: *core_dumped,
+            },
+        }
+    }
+}
+impl ClaimProjectionSnapshot {
+    fn validate(&self) -> Result<(), ClaimProjectionError> {
+        let valid_receipt =
+            self.last_completion
+                .as_ref()
+                .is_none_or(|completion| match &completion.receipt {
+                    ReceiptProjectionSummary::Completed { sha, spend_usd, .. } => {
+                        sha.as_ref().is_none_or(|s| canonical_revision(s))
+                            && spend_usd.is_finite()
+                            && *spend_usd >= 0.0
+                    }
+                    ReceiptProjectionSummary::TimedOut { sha, .. } => {
+                        sha.as_ref().is_none_or(|s| canonical_revision(s))
+                    }
+                    _ => true,
+                });
+        if self.schema_version != 2 || !canonical_revision(&self.base_revision) || !valid_receipt {
+            return Err(ClaimProjectionError::Conflict(
+                "unsafe or unsupported claim projection schema".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Immutable allowlisted claim snapshot, produced once per mutation by the authoritative object.
 /// `step_seq` identifies the producer's outbox step, not an aggregate version.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -218,7 +343,14 @@ impl From<sqlx::Error> for ClaimProjectionError {
     }
 }
 impl ClaimTransitionEvent {
-    fn validate(&self) -> Result<(), ClaimProjectionError> {
+    pub(crate) fn validate(&self) -> Result<(), ClaimProjectionError> {
+        let snapshot: ClaimProjectionSnapshot = serde_json::from_value(self.snapshot.clone())
+            .map_err(|_| {
+                ClaimProjectionError::Conflict(
+                    "claim snapshot contains unsupported or unsafe fields".into(),
+                )
+            })?;
+        snapshot.validate()?;
         if self.invocation_id.is_empty()
             || self.work_package_id.is_empty()
             || self.step_seq > i64::MAX as u64
@@ -247,17 +379,39 @@ pub async fn deliver_claim_event(
     event: &ClaimTransitionEvent,
 ) -> Result<(), ClaimProjectionError> {
     event.validate()?;
+    let mut tx = pool.begin().await?;
+    lock_claim_aggregate(&mut tx, &event.work_package_id).await?;
+    deliver_claim_event_tx(&mut tx, event).await?;
+    tx.commit().await?;
+    Ok(())
+}
+async fn lock_claim_aggregate(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    key: &str,
+) -> Result<(), ClaimProjectionError> {
+    // All claim writers share this transaction-scoped lock. Hash collisions only serialize
+    // unrelated aggregates; they cannot weaken integrity. SQL rebuild uses table locks.
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))")
+        .bind(key)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+async fn deliver_claim_event_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    event: &ClaimTransitionEvent,
+) -> Result<(), ClaimProjectionError> {
+    event.validate()?;
     let payload = serde_json::to_value(event)
         .map_err(|_| ClaimProjectionError::Conflict("event serialization failed".into()))?;
-    let mut tx = pool.begin().await?;
     sqlx::query("INSERT INTO outbox (invocation_id,step_seq,step_kind,payload) VALUES ($1,$2,'claim_transition_v1',$3) ON CONFLICT (invocation_id,step_seq) DO NOTHING")
-        .bind(&event.invocation_id).bind(event.step_seq as i64).bind(&payload).execute(&mut *tx).await?;
+        .bind(&event.invocation_id).bind(event.step_seq as i64).bind(&payload).execute(&mut **tx).await?;
     let stored: (String, serde_json::Value) = sqlx::query_as(
         "SELECT step_kind,payload FROM outbox WHERE invocation_id=$1 AND step_seq=$2",
     )
     .bind(&event.invocation_id)
     .bind(event.step_seq as i64)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if stored.0 != "claim_transition_v1" || stored.1 != payload {
         return Err(ClaimProjectionError::Conflict(
@@ -265,16 +419,59 @@ pub async fn deliver_claim_event(
         ));
     }
     sqlx::query("INSERT INTO claim_lease_projection (work_package_id,version,snapshot) VALUES ($1,$2,$3) ON CONFLICT (work_package_id) DO UPDATE SET version=EXCLUDED.version,snapshot=EXCLUDED.snapshot WHERE claim_lease_projection.version < EXCLUDED.version")
-        .bind(&event.work_package_id).bind(event.version as i64).bind(&event.snapshot).execute(&mut *tx).await?;
+        .bind(&event.work_package_id).bind(event.version as i64).bind(&event.snapshot).execute(&mut **tx).await?;
     let projected: (i64, serde_json::Value) = sqlx::query_as(
         "SELECT version,snapshot FROM claim_lease_projection WHERE work_package_id=$1",
     )
     .bind(&event.work_package_id)
-    .fetch_one(&mut *tx)
+    .fetch_one(&mut **tx)
     .await?;
     if projected.0 == event.version as i64 && projected.1 != event.snapshot {
         return Err(ClaimProjectionError::Conflict(
             "projection version has different content".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Re-export one complete authoritative claim history in a single SQL transaction.
+/// This is not journal reconstruction itself: only the object may supply the retained chain.
+/// Existing content must exactly agree; unrelated aggregate histories are left untouched.
+pub async fn reexport_claim_events(
+    pool: &PgPool,
+    events: &[ClaimTransitionEvent],
+) -> Result<(), ClaimProjectionError> {
+    let Some(last) = events.last() else {
+        return Err(ClaimProjectionError::Conflict("empty history".into()));
+    };
+    let mut identities = std::collections::BTreeSet::new();
+    for (index, event) in events.iter().enumerate() {
+        event.validate()?;
+        if event.version != index as u64 + 1
+            || event.work_package_id != last.work_package_id
+            || !identities.insert((&event.invocation_id, event.step_seq))
+        {
+            return Err(ClaimProjectionError::Conflict(
+                "noncontiguous or conflicting re-export history".into(),
+            ));
+        }
+    }
+    let mut tx = pool.begin().await?;
+    lock_claim_aggregate(&mut tx, &last.work_package_id).await?;
+    for event in events {
+        deliver_claim_event_tx(&mut tx, event).await?;
+    }
+    let count:i64=sqlx::query_scalar("SELECT count(*) FROM outbox WHERE step_kind='claim_transition_v1' AND payload->>'work_package_id'=$1")
+        .bind(&last.work_package_id).fetch_one(&mut *tx).await?;
+    let projected: (i64, serde_json::Value) = sqlx::query_as(
+        "SELECT version,snapshot FROM claim_lease_projection WHERE work_package_id=$1",
+    )
+    .bind(&last.work_package_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if count != events.len() as i64 || projected != (last.version as i64, last.snapshot.clone()) {
+        return Err(ClaimProjectionError::Conflict(
+            "SQL history differs from authoritative re-export".into(),
         ));
     }
     tx.commit().await?;
@@ -282,8 +479,8 @@ pub async fn deliver_claim_event(
 }
 
 /// Rebuild ONLY claim snapshots from retained SQL outbox events. This is not reconstruction
-/// from the Restate journal. Losing Postgres/outbox requires a separate, still-unimplemented
-/// journal-backed re-export; replaying completed `ctx.run` calls does not redo their effects.
+/// from the Restate journal. After SQL loss, invoke each object's explicit retained-history
+/// re-export first; replaying completed `ctx.run` calls does not redo their effects.
 pub async fn rebuild_claim_projection(pool: &PgPool) -> Result<(), ClaimProjectionError> {
     let mut tx = pool.begin().await?;
     // Same lock order as delivery (outbox then projection), excluding concurrent delivery.
@@ -307,10 +504,72 @@ pub async fn rebuild_claim_projection(pool: &PgPool) -> Result<(), ClaimProjecti
             "retained event failed rebuild validation".into(),
         ));
     }
+    // Never copy legacy raw-capability/free-text payloads into the read model. Keep this
+    // manual helper bounded; larger stores need a separately reviewed paginated recovery.
+    let payloads: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT payload FROM outbox WHERE step_kind='claim_transition_v1' LIMIT 10001",
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    if payloads.len() > 10000 {
+        return Err(ClaimProjectionError::Conflict(
+            "bounded claim rebuild limit exceeded".into(),
+        ));
+    }
+    for payload in payloads {
+        let event: ClaimTransitionEvent = serde_json::from_value(payload)
+            .map_err(|_| ClaimProjectionError::Conflict("invalid retained event schema".into()))?;
+        event.validate()?;
+    }
     sqlx::query("DELETE FROM claim_lease_projection")
         .execute(&mut *tx)
         .await?;
     sqlx::query("INSERT INTO claim_lease_projection(work_package_id,version,snapshot) SELECT DISTINCT ON (payload->>'work_package_id') payload->>'work_package_id',(payload->>'version')::bigint,payload->'snapshot' FROM outbox WHERE step_kind='claim_transition_v1' ORDER BY payload->>'work_package_id',(payload->>'version')::bigint DESC").execute(&mut *tx).await?;
     tx.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod safe_snapshot_tests {
+    use super::*;
+    fn event() -> ClaimTransitionEvent {
+        ClaimTransitionEvent {
+            invocation_id: "fixture".into(),
+            step_seq: 0,
+            work_package_id: "task".into(),
+            version: 1,
+            snapshot: serde_json::json!({"schema_version":2,"version":1,"work_package_id":"task","base_revision":"a".repeat(40),"stage":"Queued","attempts":0,"cooldown_until_ms":0,"active":null,"last_completion":null}),
+        }
+    }
+    #[test]
+    fn nested_capabilities_and_unscanned_text_are_not_valid_projection_fields() {
+        let safe = event();
+        safe.validate().unwrap();
+        let lease = serde_json::json!({"attempt":1,"issued_at_ms":0,"expires_at_ms":10,"hard_deadline_ms":10});
+        let mut token = safe.clone();
+        token.snapshot["active"] = lease.clone();
+        token.snapshot["active"]["token"] = "SYNTHETIC_CAPABILITY".into();
+        assert!(token.validate().is_err());
+        for receipt in [
+            serde_json::json!({"status":"failed","exit_code":1,"stderr_tail":"SYNTHETIC_RAW_STDERR"}),
+            serde_json::json!({"status":"completed","sha":"b".repeat(40),"turn_count":1,"exit_code":0,"wall_time_ms":1,"spend_usd":0.01,"diff":"SYNTHETIC_RAW_DIFF"}),
+        ] {
+            let mut event = safe.clone();
+            event.snapshot["last_completion"] =
+                serde_json::json!({"lease":lease,"receipt":receipt});
+            assert!(event.validate().is_err());
+        }
+    }
+    #[test]
+    fn arbitrary_timeout_revision_is_withheld_from_receipt_summary() {
+        let summary = ReceiptProjectionSummary::from(&shared::Receipt::TimedOut {
+            sha: "SYNTHETIC_SECRET_NOT_A_REVISION".into(),
+            turn_count: 1,
+            wall_time_ms: 1,
+        });
+        assert_eq!(
+            serde_json::to_value(summary).unwrap()["sha"],
+            serde_json::Value::Null
+        );
+    }
 }

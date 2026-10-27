@@ -90,3 +90,24 @@ fn explicit_goose_binary_is_not_replaced_with_path_lookup() {
     assert_eq!(explicit.len(), 1);
     assert_eq!(explicit[0].0, "PATH");
 }
+
+#[test]
+fn normal_exit_keeps_pid_unreaped_until_single_group_cleanup() {
+    let mut command = std::process::Command::new("/bin/sh");
+    command.args(["-c", "exit 7"]).process_group(0);
+    let mut group = ProcessGroup(Some(command.spawn().unwrap()));
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while !group.exited().unwrap() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    // Repeated observation must leave the exit status available to the sole waiter.
+    assert!(group.exited().unwrap());
+    assert!(group.exited().unwrap());
+    assert_eq!(group.cleanup_and_wait().unwrap().code(), Some(7));
+    assert!(group.0.is_none());
+    assert_eq!(
+        group.cleanup_and_wait().unwrap_err().kind(),
+        std::io::ErrorKind::NotFound
+    );
+    // Drop has no PID left to signal after the reap.
+}

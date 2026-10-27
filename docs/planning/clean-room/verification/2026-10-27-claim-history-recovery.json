@@ -1,0 +1,19 @@
+{
+  "claim_capabilities_and_raw_text_absent": true,
+  "database_loss": "dropped/recreated owned sfactory_verification database",
+  "fixture_cleanup": "owned SDK/Restate/Postgres children terminated and temporary directory removed",
+  "original_event_count": 3,
+  "original_ids_preserved": true,
+  "pgvector": "0.8.2",
+  "postgres": "17.9",
+  "production_authentication": false,
+  "receipt_diff_stderr_canaries_absent": true,
+  "reexports_across_restarts": 3,
+  "restate_sdk": "0.12.1",
+  "restate_server": "1.8.0",
+  "result": "PASS",
+  "retention_cap": 128,
+  "sql_safe_schema": 2,
+  "terminal_conflict_rollback": true,
+  "unit_tests": 140
+}

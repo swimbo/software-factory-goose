@@ -1,0 +1,488 @@
+--- a/crates/goose-cli/src/session/mod.rs
++++ b/crates/goose-cli/src/session/mod.rs
+@@ -1576,6 +1576,7 @@
+         let run_started = Instant::now();
+         let mut first_token_at: Option<Instant> = None;
+         let mut last_usage: Option<ProviderUsage> = None;
++        let mut stream_error = None;
+ 
+         use futures::StreamExt;
+         loop {
+@@ -1738,7 +1739,9 @@
+                             self.messages = updated_conversation;
+                         }
+                         Some(Err(e)) => {
+-                            handle_agent_error(&e, is_stream_json_mode);
++                            if interactive || !is_stream_json_mode {
++                                handle_agent_error(&e, is_stream_json_mode);
++                            }
+                             cancel_token_clone.cancel();
+                             drop(stream);
+                             if let Err(e) = self.handle_interrupted_messages(false).await {
+@@ -1751,6 +1754,7 @@
+                                     - depending on the error you may be able to continue",
+                                 );
+                             }
++                            stream_error = Some(e);
+                             break;
+                         }
+                         None => break,
+@@ -1766,11 +1770,30 @@
+             }
+         }
+ 
++        let terminal_error = headless_run_error(
++            interactive,
++            cancel_token_clone.is_cancelled(),
++            stream_error,
++            &self.messages,
++        );
++        if is_stream_json_mode {
++            if let Some(error) = &terminal_error {
++                emit_stream_event(&StreamEvent::Error {
++                    error: error.to_string(),
++                });
++            }
++        }
++
+         if !is_json_mode && !is_stream_json_mode {
+             output::flush_markdown_buffer_current_theme(&mut markdown_buffer);
+         }
+ 
+         if is_json_mode {
++            let status = if terminal_error.is_some() {
++                "error"
++            } else {
++                "completed"
++            };
+             let metadata = match self
+                 .agent
+                 .config
+@@ -1785,7 +1808,7 @@
+                     cache_read_input_tokens: totals.accumulated_usage.cache_read_input_tokens,
+                     cache_write_input_tokens: totals.accumulated_usage.cache_write_input_tokens,
+                     cost_usd: totals.accumulated_cost,
+-                    status: "completed".to_string(),
++                    status: status.to_string(),
+                 },
+                 Err(_) => JsonMetadata {
+                     total_tokens: None,
+@@ -1794,7 +1817,7 @@
+                     cache_read_input_tokens: None,
+                     cache_write_input_tokens: None,
+                     cost_usd: None,
+-                    status: "completed".to_string(),
++                    status: status.to_string(),
+                 },
+             };
+             let json_output = JsonOutput {
+@@ -1802,7 +1825,7 @@
+                 metadata,
+             };
+             println!("{}", serde_json::to_string_pretty(&json_output)?);
+-        } else if is_stream_json_mode {
++        } else if is_stream_json_mode && terminal_error.is_none() {
+             let totals = self
+                 .agent
+                 .config
+@@ -1836,11 +1859,15 @@
+                 cache_write_input_tokens,
+                 cost_usd,
+             });
+-        } else {
++        } else if !is_stream_json_mode {
+             println!();
+             if self.stats {
+                 print_run_stats(run_started, first_token_at, last_usage.as_ref());
+             }
++        }
++
++        if let Some(error) = terminal_error {
++            return Err(error);
+         }
+ 
+         Ok(())
+@@ -1942,6 +1969,11 @@
+             let failures = handle
+                 .await
+                 .map_err(|e| anyhow::anyhow!("Extension loading task failed: {}", e))??;
++            if self.agent.extension_manager.factory_owned_stdio() && !failures.is_empty() {
++                // Do not expose untrusted initialization stderr as a success or continue
++                // to inference with a missing mandatory tool boundary.
++                anyhow::bail!("factory restricted: mandatory extension initialization failed");
++            }
+             output::show_extension_failures(&failures);
+ 
+             if interactive && (was_in_progress || self.loading_announced) {
+@@ -2872,6 +2904,28 @@
+     Ok((reasoner, model_config))
+ }
+ 
++// Backported from aaif-goose/goose 9949cf926cd42f1d128b9991ed23a496ecace896.
++// Keep interactive recovery behavior; propagate terminal failure from headless runs.
++fn headless_run_error(
++    interactive: bool,
++    cancelled: bool,
++    stream_error: Option<anyhow::Error>,
++    messages: &Conversation,
++) -> Option<anyhow::Error> {
++    if interactive {
++        return None;
++    }
++
++    stream_error
++        .or_else(|| cancelled.then(|| anyhow::anyhow!("Headless run interrupted")))
++        .or_else(|| {
++            messages
++                .last()
++                .and_then(|message| message.content.iter().find_map(MessageContent::as_error))
++                .map(|error| anyhow::anyhow!(error.message.clone()))
++        })
++}
++
+ /// Format elapsed time duration
+ /// Shows seconds if less than 60, otherwise shows minutes:seconds
+ fn format_elapsed_time(duration: std::time::Duration) -> String {
+@@ -2908,6 +2962,45 @@
+     use std::collections::HashMap;
+     use std::time::Duration;
+     use test_case::test_case;
++
++    #[test]
++    fn headless_terminal_failures_propagate_and_success_remains_valid() {
++        use goose::conversation::message::MessageErrorKind;
++        let messages = Conversation::new_unvalidated([
++            Message::assistant().with_error(MessageErrorKind::Other, "provider failed")
++        ]);
++        assert_eq!(
++            headless_run_error(
++                false,
++                false,
++                Some(anyhow::anyhow!("stream failed")),
++                &Conversation::default()
++            )
++            .unwrap()
++            .to_string(),
++            "stream failed"
++        );
++        assert_eq!(
++            headless_run_error(false, false, None, &messages)
++                .unwrap()
++                .to_string(),
++            "provider failed"
++        );
++        assert_eq!(
++            headless_run_error(false, true, None, &Conversation::default())
++                .unwrap()
++                .to_string(),
++            "Headless run interrupted"
++        );
++        assert!(headless_run_error(false, false, None, &Conversation::default()).is_none());
++        assert!(headless_run_error(
++            true,
++            true,
++            Some(anyhow::anyhow!("stream failed")),
++            &messages
++        )
++        .is_none());
++    }
+ 
+     #[test]
+     fn planner_classification_excludes_user_only_content() {
+--- a/crates/goose/src/agents/agent.rs
++++ b/crates/goose/src/agents/agent.rs
+@@ -54,7 +54,7 @@
+     check_if_compaction_needed, compact_messages, DEFAULT_COMPACTION_THRESHOLD,
+ };
+ use crate::conversation::message::{
+-    ActionRequiredData, InferenceMetadata, Message, MessageContent, MessageUsage, ProviderMetadata,
++    ActionRequiredData, InferenceMetadata, Message, MessageContent, MessageErrorKind, MessageUsage, ProviderMetadata,
+     SystemNotificationType,
+ };
+ use crate::conversation::{
+@@ -2366,7 +2366,8 @@
+                     }
+                     Err(e) => {
+                         yield AgentEvent::Message(
+-                            Message::assistant().with_text(
++                            Message::assistant().with_error(
++                                MessageErrorKind::Other,
+                                 format!("Ran into this error trying to compact: {e}.\n\nPlease try again or create a new session")
+                             )
+                         );
+@@ -2642,7 +2643,7 @@
+                 }
+                 if turns_taken > max_turns {
+                     last_assistant_text = MAX_TURNS_MESSAGE.to_string();
+-                    yield AgentEvent::Message(Message::assistant().with_text(last_assistant_text.clone()));
++                    yield AgentEvent::Message(Message::assistant().with_error(MessageErrorKind::Other, last_assistant_text.clone()));
+                     break;
+                 }
+ 
+@@ -3183,7 +3184,7 @@
+                             if compaction_attempts >= 2 {
+                                 error!("Context limit exceeded after compaction - prompt too large");
+                                 yield AgentEvent::Message(
+-                                    Message::assistant().with_system_notification(
++                                    Message::from_provider_error(provider_err).with_system_notification(
+                                         SystemNotificationType::InlineMessage,
+                                         "Unable to continue: Context limit still exceeded after compaction. Try using a shorter message, a model with a larger context window, or start a new session."
+                                     )
+@@ -3226,7 +3227,8 @@
+                                     crate::posthog::emit_error("compaction_failed", &e.to_string());
+                                     error!("Compaction failed: {}", e);
+                                     yield AgentEvent::Message(
+-                                        Message::assistant().with_text(
++                                        Message::assistant().with_error(
++                                            MessageErrorKind::Other,
+                                             format!("Ran into this error trying to compact: {e}.\n\nPlease try again or create a new session")
+                                         )
+                                     );
+@@ -3255,7 +3257,7 @@
+                                     SystemNotificationType::CreditsExhausted,
+                                     user_msg,
+                                     notification_data,
+-                                )
++                                ).with_error(MessageErrorKind::Other, provider_err.to_string())
+                             );
+                             break;
+                         }
+@@ -3266,7 +3268,7 @@
+                             error!("Error: {}", provider_err);
+ 
+                             let category = category.as_deref().map(|c| format!("\n\nCategory: {c}")).unwrap_or_default();
+-                            yield AgentEvent::Message(Message::assistant().with_text(format!(
++                            yield AgentEvent::Message(Message::assistant().with_error(MessageErrorKind::Other, format!(
+                                 "The provider refused this request.\n\n{details}{category}\n\nPlease start a new session to continue — resending this conversation is likely to be refused again."
+                             )));
+                             // A refusal is terminal: skip goal/grind nudges and
+@@ -3296,9 +3298,7 @@
+                             crate::posthog::emit_error(provider_err.telemetry_type(), &provider_err.to_string());
+                             error!("Error: {}", provider_err);
+                             yield AgentEvent::Message(
+-                                Message::assistant().with_text(
+-                                    format!("{provider_err}\n\nPlease resend your message to try again.")
+-                                )
++                                Message::from_provider_error(provider_err)
+                             );
+                             break;
+                         }
+@@ -3308,9 +3308,7 @@
+                             crate::posthog::emit_error(provider_err.telemetry_type(), &provider_err.to_string());
+                             error!("Error: {}", provider_err);
+                             yield AgentEvent::Message(
+-                                Message::assistant().with_text(
+-                                    format!("Ran into this error: {provider_err}.\n\nPlease retry if you think this is a transient or recoverable error.")
+-                                )
++                                Message::from_provider_error(provider_err)
+                             );
+                             break;
+                         }
+--- a/crates/goose-cli/src/cli.rs
++++ b/crates/goose-cli/src/cli.rs
+@@ -348,6 +348,10 @@
+ /// Run execution behavior options
+ #[derive(Args, Debug, Clone, Default)]
+ pub struct RunBehavior {
++    /// Factory-only entry restriction. The launcher must supply the required configuration.
++    #[arg(long = "factory-restricted", help = "Require a fresh, noninteractive legacy factory run")]
++    pub factory_restricted: bool,
++
+     /// Continue in interactive mode after processing input
+     #[arg(
+         short = 's',
+@@ -2074,6 +2078,7 @@
+     }
+ 
+     let mut session: crate::CliSession = build_session(SessionBuilderConfig {
++        factory_restricted: false,
+         session_id,
+         resume,
+         fork,
+@@ -2257,6 +2262,35 @@
+     output_opts: OutputOptions,
+     model_opts: ModelOptions,
+ ) -> Result<()> {
++    if run_behavior.factory_restricted {
++        anyhow::ensure!(
++            !run_behavior.interactive && !run_behavior.resume && run_behavior.no_session
++                && run_behavior.scheduled_job_id.is_none() && identifier.is_none()
++                && extension_opts.no_profile && session_opts.container.is_none(),
++            "factory restricted: require fresh noninteractive --no-profile --no-session"
++        );
++        anyhow::ensure!(
++            std::env::var("GOOSE_STATE_MACHINE").as_deref() == Ok("0"),
++            "factory restricted: require explicit GOOSE_STATE_MACHINE=0"
++        );
++        anyhow::ensure!(
++            extension_opts.builtins.is_empty() && extension_opts.streamable_http_extensions.is_empty(),
++            "factory restricted: builtin and HTTP extensions are forbidden"
++        );
++        anyhow::ensure!(
++            input_opts.instructions.is_none() && input_opts.recipe.is_none()
++                && input_opts.additional_sub_recipes.is_empty() && input_opts.params.is_empty()
++                && !input_opts.explain && !input_opts.render_recipe,
++            "factory restricted: recipes and indirect input are forbidden"
++        );
++        let text = input_opts.input_text.as_deref().ok_or_else(||
++            anyhow::anyhow!("factory restricted: require direct --text input"))?;
++        anyhow::ensure!(
++            !text.trim().is_empty() && !text.trim_start().starts_with(['!', '/']),
++            "factory restricted: empty, bang-shell and slash-command input are forbidden"
++        );
++    }
++
+     #[cfg(feature = "telemetry")]
+     if run_behavior.interactive && get_telemetry_choice().is_none() {
+         configure_telemetry_consent_dialog()?;
+@@ -2289,6 +2323,7 @@
+     .await?;
+ 
+     let mut session = build_session(SessionBuilderConfig {
++        factory_restricted: run_behavior.factory_restricted,
+         session_id,
+         resume: run_behavior.resume,
+         fork: false,
+@@ -2768,6 +2803,7 @@
+     let session_id = get_or_create_session_id(None, false, false, goose_mode).await?;
+ 
+     let mut session = build_session(SessionBuilderConfig {
++        factory_restricted: false,
+         session_id,
+         resume: false,
+         fork: false,
+--- a/crates/goose/src/agents/state_machine/ops_compaction.rs
++++ b/crates/goose/src/agents/state_machine/ops_compaction.rs
+@@ -98,7 +98,7 @@
+             .ok_or_else(|| anyhow!("Persisted slash command message has no id"))?;
+         let command = command.with_visibility(true, false);
+         let response = Message::assistant()
+-            .with_text(message)
++            .with_error(MessageErrorKind::Other, message)
+             .with_visibility(true, false);
+         emit.message(command).await;
+         let response = emit.message(response).await;
+@@ -313,7 +313,7 @@
+             }
+             Err(e) => {
+                 span.record("error.type", "compaction_error");
+-                emit.message(Message::assistant().with_text(format!(
++                emit.message(Message::assistant().with_error(MessageErrorKind::Other, format!(
+                     "Ran into this error trying to compact: {e}.\n\n\
+                      Please try again or create a new session"
+                 )))
+--- a/crates/goose/src/agents/state_machine/ops_maxturns.rs
++++ b/crates/goose/src/agents/state_machine/ops_maxturns.rs
+@@ -5,7 +5,7 @@
+     assistant_turn_count, messages_since_kickoff, not_applicable, yielded_with, Emitter, Operation,
+     OperationResult,
+ };
+-use crate::conversation::message::Message;
++use crate::conversation::message::{Message, MessageErrorKind};
+ use crate::conversation::Conversation;
+ use crate::session::Session;
+ use anyhow::Result;
+@@ -61,7 +61,7 @@
+             return not_applicable();
+         }
+ 
+-        let message = Message::assistant().with_text(MAX_TURNS_MESSAGE);
++        let message = Message::assistant().with_error(MessageErrorKind::Other, MAX_TURNS_MESSAGE);
+         let message = emit.message(message).await;
+         yielded_with([message.into()])
+     }
+--- a/crates/goose-cli/src/session/builder.rs
++++ b/crates/goose-cli/src/session/builder.rs
+@@ -159,6 +159,8 @@
+ /// including session identification, extension configuration, and debug settings.
+ #[derive(Clone, Debug)]
+ pub struct SessionBuilderConfig {
++    /// Explicit protected launcher contract; never read from model or config data.
++    pub factory_restricted: bool,
+     /// Session id, optional need to deduce from context
+     pub session_id: Option<String>,
+     /// Whether to resume an existing session
+@@ -207,6 +209,7 @@
+ impl Default for SessionBuilderConfig {
+     fn default() -> Self {
+         SessionBuilderConfig {
++            factory_restricted: false,
+             session_id: None,
+             resume: false,
+             fork: false,
+@@ -654,6 +657,9 @@
+ 
+     let config = Config::global();
+     let agent: Agent = Agent::new();
++    if session_config.factory_restricted {
++        agent.extension_manager.enable_factory_owned_stdio();
++    }
+ 
+     if session_config.container.is_some() {
+         agent.set_container(session_config.container.clone()).await;
+--- a/crates/goose/src/agents/extension_manager.rs
++++ b/crates/goose/src/agents/extension_manager.rs
+@@ -13,7 +13,7 @@
+ use std::collections::HashMap;
+ use std::path::PathBuf;
+ use std::pin::Pin;
+-use std::sync::atomic::{AtomicU64, Ordering};
++use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+ use std::sync::{Arc, Weak};
+ use std::task::{Context, Poll};
+ use std::time::Duration;
+@@ -195,6 +195,7 @@
+     provider: SharedProvider,
+     tools_cache: Mutex<Option<Arc<Vec<Tool>>>>,
+     tools_cache_version: AtomicU64,
++    factory_owned_stdio: AtomicBool,
+     client_name: String,
+     capabilities: ExtensionManagerCapabilities,
+ }
+@@ -448,7 +449,24 @@
+         );
+     }
+ 
+-    let (transport, mut stderr) = spawn_long_lived_mcp_subprocess(command).await?;
++    let factory_owned = extension_manager.upgrade()
++        .map(|manager| manager.factory_owned_stdio()).unwrap_or(false);
++    let (transport, mut stderr) = if factory_owned {
++        // Restricted macOS launch: the broker owns the Goose process group.
++        // Do not call configure_subprocess, which creates a separate Unix group.
++        #[cfg(target_os = "macos")]
++        {
++            rmcp::transport::TokioChildProcess::builder(command)
++                .stderr(std::process::Stdio::piped()).spawn()?
++        }
++        #[cfg(not(target_os = "macos"))]
++        {
++            return Err(ExtensionError::SetupError(
++                "factory restricted: MCP group inheritance is only verified on macOS".into()));
++        }
++    } else {
++        spawn_long_lived_mcp_subprocess(command).await?
++    };
+     let mut stderr = stderr.take().ok_or_else(|| {
+         ExtensionError::SetupError("failed to attach child process stderr".to_owned())
+     })?;
+@@ -1394,9 +1412,20 @@
+             provider,
+             tools_cache: Mutex::new(None),
+             tools_cache_version: AtomicU64::new(0),
++            factory_owned_stdio: AtomicBool::new(false),
+             client_name,
+             capabilities,
+         }
++    }
++
++    /// Enable only before loading extensions in a protected, broker-owned CLI run.
++    /// The trusted launcher owns the process group and approved stdio commands.
++    pub fn enable_factory_owned_stdio(&self) {
++        self.factory_owned_stdio.store(true, Ordering::Release);
++    }
++
++    pub fn factory_owned_stdio(&self) -> bool {
++        self.factory_owned_stdio.load(Ordering::Acquire)
+     }
+ 
+     pub fn new_without_provider(data_dir: std::path::PathBuf) -> Self {

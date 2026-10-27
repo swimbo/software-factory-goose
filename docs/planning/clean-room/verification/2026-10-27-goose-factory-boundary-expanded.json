@@ -1,0 +1,194 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-real-boundary-rm025lj0",
+  "goose_sha256": "3297cff13a49781b7f4a4e8a33220b36259089a05e234a6c3e8aaafe352d1f17",
+  "fixture_sha256": "b5701c7d2f8753ce3b7c1a2518af9b14efe7a22df67e2ccf2fc81ac7795b688d",
+  "execution_sha256": "3f52370bffaa5ac75a7bc9986bd2203c6b2aa144a9151c12783a3359d6d13774",
+  "adapter_sha256": "71c1aee6f8da6db720e6877dc0c2a75d43c287f5aab877856c6b512573932a60",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "allowed",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"VISIBLE_ALLOWED\",\"stderr\":\"\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 0,
+          "stdout": "VISIBLE_ALLOWED",
+          "stderr": ""
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": "executed",
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "ae02cf14739f57b6ce52b129d74c39f8065870e06b9d83c7c81bcbcb76c46429"
+    },
+    {
+      "name": "denied_command",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "643ba1feabd5e2cd13f2f10f1db0385deaf28cee9f54c792112d06fbb28d3f8d"
+    },
+    {
+      "name": "masked_nonzero",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":7,\"stdout\":\"[REDACTED]\",\"stderr\":\"[REDACTED]\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 7,
+          "stdout": "[REDACTED]",
+          "stderr": "[REDACTED]"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "a38a575c8a78372c0039b80a2f1f248afe7f40cb8f07666c9ab635742587b901"
+    },
+    {
+      "name": "invalid_utf8",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"output_withheld\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "output_withheld"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "f69c2a390809b2f9fd369068e1a69a84eb87dbea4ce6d1cefa71e417fc7c70dd"
+    },
+    {
+      "name": "authority_override",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"invalid_request\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "invalid_request"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "2e034c7bc4ae4d6d19f96cff00730e5d19b1508225e9af194d747ded4e8bf5e0"
+    },
+    {
+      "name": "outside_write",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "441f299c63755d03a0adfa07c226a7ba414aa0200926ec8a56c5b545f17bc761"
+    }
+  ],
+  "version": "1.49.0",
+  "controls_valid": true,
+  "expected_responses_observed": true,
+  "markers_correct": true,
+  "synthetic_outputs_absent_from_all_model_requests": true,
+  "bounded_integration_passed": true
+}

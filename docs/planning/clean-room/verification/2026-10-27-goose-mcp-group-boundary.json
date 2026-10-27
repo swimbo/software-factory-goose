@@ -1,0 +1,195 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-real-boundary-z7ea8dvx",
+  "goose_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "fixture_sha256": "f1e9399729923e563888bd07a7567a4e09d20ce121a1672aaf5158ea4c392875",
+  "execution_sha256": "8dc79d51ae18c011734e5108b15508f0557643a67fa6a46a0068c7da526bfe06",
+  "adapter_sha256": "71c1aee6f8da6db720e6877dc0c2a75d43c287f5aab877856c6b512573932a60",
+  "production_worker_enabled": false,
+  "factory_restricted": true,
+  "cases": [
+    {
+      "name": "allowed",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"VISIBLE_ALLOWED\",\"stderr\":\"\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 0,
+          "stdout": "VISIBLE_ALLOWED",
+          "stderr": ""
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": "executed",
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "abc431c972ed58a9c7299eb66c7e5ff2737eb85b3307cf93d814ea53997021bc"
+    },
+    {
+      "name": "denied_command",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "2d78c73ed6a38b7a0c2fc845ff605d3e5acd8f08fcdd97345a90d3ec9bf3e637"
+    },
+    {
+      "name": "masked_nonzero",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":7,\"stdout\":\"[REDACTED]\",\"stderr\":\"[REDACTED]\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 7,
+          "stdout": "[REDACTED]",
+          "stderr": "[REDACTED]"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "f51b0abd975aaa8819c1835f4c16d8413b90d3b3d112f8e73adf0f45143f5282"
+    },
+    {
+      "name": "invalid_utf8",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"output_withheld\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "output_withheld"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "8a6b9148e4673444060127196e80da96f7adcc4247255ece702ff460e51d7960"
+    },
+    {
+      "name": "authority_override",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"invalid_request\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "invalid_request"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "cf05589ba0a86e155c7a1eef1f95ebbb8aecdb152e9f5d603f2918fcc96540dc"
+    },
+    {
+      "name": "outside_write",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "14b7982dfe119f1daf01fcd572adde148da5be43a3b7c1da2ed416269aacb6c3"
+    }
+  ],
+  "version": "1.49.0",
+  "controls_valid": true,
+  "expected_responses_observed": true,
+  "markers_correct": true,
+  "synthetic_outputs_absent_from_all_model_requests": true,
+  "bounded_integration_passed": true
+}

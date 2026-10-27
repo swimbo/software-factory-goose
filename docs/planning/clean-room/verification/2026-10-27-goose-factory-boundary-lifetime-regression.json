@@ -1,0 +1,193 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-real-boundary-25_tt6e8",
+  "goose_sha256": "6bc711de29cd43bcf1e3ac7a3193b453dd0348068192947079c3cb871542319c",
+  "execution_sha256": "3f52370bffaa5ac75a7bc9986bd2203c6b2aa144a9151c12783a3359d6d13774",
+  "adapter_sha256": "71c1aee6f8da6db720e6877dc0c2a75d43c287f5aab877856c6b512573932a60",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "allowed",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"VISIBLE_ALLOWED\",\"stderr\":\"\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 0,
+          "stdout": "VISIBLE_ALLOWED",
+          "stderr": ""
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": "executed",
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "3528dffe19920bbce6bcf16b646f169da5643b37685b68662d363c96faaeddf9"
+    },
+    {
+      "name": "denied_command",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "7e911c86afc05872660b9baffdd1c7f3b486bb0a3c3c952893a10e655988e64b"
+    },
+    {
+      "name": "masked_nonzero",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"executed\",\"exit_code\":7,\"stdout\":\"[REDACTED]\",\"stderr\":\"[REDACTED]\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "executed",
+          "exit_code": 7,
+          "stdout": "[REDACTED]",
+          "stderr": "[REDACTED]"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "01d5c055d12c000d6c193a0f517b424f6e6ee578bcd9deb466bc58a77296277f"
+    },
+    {
+      "name": "invalid_utf8",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"output_withheld\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "output_withheld"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "c89146b6ae545eba4633925ae7118036b088bb470ea46091ccf66aadfdf01d9b"
+    },
+    {
+      "name": "authority_override",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"invalid_request\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "invalid_request"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "5072e7596f0c97b192e77c20535f5a30ddebbf78c5d3d606835691e18a0f1b49"
+    },
+    {
+      "name": "outside_write",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"policy_denied\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "boundary_responses": [
+        {
+          "status": "refused",
+          "reason": "policy_denied"
+        }
+      ],
+      "completion_seen": true,
+      "advertised_tool_names": [
+        "factory__shell"
+      ],
+      "execution_marker": null,
+      "outside_marker_exists": false,
+      "synthetic_key_in_requests": false,
+      "synthetic_password_in_requests": false,
+      "requests_sha256": "231d3a1f2452a1a627401524bdd4a778ff8fd1311ae69256c1fe3fdc95860bac"
+    }
+  ],
+  "version": "1.49.0",
+  "controls_valid": true,
+  "expected_responses_observed": true,
+  "markers_correct": true,
+  "synthetic_outputs_absent_from_all_model_requests": true,
+  "bounded_integration_passed": true
+}

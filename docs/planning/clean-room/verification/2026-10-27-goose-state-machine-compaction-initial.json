@@ -1,0 +1,183 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-terminal-status-xt_jb5z0",
+  "binary_sha256": "3297cff13a49781b7f4a4e8a33220b36259089a05e234a6c3e8aaafe352d1f17",
+  "expect": "patched",
+  "fixture_sha256": "9f521d866380e7bd757f8a4e9b4087d5229c5c823922a6c8421670d42fb81890",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "json_success",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 1,
+      "expected_provider_requests": 1,
+      "compaction_request_seen": null,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "requests_sha256": "58de4ada7aba50f300fb9c26acb16ce0141a06fd744ad4d2abf3192b1643e65d",
+      "stdout_sha256": "031bf3b3c013c58ad13852699273ab7d7b3ebb636a055ab3a1b26b5958f30dc5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "json_recovery_success",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 3,
+      "expected_provider_requests": 3,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "requests_sha256": "46294729eda103c72f7f547bd2c1d66ff3af746162ceee90979cb588e935d45c",
+      "stdout_sha256": "b5063e436f75941f100240e834c583f8a27fd18b969e951cf159926ba964b589",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "json_repeated_context",
+      "exit_code": 1,
+      "metadata_statuses": [
+        "error"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 5,
+      "expected_provider_requests": 7,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": true,
+      "false_success_reproduced": false,
+      "passed": false,
+      "requests_sha256": "1c1651c251a2e2e5785fb47228e535114bbb2b599ff7b395a8c46ac3ed30cb0a",
+      "stdout_sha256": "a0e4aede322c40ac10df9cc8ce01bfd0d97fd07241558127e4790154f6b33ae7",
+      "stderr_sha256": "046459065582fa17e97e70d1f896222f8a6aa982f1b6b2ccbe7edf3bde3cd1e4"
+    },
+    {
+      "name": "json_proactive_failure",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 4,
+      "expected_provider_requests": 4,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": false,
+      "requests_sha256": "6cc266c83a084a35c1c01f5e6151230ddbf9e8934da2c7989aee0807a7a85a09",
+      "stdout_sha256": "992fe430fe785119599fa09b4849cf8db97e90fb70ee7a5c5abc4fe272aa0889",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_success",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "complete"
+      ],
+      "provider_requests": 1,
+      "expected_provider_requests": 1,
+      "compaction_request_seen": null,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "requests_sha256": "1501d058ae7343973c4564e69cacaa2c97e254097f743460a5de8a0099ad3b75",
+      "stdout_sha256": "4e724caa40c522310c34a51dc8f520312a140f7eb2a1cbe3840c7a8db1332071",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_recovery_success",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "complete"
+      ],
+      "provider_requests": 3,
+      "expected_provider_requests": 3,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "requests_sha256": "7001e5cd094ba2262b292242a28e89949c4ab7b758b0f7d414606c4f87377b73",
+      "stdout_sha256": "3ff969b0e14f12be7b68e3b6488f61519e1d567baba16554b477436f26da15ae",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_repeated_context",
+      "exit_code": 1,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "message",
+        "error"
+      ],
+      "provider_requests": 5,
+      "expected_provider_requests": 7,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": true,
+      "false_success_reproduced": false,
+      "passed": false,
+      "requests_sha256": "c10638ae860d03a39debb9be2505f68a3cf6d614278d31074fe946a142202efa",
+      "stdout_sha256": "ed9d167b4291def8e7a22e81fe3a1be317dbfb91e438478a3b49cdccbd501cd2",
+      "stderr_sha256": "046459065582fa17e97e70d1f896222f8a6aa982f1b6b2ccbe7edf3bde3cd1e4"
+    },
+    {
+      "name": "stream-json_proactive_failure",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "message",
+        "message",
+        "complete"
+      ],
+      "provider_requests": 4,
+      "expected_provider_requests": 4,
+      "compaction_request_seen": true,
+      "external_network_denied": true,
+      "stimulus_visible_in_output": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": false,
+      "requests_sha256": "6cc266c83a084a35c1c01f5e6151230ddbf9e8934da2c7989aee0807a7a85a09",
+      "stdout_sha256": "8f4bbcd88a3ea0f9f8cc52ea188954ce165d9192b6ca3a600e071c27cfa85201",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "suite": "compaction",
+  "state_machine": true,
+  "version": "1.49.0",
+  "expectation_met": false
+}

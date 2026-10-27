@@ -1,0 +1,37 @@
+{
+  "source_commit": "71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "source_archive_url": "https://codeload.github.com/aaif-goose/goose/tar.gz/71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "source_archive_sha256": "7e90a3dc6b2bb18c8c343d36975e43ba2804b3bd3bd19d51e32ee31a01fb99b0",
+  "session_git_blob": "a705e815b518e114ebaf85fb14363d4e0680c744",
+  "session_sha256": "669049361dbaa0ecef15631594ad9517939fb9c04e19ae137a07112fd7d8e16b",
+  "source_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/goose-71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "upstream_reference_commit": "9949cf926cd42f1d128b9991ed23a496ecace896",
+  "patch_sha256": "ce5bd9493415bfcdfee761d26aee77193c179e681335209d76b5f9a2d6735ded",
+  "verified_source_blobs": 763,
+  "source_tree_truncated": false,
+  "source_tree_mismatches": 0,
+  "test_build_features": [
+    "rustls-tls",
+    "disable-update"
+  ],
+  "default_features": false,
+  "global_goose_replaced": false,
+  "production_worker_enabled": false,
+  "build_external_network_probe_errno": 1,
+  "build_global_writes_permitted": false,
+  "explicit_rustc_version": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "binary_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/target/debug/goose",
+  "build_log_sha256": "123c283e655ee2a6c574bd926f5ccad1baffc287f2b6e5047111a7b5ccd190c6",
+  "changed_upstream_files": [
+    "crates/goose-cli/src/session/mod.rs",
+    "crates/goose/src/agents/agent.rs"
+  ],
+  "first_backport_incomplete_binary_sha256": "214dd71a018837b25e2071de7dfb3cd87191260cd609d0d64aeb8604cc267531",
+  "first_backport_incomplete_build_exit_code": 0,
+  "build_exit_code": 0,
+  "binary_sha256": "d3650d37409e3e207ef1c69c8eb42ee66ff9584dfb91f404602f37b18f1cbaf4",
+  "helper_unit_test_status": "exact_source_standalone_test_passed; full_cargo_test_blocked_missing_offline_env-lock_1.0.2",
+  "helper_test_evidence": "2026-10-27-goose-terminal-helper-test.json",
+  "terminal_cli_evidence": "2026-10-27-goose-terminal-status-patched.json",
+  "terminal_cli_cases_passed": 6
+}

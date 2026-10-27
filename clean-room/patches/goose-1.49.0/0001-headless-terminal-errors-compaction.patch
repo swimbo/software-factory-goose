@@ -1,0 +1,308 @@
+--- a/crates/goose-cli/src/session/mod.rs
++++ b/crates/goose-cli/src/session/mod.rs
+@@ -1576,6 +1576,7 @@
+         let run_started = Instant::now();
+         let mut first_token_at: Option<Instant> = None;
+         let mut last_usage: Option<ProviderUsage> = None;
++        let mut stream_error = None;
+ 
+         use futures::StreamExt;
+         loop {
+@@ -1738,7 +1739,9 @@
+                             self.messages = updated_conversation;
+                         }
+                         Some(Err(e)) => {
+-                            handle_agent_error(&e, is_stream_json_mode);
++                            if interactive || !is_stream_json_mode {
++                                handle_agent_error(&e, is_stream_json_mode);
++                            }
+                             cancel_token_clone.cancel();
+                             drop(stream);
+                             if let Err(e) = self.handle_interrupted_messages(false).await {
+@@ -1751,6 +1754,7 @@
+                                     - depending on the error you may be able to continue",
+                                 );
+                             }
++                            stream_error = Some(e);
+                             break;
+                         }
+                         None => break,
+@@ -1766,11 +1770,30 @@
+             }
+         }
+ 
++        let terminal_error = headless_run_error(
++            interactive,
++            cancel_token_clone.is_cancelled(),
++            stream_error,
++            &self.messages,
++        );
++        if is_stream_json_mode {
++            if let Some(error) = &terminal_error {
++                emit_stream_event(&StreamEvent::Error {
++                    error: error.to_string(),
++                });
++            }
++        }
++
+         if !is_json_mode && !is_stream_json_mode {
+             output::flush_markdown_buffer_current_theme(&mut markdown_buffer);
+         }
+ 
+         if is_json_mode {
++            let status = if terminal_error.is_some() {
++                "error"
++            } else {
++                "completed"
++            };
+             let metadata = match self
+                 .agent
+                 .config
+@@ -1785,7 +1808,7 @@
+                     cache_read_input_tokens: totals.accumulated_usage.cache_read_input_tokens,
+                     cache_write_input_tokens: totals.accumulated_usage.cache_write_input_tokens,
+                     cost_usd: totals.accumulated_cost,
+-                    status: "completed".to_string(),
++                    status: status.to_string(),
+                 },
+                 Err(_) => JsonMetadata {
+                     total_tokens: None,
+@@ -1794,7 +1817,7 @@
+                     cache_read_input_tokens: None,
+                     cache_write_input_tokens: None,
+                     cost_usd: None,
+-                    status: "completed".to_string(),
++                    status: status.to_string(),
+                 },
+             };
+             let json_output = JsonOutput {
+@@ -1802,7 +1825,7 @@
+                 metadata,
+             };
+             println!("{}", serde_json::to_string_pretty(&json_output)?);
+-        } else if is_stream_json_mode {
++        } else if is_stream_json_mode && terminal_error.is_none() {
+             let totals = self
+                 .agent
+                 .config
+@@ -1836,11 +1859,15 @@
+                 cache_write_input_tokens,
+                 cost_usd,
+             });
+-        } else {
++        } else if !is_stream_json_mode {
+             println!();
+             if self.stats {
+                 print_run_stats(run_started, first_token_at, last_usage.as_ref());
+             }
++        }
++
++        if let Some(error) = terminal_error {
++            return Err(error);
+         }
+ 
+         Ok(())
+@@ -2872,6 +2899,28 @@
+     Ok((reasoner, model_config))
+ }
+ 
++// Backported from aaif-goose/goose 9949cf926cd42f1d128b9991ed23a496ecace896.
++// Keep interactive recovery behavior; propagate terminal failure from headless runs.
++fn headless_run_error(
++    interactive: bool,
++    cancelled: bool,
++    stream_error: Option<anyhow::Error>,
++    messages: &Conversation,
++) -> Option<anyhow::Error> {
++    if interactive {
++        return None;
++    }
++
++    stream_error
++        .or_else(|| cancelled.then(|| anyhow::anyhow!("Headless run interrupted")))
++        .or_else(|| {
++            messages
++                .last()
++                .and_then(|message| message.content.iter().find_map(MessageContent::as_error))
++                .map(|error| anyhow::anyhow!(error.message.clone()))
++        })
++}
++
+ /// Format elapsed time duration
+ /// Shows seconds if less than 60, otherwise shows minutes:seconds
+ fn format_elapsed_time(duration: std::time::Duration) -> String {
+@@ -2908,6 +2957,45 @@
+     use std::collections::HashMap;
+     use std::time::Duration;
+     use test_case::test_case;
++
++    #[test]
++    fn headless_terminal_failures_propagate_and_success_remains_valid() {
++        use goose::conversation::message::MessageErrorKind;
++        let messages = Conversation::new_unvalidated([
++            Message::assistant().with_error(MessageErrorKind::Other, "provider failed")
++        ]);
++        assert_eq!(
++            headless_run_error(
++                false,
++                false,
++                Some(anyhow::anyhow!("stream failed")),
++                &Conversation::default()
++            )
++            .unwrap()
++            .to_string(),
++            "stream failed"
++        );
++        assert_eq!(
++            headless_run_error(false, false, None, &messages)
++                .unwrap()
++                .to_string(),
++            "provider failed"
++        );
++        assert_eq!(
++            headless_run_error(false, true, None, &Conversation::default())
++                .unwrap()
++                .to_string(),
++            "Headless run interrupted"
++        );
++        assert!(headless_run_error(false, false, None, &Conversation::default()).is_none());
++        assert!(headless_run_error(
++            true,
++            true,
++            Some(anyhow::anyhow!("stream failed")),
++            &messages
++        )
++        .is_none());
++    }
+ 
+     #[test]
+     fn planner_classification_excludes_user_only_content() {
+--- a/crates/goose/src/agents/agent.rs
++++ b/crates/goose/src/agents/agent.rs
+@@ -54,7 +54,7 @@
+     check_if_compaction_needed, compact_messages, DEFAULT_COMPACTION_THRESHOLD,
+ };
+ use crate::conversation::message::{
+-    ActionRequiredData, InferenceMetadata, Message, MessageContent, MessageUsage, ProviderMetadata,
++    ActionRequiredData, InferenceMetadata, Message, MessageContent, MessageErrorKind, MessageUsage, ProviderMetadata,
+     SystemNotificationType,
+ };
+ use crate::conversation::{
+@@ -2366,7 +2366,8 @@
+                     }
+                     Err(e) => {
+                         yield AgentEvent::Message(
+-                            Message::assistant().with_text(
++                            Message::assistant().with_error(
++                                MessageErrorKind::Other,
+                                 format!("Ran into this error trying to compact: {e}.\n\nPlease try again or create a new session")
+                             )
+                         );
+@@ -2642,7 +2643,7 @@
+                 }
+                 if turns_taken > max_turns {
+                     last_assistant_text = MAX_TURNS_MESSAGE.to_string();
+-                    yield AgentEvent::Message(Message::assistant().with_text(last_assistant_text.clone()));
++                    yield AgentEvent::Message(Message::assistant().with_error(MessageErrorKind::Other, last_assistant_text.clone()));
+                     break;
+                 }
+ 
+@@ -3183,7 +3184,7 @@
+                             if compaction_attempts >= 2 {
+                                 error!("Context limit exceeded after compaction - prompt too large");
+                                 yield AgentEvent::Message(
+-                                    Message::assistant().with_system_notification(
++                                    Message::from_provider_error(provider_err).with_system_notification(
+                                         SystemNotificationType::InlineMessage,
+                                         "Unable to continue: Context limit still exceeded after compaction. Try using a shorter message, a model with a larger context window, or start a new session."
+                                     )
+@@ -3226,7 +3227,8 @@
+                                     crate::posthog::emit_error("compaction_failed", &e.to_string());
+                                     error!("Compaction failed: {}", e);
+                                     yield AgentEvent::Message(
+-                                        Message::assistant().with_text(
++                                        Message::assistant().with_error(
++                                            MessageErrorKind::Other,
+                                             format!("Ran into this error trying to compact: {e}.\n\nPlease try again or create a new session")
+                                         )
+                                     );
+@@ -3255,7 +3257,7 @@
+                                     SystemNotificationType::CreditsExhausted,
+                                     user_msg,
+                                     notification_data,
+-                                )
++                                ).with_error(MessageErrorKind::Other, provider_err.to_string())
+                             );
+                             break;
+                         }
+@@ -3266,7 +3268,7 @@
+                             error!("Error: {}", provider_err);
+ 
+                             let category = category.as_deref().map(|c| format!("\n\nCategory: {c}")).unwrap_or_default();
+-                            yield AgentEvent::Message(Message::assistant().with_text(format!(
++                            yield AgentEvent::Message(Message::assistant().with_error(MessageErrorKind::Other, format!(
+                                 "The provider refused this request.\n\n{details}{category}\n\nPlease start a new session to continue — resending this conversation is likely to be refused again."
+                             )));
+                             // A refusal is terminal: skip goal/grind nudges and
+@@ -3296,9 +3298,7 @@
+                             crate::posthog::emit_error(provider_err.telemetry_type(), &provider_err.to_string());
+                             error!("Error: {}", provider_err);
+                             yield AgentEvent::Message(
+-                                Message::assistant().with_text(
+-                                    format!("{provider_err}\n\nPlease resend your message to try again.")
+-                                )
++                                Message::from_provider_error(provider_err)
+                             );
+                             break;
+                         }
+@@ -3308,9 +3308,7 @@
+                             crate::posthog::emit_error(provider_err.telemetry_type(), &provider_err.to_string());
+                             error!("Error: {}", provider_err);
+                             yield AgentEvent::Message(
+-                                Message::assistant().with_text(
+-                                    format!("Ran into this error: {provider_err}.\n\nPlease retry if you think this is a transient or recoverable error.")
+-                                )
++                                Message::from_provider_error(provider_err)
+                             );
+                             break;
+                         }
+--- a/crates/goose/src/agents/state_machine/ops_compaction.rs
++++ b/crates/goose/src/agents/state_machine/ops_compaction.rs
+@@ -98,7 +98,7 @@
+             .ok_or_else(|| anyhow!("Persisted slash command message has no id"))?;
+         let command = command.with_visibility(true, false);
+         let response = Message::assistant()
+-            .with_text(message)
++            .with_error(MessageErrorKind::Other, message)
+             .with_visibility(true, false);
+         emit.message(command).await;
+         let response = emit.message(response).await;
+@@ -313,7 +313,7 @@
+             }
+             Err(e) => {
+                 span.record("error.type", "compaction_error");
+-                emit.message(Message::assistant().with_text(format!(
++                emit.message(Message::assistant().with_error(MessageErrorKind::Other, format!(
+                     "Ran into this error trying to compact: {e}.\n\n\
+                      Please try again or create a new session"
+                 )))
+--- a/crates/goose/src/agents/state_machine/ops_maxturns.rs
++++ b/crates/goose/src/agents/state_machine/ops_maxturns.rs
+@@ -5,7 +5,7 @@
+     assistant_turn_count, messages_since_kickoff, not_applicable, yielded_with, Emitter, Operation,
+     OperationResult,
+ };
+-use crate::conversation::message::Message;
++use crate::conversation::message::{Message, MessageErrorKind};
+ use crate::conversation::Conversation;
+ use crate::session::Session;
+ use anyhow::Result;
+@@ -61,7 +61,7 @@
+             return not_applicable();
+         }
+ 
+-        let message = Message::assistant().with_text(MAX_TURNS_MESSAGE);
++        let message = Message::assistant().with_error(MessageErrorKind::Other, MAX_TURNS_MESSAGE);
+         let message = emit.message(message).await;
+         yielded_with([message.into()])
+     }

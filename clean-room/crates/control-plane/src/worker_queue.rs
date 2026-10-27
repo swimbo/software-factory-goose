@@ -341,6 +341,30 @@ impl WorkerQueueJournal {
         ctx.set("queue", Json(state));
         Ok(Json(outcome))
     }
+    /// Read-only completion lookup. Never calls claim or creates a pull receipt.
+    #[handler]
+    async fn lookup_pull(
+        &self,
+        ctx: SharedObjectContext<'_>,
+        request_id: String,
+    ) -> HandlerResult<Json<Option<PullOutcome>>> {
+        if !canonical_id(&request_id) {
+            return Err(error(400, "invalid pull request ID").into());
+        }
+        let Some(state) = ctx.get::<Json<QueueState>>("queue").await? else {
+            return Ok(Json(None));
+        };
+        state.0.check_binding(ctx.key(), &self.worker_id)?;
+        Ok(Json(
+            state
+                .0
+                .pulls
+                .iter()
+                .find(|record| record.request.request_id == request_id)
+                .map(|record| record.outcome.clone()),
+        ))
+    }
+
     #[handler]
     async fn complete(
         &self,

@@ -19,6 +19,33 @@ mod tool_output;
 
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 
+static TERMINATION_REQUESTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn termination_requested() -> bool {
+    TERMINATION_REQUESTED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+extern "C" fn request_termination(_: libc::c_int) {
+    // Atomic flag only: cleanup happens in normal control flow, never in the handler.
+    TERMINATION_REQUESTED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn install_termination_handlers() -> std::io::Result<()> {
+    // SAFETY: zero-initialized sigaction with a C-ABI handler; no shared mutable data.
+    unsafe {
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = request_termination as *const () as usize;
+        libc::sigemptyset(&mut action.sa_mask);
+        for signal in [libc::SIGTERM, libc::SIGINT] {
+            if libc::sigaction(signal, &action, std::ptr::null_mut()) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+        }
+    }
+    Ok(())
+}
+
 /// No environment toggle substitutes for verified UID/Seatbelt/network isolation.
 pub fn run_goose(
     prompt: &str,
@@ -91,11 +118,48 @@ struct Captured {
     timed_out: bool,
 }
 
-struct ProcessGroup(std::process::Child);
+/// Sole waiter for this child. Keep the leader unreaped until group cleanup.
+struct ProcessGroup(Option<std::process::Child>);
+impl ProcessGroup {
+    fn exited(&self) -> std::io::Result<bool> {
+        let child = self.0.as_ref().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "child already reaped")
+        })?;
+        // SAFETY: this object is the sole waiter. WNOWAIT observes without releasing
+        // the child PID, so the private process-group id cannot be recycled before kill.
+        unsafe {
+            let mut info: libc::siginfo_t = std::mem::zeroed();
+            loop {
+                if libc::waitid(
+                    libc::P_PID,
+                    child.id(),
+                    &mut info,
+                    libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+                ) == 0
+                {
+                    return Ok(info.si_pid() != 0);
+                }
+                let error = std::io::Error::last_os_error();
+                if error.kind() != std::io::ErrorKind::Interrupted {
+                    return Err(error);
+                }
+            }
+        }
+    }
+
+    fn cleanup_and_wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+        // If ownership was lost (ECHILD), never signal a possibly recycled group id.
+        self.exited()?;
+        let mut child = self.0.take().expect("ownership checked above");
+        kill_process_group(child.id());
+        child.wait()
+    }
+}
 impl Drop for ProcessGroup {
     fn drop(&mut self) {
-        kill_process_group(self.0.id());
-        let _ = self.0.wait();
+        if self.0.is_some() {
+            let _ = self.cleanup_and_wait();
+        }
     }
 }
 
@@ -110,14 +174,45 @@ fn nonblocking(pipe: &impl AsRawFd) -> std::io::Result<()> {
     Ok(())
 }
 
+fn require_child_wait_ownership() -> std::io::Result<()> {
+    // This binary never installs another child reaper. Fail before spawning if inherited
+    // signal disposition could auto-reap children and invalidate the PID ownership fence.
+    unsafe {
+        let mut action: libc::sigaction = std::mem::zeroed();
+        if libc::sigaction(libc::SIGCHLD, std::ptr::null(), &mut action) != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if action.sa_sigaction != libc::SIG_DFL || action.sa_flags & libc::SA_NOCLDWAIT != 0 {
+            return Err(std::io::Error::other(
+                "exclusive child wait ownership unavailable",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Result<Captured> {
+    anyhow::ensure!(!termination_requested(), "execution cancelled");
+    require_child_wait_ownership()?;
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .process_group(0);
-    let mut child = ProcessGroup(cmd.spawn()?);
-    let mut stdout_pipe = child.0.stdout.take().expect("piped stdout");
-    let mut stderr_pipe = child.0.stderr.take().expect("piped stderr");
+    let mut child = ProcessGroup(Some(cmd.spawn()?));
+    let mut stdout_pipe = child
+        .0
+        .as_mut()
+        .unwrap()
+        .stdout
+        .take()
+        .expect("piped stdout");
+    let mut stderr_pipe = child
+        .0
+        .as_mut()
+        .unwrap()
+        .stderr
+        .take()
+        .expect("piped stderr");
     nonblocking(&stdout_pipe)?;
     nonblocking(&stderr_pipe)?;
     let start = Instant::now();
@@ -125,21 +220,20 @@ fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Resu
     let mut stderr = Capture::default();
     let mut timed_out = false;
     let status = loop {
+        anyhow::ensure!(!termination_requested(), "execution cancelled");
         stdout.drain(&mut stdout_pipe)?;
         stderr.drain(&mut stderr_pipe)?;
-        if let Some(status) = child.0.try_wait()? {
-            break status;
+        if child.exited()? {
+            break child.cleanup_and_wait()?;
         }
         if start.elapsed() >= timeout {
             timed_out = true;
-            kill_process_group(child.0.id());
-            break child.0.wait()?;
+            break child.cleanup_and_wait()?;
         }
         std::thread::sleep(Duration::from_millis(5));
     };
-    // Also clean descendants after a normal parent exit. Never block waiting for a pipe
-    // held by a descendant that escaped the process group (OS sandbox must forbid escape).
-    kill_process_group(child.0.id());
+    // Group cleanup occurred while the leader was still unreaped. Never signal its
+    // numeric id again. Bound pipes held by descendants that escaped the group.
     let cleanup = Instant::now();
     while !(stdout.eof && stderr.eof) && cleanup.elapsed() < Duration::from_millis(250) {
         stdout.drain(&mut stdout_pipe)?;
@@ -148,6 +242,7 @@ fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Resu
     }
     stdout.truncated |= !stdout.eof;
     stderr.truncated |= !stderr.eof;
+    anyhow::ensure!(!termination_requested(), "execution cancelled");
     Ok(Captured {
         status,
         stdout,
@@ -352,6 +447,7 @@ async fn main() -> anyhow::Result<()> {
     // Only the supported `sh -c <command>` route is accepted by the shim.
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(String::as_str) == Some("--tool-request") {
+        install_termination_handlers()?;
         // Opt-in one-request local transport. JSON cannot supply execution authority.
         let response = (|| -> Result<tool_boundary::Response, tool_boundary::Response> {
             if args.len() != 2 {

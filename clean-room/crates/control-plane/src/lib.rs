@@ -27,3 +27,12 @@ pub mod intake_workflow;
 
 #[cfg(feature = "restate")]
 pub mod worker_queue;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod operator_adapter;
+#[cfg(feature = "restate")]
+pub mod promotion_decision;
+#[cfg(all(feature = "restate", unix))]
+pub mod promotion_execution;
+#[cfg(feature = "restate")]
+pub mod worker_adapter;

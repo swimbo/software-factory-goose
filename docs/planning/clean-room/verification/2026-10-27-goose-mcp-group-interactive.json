@@ -1,0 +1,29 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-execution-path-8ct4518i",
+  "binary_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "fixture_sha256": "21897737d2c416f87f551abd19c2f4930b525e5df3716cde8be8a2a403c234c9",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "interactive_control",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "session_closed": true,
+      "stdout_sha256": "b5976b8c6b655825937a82516e0317d620ad57d34f00d6b900a6c8303ae63870",
+      "requests_sha256": "6e5ac0e5207f6aa2293819a46a9dd5cdcd42f9eae918f796ae9d996f21c7df30"
+    }
+  ],
+  "interactive_smoke": true,
+  "factory_restricted": false,
+  "version": "1.49.0",
+  "interactive_initial_prompt_then_eof_passed": true
+}

@@ -1,0 +1,122 @@
+{
+  "fixture_only": true,
+  "same_uid_only": true,
+  "production_enabled": false,
+  "goose_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "broker_sha256": "31d4c814a2f25a6ff1a86dba8c69cab72778186a90d054edb3cf30aeaf96a402",
+  "adapter_sha256": "71c1aee6f8da6db720e6877dc0c2a75d43c287f5aab877856c6b512573932a60",
+  "fixture_sha256": "7c675565a6efe6c682b01905fcd0531bd838671db719dd3fbf8d94733d91bf62",
+  "expected_group_refusal": false,
+  "ordinary": false,
+  "cases": [
+    {
+      "mode": "init_refusal",
+      "adapter_group": {
+        "pid": 25369,
+        "parent": 25366,
+        "pgid": 25366,
+        "parent_pgid": 25366,
+        "inherited_owned_group": true
+      },
+      "network_guard_denied": true,
+      "goose_exit_code": 1,
+      "provider_requests": 0,
+      "tool_started": false,
+      "initialization_refusal_failed_closed": true
+    },
+    {
+      "mode": "normal",
+      "adapter_group": {
+        "pid": 25385,
+        "parent": 25382,
+        "pgid": 25382,
+        "parent_pgid": 25382,
+        "inherited_owned_group": true
+      },
+      "network_guard_denied": true,
+      "captured_status": {
+        "exit_code": 0,
+        "signal": null,
+        "completion_seen": true
+      },
+      "goose_exit_code": 0,
+      "exact_adapter_response": {
+        "status": "executed",
+        "exit_code": 7,
+        "stdout": "VISIBLE_BROKER",
+        "stderr": "STDERR_BROKER"
+      },
+      "adapter_and_goose_absent": true
+    },
+    {
+      "mode": "denied",
+      "adapter_group": {
+        "pid": 25415,
+        "parent": 25408,
+        "pgid": 25408,
+        "parent_pgid": 25408,
+        "inherited_owned_group": true
+      },
+      "network_guard_denied": true,
+      "captured_status": {
+        "exit_code": 0,
+        "signal": null,
+        "completion_seen": true
+      },
+      "goose_exit_code": 0,
+      "exact_adapter_response": {
+        "status": "refused",
+        "reason": "policy_denied"
+      },
+      "adapter_and_goose_absent": true
+    },
+    {
+      "mode": "hung",
+      "adapter_group": {
+        "pid": 25817,
+        "parent": 25811,
+        "pgid": 25811,
+        "parent_pgid": 25811,
+        "inherited_owned_group": true
+      },
+      "network_guard_denied": true,
+      "stop": {
+        "target": "01M5ZGB8XWZT2V86SS5SDPH8V0",
+        "signal_sent": true,
+        "leader_reaped": true,
+        "group_absent": true,
+        "leader_signal": 9,
+        "groups": [
+          {
+            "member": "01M5ZGB8YN2YT09FJKZB5Y355H",
+            "signal_sent": true,
+            "leader_reaped": true,
+            "group_absent": true,
+            "leader_signal": 9
+          },
+          {
+            "member": "01M5ZGB8YPXDN19V1MR20GVH6R",
+            "signal_sent": true,
+            "leader_reaped": true,
+            "group_absent": true,
+            "leader_signal": 9
+          },
+          {
+            "member": "01M5ZGB9KGQXFCVT5ERZHYXEGN",
+            "signal_sent": true,
+            "leader_reaped": true,
+            "group_absent": true,
+            "leader_signal": 9
+          }
+        ]
+      },
+      "all_five_processes_absent": true,
+      "three_suspended_processes": true
+    }
+  ],
+  "negative_group_control_passed": false,
+  "selected_cases_passed": true,
+  "bounded_lifecycle_passed": true,
+  "owned_process_cleanup_verified": true,
+  "fixture_root_removed": true
+}

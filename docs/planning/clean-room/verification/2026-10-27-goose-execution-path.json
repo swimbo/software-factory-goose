@@ -1,0 +1,121 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-execution-path-wy9wlwhb",
+  "binary_sha256": "5caec431e32889c87b9f6a58f79a886a3f901e0765dee744f2deb90ab41caa97",
+  "fixture_sha256": "c25e27bb943c32691f2f782e0ff52aa54169bc5850ae9b7ee38d550817984589",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "legacy_success",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "stdout_sha256": "f0e7fcff50098e93e6b6ac3d3ded1f1332cb39876b8a257afe3a0dfbe0c22ff4",
+      "requests_sha256": "fd0fc3ddfbd12878f5265427e37d92901b7fbc18e1be167b2486682489de9473"
+    },
+    {
+      "name": "state_machine_success",
+      "flag": "1",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "advertised_tools": [
+        "load_skill"
+      ],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "stdout_sha256": "053e077a9a75ac122ba3b1cc6ffd5ca3f8a55e6c872e73bcebe06cc2df625739",
+      "requests_sha256": "33328657d2e8007bb92038d792b7bcf42a3b525b7a333d4e33ea1b45f237ec5b"
+    },
+    {
+      "name": "legacy_skill",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32600: Tool 'load_skill' was not advertised for this model turn",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "stdout_sha256": "cd2f5b4d9e102d06d1c3d2571775d074ad43af255f2bc22091ebf9796cdc42a0",
+      "requests_sha256": "e7f05c12470a143823f85d8f8d142fc4b3dcffa649249055233aad750b8266dd"
+    },
+    {
+      "name": "state_machine_skill",
+      "flag": "1",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [
+        "load_skill"
+      ],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "# Loaded Skill: factory-path-probe (skill)\n\nHarmless offline path fixture.\n\n## Content\n\nOFFLINE_SKILL_BODY_92731\n",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": true,
+      "bang_dispatch_seen": false,
+      "stdout_sha256": "4f94a9da8aa93666e9118abf07813f49a7aaa8e5f7128b037acb9f317623b13d",
+      "requests_sha256": "1eaaae7d1c34f8804216c2abc95ea075a95227041700af0b34e68d4c2a76f621"
+    },
+    {
+      "name": "legacy_delegate",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32600: Tool 'summon__delegate' was not advertised for this model turn",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "stdout_sha256": "e9af7c2c071aee661610c2fdc6dda1ece10b1289fb5c136b745d01cb9a0ff645",
+      "requests_sha256": "9d5758361a9902301820bc2236a7ed5df174d878c3c85f515e989d8ab3fa0a97"
+    },
+    {
+      "name": "legacy_bang",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 0,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": true,
+      "stdout_sha256": "962bbdcb179c17f5cd6118045684c6117493489e0e5c4f050879a0f7d21be516",
+      "requests_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "version": "1.49.0",
+  "controls_valid": true,
+  "legacy_skill_negative_valid": true,
+  "legacy_delegate_negative_observed": true,
+  "subagent_execution_positive_control": "not_exercised",
+  "flag_alone_forces_legacy": false,
+  "mandatory_boundary_verified": false
+}

@@ -1,0 +1,104 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-terminal-status-_wk5tp5t",
+  "binary_sha256": "6bc711de29cd43bcf1e3ac7a3193b453dd0348068192947079c3cb871542319c",
+  "expect": "baseline",
+  "fixture_sha256": "dc06f71d2511b810a75286941be1692c8afccf6694e8e223035932e651b6d31e",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "json_success",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "stdout_sha256": "b912f4ad4dd667184a6660a9dc5ec820059696a7b9e5ba4bfc02b91b64ab19a6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "json_provider_error",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 4,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": true,
+      "stdout_sha256": "60cc8560ff9f5b7e8c44bd585f19684dd895ac7d32205a7eb1444438b41a3a2e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "json_cancel",
+      "exit_code": 0,
+      "metadata_statuses": [
+        "completed"
+      ],
+      "stream_event_types": [],
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": true,
+      "stdout_sha256": "5f3c8ed4cbcaa5dd5e828d3e61d957262156e68d0c716aa016b52db2bfe158b4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_success",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "complete"
+      ],
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": false,
+      "passed": true,
+      "stdout_sha256": "b3f6a3f9455b37cc242ee16cfa1150469ebe6a14a275992c723607c30c4f1322",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_provider_error",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "complete"
+      ],
+      "provider_requests": 4,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": true,
+      "stdout_sha256": "7058714a9054dc1517e334f0cd9cae009b6b7acc545b8f5fc5e0237e427c9756",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "stream-json_cancel",
+      "exit_code": 0,
+      "metadata_statuses": [],
+      "stream_event_types": [
+        "message",
+        "complete"
+      ],
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "terminal_failure_rejected": false,
+      "false_success_reproduced": true,
+      "passed": true,
+      "stdout_sha256": "c49b4eedf218f3877d4ce4d98d5bef59c1094f12ae12a4852de6b51eb4cc6f89",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "version": "1.49.0",
+  "expectation_met": true
+}

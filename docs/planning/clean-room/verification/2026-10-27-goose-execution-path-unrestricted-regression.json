@@ -1,0 +1,134 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-execution-path-y5i_uaf2",
+  "binary_sha256": "3add8f27a0a2b38c5b9ff10fb3a85e95affe842590c70413c5e7901cc3b1b8b1",
+  "fixture_sha256": "e26115f41181aecea2154913c1aa34f22add6e67124e89b030021f15629a3e64",
+  "production_worker_enabled": false,
+  "cases": [
+    {
+      "name": "legacy_success",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "c2568d5ab1eadc1b3cfeee824f6ef8198980c69a6f548e9eecfd360784482e82",
+      "requests_sha256": "8bfc190c9de4a9800302a07020d869d7047ec2de9b3a397ede96d23340957264"
+    },
+    {
+      "name": "state_machine_success",
+      "flag": "1",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 1,
+      "external_network_denied": true,
+      "advertised_tools": [
+        "load_skill"
+      ],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "cbaa307834bf20b9da1f6e0a37cb59574067faf18228205495a4d522b1187392",
+      "requests_sha256": "49d57012dd9499578d3ad43360202d67e22ed136e8bbf9ef581e0e00d310324b"
+    },
+    {
+      "name": "legacy_skill",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32600: Tool 'load_skill' was not advertised for this model turn",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "93aaf2837d55b29803da54011d93db4148de259123809be97fe71b06c90ea757",
+      "requests_sha256": "2352584a1560efaa87fb1aea0a100234e98ba3a5b1397dba98b25d45dec3d51d"
+    },
+    {
+      "name": "state_machine_skill",
+      "flag": "1",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [
+        "load_skill"
+      ],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "# Loaded Skill: factory-path-probe (skill)\n\nHarmless offline path fixture.\n\n## Content\n\nOFFLINE_SKILL_BODY_92731\n",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": true,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "21a88ee28fb0ff94547eb1ebe3cc60cdc78d1540a4427ca28efbaa27ff63ce06",
+      "requests_sha256": "aa964b2574f43fd1933aea70327b8a3aa7026eb7c24925388d49d378f194cfe8"
+    },
+    {
+      "name": "legacy_delegate",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [
+        {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32600: Tool 'summon__delegate' was not advertised for this model turn",
+          "tool_call_id": "path-probe"
+        }
+      ],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": false,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "1376e707ee49dc3159869de9a16c9a5b37275320c866497d8d606b1ca5c179a7",
+      "requests_sha256": "a394d53ba3d8eeb562db0874052ac55fa04eeecbb1582d8151571cbb934445ad"
+    },
+    {
+      "name": "legacy_bang",
+      "flag": "0",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 0,
+      "external_network_denied": true,
+      "advertised_tools": [],
+      "tool_messages": [],
+      "skill_body_in_tool_result": false,
+      "bang_dispatch_seen": true,
+      "factory_guard_error": false,
+      "complete_seen": true,
+      "stdout_sha256": "a6d64d853b18c78a00bce80d20de5c7123d5ae924ff18d6c02dc4743d2e4fc9a",
+      "requests_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "factory_restricted": false,
+  "version": "1.49.0",
+  "controls_valid": true,
+  "legacy_skill_negative_valid": true,
+  "legacy_delegate_negative_observed": true,
+  "subagent_execution_positive_control": "not_exercised",
+  "flag_alone_forces_legacy": false,
+  "mandatory_boundary_verified": false
+}

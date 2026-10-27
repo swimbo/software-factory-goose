@@ -282,7 +282,7 @@ mod lease_tests {
             .unwrap()
             .unwrap();
         assert_eq!((event.version, event.step_seq), (1, 0));
-        assert_eq!(event.snapshot, serde_json::to_value(&s).unwrap());
+        assert_eq!(event.snapshot, claim_projection_snapshot(&s).unwrap());
         let before = s.clone();
         assert!(
             next_claim_event(Some(&before), &mut s, "no-change")
@@ -306,6 +306,114 @@ mod lease_tests {
         assert_eq!(s.stage, LeaseStage::CoolingDown);
         s.version = i64::MAX as u64;
         assert!(next_claim_event(None, &mut s, "overflow").is_err());
+    }
+    #[test]
+    fn sql_claim_events_withhold_lease_capabilities_and_unscanned_receipt_text() {
+        let mut state = state();
+        let token = shared::new_id();
+        claim_next(&mut state, "sensitive-worker-label", token.clone(), 1000, 0).unwrap();
+        let active = next_claim_event(None, &mut state, "active-event")
+            .unwrap()
+            .unwrap();
+        let wire = serde_json::to_string(&active).unwrap();
+        assert!(!wire.contains(&token) && !wire.contains("sensitive-worker-label"));
+        for receipt in [
+            shared::Receipt::Failed {
+                exit_code: 1,
+                stderr_tail: "SQL_UNSCANNED_STDERR_CANARY".into(),
+            },
+            shared::Receipt::Completed {
+                sha: "b".repeat(40),
+                diff: "SQL_UNSCANNED_DIFF_CANARY".into(),
+                turn_count: 1,
+                exit_code: 0,
+                wall_time_ms: 1,
+                spend_usd: 0.01,
+            },
+        ] {
+            let mut state = state.clone();
+            let lease = state.active.clone().unwrap();
+            state.last_completion = Some(LeaseCompletion { lease, receipt });
+            let event = next_claim_event(None, &mut state, "completion-event")
+                .unwrap()
+                .unwrap();
+            let wire = serde_json::to_string(&event).unwrap();
+            assert!(
+                !wire.contains(&token)
+                    && !wire.contains("SQL_UNSCANNED_")
+                    && !wire.contains("sensitive-worker-label")
+            );
+            assert!(
+                serde_json::to_string(&state)
+                    .unwrap()
+                    .contains("SQL_UNSCANNED_")
+            );
+        }
+    }
+    #[test]
+    fn retained_history_preserves_original_keys_and_rejects_gaps_or_legacy_state() {
+        let mut state = state();
+        let mut history = ClaimEventHistory::default();
+        let event = next_claim_event(None, &mut state, "original-invocation")
+            .unwrap()
+            .unwrap();
+        history.append(event.clone()).unwrap();
+        history.validate(Some(&state)).unwrap();
+        assert_eq!(history.events[0], event);
+        let legacy = ClaimEventHistory::default();
+        assert!(legacy.validate(Some(&state)).is_err());
+        let mut changed = history.clone();
+        changed.events[0].version = 2;
+        assert!(changed.validate(Some(&state)).is_err());
+        let mut changed = history.clone();
+        changed.events[0].snapshot["base_revision"] = "c".repeat(40).into();
+        assert!(changed.validate(Some(&state)).is_err());
+        assert!(history.validate(None).is_err());
+    }
+    #[test]
+    fn retained_history_never_evicts_at_count_or_byte_limit() {
+        let mut state = state();
+        let mut history = ClaimEventHistory::default();
+        for index in 0..MAX_CLAIM_HISTORY_EVENTS {
+            let event = next_claim_event(None, &mut state, &format!("invocation-{index}"))
+                .unwrap()
+                .unwrap();
+            history.append(event).unwrap();
+        }
+        history.validate(Some(&state)).unwrap();
+        let retained = history.clone();
+        let event = next_claim_event(None, &mut state, "one-too-many")
+            .unwrap()
+            .unwrap();
+        assert!(history.append(event).is_err());
+        assert_eq!(history, retained);
+        let mut huge = retained.events[0].clone();
+        huge.snapshot["oversized"] = "x".repeat(MAX_CLAIM_HISTORY_BYTES).into();
+        let mut empty = ClaimEventHistory::default();
+        assert!(empty.append(huge).is_err());
+        assert!(empty.events.is_empty());
+    }
+    #[test]
+    fn duplicate_event_key_or_wrong_next_version_cannot_enter_history() {
+        let mut state = state();
+        let mut history = ClaimEventHistory::default();
+        history
+            .append(
+                next_claim_event(None, &mut state, "same-key")
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
+        let duplicate = next_claim_event(None, &mut state, "same-key")
+            .unwrap()
+            .unwrap();
+        assert!(history.append(duplicate).is_err());
+        let mut wrong = history.events[0].clone();
+        wrong.invocation_id = "other".into();
+        wrong.version = 3;
+        wrong.snapshot["version"] = 3.into();
+        assert!(history.append(wrong).is_err());
+        assert_eq!(history.events.len(), 1);
     }
     #[test]
     fn conditional_first_claim_cannot_reassign_after_expiry() {
@@ -545,6 +653,107 @@ pub struct CompleteLeaseRequest {
     pub receipt: shared::Receipt,
 }
 
+/// Retention is bounded and never evicted. Exhaustion stops further mutations; archival or
+/// legacy-state migration requires an explicit future protocol, never an invented history.
+pub const MAX_CLAIM_HISTORY_EVENTS: usize = 128;
+pub const MAX_CLAIM_HISTORY_BYTES: usize = 512 * 1024;
+const CLAIM_HISTORY_KEY: &str = "claim_event_history_v1";
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClaimEventHistory {
+    events: Vec<crate::projection::ClaimTransitionEvent>,
+}
+impl ClaimEventHistory {
+    fn append(
+        &mut self,
+        event: crate::projection::ClaimTransitionEvent,
+    ) -> Result<(), TerminalError> {
+        if self.events.len() >= MAX_CLAIM_HISTORY_EVENTS
+            || event.version != self.events.len() as u64 + 1
+            || self.events.iter().any(|old| {
+                (old.invocation_id.as_str(), old.step_seq)
+                    == (event.invocation_id.as_str(), event.step_seq)
+            })
+        {
+            return Err(lease_error(
+                409,
+                "claim event history exhausted or inconsistent; no eviction permitted",
+            ));
+        }
+        event
+            .validate()
+            .map_err(|_| lease_error(409, "invalid retained claim event"))?;
+        let mut candidate = self.clone();
+        candidate.events.push(event);
+        candidate.check_bounds()?;
+        *self = candidate;
+        Ok(())
+    }
+    fn check_bounds(&self) -> Result<(), TerminalError> {
+        let bytes = serde_json::to_vec(self)
+            .map_err(|_| lease_error(500, "history serialization failed"))?;
+        if self.events.len() > MAX_CLAIM_HISTORY_EVENTS || bytes.len() > MAX_CLAIM_HISTORY_BYTES {
+            return Err(lease_error(
+                409,
+                "claim history retention limit reached; no eviction permitted",
+            ));
+        }
+        Ok(())
+    }
+    fn validate(&self, state: Option<&ClaimLeaseState>) -> Result<(), TerminalError> {
+        self.check_bounds()?;
+        let Some(state) = state else {
+            return if self.events.is_empty() {
+                Ok(())
+            } else {
+                Err(lease_error(409, "orphaned claim history"))
+            };
+        };
+        if self.events.is_empty() || state.version != self.events.len() as u64 {
+            return Err(lease_error(
+                409,
+                "claim history unavailable or incomplete; legacy backfill is not supported",
+            ));
+        }
+        let mut identities = std::collections::BTreeSet::new();
+        for (index, event) in self.events.iter().enumerate() {
+            event
+                .validate()
+                .map_err(|_| lease_error(409, "invalid retained claim event"))?;
+            let snapshot: crate::projection::ClaimProjectionSnapshot =
+                serde_json::from_value(event.snapshot.clone())
+                    .map_err(|_| lease_error(409, "invalid retained claim snapshot"))?;
+            if event.version != index as u64 + 1
+                || event.work_package_id != state.work_package_id
+                || snapshot.base_revision != state.spec.base_revision
+                || !identities.insert((&event.invocation_id, event.step_seq))
+                || serde_json::to_value(&snapshot)
+                    .map_err(|_| lease_error(500, "snapshot serialization failed"))?
+                    != event.snapshot
+            {
+                return Err(lease_error(409, "claim history chain or identity mismatch"));
+            }
+        }
+        if self.events.last().map(|event| &event.snapshot)
+            != Some(&claim_projection_snapshot(state)?)
+        {
+            return Err(lease_error(
+                409,
+                "claim history does not match authoritative state",
+            ));
+        }
+        Ok(())
+    }
+}
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClaimReexportReport {
+    pub work_package_id: String,
+    pub events: u64,
+    pub latest_version: u64,
+    pub quarantined: bool,
+}
+
 /// NOT REGISTERED: durable claim state for a single configured worker adapter. Configuration
 /// is not per-request authority. A future private adapter must authenticate every worker
 /// connection before forwarding calls, and a separate trusted scheduler must initialize the
@@ -590,6 +799,7 @@ impl ClaimLeaseJournal {
                 )
                 .into());
             }
+            load_claim_history(&ctx, Some(&existing.0)).await?;
             return Ok(existing);
         }
         persist_claim_transition(&ctx, &self.projection_pool, None, &mut requested).await?;
@@ -656,6 +866,50 @@ impl ClaimLeaseJournal {
         Ok(Json(state))
     }
 
+    /// Explicit fresh recovery invocation: completed delivery runs do NOT rerun after SQL
+    /// loss. Private ingress only, fixed configured target pool, no caller-selected database.
+    /// Recovery does not clear an integrity quarantine or resume paused worker execution.
+    #[handler]
+    async fn reexport_claim_history(
+        &self,
+        ctx: ObjectContext<'_>,
+    ) -> HandlerResult<restate_sdk::serde::Json<ClaimReexportReport>> {
+        use restate_sdk::serde::Json;
+        let state = ctx
+            .get::<Json<ClaimLeaseState>>("claim")
+            .await?
+            .ok_or_else(|| lease_error(404, "work package not initialized"))?
+            .0;
+        let history = load_claim_history(&ctx, Some(&state)).await?;
+        let quarantined = ctx
+            .get::<Json<crate::projection::ClaimTransitionEvent>>("projection_quarantine")
+            .await?
+            .is_some();
+        let events = history.events.clone();
+        let pool = self.projection_pool.clone();
+        let result = ctx
+            .run(|| async move {
+                crate::projection::reexport_claim_events(&pool, &events)
+                    .await
+                    .map_err(projection_handler_error)
+            })
+            .await;
+        if let Err(error) = result {
+            // Deterministic corruption fences mutations even if this recovery invocation
+            // was the first observer. Repair/re-export never clears this quarantine.
+            if let Some(event) = history.events.last() {
+                ctx.set("projection_quarantine", Json(event.clone()));
+            }
+            return Err(error.into());
+        }
+        Ok(Json(ClaimReexportReport {
+            work_package_id: state.work_package_id,
+            events: history.events.len() as u64,
+            latest_version: state.version,
+            quarantined,
+        }))
+    }
+
     #[handler]
     async fn status(
         &self,
@@ -690,6 +944,43 @@ async fn ensure_projection_healthy(ctx: &ObjectContext<'_>) -> HandlerResult<()>
     Ok(())
 }
 
+fn claim_projection_snapshot(state: &ClaimLeaseState) -> Result<serde_json::Value, TerminalError> {
+    use crate::projection::{
+        ClaimProjectionSnapshot, ClaimProjectionStage, CompletionProjectionSummary,
+        LeaseProjectionSummary, ReceiptProjectionSummary,
+    };
+    let lease = |active: &ActiveLease| LeaseProjectionSummary {
+        attempt: active.attempt,
+        issued_at_ms: active.issued_at_ms,
+        expires_at_ms: active.expires_at_ms,
+        hard_deadline_ms: active.hard_deadline_ms,
+    };
+    let snapshot = ClaimProjectionSnapshot {
+        schema_version: 2,
+        version: state.version,
+        work_package_id: state.work_package_id.clone(),
+        base_revision: state.spec.base_revision.clone(),
+        stage: match state.stage {
+            LeaseStage::Queued => ClaimProjectionStage::Queued,
+            LeaseStage::Leased => ClaimProjectionStage::Leased,
+            LeaseStage::CoolingDown => ClaimProjectionStage::CoolingDown,
+            LeaseStage::Evaluating => ClaimProjectionStage::Evaluating,
+            LeaseStage::Failed => ClaimProjectionStage::Failed,
+        },
+        attempts: state.attempts,
+        cooldown_until_ms: state.cooldown_until_ms,
+        active: state.active.as_ref().map(lease),
+        last_completion: state.last_completion.as_ref().map(|completion| {
+            CompletionProjectionSummary {
+                lease: lease(&completion.lease),
+                receipt: ReceiptProjectionSummary::from(&completion.receipt),
+            }
+        }),
+    };
+    serde_json::to_value(snapshot)
+        .map_err(|_| lease_error(500, "safe claim snapshot serialization failed"))
+}
+
 fn next_claim_event(
     before: Option<&ClaimLeaseState>,
     state: &mut ClaimLeaseState,
@@ -710,8 +1001,7 @@ fn next_claim_event(
         step_seq: 0,
         work_package_id: state.work_package_id.clone(),
         version,
-        snapshot: serde_json::to_value(state)
-            .map_err(|_| lease_error(500, "claim snapshot serialization failed"))?,
+        snapshot: claim_projection_snapshot(state)?,
     }))
 }
 
@@ -721,11 +1011,19 @@ async fn persist_claim_transition(
     before: Option<&ClaimLeaseState>,
     state: &mut ClaimLeaseState,
 ) -> HandlerResult<()> {
-    use crate::projection::{ClaimProjectionError, deliver_claim_event};
+    use crate::projection::deliver_claim_event;
     use restate_sdk::serde::Json;
-    let Some(event) = next_claim_event(before, state, ctx.invocation_id())? else {
+    let mut history = load_claim_history(ctx, before).await?;
+    let mut candidate = state.clone();
+    let Some(event) = next_claim_event(before, &mut candidate, ctx.invocation_id())? else {
         return Ok(());
     };
+    history.append(event.clone())?;
+    history.validate(Some(&candidate))?;
+    // Both writes belong to this exclusive handler's durable execution. A partial crash
+    // resumes the invocation before another exclusive mutation/re-export may run.
+    ctx.set(CLAIM_HISTORY_KEY, Json(history));
+    *state = candidate;
     ctx.set("claim", Json(state.clone()));
     let delivery = event.clone();
     let pool = pool.clone();
@@ -735,12 +1033,7 @@ async fn persist_claim_transition(
         .run(|| async move {
             deliver_claim_event(&pool, &delivery)
                 .await
-                .map_err(|error| match error {
-                    ClaimProjectionError::Conflict(_) => {
-                        lease_error(500, "claim projection integrity conflict").into()
-                    }
-                    ClaimProjectionError::Database(error) => HandlerError::from(error),
-                })
+                .map_err(projection_handler_error)
         })
         .await;
     if let Err(error) = result {
@@ -751,13 +1044,35 @@ async fn persist_claim_transition(
     Ok(())
 }
 
+fn projection_handler_error(error: crate::projection::ClaimProjectionError) -> HandlerError {
+    match error {
+        crate::projection::ClaimProjectionError::Conflict(_) => {
+            lease_error(500, "claim projection integrity conflict").into()
+        }
+        crate::projection::ClaimProjectionError::Database(error) => HandlerError::from(error),
+    }
+}
+async fn load_claim_history(
+    ctx: &ObjectContext<'_>,
+    state: Option<&ClaimLeaseState>,
+) -> HandlerResult<ClaimEventHistory> {
+    let history = ctx
+        .get::<restate_sdk::serde::Json<ClaimEventHistory>>(CLAIM_HISTORY_KEY)
+        .await?
+        .map(|h| h.0)
+        .unwrap_or_default();
+    history.validate(state)?;
+    Ok(history)
+}
 async fn load_claim(ctx: &ObjectContext<'_>) -> HandlerResult<ClaimLeaseState> {
     ensure_projection_healthy(ctx).await?;
-    Ok(ctx
+    let state = ctx
         .get::<restate_sdk::serde::Json<ClaimLeaseState>>("claim")
         .await?
         .ok_or_else(|| lease_error(404, "work package not initialized"))?
-        .0)
+        .0;
+    load_claim_history(ctx, Some(&state)).await?;
+    Ok(state)
 }
 async fn lease_clock_millis() -> HandlerResult<u64> {
     let time = std::time::SystemTime::now()

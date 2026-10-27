@@ -1,0 +1,25 @@
+{
+  "method": "Exact patched headless_run_error function and included unit test extracted unchanged into a standalone rustc --test harness; imports added; linked to actual offline-built Goose and anyhow rlibs.",
+  "source_sha256": "d195f8a9a7c24fd2fbd16f1c598727904498485cc8482a90ab9e59a2fc9b3e14",
+  "test_binary_sha256": "0edc440c8bf21de7a01650fafe1c01113e25098bd87a498400bc7db96321f93e",
+  "compile_log_sha256": "f215a08269a4f08bb10a04f223afa2296b84ac03df5b00d945405b0f3e228af7",
+  "test_log_sha256": "0b3e4afc61c67a289c450c8596981b36a2a3427ad120d22128ead9bff163eeb2",
+  "source_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/terminal_helper_test.rs",
+  "compiled_library_paths": [
+    "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/target/debug/deps/libgoose-49840e07c6cb7ba4.rlib",
+    "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/target/debug/deps/libanyhow-3c39bf3683ff7fe6.rlib"
+  ],
+  "compile_exit_code": 0,
+  "test_exit_code": 0,
+  "tests_passed": 1,
+  "covered_assertions": [
+    "stream error",
+    "typed message error",
+    "cancellation",
+    "ordinary success",
+    "interactive exception"
+  ],
+  "cargo_unit_suite_status": "Not run: --locked --offline test dependency env-lock v1.0.2 absent from isolated cache.",
+  "network_and_write_profile": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build.sb",
+  "log": "\nrunning 1 test\ntest headless_terminal_failures_propagate_and_success_remains_valid ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n"
+}

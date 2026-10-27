@@ -1,0 +1,185 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-lifetime-41nxdwmr",
+  "production_worker_enabled": false,
+  "goose_sha256": "6bc711de29cd43bcf1e3ac7a3193b453dd0348068192947079c3cb871542319c",
+  "python": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9",
+  "execution_sha256": "af20cfbf29b68cbb9969fd9f666ee03455642f6800d1e9aca40cd26489edb560",
+  "adapter_sha256": "9ae6f0a31fccaa9558313d4d333481059ce68f1d34cc7d7f8371939a8ba021e0",
+  "fixture_sha256": "96a009385cc17b53df44c9cda3c66fa9ccb33a146c8db927d0564e983d1616cc",
+  "cases": [
+    {
+      "name": "positive",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"partial-output\",\"stderr\":\"\"}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {}
+        }
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.405,
+      "stopped_within_2_5_seconds": null,
+      "stop_observed_seconds": null,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": true,
+      "external_network_denied": true
+    },
+    {
+      "name": "unrelated_cancel",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"partial-output\",\"stderr\":\"\"}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {}
+        }
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.409,
+      "stopped_within_2_5_seconds": null,
+      "stop_observed_seconds": null,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": true,
+      "external_network_denied": true
+    },
+    {
+      "name": "timeout",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"status\":\"refused\",\"reason\":\"execution_unavailable\"}"
+              }
+            ],
+            "isError": true
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {}
+        }
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.497,
+      "stopped_within_2_5_seconds": true,
+      "stop_observed_seconds": 1.082,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    },
+    {
+      "name": "mcp_cancel",
+      "frames": [
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {}
+        }
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 4.441,
+      "stopped_within_2_5_seconds": true,
+      "stop_observed_seconds": 0.031,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    },
+    {
+      "name": "eof",
+      "frames": [],
+      "exit_code": 0,
+      "elapsed_seconds": 4.324,
+      "stopped_within_2_5_seconds": true,
+      "stop_observed_seconds": 0.018,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    },
+    {
+      "name": "sigterm",
+      "frames": [],
+      "exit_code": 0,
+      "elapsed_seconds": 4.342,
+      "stopped_within_2_5_seconds": true,
+      "stop_observed_seconds": 0.039,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    },
+    {
+      "name": "sigint",
+      "frames": [],
+      "exit_code": 0,
+      "elapsed_seconds": 4.334,
+      "stopped_within_2_5_seconds": true,
+      "stop_observed_seconds": 0.033,
+      "stderr_empty": true,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    },
+    {
+      "name": "goose_timeout",
+      "provider_requests": 2,
+      "model_tool_messages": [
+        {
+          "role": "tool",
+          "content": "{\"status\":\"refused\",\"reason\":\"execution_unavailable\"}",
+          "tool_call_id": "factory-probe"
+        }
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "passed": true,
+      "recorded_pids_running": [],
+      "late_marker_exists": false,
+      "external_network_denied": true
+    }
+  ],
+  "goose_version": "1.49.0",
+  "bounded_lifetime_checks_passed": true,
+  "requests_sha256": "111b81fbf4d284dff661e7cf4ec5cc036d4126993527efbaddcc14be392b9990"
+}

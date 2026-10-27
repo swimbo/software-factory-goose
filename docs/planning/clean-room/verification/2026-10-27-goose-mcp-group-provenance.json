@@ -1,0 +1,61 @@
+{
+  "original_files_verified_against_archive": 7,
+  "patch_clean_apply_and_exact_source_match": true,
+  "patch_sha256": "4406ab3e759b48b2ec0615f8eff51ecace9db94d902b7895dc6eedb32db52d83",
+  "source_commit": "71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "source_archive_sha256": "7e90a3dc6b2bb18c8c343d36975e43ba2804b3bd3bd19d51e32ee31a01fb99b0",
+  "candidate_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/goose-factory-mcp-group-candidate",
+  "candidate_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "build_log": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build-offline-mcp-group.log",
+  "build_log_sha256": "ad40f0a8816f7d1522ef4ff0c881a4c04c0a30bc7b4fc909d5bdd57c1e39586f",
+  "build_exit_code": 0,
+  "build_duration": "4m45s",
+  "toolchain": "/Users/bo/.rustup/toolchains/1.98.0-aarch64-apple-darwin/bin",
+  "build_command": "cargo build --locked --offline -p goose-cli --bin goose --no-default-features --features rustls-tls,disable-update",
+  "sandbox_profile": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build.sb",
+  "sandbox_sha256": "6c1c8f61702b1e38cd72f839cf90f916fd291368b424a3c42d9fbd7a3d5e2959",
+  "global_toolchain_changes": false,
+  "production_worker_enabled": false,
+  "evidence": [
+    {
+      "path": "2026-10-27-goose-mcp-group-entry.json",
+      "sha256": "18142c84fc41d7d824bb6183319ce72fe86ff893739f0d16f7c0e7b145ffe41b",
+      "cases": 14
+    },
+    {
+      "path": "2026-10-27-goose-mcp-group-terminal.json",
+      "sha256": "0fe4b763a2927fd26b566017a38f37189c706b6cc99ff147b8bd4a9e39b5dac8",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-mcp-group-boundary.json",
+      "sha256": "fd5bc4c417af982a83b5cfac435b2b5325bf45f29b25d773e496d24f71d1d410",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-mcp-group-interactive.json",
+      "sha256": "7f741ddac54095f2648747a1df04fcccb2e5276b40096592bb9fbe6236ac2fc4",
+      "cases": 1
+    },
+    {
+      "path": "2026-10-27-goose-broker-lifecycle.json",
+      "sha256": "7189467d60fb6dd965d0189b826498c86d7ffe94961f137aca4c7ac80f10fbed",
+      "cases": 4
+    },
+    {
+      "path": "2026-10-27-goose-broker-ordinary-control.json",
+      "sha256": "8cf3f82e6a6710136250d7685b43f4c4d26e02cc6475702d82a487204a17e65b",
+      "cases": 1
+    },
+    {
+      "path": "2026-10-27-goose-broker-group-negative.json",
+      "sha256": "3e039c9d79de0b01faadeef50c3626828ae78af64c128edb84711647f816b45f",
+      "cases": 1
+    },
+    {
+      "path": "2026-10-27-goose-broker-init-red.json",
+      "sha256": "cfde3c79c4e0c6c82a728fe7160a433fb2795fb1bfde37d4428b972133e5cbce",
+      "cases": 1
+    }
+  ]
+}

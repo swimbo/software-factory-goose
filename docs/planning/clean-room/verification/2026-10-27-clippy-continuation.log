@@ -1,0 +1,34 @@
+    Checking digest v0.10.7
+    Checking ff v0.13.1
+    Checking crypto-bigint v0.5.5
+    Checking sec1 v0.7.3
+    Checking rustls v0.23.45
+    Checking watchdog v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/watchdog)
+    Checking execution v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/execution)
+    Checking sfctl v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/sfctl)
+    Checking group v0.13.0
+    Checking sha2 v0.10.9
+    Checking hmac v0.12.1
+    Checking signature v2.2.0
+    Checking curve25519-dalek v4.1.3
+    Checking hkdf v0.12.4
+    Checking rfc6979 v0.4.0
+    Checking evaluator v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/evaluator)
+    Checking ed25519 v2.2.3
+    Checking rsa v0.9.10
+    Checking md-5 v0.10.6
+    Checking ed25519-dalek v2.2.0
+    Checking shared v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/shared)
+    Checking elliptic-curve v0.13.8
+    Checking ecdsa v0.16.9
+    Checking primeorder v0.13.6
+    Checking p384 v0.13.1
+    Checking p256 v0.13.2
+    Checking sqlx-core v0.8.6
+    Checking jsonwebtoken v10.4.0
+    Checking restate-sdk-shared-core v7.0.3
+    Checking sqlx-postgres v0.8.6
+    Checking restate-sdk v0.12.1
+    Checking sqlx v0.8.6
+    Checking control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 20.34s

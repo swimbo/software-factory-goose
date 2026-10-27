@@ -25,13 +25,17 @@ impl DeterministicVerdict {
     }
 }
 
+mod bounded_git;
 mod verification;
 pub use verification::{
     VerificationEvidence, promote_verified_commit, promote_verified_commit_to_ref,
-    verify_worktree_evidence,
+    promotion_target_matches, promotion_target_revision, verify_worktree_evidence,
 };
 pub mod holdout;
 pub mod holdout_runner;
+pub mod holdout_store;
+#[cfg(unix)]
+pub mod holdout_transfer;
 
 /// A receipt supplies an expected revision, never evidence that checks passed.
 /// Missing repositories, changed revisions and unavailable isolation fail closed.

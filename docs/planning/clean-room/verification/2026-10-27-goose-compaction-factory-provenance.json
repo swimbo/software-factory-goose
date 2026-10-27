@@ -1,0 +1,108 @@
+{
+  "source_commit": "71fc4be1ed729e26b1dc0a4466abdd03be548a53",
+  "source_archive_sha256": "7e90a3dc6b2bb18c8c343d36975e43ba2804b3bd3bd19d51e32ee31a01fb99b0",
+  "patch_sha256": "2d26028eaad9d36951204e21f0b941a7735f4d87dac55b7098b8010239af9fee",
+  "original_files_verified_against_archive": 5,
+  "patch_clean_apply_and_exact_source_match": true,
+  "compaction_candidate_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/goose-compaction-terminal-candidate",
+  "compaction_candidate_sha256": "5caec431e32889c87b9f6a58f79a886a3f901e0765dee744f2deb90ab41caa97",
+  "factory_candidate_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/goose-factory-restricted-candidate",
+  "factory_candidate_sha256": "3add8f27a0a2b38c5b9ff10fb3a85e95affe842590c70413c5e7901cc3b1b8b1",
+  "builds": [
+    {
+      "log": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build-offline-compaction.log",
+      "sha256": "0e88216dd82531a8d0aff4349a1b4265a93e84f6f59313023b742c3fd47af0da",
+      "exit_code": 0
+    },
+    {
+      "log": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build-offline-factory-guard.log",
+      "sha256": "11deda655f3d088e8395a781d76e696a01212b63fe9ed8ad100807d144a0db28",
+      "exit_code": 0
+    }
+  ],
+  "build_command": "explicit existing Rust1.98 cargo build --locked --offline -p goose-cli --bin goose --no-default-features --features rustls-tls,disable-update",
+  "build_sandbox_profile": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-goose-terminal-patch-guddnlju/build.sb",
+  "build_sandbox_sha256": "6c1c8f61702b1e38cd72f839cf90f916fd291368b424a3c42d9fbd7a3d5e2959",
+  "global_toolchain_changes_this_iteration": false,
+  "production_worker_enabled": false,
+  "evidence": [
+    {
+      "path": "2026-10-27-goose-compaction-patched.json",
+      "sha256": "2a07f7147c5bf9ef4f37b80d9d19aaf8160fe8868252e51e432b8f38776472db",
+      "cases": 8
+    },
+    {
+      "path": "2026-10-27-goose-state-machine-compaction-patched.json",
+      "sha256": "ff392c436d9bd37cf28f3d20e392f774cf28731d65035900bc7f3827f2c32d95",
+      "cases": 10
+    },
+    {
+      "path": "2026-10-27-goose-state-machine-patched.json",
+      "sha256": "aed4ef13b69fc5c530b9048978c55246d931f0955ed04e1c2d71245db5292cc3",
+      "cases": 12
+    },
+    {
+      "path": "2026-10-27-goose-compaction-basic-regression.json",
+      "sha256": "45267044e6a35e1bb6c3f483bc1ee87b6e5f8a0df9b5d868378f5d1414c17c9f",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-state-machine-basic-regression.json",
+      "sha256": "c0e197adb8701cae71530290ac4622dcbad0a922c70ddae466da0aac86c6dc14",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-compaction-high-risk-regression.json",
+      "sha256": "9c8180f7f6eda48851cb08a036b2b8eef4ada659c2fc6f8c4e3e2c3b378e7880",
+      "cases": 12
+    },
+    {
+      "path": "2026-10-27-goose-restricted-basic.json",
+      "sha256": "4edcbbd2cd8784d844f41fdae3bf1b5bf83863fe64686c2e425d837441b9ba1a",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-restricted-high-risk.json",
+      "sha256": "a5af3e592fd3ab58ed03de35a42d490a26ec6193039e6037606ccf2c3afe3b4e",
+      "cases": 12
+    },
+    {
+      "path": "2026-10-27-goose-restricted-compaction.json",
+      "sha256": "f96d20e88fb2f87fb739999c40e20e6f951e8d9c14124ec39b082a7e8d3bccf0",
+      "cases": 8
+    },
+    {
+      "path": "2026-10-27-goose-factory-restriction-patched.json",
+      "sha256": "092500e2fb6719900105bcb46df7aea01107636f750f07ad286f64dfc7b0788c",
+      "cases": 14
+    },
+    {
+      "path": "2026-10-27-goose-factory-boundary-restricted.json",
+      "sha256": "02f070ffb43884ade5318167d195353a0fb71c9fa2a272529338339d63aba5ed",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-execution-path-unrestricted-regression.json",
+      "sha256": "56a424debb4b062bc068bf7d30a52a263ddcabef6a326d70e805b34f71a3c64d",
+      "cases": 6
+    },
+    {
+      "path": "2026-10-27-goose-interactive-before-guard.json",
+      "sha256": "0a9234762f8793d21cccaee2b11295fed81e0ceaa99a3b6e1e613bf464219528",
+      "cases": 1
+    },
+    {
+      "path": "2026-10-27-goose-interactive-after-guard.json",
+      "sha256": "da37693930651aef032166269c76bd3ee0a13527c678174201f924df2c04d2dc",
+      "cases": 1
+    }
+  ],
+  "upstream_cargo_unit_suite": "not run; missing offline env-lock1.0.2 unchanged",
+  "untested": [
+    "Full interactive terminal UI",
+    "positive execution of subagent",
+    "recipe/stop-hook failure branches",
+    "all provider adapters/finish reasons",
+    "mandatory production launcher pinning/interception/isolation/watchdog/billing"
+  ]
+}

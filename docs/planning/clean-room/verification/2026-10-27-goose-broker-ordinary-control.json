@@ -1,0 +1,33 @@
+{
+  "fixture_only": true,
+  "same_uid_only": true,
+  "production_enabled": false,
+  "goose_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "broker_sha256": "31d4c814a2f25a6ff1a86dba8c69cab72778186a90d054edb3cf30aeaf96a402",
+  "adapter_sha256": "71c1aee6f8da6db720e6877dc0c2a75d43c287f5aab877856c6b512573932a60",
+  "fixture_sha256": "7c675565a6efe6c682b01905fcd0531bd838671db719dd3fbf8d94733d91bf62",
+  "expected_group_refusal": true,
+  "ordinary": true,
+  "cases": [
+    {
+      "mode": "group_refusal",
+      "adapter_group": {
+        "pid": 28367,
+        "parent": 28366,
+        "pgid": 28367,
+        "parent_pgid": 28366,
+        "inherited_owned_group": false
+      },
+      "network_guard_denied": true,
+      "group_mismatch_refused": true,
+      "tool_started": false,
+      "goose_exit_code": 0,
+      "goose_exit_zero_is_not_containment_proof": true
+    }
+  ],
+  "negative_group_control_passed": true,
+  "selected_cases_passed": true,
+  "bounded_lifecycle_passed": false,
+  "owned_process_cleanup_verified": true,
+  "fixture_root_removed": true
+}
