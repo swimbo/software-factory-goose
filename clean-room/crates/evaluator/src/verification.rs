@@ -109,7 +109,7 @@ fn safe_local_config(repo: &Path) -> Result<()> {
     }
     Ok(())
 }
-fn clean_at(repo: &Path, sha: &str) -> Result<()> {
+pub(crate) fn clean_at(repo: &Path, sha: &str) -> Result<()> {
     safe_local_config(repo)?;
     exact_sha(sha)?;
     ensure!(repo.is_dir(), "checkout does not exist");
@@ -204,9 +204,9 @@ fn clean_at(repo: &Path, sha: &str) -> Result<()> {
     Ok(())
 }
 
-struct Scratch(PathBuf);
+pub(crate) struct Scratch(pub(crate) PathBuf);
 impl Scratch {
-    fn new() -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         let dir = std::env::temp_dir().join(format!("factory-wall-{}", shared::new_id()));
         fs::create_dir(&dir)?;
         #[cfg(unix)]
@@ -216,6 +216,58 @@ impl Scratch {
         }
         Ok(Self(dir.canonicalize()?))
     }
+}
+
+/// Export exact blobs without archive attributes, worktree filters or symlinks. The local
+/// fixture runner caps snapshot bytes/files; Git preparation is not a hostile-input quota.
+pub(crate) fn export_fixture_snapshot(repo: &Path, sha: &str, destination: &Path) -> Result<()> {
+    clean_at(repo, sha)?;
+    fs::create_dir(destination)?;
+    let listing = git(repo, &["ls-tree", "-r", "-z", sha])?;
+    ensure!(listing.len() <= 1_048_576, "snapshot listing too large");
+    let mut total = 0_u64;
+    for (index, entry) in listing
+        .split(|b| *b == 0)
+        .filter(|e| !e.is_empty())
+        .enumerate()
+    {
+        ensure!(index < 10_000, "snapshot file limit exceeded");
+        let split = entry
+            .iter()
+            .position(|b| *b == b'\t')
+            .context("invalid tree")?;
+        let fields: Vec<_> = std::str::from_utf8(&entry[..split])?
+            .split_whitespace()
+            .collect();
+        ensure!(fields.len() == 3 && fields[1] == "blob", "invalid blob");
+        let size: u64 = git_text(repo, &["cat-file", "-s", fields[2]])?.parse()?;
+        total = total.checked_add(size).context("snapshot size overflow")?;
+        ensure!(
+            size <= 8_388_608 && total <= 33_554_432,
+            "snapshot size limit exceeded"
+        );
+        let relative = PathBuf::from(std::str::from_utf8(&entry[split + 1..])?);
+        ensure!(
+            relative
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(p) if p != ".git")),
+            "invalid snapshot path"
+        );
+        let path = destination.join(relative);
+        fs::create_dir_all(path.parent().context("invalid parent")?)?;
+        let blob = git(repo, &["cat-file", "blob", fields[2]])?;
+        ensure!(blob.len() as u64 == size, "blob size mismatch");
+        fs::write(&path, blob)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(
+                path,
+                fs::Permissions::from_mode(if fields[0] == "100755" { 0o700 } else { 0o600 }),
+            )?;
+        }
+    }
+    Ok(())
 }
 impl Drop for Scratch {
     fn drop(&mut self) {
@@ -315,14 +367,14 @@ pub fn verify_worktree_evidence(
     })
 }
 
-struct RestrictedRunner {
+pub(crate) struct RestrictedRunner {
     root: PathBuf,
     profile: PathBuf,
     cargo: PathBuf,
     toolchain: PathBuf,
 }
 impl RestrictedRunner {
-    fn new(root: &Path) -> Result<Self> {
+    pub(crate) fn new(root: &Path) -> Result<Self> {
         let home = PathBuf::from(std::env::var_os("HOME").context("operator home unavailable")?);
         let rustup = home.join(".cargo/bin/rustup");
         let result = Command::new(rustup)
@@ -377,7 +429,7 @@ impl RestrictedRunner {
             toolchain,
         })
     }
-    fn run(&self, cwd: &Path, executable: &Path, args: &[&str]) -> Result<bool> {
+    pub(crate) fn command(&self, cwd: &Path, executable: &Path, args: &[&str]) -> Command {
         let mut command = Command::new("/usr/bin/sandbox-exec");
         command
             .args(["-f"])
@@ -410,7 +462,10 @@ impl RestrictedRunner {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
         }
-        let mut child = command.spawn()?;
+        command
+    }
+    fn run(&self, cwd: &Path, executable: &Path, args: &[&str]) -> Result<bool> {
+        let mut child = self.command(cwd, executable, args).spawn()?;
         let start = Instant::now();
         loop {
             if let Some(status) = child.try_wait()? {
@@ -435,7 +490,7 @@ impl RestrictedRunner {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
-    fn canary(&self) -> Result<()> {
+    pub(crate) fn canary(&self) -> Result<()> {
         let outside = Scratch::new()?;
         let secret = outside.0.join("host-secret");
         fs::write(&secret, "canary")?;
@@ -481,6 +536,8 @@ impl RestrictedRunner {
 }
 
 /// Atomically advance an operator-configured *bare* repository's current branch.
+/// Compatibility wrapper only: an action-bound adapter must call
+/// `promote_verified_commit_to_ref` with the approved explicit target reference.
 /// Callers must authenticate human approval and match durable passing evidence first.
 /// This helper never trusts a receipt as approval and never updates a working checkout.
 pub fn promote_verified_commit(
@@ -489,21 +546,46 @@ pub fn promote_verified_commit(
     expected_base: &str,
     approved_sha: &str,
 ) -> Result<()> {
+    safe_local_config(operator_repo)?;
+    let branch = git_text(operator_repo, &["symbolic-ref", "HEAD"])?;
+    promote_verified_commit_to_ref(
+        operator_repo,
+        candidate_repo,
+        &branch,
+        expected_base,
+        approved_sha,
+    )
+}
+
+/// Advance exactly the approved branch, regardless of the bare repository's current HEAD.
+/// This performs Git checks/CAS only: callers must first authenticate and durably consume
+/// exact-action approval, and reconcile crash/retry outcomes. It does not supply authority.
+pub fn promote_verified_commit_to_ref(
+    operator_repo: &Path,
+    candidate_repo: &Path,
+    target_ref: &str,
+    expected_base: &str,
+    approved_sha: &str,
+) -> Result<()> {
     exact_sha(expected_base)?;
     exact_sha(approved_sha)?;
     safe_local_config(operator_repo)?;
+    ensure!(
+        target_ref.starts_with("refs/heads/"),
+        "promotion target must be a branch"
+    );
+    git(operator_repo, &["check-ref-format", target_ref])?;
+    ensure!(
+        git(operator_repo, &["symbolic-ref", "-q", target_ref]).is_err(),
+        "promotion target must not be symbolic"
+    );
     clean_at(candidate_repo, approved_sha)?;
     ensure!(
         git_text(operator_repo, &["rev-parse", "--is-bare-repository"])? == "true",
         "promotion target must be an operator-owned bare repository"
     );
-    let branch = git_text(operator_repo, &["symbolic-ref", "HEAD"])?;
     ensure!(
-        branch.starts_with("refs/heads/"),
-        "promotion target must select a branch"
-    );
-    ensure!(
-        git_text(operator_repo, &["rev-parse", &branch])? == expected_base,
+        git_text(operator_repo, &["rev-parse", target_ref])? == expected_base,
         "operator base changed"
     );
     ensure!(
@@ -550,10 +632,16 @@ pub fn promote_verified_commit(
     clean_at(candidate_repo, approved_sha)?;
     git(
         operator_repo,
-        &["update-ref", &branch, approved_sha, expected_base],
+        &[
+            "update-ref",
+            "--no-deref",
+            target_ref,
+            approved_sha,
+            expected_base,
+        ],
     )?;
     ensure!(
-        git_text(operator_repo, &["rev-parse", &branch])? == approved_sha,
+        git_text(operator_repo, &["rev-parse", target_ref])? == approved_sha,
         "promotion read-back mismatch"
     );
     Ok(())

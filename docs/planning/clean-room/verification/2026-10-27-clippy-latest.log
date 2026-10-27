@@ -1,0 +1,8 @@
+UTC 2026-10-27T17:55:14.662225+00:00
+Command: cargo clippy --workspace --all-targets --all-features --locked --offline -- -D warnings
+    Checking evaluator v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/evaluator)
+    Checking execution v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/execution)
+    Checking control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.00s
+
+Exit code: 0

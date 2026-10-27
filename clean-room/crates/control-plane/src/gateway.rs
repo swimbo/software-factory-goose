@@ -1,12 +1,13 @@
 //! Gateway wiring — the LiteLLM/Bifrost credential broker + budget choke point (consensus R7).
 //!
 //! This client requires a Restate reservation before forwarding inference. Deployment must
-//! additionally route every worker call through this boundary and enforce token/cost limits;
+//! additionally route every worker call through this boundary and verify that configured
+//! price/token maxima and output-limit semantics are enforced by the upstream provider;
 //! the standalone Goose worker is not wired through this client yet. Invalid or unavailable
 //! budget state denies the call.
 
 use crate::gates::Budget;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 /// The result of a budget check at the gateway boundary.
 pub enum Gate {
@@ -40,14 +41,181 @@ pub fn gate_call(budget: Option<&Budget>, estimate_usd: f64) -> Gate {
     }
 }
 
-/// Per-call reservation coordinates. The estimate must upper-bound the requested call cost;
-/// the gateway must enforce token/pricing limits separately. A reservation is retained on
-/// downstream failure, conservatively charging an ambiguous outcome rather than refunding it.
+/// Explicit price review supplied by trusted deployment configuration, never by an inference
+/// request. This is an assertion requiring external provider review, not an attestation.
+/// Prices must upper-bound the aggregate effective charge per input/output token (including
+/// overlapping cache surcharges, reasoning and routing markups); fixed_call_microusd must cover
+/// all non-token charges. These claims need provider/gateway evidence before live use.
+/// Token limits describe hard maxima for ALL billable input/output, including provider-added
+/// context. Unknown charges or unbounded accepted requests cannot use this contract.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedModelContract {
+    pub model: String,
+    pub review_digest: String,
+    pub reviewed_at_ms: u64,
+    pub valid_until_ms: u64,
+    pub input_microusd_per_million: u64,
+    pub output_microusd_per_million: u64,
+    pub max_billable_input_tokens: u64,
+    pub max_billable_output_tokens: u64,
+    pub fixed_call_microusd: u64,
+    pub max_request_bytes: usize,
+    pub output_limit_field: OutputLimitField,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputLimitField {
+    MaxCompletionTokens,
+    MaxTokens,
+}
+impl OutputLimitField {
+    fn name(self) -> &'static str {
+        match self {
+            Self::MaxCompletionTokens => "max_completion_tokens",
+            Self::MaxTokens => "max_tokens",
+        }
+    }
+}
+impl ReviewedModelContract {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.model.is_empty()
+                && self.model.len() <= 256
+                && self.model.bytes().all(|b| b.is_ascii_graphic()),
+            "invalid reviewed model identifier"
+        );
+        anyhow::ensure!(
+            self.review_digest.len() == 64
+                && self
+                    .review_digest
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "missing canonical price review digest"
+        );
+        anyhow::ensure!(
+            self.reviewed_at_ms < self.valid_until_ms,
+            "invalid price review validity interval"
+        );
+        anyhow::ensure!(
+            (1..=1024 * 1024).contains(&self.max_request_bytes),
+            "invalid bounded request size"
+        );
+        microusd_as_conservative_usd(self.upper_bound_microusd()?)?;
+        Ok(())
+    }
+
+    /// Round EACH billing component up to microUSD using integer arithmetic. Reserve the
+    /// entire reviewed input AND output maximum, irrespective of caller's smaller output
+    /// request. No tokenizer, assistant-message count or reported usage is trusted here.
+    pub fn upper_bound_microusd(&self) -> anyhow::Result<u64> {
+        anyhow::ensure!(
+            self.input_microusd_per_million > 0 && self.output_microusd_per_million > 0,
+            "unknown or zero token price"
+        );
+        anyhow::ensure!(
+            (1..u64::MAX).contains(&self.max_billable_input_tokens)
+                && (1..u64::MAX).contains(&self.max_billable_output_tokens),
+            "missing or unbounded billable token maximum"
+        );
+        let cost = |tokens: u64, rate: u64| -> anyhow::Result<u128> {
+            let product = u128::from(tokens)
+                .checked_mul(u128::from(rate))
+                .ok_or_else(|| anyhow::anyhow!("price multiplication overflow"))?;
+            Ok(product
+                .checked_add(999_999)
+                .ok_or_else(|| anyhow::anyhow!("price rounding overflow"))?
+                / 1_000_000)
+        };
+        let total = cost(
+            self.max_billable_input_tokens,
+            self.input_microusd_per_million,
+        )?
+        .checked_add(cost(
+            self.max_billable_output_tokens,
+            self.output_microusd_per_million,
+        )?)
+        .and_then(|v| v.checked_add(u128::from(self.fixed_call_microusd)))
+        .ok_or_else(|| anyhow::anyhow!("price total overflow"))?;
+        Ok(u64::try_from(total)?)
+    }
+}
+
+fn microusd_as_conservative_usd(value: u64) -> anyhow::Result<f64> {
+    anyhow::ensure!(
+        value > 0 && value <= (1_u64 << 53),
+        "reservation outside exact integer conversion range"
+    );
+    // Governance reports f64 dollars. Use this upward-rounded conversion only for the
+    // local headroom comparison; the Restate wire and authoritative ledger stay integer.
+    Ok(((value as f64) / 1_000_000.0).next_up())
+}
+
+fn validate_review_time(contract: &ReviewedModelContract, now_ms: u64) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        contract.reviewed_at_ms <= now_ms && now_ms < contract.valid_until_ms,
+        "price review expired or not yet valid"
+    );
+    Ok(())
+}
+fn current_time_ms() -> anyhow::Result<u64> {
+    let elapsed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+    Ok(u64::try_from(elapsed.as_millis())?)
+}
+
+fn prepare_chat(
+    contract: &ReviewedModelContract,
+    model: &str,
+    messages: &[serde_json::Value],
+    max_output_tokens: u64,
+    now_ms: u64,
+) -> anyhow::Result<(serde_json::Value, u64)> {
+    contract.validate()?;
+    anyhow::ensure!(
+        contract.model == model,
+        "model does not match reviewed price contract"
+    );
+    validate_review_time(contract, now_ms)?;
+    anyhow::ensure!(
+        max_output_tokens > 0 && max_output_tokens <= contract.max_billable_output_tokens,
+        "invalid output token limit"
+    );
+    anyhow::ensure!(
+        !messages.is_empty() && messages.len() <= 1024,
+        "chat requires bounded text messages"
+    );
+    for message in messages {
+        let object = message
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("message must be an object"))?;
+        anyhow::ensure!(
+            object.len() == 2
+                && matches!(
+                    object.get("role").and_then(|v| v.as_str()),
+                    Some("system" | "user" | "assistant")
+                )
+                && object.get("content").is_some_and(|v| v.is_string()),
+            "only reviewed text content is supported; tools/media/extra fields are unpriced"
+        );
+    }
+    let mut body =
+        serde_json::json!({"model": model, "messages": messages, "n": 1, "stream": false});
+    body[contract.output_limit_field.name()] = serde_json::json!(max_output_tokens);
+    anyhow::ensure!(
+        serde_json::to_vec(&body)?.len() <= contract.max_request_bytes,
+        "chat request exceeds reviewed byte limit"
+    );
+    Ok((body, contract.upper_bound_microusd()?))
+}
+
+/// Per-call coordinates and requested output cap. There is intentionally no caller-supplied
+/// dollar estimate. Ambiguous downstream failures retain the full worst-case reservation.
 pub struct InferenceBudget<'a> {
     pub restate_url: &'a str,
     pub budget_id: &'a str,
     pub virtual_key_id: &'a str,
-    pub estimate_usd: f64,
+    pub max_output_tokens: u64,
 }
 
 /// HTTP client for the Bifrost gateway (the credential broker + budget choke point).
@@ -62,6 +230,7 @@ pub struct GatewayClient {
     /// Management bearer token for reading governance (budgets) — distinct from the VK.
     admin_key: String,
     http: reqwest::Client,
+    reviewed_models: HashMap<String, ReviewedModelContract>,
 }
 
 impl GatewayClient {
@@ -74,12 +243,26 @@ impl GatewayClient {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             virtual_key: virtual_key.into(),
             admin_key: admin_key.into(),
+            reviewed_models: HashMap::new(),
             http: reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .expect("valid HTTP client configuration"),
         }
+    }
+
+    /// Trusted bootstrap only. An unconfigured client denies all models. Duplicate model
+    /// entries are rejected rather than silently replacing reviewed prices or limits.
+    pub fn with_reviewed_model(mut self, contract: ReviewedModelContract) -> anyhow::Result<Self> {
+        contract.validate()?;
+        anyhow::ensure!(
+            !self.reviewed_models.contains_key(&contract.model),
+            "duplicate reviewed model contract"
+        );
+        self.reviewed_models
+            .insert(contract.model.clone(), contract);
+        Ok(self)
     }
 
     /// Forward a chat-completion call. Bifrost authenticates the caller with the `x-bf-vk`
@@ -90,28 +273,36 @@ impl GatewayClient {
         messages: &[serde_json::Value],
         budget: &InferenceBudget<'_>,
     ) -> anyhow::Result<serde_json::Value> {
-        anyhow::ensure!(
-            budget.estimate_usd.is_finite() && budget.estimate_usd > 0.0,
-            "inference requires a finite positive cost reservation"
-        );
+        let contract = self
+            .reviewed_models
+            .get(model)
+            .ok_or_else(|| anyhow::anyhow!("model lacks reviewed price and token bounds"))?;
+        let now = current_time_ms()?;
+        let (body, reservation_microusd) =
+            prepare_chat(contract, model, messages, budget.max_output_tokens, now)?;
         let remaining = self
             .remaining_budget(budget.virtual_key_id)
             .await
             .ok_or_else(|| anyhow::anyhow!("gateway budget unavailable"))?;
-        anyhow::ensure!(budget.estimate_usd <= remaining, "gateway budget exhausted");
+        anyhow::ensure!(
+            microusd_as_conservative_usd(reservation_microusd)? <= remaining,
+            "gateway budget exhausted"
+        );
         // The virtual object's exclusive handler serializes concurrent reservations.
         let reservation_url = budget_reservation_url(budget.restate_url, budget.budget_id)?;
         let reserved: bool = self
             .http
             .post(reservation_url)
-            .json(&budget.estimate_usd)
+            .json(&reservation_microusd)
             .send()
             .await?
             .error_for_status()?
             .json()
             .await?;
         anyhow::ensure!(reserved, "unit budget exhausted");
-        let body = serde_json::json!({ "model": model, "messages": messages });
+        // Governance/reservation can block long enough for a price review to expire. Retain
+        // any reservation conservatively, but do not forward under expired configuration.
+        validate_review_time(contract, current_time_ms()?)?;
         let resp = self
             .http
             .post(format!("{}/v1/chat/completions", self.base_url))
@@ -149,9 +340,13 @@ fn budget_reservation_url(base: &str, budget_id: &str) -> anyhow::Result<reqwest
     let mut segments = url
         .path_segments_mut()
         .map_err(|_| anyhow::anyhow!("invalid Restate base URL"))?;
-    segments
-        .pop_if_empty()
-        .extend(["restate", "call", "BudgetCounter", budget_id, "try_spend"]);
+    segments.pop_if_empty().extend([
+        "restate",
+        "call",
+        "BudgetCounter",
+        budget_id,
+        "try_spend_microusd",
+    ]);
     drop(segments);
     Ok(url)
 }
@@ -164,9 +359,13 @@ fn parse_remaining_budget(json: &serde_json::Value, vk_id: &str) -> Option<f64> 
         .get("virtual_keys")
         .and_then(|v| v.as_array())
         .or_else(|| json.as_array())?;
-    let vk = vks
+    let mut matching = vks
         .iter()
-        .find(|v| v.get("id").and_then(|i| i.as_str()) == Some(vk_id))?;
+        .filter(|v| v.get("id").and_then(|i| i.as_str()) == Some(vk_id));
+    let vk = matching.next()?;
+    if matching.next().is_some() {
+        return None;
+    }
     let budgets = vk.get("budgets")?.as_array()?;
     if budgets.is_empty() {
         return None;
@@ -249,6 +448,117 @@ mod tests {
         assert_eq!(parse_remaining_budget(&json, "key"), Some(0.25));
     }
 
+    #[test]
+    fn duplicate_key_records_are_ambiguous_and_fail_closed() {
+        let json = serde_json::json!([
+            {"id":"key", "budgets":[{"max_limit":100,"current_usage":0}]},
+            {"id":"key", "budgets":[{"max_limit":1,"current_usage":1}]}
+        ]);
+        assert_eq!(parse_remaining_budget(&json, "key"), None);
+    }
+
+    fn reviewed_model() -> ReviewedModelContract {
+        ReviewedModelContract {
+            model: "test".into(),
+            review_digest: "a".repeat(64),
+            reviewed_at_ms: 0,
+            valid_until_ms: u64::MAX,
+            input_microusd_per_million: 1_000_000,
+            output_microusd_per_million: 2_000_000,
+            max_billable_input_tokens: 1000,
+            max_billable_output_tokens: 100,
+            fixed_call_microusd: 0,
+            max_request_bytes: 4096,
+            output_limit_field: OutputLimitField::MaxCompletionTokens,
+        }
+    }
+    fn messages() -> Vec<serde_json::Value> {
+        vec![serde_json::json!({"role":"user", "content":"synthetic prompt"})]
+    }
+    #[test]
+    fn upper_bound_reserves_full_reviewed_limits_and_rounds_each_component_up() {
+        let contract = reviewed_model();
+        assert_eq!(contract.upper_bound_microusd().unwrap(), 1200);
+        let mut tiny = contract;
+        tiny.input_microusd_per_million = 1;
+        tiny.output_microusd_per_million = 1;
+        tiny.max_billable_input_tokens = 1;
+        tiny.max_billable_output_tokens = 1;
+        assert_eq!(tiny.upper_bound_microusd().unwrap(), 2);
+        assert!(microusd_as_conservative_usd(2).unwrap() > 0.000002);
+    }
+    #[test]
+    fn missing_negative_zero_and_overflowing_price_or_token_bounds_fail_closed() {
+        let value = serde_json::to_value(reviewed_model()).unwrap();
+        for field in [
+            "input_microusd_per_million",
+            "output_microusd_per_million",
+            "max_billable_input_tokens",
+            "max_billable_output_tokens",
+            "fixed_call_microusd",
+        ] {
+            for invalid in [serde_json::json!(-1), serde_json::Value::Null] {
+                let mut changed = value.clone();
+                changed[field] = invalid;
+                assert!(serde_json::from_value::<ReviewedModelContract>(changed).is_err());
+            }
+            let mut missing = value.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(serde_json::from_value::<ReviewedModelContract>(missing).is_err());
+        }
+        let mut zero = reviewed_model();
+        zero.max_billable_input_tokens = 0;
+        assert!(zero.validate().is_err());
+        zero = reviewed_model();
+        zero.input_microusd_per_million = 0;
+        assert!(zero.validate().is_err());
+        let mut huge = reviewed_model();
+        huge.input_microusd_per_million = u64::MAX;
+        huge.max_billable_input_tokens = u64::MAX - 1;
+        huge.output_microusd_per_million = u64::MAX;
+        huge.max_billable_output_tokens = u64::MAX - 1;
+        assert!(huge.upper_bound_microusd().is_err());
+        assert!(microusd_as_conservative_usd(u64::MAX).is_err());
+    }
+    #[test]
+    fn contract_and_payload_validation_precede_network_or_reservation() {
+        let contract = reviewed_model();
+        let (body, reserve) = prepare_chat(&contract, "test", &messages(), 1, 100).unwrap();
+        assert_eq!(body["max_completion_tokens"], 1);
+        assert_eq!(body["n"], 1);
+        assert_eq!(body["stream"], false);
+        assert_eq!(reserve, 1200);
+        // Choosing a smaller output limit cannot lower the full worst-case reservation.
+        assert_eq!(
+            prepare_chat(&contract, "test", &messages(), 100, 100)
+                .unwrap()
+                .1,
+            reserve
+        );
+        assert!(prepare_chat(&contract, "other", &messages(), 1, 100).is_err());
+        for limit in [0, 101, u64::MAX] {
+            assert!(prepare_chat(&contract, "test", &messages(), limit, 100).is_err());
+        }
+        for invalid in [
+            vec![],
+            vec![
+                serde_json::json!({"role":"user", "content":[{"type":"image_url","image_url":"test"}]}),
+            ],
+            vec![serde_json::json!({"role":"assistant", "content":"x", "tool_calls":[]})],
+        ] {
+            assert!(prepare_chat(&contract, "test", &invalid, 1, 100).is_err());
+        }
+        let mut expired = contract.clone();
+        expired.valid_until_ms = 100;
+        assert!(prepare_chat(&expired, "test", &messages(), 1, 100).is_err());
+        let mut future = contract.clone();
+        future.reviewed_at_ms = 101;
+        assert!(prepare_chat(&future, "test", &messages(), 1, 100).is_err());
+        let mut small = contract;
+        small.max_request_bytes = 1;
+        assert!(prepare_chat(&small, "test", &messages(), 1, 100).is_err());
+    }
+
     #[tokio::test]
     async fn inference_requires_successful_governance_and_atomic_reservation() {
         use axum::{
@@ -260,54 +570,140 @@ mod tests {
             Arc,
             atomic::{AtomicUsize, Ordering},
         };
-        // false reservation; invalid JSON; unreachable reservation; failed governance; success.
-        for (governance_ok, reservation_status, reservation_body, expected_calls) in [
-            (true, StatusCode::OK, serde_json::json!(false), 0),
+        // Governance, reservation failures and insufficient headroom must never forward.
+        for (governance_ok, headroom, reservation_status, reservation_body, expected_calls) in [
+            (true, 1.0, StatusCode::OK, serde_json::json!(false), 0),
             (
                 true,
+                1.0,
                 StatusCode::OK,
                 serde_json::json!({"error":"bad response"}),
                 0,
             ),
             (
                 true,
+                1.0,
                 StatusCode::SERVICE_UNAVAILABLE,
                 serde_json::json!(true),
                 0,
             ),
-            (false, StatusCode::OK, serde_json::json!(true), 0),
-            (true, StatusCode::OK, serde_json::json!(true), 1),
+            (false, 1.0, StatusCode::OK, serde_json::json!(true), 0),
+            (true, 0.001, StatusCode::OK, serde_json::json!(true), 0),
+            (true, 1.0, StatusCode::OK, serde_json::json!(true), 1),
         ] {
             let inference_count = Arc::new(AtomicUsize::new(0));
             let count = inference_count.clone();
+            let reservation_count = Arc::new(AtomicUsize::new(0));
+            let reservations = reservation_count.clone();
             let app = Router::new()
-            .route("/api/governance/virtual-keys", get(move || async move {
-                (if governance_ok { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE },
-                 Json(serde_json::json!([{"id":"key", "budgets":[{"max_limit":1,"current_usage":0}]}])))
-            }))
-            .route("/restate/call/BudgetCounter/unit/try_spend", post(move || { let body = reservation_body.clone(); async move { (reservation_status, Json(body)) } }))
-            .route("/v1/chat/completions", post(move || {
-                let count = count.clone();
-                async move { count.fetch_add(1, Ordering::SeqCst); Json(serde_json::json!({})) }
-            }));
+                .route("/api/governance/virtual-keys", get(move || async move {
+                    (if governance_ok { StatusCode::OK } else { StatusCode::SERVICE_UNAVAILABLE },
+                     Json(serde_json::json!([{"id":"key", "budgets":[{"max_limit":headroom,"current_usage":0}]}])))
+                }))
+                .route("/restate/call/BudgetCounter/unit/try_spend_microusd", post(move |Json(amount): Json<u64>| {
+                    let body = reservation_body.clone(); let count = reservations.clone();
+                    async move {
+                        count.fetch_add(1, Ordering::SeqCst);
+                        assert_eq!(amount, 1200);
+                        (reservation_status, Json(body))
+                    }
+                }))
+                .route("/v1/chat/completions", post(move |Json(body): Json<serde_json::Value>| {
+                    let count = count.clone();
+                    async move {
+                        assert_eq!(body["max_completion_tokens"], 1);
+                        assert_eq!(body["n"], 1);
+                        assert_eq!(body["stream"], false);
+                        count.fetch_add(1, Ordering::SeqCst);
+                        Json(serde_json::json!({}))
+                    }
+                }));
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let base = format!("http://{}", listener.local_addr().unwrap());
             let server = tokio::spawn(async move {
                 axum::serve(listener, app).await.unwrap();
             });
-            let client = GatewayClient::new(&base, "test-vk", "test-admin");
+            let client = GatewayClient::new(&base, "test-vk", "test-admin")
+                .with_reviewed_model(reviewed_model())
+                .unwrap();
             let budget = InferenceBudget {
                 restate_url: &base,
                 budget_id: "unit",
                 virtual_key_id: "key",
-                estimate_usd: 0.1,
+                max_output_tokens: 1,
             };
             assert_eq!(
-                client.chat("test", &[], &budget).await.is_ok(),
+                client.chat("test", &messages(), &budget).await.is_ok(),
                 expected_calls == 1
             );
             assert_eq!(inference_count.load(Ordering::SeqCst), expected_calls);
+            assert_eq!(
+                reservation_count.load(Ordering::SeqCst),
+                usize::from(governance_ok && headroom >= 0.0012)
+            );
             server.abort();
         }
+    }
+
+    #[tokio::test]
+    async fn absent_or_expired_model_review_and_unpriced_payload_make_no_http_calls() {
+        use axum::{Json, Router};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let http_calls = Arc::new(AtomicUsize::new(0));
+        let count = http_calls.clone();
+        let app = Router::new().fallback(move || {
+            let count = count.clone();
+            async move {
+                count.fetch_add(1, Ordering::SeqCst);
+                Json(serde_json::json!({}))
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let budget = InferenceBudget {
+            restate_url: &base,
+            budget_id: "unit",
+            virtual_key_id: "key",
+            max_output_tokens: 1,
+        };
+        let client = GatewayClient::new(&base, "test-vk", "test-admin");
+        assert!(client.chat("test", &messages(), &budget).await.is_err());
+        let reviewed = client.with_reviewed_model(reviewed_model()).unwrap();
+        assert!(
+            reviewed
+                .chat("unknown", &messages(), &budget)
+                .await
+                .is_err()
+        );
+        assert!(
+            reviewed
+                .chat(
+                    "test",
+                    &[serde_json::json!({"role":"user","content":[],"tools":[]})],
+                    &budget
+                )
+                .await
+                .is_err()
+        );
+        assert!(reviewed.with_reviewed_model(reviewed_model()).is_err());
+        let mut expired = reviewed_model();
+        expired.valid_until_ms = 1;
+        let expired_client = GatewayClient::new(&base, "test-vk", "test-admin")
+            .with_reviewed_model(expired)
+            .unwrap();
+        assert!(
+            expired_client
+                .chat("test", &messages(), &budget)
+                .await
+                .is_err()
+        );
+        assert_eq!(http_calls.load(Ordering::SeqCst), 0);
+        server.abort();
     }
 }

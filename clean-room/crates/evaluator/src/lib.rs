@@ -26,7 +26,12 @@ impl DeterministicVerdict {
 }
 
 mod verification;
-pub use verification::{VerificationEvidence, promote_verified_commit, verify_worktree_evidence};
+pub use verification::{
+    VerificationEvidence, promote_verified_commit, promote_verified_commit_to_ref,
+    verify_worktree_evidence,
+};
+pub mod holdout;
+pub mod holdout_runner;
 
 /// A receipt supplies an expected revision, never evidence that checks passed.
 /// Missing repositories, changed revisions and unavailable isolation fail closed.

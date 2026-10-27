@@ -19,3 +19,11 @@ pub mod approval;
 #[cfg(feature = "restate")]
 pub mod approval_workflow;
 pub mod operator_transport;
+pub mod promotion_eligibility;
+
+pub mod intake;
+#[cfg(feature = "restate")]
+pub mod intake_workflow;
+
+#[cfg(feature = "restate")]
+pub mod worker_queue;

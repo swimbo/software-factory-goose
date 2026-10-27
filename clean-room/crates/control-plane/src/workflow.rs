@@ -63,14 +63,78 @@ pub struct BudgetCounter;
 impl BudgetCounter {
     #[handler]
     async fn try_spend(&self, ctx: ObjectContext<'_>, estimate_usd: f64) -> HandlerResult<bool> {
-        let spent: f64 = ctx.get::<f64>("spent").await?.unwrap_or(0.0);
-        let cap: f64 = ctx.get::<f64>("cap").await?.unwrap_or(0.75);
-        let Some(next) = reserved_spend(spent, cap, estimate_usd) else {
+        let ledger = load_budget_ledger(&ctx).await?;
+        let Some(next) = reserved_legacy_usd(&ledger, estimate_usd) else {
             return Ok(false);
         };
+        ctx.set("ledger_mode", "legacy_usd".to_string());
         ctx.set("spent", next);
         Ok(true)
     }
+
+    /// Integer wire and ledger avoid floating-point JSON roundtrip under-reservation.
+    /// Existing legacy state cannot migrate through this method, even if its spend is zero.
+    /// No automatic reset/migration or budget raise is exposed.
+    #[handler]
+    async fn try_spend_microusd(
+        &self,
+        ctx: ObjectContext<'_>,
+        estimate_microusd: u64,
+    ) -> HandlerResult<bool> {
+        let ledger = load_budget_ledger(&ctx).await?;
+        let Some(next) = reserved_microusd(&ledger, estimate_microusd) else {
+            return Ok(false);
+        };
+        ctx.set("ledger_mode", "microusd".to_string());
+        ctx.set("spent_microusd", next);
+        Ok(true)
+    }
+}
+
+#[derive(Default)]
+struct BudgetLedger {
+    mode: Option<String>,
+    spent_usd: Option<f64>,
+    cap_usd: Option<f64>,
+    spent_microusd: Option<u64>,
+    cap_microusd: Option<u64>,
+}
+async fn load_budget_ledger(ctx: &ObjectContext<'_>) -> HandlerResult<BudgetLedger> {
+    Ok(BudgetLedger {
+        mode: ctx.get("ledger_mode").await?,
+        spent_usd: ctx.get("spent").await?,
+        cap_usd: ctx.get("cap").await?,
+        spent_microusd: ctx.get("spent_microusd").await?,
+        cap_microusd: ctx.get("cap_microusd").await?,
+    })
+}
+fn ledger_mode_allows(ledger: &BudgetLedger, integer: bool) -> bool {
+    let legacy_present = ledger.spent_usd.is_some() || ledger.cap_usd.is_some();
+    let integer_present = ledger.spent_microusd.is_some() || ledger.cap_microusd.is_some();
+    if (integer && legacy_present) || (!integer && integer_present) {
+        return false;
+    }
+    match ledger.mode.as_deref() {
+        None => true, // Fresh object, or a pre-mode ledger with only the matching key family.
+        Some("microusd") => integer && ledger.spent_microusd.is_some(),
+        Some("legacy_usd") => !integer && ledger.spent_usd.is_some(),
+        _ => false, // Unknown mode or incomplete binding is never treated as a new counter.
+    }
+}
+fn reserved_legacy_usd(ledger: &BudgetLedger, estimate: f64) -> Option<f64> {
+    ledger_mode_allows(ledger, false).then_some(())?;
+    reserved_spend(
+        ledger.spent_usd.unwrap_or(0.0),
+        ledger.cap_usd.unwrap_or(0.75),
+        estimate,
+    )
+}
+fn reserved_microusd(ledger: &BudgetLedger, estimate: u64) -> Option<u64> {
+    if !ledger_mode_allows(ledger, true) || estimate == 0 {
+        return None;
+    }
+    let next = ledger.spent_microusd.unwrap_or(0).checked_add(estimate)?;
+    (next <= ledger.cap_microusd.unwrap_or(750_000)).then_some(next)
 }
 
 /// Invalid worker input is terminal, never an endlessly retried serde failure.
@@ -108,6 +172,69 @@ mod tests {
         assert_eq!(reserved_spend(f64::MAX, f64::MAX, f64::MAX), None);
         assert_eq!(reserved_spend(0.5, 0.75, 0.25), Some(0.75));
         assert_eq!(reserved_spend(0.75, 0.75, 0.01), None);
+    }
+
+    #[test]
+    fn integer_reservations_are_exact_and_fail_closed_on_overage_or_overflow() {
+        let state = BudgetLedger::default();
+        assert_eq!(reserved_microusd(&state, 750_000), Some(750_000));
+        assert_eq!(reserved_microusd(&state, 750_001), None);
+        assert_eq!(reserved_microusd(&state, 0), None);
+        let state = BudgetLedger {
+            mode: Some("microusd".into()),
+            spent_microusd: Some(749_999),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&state, 1), Some(750_000));
+        assert_eq!(reserved_microusd(&state, 2), None);
+        let state = BudgetLedger {
+            mode: Some("microusd".into()),
+            spent_microusd: Some(u64::MAX),
+            cap_microusd: Some(u64::MAX),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&state, 1), None);
+    }
+    #[test]
+    fn old_and_integer_handlers_cannot_open_two_ledgers_for_one_budget_key() {
+        for legacy_spent in [0.0, 0.25] {
+            let old = BudgetLedger {
+                spent_usd: Some(legacy_spent),
+                ..Default::default()
+            };
+            assert_eq!(reserved_microusd(&old, 1), None);
+            assert!(reserved_legacy_usd(&old, 0.01).is_some());
+        }
+        let integer = BudgetLedger {
+            mode: Some("microusd".into()),
+            spent_microusd: Some(1),
+            ..Default::default()
+        };
+        assert_eq!(reserved_legacy_usd(&integer, 0.01), None);
+        let old_mode = BudgetLedger {
+            mode: Some("legacy_usd".into()),
+            spent_usd: Some(0.0),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&old_mode, 1), None);
+        let cap_only = BudgetLedger {
+            cap_usd: Some(0.75),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&cap_only, 1), None);
+        let mixed = BudgetLedger {
+            spent_usd: Some(0.1),
+            spent_microusd: Some(1),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&mixed, 1), None);
+        assert_eq!(reserved_legacy_usd(&mixed, 0.01), None);
+        let unknown = BudgetLedger {
+            mode: Some("future".into()),
+            ..Default::default()
+        };
+        assert_eq!(reserved_microusd(&unknown, 1), None);
+        assert_eq!(reserved_legacy_usd(&unknown, 0.01), None);
     }
 
     #[test]
@@ -179,6 +306,41 @@ mod lease_tests {
         assert_eq!(s.stage, LeaseStage::CoolingDown);
         s.version = i64::MAX as u64;
         assert!(next_claim_event(None, &mut s, "overflow").is_err());
+    }
+    #[test]
+    fn conditional_first_claim_cannot_reassign_after_expiry() {
+        let mut s = state();
+        conditional_claim(
+            &mut s,
+            "worker",
+            shared::new_id(),
+            &ClaimRequest {
+                ttl_ms: 1000,
+                expected_previous_attempt: Some(0),
+            },
+            0,
+        )
+        .unwrap();
+        let snapshot = s.clone();
+        assert!(
+            conditional_claim(
+                &mut s,
+                "worker",
+                shared::new_id(),
+                &ClaimRequest {
+                    ttl_ms: 1000,
+                    expected_previous_attempt: Some(0)
+                },
+                999_999
+            )
+            .is_err()
+        );
+        assert_eq!(
+            s, snapshot,
+            "stale condition must fail before expiry mutation"
+        );
+        let old: ClaimRequest = serde_json::from_str(r#"{"ttl_ms":1000}"#).unwrap();
+        assert_eq!(old.expected_previous_attempt, None);
     }
     #[test]
     fn exclusive_claim_and_wrong_worker_fencing() {
@@ -365,6 +527,10 @@ pub struct ClaimLeaseState {
 #[serde(deny_unknown_fields)]
 pub struct ClaimRequest {
     pub ttl_ms: u64,
+    /// Compare under this object's exclusive mutation lock, before expiry or claim changes.
+    /// Queue consumers use Some(0): expiry alone must never authorize reassignment.
+    #[serde(default)]
+    pub expected_previous_attempt: Option<u32>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -441,7 +607,7 @@ impl ClaimLeaseJournal {
         let before = state.clone();
         let now = ctx.run(lease_clock_millis).await?;
         let token = ctx.run(|| async { Ok(shared::new_id()) }).await?;
-        let result = claim_next(&mut state, &self.worker_id, token, request.0.ttl_ms, now);
+        let result = conditional_claim(&mut state, &self.worker_id, token, &request.0, now);
         // Persist expiry/cooldown transitions even if this request is refused.
         persist_claim_transition(&ctx, &self.projection_pool, Some(&before), &mut state).await?;
         result.map(Json).map_err(Into::into)
@@ -666,6 +832,22 @@ fn expire_lease(state: &mut ClaimLeaseState, now: u64) {
         retry_or_fail(state, expiry);
     }
 }
+fn conditional_claim(
+    state: &mut ClaimLeaseState,
+    worker: &str,
+    token: String,
+    request: &ClaimRequest,
+    now: u64,
+) -> Result<ActiveLease, TerminalError> {
+    if request
+        .expected_previous_attempt
+        .is_some_and(|expected| expected != state.attempts)
+    {
+        return Err(lease_error(409, "claim attempt precondition failed"));
+    }
+    claim_next(state, worker, token, request.ttl_ms, now)
+}
+
 fn claim_next(
     state: &mut ClaimLeaseState,
     worker: &str,

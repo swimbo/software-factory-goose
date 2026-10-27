@@ -47,3 +47,11 @@ The isolated projection example uses an explicitly selected disposable loopback 
 Do not run the old handoff's background startup or dispatch commands. Use `clean-room/setup.sh` usage and its setup documentation for preflight, infrastructure and registration checks. No live factory startup is proven. External Bifrost credentials, Restate deployment compatibility/private ingress, OS identity separation, independent watchdog and holdout permissions must be verified before activation.
 
 No existing services, global Goose install, OS identities or gateway configuration were changed during this audit. The PostgreSQL verification container was disposable and was removed with its anonymous data volume.
+
+## 2026-10-27 Goose debate update
+
+User approved and reviewers completed the debate. The first offline positive-controlled canary falsified reliance on `--no-profile --no-session`: a project SessionStart hook executed. See `verification/2026-10-27-goose-hook-spike.md` and `decisions/2026-10-26-goose-tool-boundary/consensus-plan.md`. Continue testing a protected configuration or smallest justified patch; keep worker disabled until all boundary and operating gates pass.
+
+## Latest component checkpoint — 2026-10-27
+
+The protected-launch Goose canary passed its narrow hook/configuration checks; model-bound split-secret masking canaries exposed per-chunk leakage and validated reassembly on tested channels. See the protected-config and mask-boundary verification reports. The latest all-target/all-feature local suite passed **200 tests**, with fmt, Clippy, doctests and build clean; `verification/2026-10-27-*-latest.log` records commands and output. Unregistered intake, first-attempt queue, fixture holdout runner, explicit-ref promotion, bounded tool boundary and integer budget primitives are available, but no live factory acceptance or production isolation is claimed. Continue at the open runtime integration and safety gates listed above.

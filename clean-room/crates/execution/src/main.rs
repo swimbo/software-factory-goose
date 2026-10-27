@@ -13,6 +13,9 @@ use std::time::{Duration, Instant};
 
 mod mask;
 mod policy;
+mod tool_boundary;
+#[cfg_attr(not(test), allow(dead_code))]
+mod tool_output;
 
 const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 
@@ -348,6 +351,30 @@ async fn main() -> anyhow::Result<()> {
 
     // Only the supported `sh -c <command>` route is accepted by the shim.
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--tool-request") {
+        // Opt-in one-request local transport. JSON cannot supply execution authority.
+        let response = (|| -> Result<tool_boundary::Response, tool_boundary::Response> {
+            if args.len() != 2 {
+                return Err(tool_boundary::Response::refused("invalid_request"));
+            }
+            use std::os::fd::AsFd;
+            let request = tool_boundary::read_local_request(std::io::stdin().as_fd())?;
+            let rules = load_policy()
+                .map_err(|_| tool_boundary::Response::refused("configuration_unavailable"))?;
+            let cwd = std::env::current_dir()
+                .map_err(|_| tool_boundary::Response::refused("configuration_unavailable"))?;
+            let boundary = tool_boundary::ShellBoundary::new(
+                &cwd,
+                rules,
+                Duration::from_secs(180),
+                MAX_OUTPUT_BYTES,
+            )?;
+            Ok(boundary.execute(request))
+        })()
+        .unwrap_or_else(|refusal| refusal);
+        println!("{}", serde_json::to_string(&response)?);
+        return Ok(());
+    }
     if matches!(
         args.get(1).map(String::as_str),
         Some("--check-policy" | "--run-shell")

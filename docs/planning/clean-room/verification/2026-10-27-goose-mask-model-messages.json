@@ -1,0 +1,128 @@
+[
+  {
+    "mode": "raw_success",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL sk-OFFLINE0123456789ABCDEFGHIJKLMN",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "84d90fd4b8f418791bff3835a8a2ccc994e5c35d8dca422d27baa80d9d5252df"
+  },
+  {
+    "mode": "chunkwise_success",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL sk-OFFLINE0123456789ABCDEFGHIJKLMN",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "e7bcf6029e715982f4e3213a7c0f5ba04317cfa9673a4a697d4b92b23bfc67ab"
+  },
+  {
+    "mode": "masked_success",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL [REDACTED]",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "c0f45eceacc39ef6e3357fdcb211bdd03748a3d4c699ff588e67245f06717951"
+  },
+  {
+    "mode": "raw_tool_error",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL sk-OFFLINE0123456789ABCDEFGHIJKLMN",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "fa0530c84804d0fbb0e7aa0ec301ca77bdd9127d1da5f9d693846d12964e02a9"
+  },
+  {
+    "mode": "masked_tool_error",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL [REDACTED]",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "d174154cc462dd766347aaebbd5a2d2b47bfae2adeb56cfcf0d0b1b234bc678f"
+  },
+  {
+    "mode": "raw_rpc_error",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32603: VISIBLE_TOOL_SENTINEL sk-OFFLINE0123456789ABCDEFGHIJKLMN({\"detail\":\"sk-OFFLINE0123456789ABCDEFGHIJKLMN\"})",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "5a9ac2a5efb1600829e28c1f68bee5d49f820a0ed586123b550e334e0ce70a33"
+  },
+  {
+    "mode": "masked_rpc_error",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "The tool call returned the following error:\n-32603: VISIBLE_TOOL_SENTINEL [REDACTED]({\"detail\":\"[REDACTED]\"})",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "253a502fdf2daf33ce7f6153cd4ba32932c6c58562be7a22af3183adb0d39963"
+  },
+  {
+    "mode": "raw_notification",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL notification sent",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "9e29163d77e7b12ef3e0d19be6ab033c5b33960fd611ba93dfb7ef90a670bc89"
+  },
+  {
+    "mode": "masked_notification",
+    "tool_messages": [
+      {
+        "request_index": 1,
+        "message": {
+          "role": "tool",
+          "content": "VISIBLE_TOOL_SENTINEL notification sent",
+          "tool_call_id": "probe-1"
+        }
+      }
+    ],
+    "full_request_capture_sha256": "b01891f8479f208585f6eb4032d495cb10a6bd96d1acca179f88cc1c994865e8"
+  }
+]

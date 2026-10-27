@@ -1,6 +1,6 @@
 # Decision brief: mandatory Goose tool boundary and truthful completion
 
-Status: proposed; debate confirmation pending. Scope: late Phase 9, existing Goose worker and R6/R13/R14 contracts. No harness replacement or global installation is authorized by this brief.
+Status: debate completed 2026-10-27; consensus authorizes only a bounded offline falsification spike. Runtime activation and final architecture remain unproven. See `2026-10-26-goose-tool-boundary/consensus-plan.md`. Scope: late Phase 9, existing Goose worker and R6/R13/R14 contracts. No harness replacement or global installation is authorized by this brief.
 
 ## Problem and evidence
 

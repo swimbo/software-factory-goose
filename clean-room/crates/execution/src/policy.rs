@@ -132,7 +132,7 @@ fn redirection_targets(seg: &str) -> Vec<String> {
 }
 
 /// Resolve existing ancestors to catch symlink traversal, and reject parent components.
-fn path_allowed(path: &str, allowed: &[String]) -> bool {
+fn path_allowed(path: &str, allowed: &[String], cwd: &Path) -> bool {
     let path = path.trim_matches(['\'', '"']);
     let p = Path::new(path);
     if p.components().any(|c| matches!(c, Component::ParentDir)) {
@@ -142,15 +142,18 @@ fn path_allowed(path: &str, allowed: &[String]) -> bool {
     let absolute = if p.is_absolute() {
         p.to_path_buf()
     } else {
-        match std::env::current_dir() {
-            Ok(cwd) => cwd.join(p),
-            Err(_) => return false,
-        }
+        cwd.join(p)
     };
     let resolved = resolve_ancestor(&absolute);
-    allowed
-        .iter()
-        .any(|a| resolved.starts_with(resolve_ancestor(Path::new(a))))
+    allowed.iter().any(|a| {
+        let root = Path::new(a);
+        let root = if root.is_absolute() {
+            root.to_path_buf()
+        } else {
+            cwd.join(root)
+        };
+        resolved.starts_with(resolve_ancestor(&root))
+    })
 }
 
 fn resolve_ancestor(path: &Path) -> PathBuf {
@@ -165,6 +168,18 @@ fn resolve_ancestor(path: &Path) -> PathBuf {
 
 /// Evaluate a command line against the rules.
 pub fn evaluate(rules: &RuleSet, cmd: &str) -> Decision {
+    match std::env::current_dir() {
+        Ok(cwd) => evaluate_at(rules, cmd, &cwd),
+        Err(_) => Decision::Deny("working directory unavailable".to_string()),
+    }
+}
+
+/// Resolve relative paths against the same trusted directory used for child execution.
+/// This avoids changing process-wide cwd or checking against the launch directory.
+pub fn evaluate_at(rules: &RuleSet, cmd: &str, cwd: &Path) -> Decision {
+    if !cwd.is_absolute() {
+        return Decision::Deny("working directory must be absolute".to_string());
+    }
     if cmd.chars().any(|c| {
         matches!(
             c,
@@ -204,13 +219,13 @@ pub fn evaluate(rules: &RuleSet, cmd: &str) -> Decision {
             );
         }
         for t in redirection_targets(&seg) {
-            if !path_allowed(&t, &rules.allowed_write_paths) {
+            if !path_allowed(&t, &rules.allowed_write_paths, cwd) {
                 return Decision::Deny(format!("write outside allowed paths: {t}"));
             }
         }
         if bin == "cd" || rules.write_commands.iter().any(|w| w == &bin) {
             for tok in seg.split_whitespace().skip(1) {
-                if !tok.starts_with('-') && !path_allowed(tok, &rules.allowed_write_paths) {
+                if !tok.starts_with('-') && !path_allowed(tok, &rules.allowed_write_paths, cwd) {
                     return Decision::Deny(format!("write outside allowed paths: {tok}"));
                 }
             }

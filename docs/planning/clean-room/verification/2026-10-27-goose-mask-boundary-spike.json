@@ -1,0 +1,179 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-mask-boundary-_nq5wrri",
+  "binary_sha256": "6bc711de29cd43bcf1e3ac7a3193b453dd0348068192947079c3cb871542319c",
+  "mask_source_sha256": "89f97d1070a6ae5e0787692eae40b37cda460a7641f319ce27c081d54c84e9c0",
+  "mask_helper_sha256": "81729e1dd2091ff6ad430e09edc92c8f47aa6f541df54260ad65d1ac38c088db",
+  "rust_tests_passed": true,
+  "cases": [
+    {
+      "mode": "raw_success",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": true,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": true,
+      "request_capture_sha256": "84d90fd4b8f418791bff3835a8a2ccc994e5c35d8dca422d27baa80d9d5252df"
+    },
+    {
+      "mode": "chunkwise_success",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": true,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": true,
+      "request_capture_sha256": "e7bcf6029e715982f4e3213a7c0f5ba04317cfa9673a4a697d4b92b23bfc67ab"
+    },
+    {
+      "mode": "masked_success",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": false,
+      "redaction_at_model": true,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": false,
+      "request_capture_sha256": "c0f45eceacc39ef6e3357fdcb211bdd03748a3d4c699ff588e67245f06717951"
+    },
+    {
+      "mode": "raw_tool_error",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": true,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": true,
+      "request_capture_sha256": "fa0530c84804d0fbb0e7aa0ec301ca77bdd9127d1da5f9d693846d12964e02a9"
+    },
+    {
+      "mode": "masked_tool_error",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": false,
+      "redaction_at_model": true,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": false,
+      "request_capture_sha256": "d174154cc462dd766347aaebbd5a2d2b47bfae2adeb56cfcf0d0b1b234bc678f"
+    },
+    {
+      "mode": "raw_rpc_error",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": true,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": true,
+      "request_capture_sha256": "5a9ac2a5efb1600829e28c1f68bee5d49f820a0ed586123b550e334e0ce70a33"
+    },
+    {
+      "mode": "masked_rpc_error",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": false,
+      "redaction_at_model": true,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": false,
+      "raw_synthetic_in_cli": false,
+      "request_capture_sha256": "253a502fdf2daf33ce7f6153cd4ba32932c6c58562be7a22af3183adb0d39963"
+    },
+    {
+      "mode": "raw_notification",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": false,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": true,
+      "raw_synthetic_in_cli": true,
+      "request_capture_sha256": "9e29163d77e7b12ef3e0d19be6ab033c5b33960fd611ba93dfb7ef90a670bc89"
+    },
+    {
+      "mode": "masked_notification",
+      "exit_code": 0,
+      "timed_out": false,
+      "external_network_denied": true,
+      "provider_requests": 2,
+      "stub_completion_observed": true,
+      "advertised_tool_names": [
+        "fixture__mask_probe"
+      ],
+      "tool_sentinel_at_model": true,
+      "raw_synthetic_at_model": false,
+      "redaction_at_model": false,
+      "notification_sentinel_at_model": false,
+      "notification_sentinel_in_cli": true,
+      "raw_synthetic_in_cli": false,
+      "request_capture_sha256": "b01891f8479f208585f6eb4032d495cb10a6bd96d1acca179f88cc1c994865e8"
+    }
+  ],
+  "version": "1.49.0",
+  "all_tool_paths_exercised": true,
+  "raw_controls_leak_as_expected": true,
+  "masked_results_passed": true,
+  "notification_model_path_exercised": false,
+  "notification_cli_path_exercised": true,
+  "notification_cli_masked": true,
+  "bounded_result": true
+}

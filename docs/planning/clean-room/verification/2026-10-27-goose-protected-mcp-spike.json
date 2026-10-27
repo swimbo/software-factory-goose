@@ -1,0 +1,184 @@
+{
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-protected-config-c6l68skx",
+  "binary_sha256": "6bc711de29cd43bcf1e3ac7a3193b453dd0348068192947079c3cb871542319c",
+  "scope": "protected launch discovery and representative child writes only",
+  "write_probes_are_model_tools": false,
+  "cases": [
+    {
+      "name": "unprotected_cwd_positive",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "stub_text_observed": true,
+      "advertised_tool_names": [
+        "fixture__write_probe"
+      ],
+      "hook_marker": "HOOK_EXECUTED",
+      "tool_observations": [
+        {
+          "name": "task_write_positive",
+          "expected_allowed": true,
+          "written": true
+        },
+        {
+          "name": "protected_launch_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_launch_settings",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_user_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_goose_config",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        }
+      ],
+      "tool_result_reached_provider": true,
+      "allowed_task_marker": "WRITE_PROBE"
+    },
+    {
+      "name": "protected_launch",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "stub_text_observed": true,
+      "advertised_tool_names": [
+        "fixture__write_probe"
+      ],
+      "hook_marker": null,
+      "tool_observations": [
+        {
+          "name": "task_write_positive",
+          "expected_allowed": true,
+          "written": true
+        },
+        {
+          "name": "protected_launch_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_launch_settings",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_user_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_goose_config",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        }
+      ],
+      "tool_result_reached_provider": true,
+      "allowed_task_marker": "WRITE_PROBE"
+    },
+    {
+      "name": "protected_launch_repeat",
+      "exit_code": 0,
+      "timed_out": false,
+      "provider_requests": 2,
+      "stub_text_observed": true,
+      "advertised_tool_names": [
+        "fixture__write_probe"
+      ],
+      "hook_marker": null,
+      "tool_observations": [
+        {
+          "name": "task_write_positive",
+          "expected_allowed": true,
+          "written": true
+        },
+        {
+          "name": "protected_launch_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_launch_settings",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_user_plugin",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        },
+        {
+          "name": "protected_goose_config",
+          "expected_allowed": false,
+          "written": false,
+          "errno": 1
+        }
+      ],
+      "tool_result_reached_provider": true,
+      "allowed_task_marker": "WRITE_PROBE"
+    }
+  ],
+  "write_probes": [
+    {
+      "name": "task_write_positive",
+      "expected_allowed": true,
+      "exit_code": 0,
+      "written": true
+    },
+    {
+      "name": "protected_launch_plugin",
+      "expected_allowed": false,
+      "exit_code": 0,
+      "written": false,
+      "errno": 1
+    },
+    {
+      "name": "protected_launch_settings",
+      "expected_allowed": false,
+      "exit_code": 0,
+      "written": false,
+      "errno": 1
+    },
+    {
+      "name": "protected_user_plugin",
+      "expected_allowed": false,
+      "exit_code": 0,
+      "written": false,
+      "errno": 1
+    },
+    {
+      "name": "protected_goose_config",
+      "expected_allowed": false,
+      "exit_code": 0,
+      "written": false,
+      "errno": 1
+    }
+  ],
+  "external_network_denied": true,
+  "version": "1.49.0",
+  "protected_config_unchanged": true,
+  "controls_valid": true,
+  "bounded_candidate_passed": true,
+  "model_invoked_mcp_requested": true,
+  "model_invoked_writes_passed": true,
+  "conclusion": "protected launch excluded this task plugin; representative protected writes denied"
+}

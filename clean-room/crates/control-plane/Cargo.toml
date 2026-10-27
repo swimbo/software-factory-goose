@@ -11,6 +11,7 @@ evaluator = { path = "../evaluator" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2 = "=0.10.9"
 anyhow.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

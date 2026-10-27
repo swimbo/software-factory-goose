@@ -1,4 +1,6 @@
-use evaluator::{promote_verified_commit, verify_worktree_evidence};
+use evaluator::{
+    promote_verified_commit, promote_verified_commit_to_ref, verify_worktree_evidence,
+};
 use shared::Receipt;
 use std::{
     fs,
@@ -100,6 +102,75 @@ fn promotion_rejects_dirty_changed_and_non_bare_targets() {
     assert!(promote_verified_commit(&destination.0, &repo.0, &sha, &sha).is_err());
     fs::write(repo.0.join("untracked"), "dirty").unwrap();
     assert!(promote_verified_commit(&destination.0, &repo.0, &sha, &sha).is_err());
+}
+
+#[test]
+fn explicit_promotion_cannot_follow_a_changed_head_or_symbolic_target() {
+    let repo = Repo::new();
+    let base = repo.sha();
+    let destination = Repo::new();
+    fs::remove_dir_all(&destination.0).unwrap();
+    assert!(
+        Command::new("git")
+            .args(["clone", "-q", "--bare"])
+            .arg(&repo.0)
+            .arg(&destination.0)
+            .status()
+            .unwrap()
+            .success()
+    );
+    git(&destination.0, &["update-ref", "refs/heads/other", &base]);
+    git(
+        &destination.0,
+        &["symbolic-ref", "HEAD", "refs/heads/other"],
+    );
+    git(
+        &destination.0,
+        &["symbolic-ref", "refs/heads/alias", "refs/heads/other"],
+    );
+    fs::write(repo.0.join("README"), "candidate\n").unwrap();
+    git(&repo.0, &["add", "."]);
+    git(&repo.0, &["commit", "-qm", "candidate"]);
+    let candidate = repo.sha();
+    for target in [
+        "HEAD",
+        "main",
+        "refs/tags/tag",
+        "refs/heads/../other",
+        "refs/heads/alias",
+    ] {
+        assert!(
+            promote_verified_commit_to_ref(&destination.0, &repo.0, target, &base, &candidate)
+                .is_err()
+        );
+        assert_eq!(
+            git(&destination.0, &["rev-parse", "refs/heads/other"]),
+            base
+        );
+    }
+    promote_verified_commit_to_ref(
+        &destination.0,
+        &repo.0,
+        "refs/heads/main",
+        &base,
+        &candidate,
+    )
+    .unwrap();
+    assert_eq!(
+        git(&destination.0, &["rev-parse", "refs/heads/main"]),
+        candidate
+    );
+    assert_eq!(git(&destination.0, &["rev-parse", "HEAD"]), base);
+    assert!(
+        promote_verified_commit_to_ref(
+            &destination.0,
+            &repo.0,
+            "refs/heads/main",
+            &base,
+            &candidate
+        )
+        .is_err()
+    );
 }
 
 fn cargo_fixture(repo: &Repo, source: &str) {
