@@ -93,7 +93,11 @@ def verify_worker_backend(ingress_port, env):
                 subprocess.run([str(ROOT / 'target/debug/examples/worker_backend_fixture'), path, str(ingress_port)], cwd=ROOT, env=env, check=True, timeout=90)
                 subprocess.run([str(ROOT / 'target/debug/examples/operator_backend_fixture'), path, lost_path], cwd=ROOT, env=env, check=True, timeout=90)
                 if not lost_reply.is_set():
-                    raise RuntimeError('fixture did not exercise reply-loss injection')
+                    raise RuntimeError('operator fixture did not exercise reply-loss injection')
+                lost_reply.clear()
+                subprocess.run([str(ROOT / 'target/debug/examples/intake_backend_fixture'), path, lost_path], cwd=ROOT, env=env, check=True, timeout=90)
+                if not lost_reply.is_set():
+                    raise RuntimeError('intake fixture did not exercise reply-loss injection')
             finally:
                 for current, thread in started:
                     current.shutdown()

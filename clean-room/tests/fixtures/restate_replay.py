@@ -84,6 +84,24 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
                     time.sleep(.1)
             assert status in (200,201), (status,result)
             base=f'http://127.0.0.1:{ingress}'
+            intake_key='01ARZ3NDEKTSV4RRFFQ69G5FAZ'
+            intake_path=f'/restate/call/IntakeJournal/{intake_key}'
+            intake={'schema_version':1,'repository':'fixture','target_ref':'refs/heads/main','base_revision':'a'*40,'intent':'build fixture','acceptance_criteria':['passes fixture']}
+            conflicting={**intake,'intent':'different fixture'}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+                submissions=list(pool.map(lambda _:post(base+intake_path+'/submit',intake),range(10)))
+            assert all(code==200 and value==submissions[0][1] for code,value in submissions),submissions
+            admitted=submissions[0][1]
+            assert admitted['request']==intake and admitted['idempotency_key']==intake_key and admitted['submitted_by']=='fixture-submitter' and admitted['created_at_ms']>0,admitted
+            assert post(base+intake_path+'/submit',conflicting)[0]==409
+            assert post(base+intake_path+'/inspect',None)==(200,admitted)
+            race_path='/restate/call/IntakeJournal/01ARZ3NDEKTSV4RRFFQ69G5FB0'
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                race=list(pool.map(lambda request:post(base+race_path+'/submit',request),[intake,conflicting]))
+            assert sorted(code for code,_ in race)==[200,409],race
+            race_record=next(value for code,value in race if code==200)
+            assert race_record['request'] in (intake,conflicting)
+            assert post(base+race_path+'/inspect',None)==(200,race_record)
             assert post(base+'/restate/call/BudgetCounter/fixture/try_spend_microusd',200000)==(200,True)
             assert post(base+'/restate/call/BudgetCounter/fixture/try_spend_microusd',600000)==(200,False)
             assert post(base+'/restate/call/BudgetCounter/fixture/try_spend',0.01)==(200,False)
@@ -137,6 +155,10 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             terminate(server);server=None
             server,ingress,admin=start_server()
             base=f'http://127.0.0.1:{ingress}'
+            assert post(base+intake_path+'/submit',intake)==(200,admitted)
+            assert post(base+intake_path+'/submit',conflicting)[0]==409
+            assert post(base+intake_path+'/inspect',None)==(200,admitted)
+            assert post(base+race_path+'/inspect',None)==(200,race_record)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/pull',request)==(200,pull)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/complete',completion)==(200,completed)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/pull',lost)==(200,recovered)
@@ -149,6 +171,10 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             server.kill(); server.wait(timeout=10); server=None
             server,ingress,admin=start_server()
             base=f'http://127.0.0.1:{ingress}'
+            assert post(base+intake_path+'/submit',intake)==(200,admitted)
+            assert post(base+intake_path+'/submit',conflicting)[0]==409
+            assert post(base+intake_path+'/inspect',None)==(200,admitted)
+            assert post(base+race_path+'/inspect',None)==(200,race_record)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/pull',request)==(200,pull)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/complete',completion)==(200,completed)
             assert post(base+'/restate/call/WorkerQueueJournal/fixture-queue/pull',lost)==(200,recovered)
@@ -158,7 +184,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             verify_promotion_decision(ingress, env, tmp+'/promotion-decision.json', 'verify')
             verify_promotion_execution(ingress, promotion_fixture, post, promotion_checkpoint)
             verify_worker_backend(ingress, env)
-            print('PASS: acknowledged budget, approval and queue pull persisted across graceful and SIGKILL restarts; replay rejected')
+            print('PASS: concurrent intake retry/conflict and acknowledged budget, approval and queue pull persisted across graceful and SIGKILL restarts; replay rejected')
         finally:
             if server is not None: terminate(server)
             terminate(sdk)

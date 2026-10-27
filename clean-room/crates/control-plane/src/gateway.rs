@@ -247,6 +247,7 @@ impl GatewayClient {
             http: reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
                 .redirect(reqwest::redirect::Policy::none())
+                .no_proxy()
                 .build()
                 .expect("valid HTTP client configuration"),
         }
@@ -705,5 +706,173 @@ mod tests {
         );
         assert_eq!(http_calls.load(Ordering::SeqCst), 0);
         server.abort();
+    }
+
+    #[tokio::test]
+    async fn gateway_ignores_environment_proxy_and_keeps_credentials_on_their_routes() {
+        use axum::{
+            Json, Router,
+            http::{HeaderMap, StatusCode},
+            routing::{get, post},
+        };
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        if let Ok(base) = std::env::var("SF_GATEWAY_PROXY_TEST_CHILD") {
+            let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+                .with_reviewed_model(reviewed_model())
+                .unwrap();
+            let budget = InferenceBudget {
+                restate_url: &base,
+                budget_id: "unit",
+                virtual_key_id: "key",
+                max_output_tokens: 1,
+            };
+            assert!(client.chat("test", &messages(), &budget).await.is_ok());
+            return;
+        }
+        let proxy_calls = Arc::new(AtomicUsize::new(0));
+        let seen = proxy_calls.clone();
+        let proxy = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::BAD_GATEWAY
+            }
+        });
+        let proxy_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy_url = format!("http://{}", proxy_listener.local_addr().unwrap());
+        let proxy_server = tokio::spawn(async move {
+            axum::serve(proxy_listener, proxy).await.unwrap();
+        });
+        let app = Router::new()
+            .route("/api/governance/virtual-keys", get(|headers: HeaderMap| async move {
+                assert_eq!(headers.get("authorization").unwrap(), "Bearer synthetic-admin");
+                assert!(!headers.contains_key("x-bf-vk"));
+                Json(serde_json::json!([{"id":"key", "budgets":[{"max_limit":1,"current_usage":0}]}]))
+            }))
+            .route("/restate/call/BudgetCounter/unit/try_spend_microusd", post(|headers: HeaderMap, Json(amount): Json<u64>| async move {
+                assert!(!headers.contains_key("authorization")); assert!(!headers.contains_key("x-bf-vk"));
+                assert_eq!(amount, 1200); Json(true)
+            }))
+            .route("/v1/chat/completions", post(|headers: HeaderMap| async move {
+                assert!(!headers.contains_key("authorization"));
+                assert_eq!(headers.get("x-bf-vk").unwrap(), "synthetic-vk"); Json(serde_json::json!({}))
+            }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let output = tokio::task::spawn_blocking(move || std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "gateway::tests::gateway_ignores_environment_proxy_and_keeps_credentials_on_their_routes"])
+            .env("SF_GATEWAY_PROXY_TEST_CHILD", base)
+            .env("HTTP_PROXY", &proxy_url).env("http_proxy", &proxy_url)
+            .env("ALL_PROXY", &proxy_url).env("all_proxy", &proxy_url)
+            .env_remove("NO_PROXY").env_remove("no_proxy")
+            .output().unwrap()).await.unwrap();
+        assert_eq!(proxy_calls.load(Ordering::SeqCst), 0);
+        assert!(output.status.success(), "isolated gateway child failed");
+        server.abort();
+        proxy_server.abort();
+    }
+
+    #[tokio::test]
+    async fn governance_redirect_does_not_forward_admin_credential() {
+        use axum::{
+            Router,
+            http::{StatusCode, header},
+            routing::get,
+        };
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let destination = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::OK
+            }
+        });
+        let dst_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let destination_url = format!("http://{}/stolen", dst_listener.local_addr().unwrap());
+        let dst_server = tokio::spawn(async move {
+            axum::serve(dst_listener, destination).await.unwrap();
+        });
+        let app = Router::new().route(
+            "/api/governance/virtual-keys",
+            get(move || {
+                let location = destination_url.clone();
+                async move {
+                    (
+                        StatusCode::TEMPORARY_REDIRECT,
+                        [(header::LOCATION, location)],
+                    )
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin");
+        assert!(client.remaining_budget("key").await.is_none());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+        dst_server.abort();
+    }
+
+    #[tokio::test]
+    async fn inference_redirect_does_not_forward_virtual_key() {
+        use axum::{
+            Json, Router,
+            http::{StatusCode, header},
+            routing::{get, post},
+        };
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let destination = Router::new().fallback(move || {
+            let seen = seen.clone();
+            async move {
+                seen.fetch_add(1, Ordering::SeqCst);
+                StatusCode::OK
+            }
+        });
+        let dst_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let destination_url = format!("http://{}/stolen", dst_listener.local_addr().unwrap());
+        let dst_server = tokio::spawn(async move {
+            axum::serve(dst_listener, destination).await.unwrap();
+        });
+        let app = Router::new()
+            .route("/api/governance/virtual-keys", get(|| async { Json(serde_json::json!([{"id":"key","budgets":[{"max_limit":1,"current_usage":0}]}])) }))
+            .route("/restate/call/BudgetCounter/unit/try_spend_microusd", post(|| async { Json(true) }))
+            .route("/v1/chat/completions", post(move || { let location = destination_url.clone(); async move { (StatusCode::TEMPORARY_REDIRECT, [(header::LOCATION, location)]) } }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let client = GatewayClient::new(&base, "synthetic-vk", "synthetic-admin")
+            .with_reviewed_model(reviewed_model())
+            .unwrap();
+        let budget = InferenceBudget {
+            restate_url: &base,
+            budget_id: "unit",
+            virtual_key_id: "key",
+            max_output_tokens: 1,
+        };
+        assert!(client.chat("test", &messages(), &budget).await.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        server.abort();
+        dst_server.abort();
     }
 }

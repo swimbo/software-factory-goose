@@ -3,6 +3,7 @@
 //! These are the typed, versioned artifacts the debate mandated (consensus R6 + the
 //! contract-schema blind spot). Every cross-plane message is one of these.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -19,7 +20,7 @@ pub fn new_id() -> Id {
 /// `git diff` is *payload* inside `Completed`, never the status itself. The status
 /// discriminator is the `#[serde(tag)]`, parsed from `goose run --output-format json`
 /// stdout. A non-JSON stdout is `Failed` with a parse-error marker, not a silent fallback.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum Receipt {
     Completed {
@@ -63,7 +64,7 @@ impl Receipt {
 }
 
 /// A claim on a work package: who owns it, against what exact git revision, until when.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Claim {
     pub id: Id,
     pub work_package_id: Id,
@@ -73,7 +74,7 @@ pub struct Claim {
     pub status: ClaimStatus,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ClaimStatus {
     Open,
@@ -84,7 +85,7 @@ pub enum ClaimStatus {
 
 /// A credential grant issued by the broker. The *reference* is stored; the secret value
 /// never appears in this record (or in any agent context).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CredentialGrant {
     pub id: Id,
     pub work_package_id: Id,
@@ -98,7 +99,7 @@ pub struct CredentialGrant {
     pub approved_by: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CredentialKind {
     /// Low-stakes, self-issued (agent-mail channel).
@@ -239,6 +240,28 @@ impl Task {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn published_legacy_shapes_match_derived_contracts() {
+        fn check<T: JsonSchema>(name: &str, snapshot: &str) {
+            let mut generated = serde_json::to_value(schemars::schema_for!(T)).unwrap();
+            generated["$id"] = format!("urn:software-factory:legacy-shape:{name}:v1").into();
+            let saved: serde_json::Value = serde_json::from_str(snapshot).unwrap();
+            assert_eq!(generated, saved, "legacy shape changed for {name}");
+        }
+        check::<Receipt>(
+            "receipt",
+            include_str!("../schemas/legacy-shape/v1/receipt.schema.json"),
+        );
+        check::<Claim>(
+            "claim",
+            include_str!("../schemas/legacy-shape/v1/claim.schema.json"),
+        );
+        check::<CredentialGrant>(
+            "credential-grant",
+            include_str!("../schemas/legacy-shape/v1/credential-grant.schema.json"),
+        );
+    }
 
     #[test]
     fn receipt_tag_roundtrips() {

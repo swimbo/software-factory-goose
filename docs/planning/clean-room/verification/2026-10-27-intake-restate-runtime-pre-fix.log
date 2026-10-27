@@ -1,0 +1,15 @@
+PASS: real same-object publish/issue/expiry/stale-generation/invalidation and racing consume produced one durable approval decision; no Git execution
+PASS: consumed approval and exact same-object decision survived Restate SIGKILL; historical retries did not reopen invalidated generation
+PASS: real UnixRestateBackend status (absent body), pull, lookup, completion, exact retries and forged-token refusal against disposable Restate + PostgreSQL; same-UID fixture only
+PASS: real UnixApprovalBackend issue/status/consume, immutable issuance, action mismatch/replay refusal and persisted consume after dropped reply; synthetic journal principal, no Git or cross-UID proof
+Error: Socket is not connected (os error 57)
+PASS: durable exact Git CAS, discarded reply, server-resolved action and Prepared retry/invalidation refusal
+PASS: exact promotion receipt and invalidated Prepared refusal survived Restate SIGKILL without a second ref write
+Traceback (most recent call last):
+  File "/Users/bo/code/software-factory-goose/clean-room/tests/fixtures/restate_replay.py", line 186, in <module>
+    verify_worker_backend(ingress, env)
+  File "/Users/bo/code/software-factory-goose/clean-room/tests/fixtures/worker_backend_proxy.py", line 98, in verify_worker_backend
+    subprocess.run([str(ROOT / 'target/debug/examples/intake_backend_fixture'), path, lost_path], cwd=ROOT, env=env, check=True, timeout=90)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['/Users/bo/code/software-factory-goose/clean-room/target/debug/examples/intake_backend_fixture', '/Users/bo/code/software-factory-goose/clean-room/.worker-fixture-o5r85b68/ingress.sock', '/Users/bo/code/software-factory-goose/clean-room/.worker-fixture-o5r85b68/lost.sock']' returned non-zero exit status 1.

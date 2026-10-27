@@ -49,6 +49,11 @@ async fn main() -> anyhow::Result<()> {
     }
     let mut builder = Endpoint::builder()
         .bind(control_plane::workflow::BudgetCounter)
+        .bind(
+            control_plane::intake_workflow::IntakeJournal::new_for_private_ingress(
+                "fixture-submitter".into(),
+            )?,
+        )
         .bind(approvals)
         .bind(decisions);
     if let Ok(database_url) = std::env::var("SFACTORY_FIXTURE_DATABASE_URL") {

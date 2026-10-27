@@ -11,3 +11,4 @@ serde_json.workspace = true
 thiserror.workspace = true
 ulid.workspace = true
 chrono.workspace = true
+schemars = { version = "0.8.22", features = ["chrono"] }

@@ -22,6 +22,8 @@ pub mod operator_transport;
 pub mod promotion_eligibility;
 
 pub mod intake;
+#[cfg(all(feature = "restate", unix))]
+pub mod intake_adapter;
 #[cfg(feature = "restate")]
 pub mod intake_workflow;
 

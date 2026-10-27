@@ -50,12 +50,12 @@ pub fn blast_radius(graph: &AstGraph, file: &str) -> Vec<String> {
     let mut files: Vec<String> = graph
         .edges
         .iter()
-        .filter(|e| defined.contains(&e.to.as_str()))
-        .filter_map(|e| {
+        .filter(|e| (e.kind == "calls" || e.kind == "imports") && defined.contains(&e.to.as_str()))
+        .flat_map(|e| {
             graph
                 .nodes
                 .iter()
-                .find(|n| n.symbol == e.from)
+                .filter(|n| n.symbol == e.from)
                 .map(|n| n.file.clone())
         })
         .collect();
@@ -266,5 +266,41 @@ mod tests {
             }],
         };
         assert!(dependents(&g, "x").is_empty());
+    }
+
+    #[test]
+    fn blast_radius_conservatively_includes_all_ambiguous_callers() {
+        let graph = AstGraph {
+            nodes: vec![
+                AstNode {
+                    symbol: "target".into(),
+                    kind: "fn".into(),
+                    file: "target.rs".into(),
+                },
+                AstNode {
+                    symbol: "caller".into(),
+                    kind: "fn".into(),
+                    file: "one.rs".into(),
+                },
+                AstNode {
+                    symbol: "caller".into(),
+                    kind: "fn".into(),
+                    file: "two.rs".into(),
+                },
+            ],
+            edges: vec![AstEdge {
+                from: "caller".into(),
+                to: "target".into(),
+                kind: "calls".into(),
+            }],
+        };
+        assert_eq!(blast_radius(&graph, "target.rs"), vec!["one.rs", "two.rs"]);
+    }
+
+    #[test]
+    fn blast_radius_ignores_non_dependency_edges() {
+        let mut graph = graph();
+        graph.edges[0].kind = "defines".into();
+        assert!(blast_radius(&graph, "a.rs").is_empty());
     }
 }

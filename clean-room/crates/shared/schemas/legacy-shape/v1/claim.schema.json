@@ -1,0 +1,47 @@
+{
+  "$id": "urn:software-factory:legacy-shape:claim:v1",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ClaimStatus": {
+      "enum": [
+        "open",
+        "released",
+        "expired",
+        "fulfilled"
+      ],
+      "type": "string"
+    }
+  },
+  "description": "A claim on a work package: who owns it, against what exact git revision, until when.",
+  "properties": {
+    "git_revision": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "lease_expiry": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/definitions/ClaimStatus"
+    },
+    "work_package_id": {
+      "type": "string"
+    },
+    "worker_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "git_revision",
+    "id",
+    "lease_expiry",
+    "status",
+    "work_package_id",
+    "worker_id"
+  ],
+  "title": "Claim",
+  "type": "object"
+}

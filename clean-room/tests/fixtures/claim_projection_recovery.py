@@ -19,7 +19,7 @@ def stop(p):
         try: p.wait(timeout=15)
         except subprocess.TimeoutExpired: p.kill(); p.wait(timeout=5)
 def post(url,body=None):
-    req=urllib.request.Request(url,data=None if body is None else json.dumps(body).encode(),headers={} if body is None else {'Content-Type':'application/json'},method='POST')
+    req=urllib.request.Request(url,data=None if body is None else json.dumps(body).encode(),headers={} if body is None else {'Content-Type':'application/json', 'Accept':'application/json'},method='POST')
     try:
         with urllib.request.urlopen(req,timeout=10) as response:
             data=response.read(); return response.status,json.loads(data) if data else None
@@ -38,8 +38,16 @@ def run():
         def pgargs(command):return [str(PG/command),'-h','127.0.0.1','-p',str(pg_port),'-U','postgres']
         def sql(query):
             return subprocess.check_output(pgargs('psql')+['-d','sfactory_verification','-v','ON_ERROR_STOP=1','-tAc',query],env=env,text=True).strip()
-        def snapshot():
-            return json.loads(sql("SELECT coalesce(jsonb_agg(jsonb_build_object('invocation_id',invocation_id,'step_seq',step_seq,'payload',payload) ORDER BY payload->>'work_package_id',(payload->>'version')::bigint),'[]'::jsonb) FROM outbox WHERE step_kind='claim_transition_v1'"))
+        def snapshot(key='recovery-task'):
+            assert key in ('recovery-task', 'recovery-second')
+            return json.loads(sql("SELECT coalesce(jsonb_agg(jsonb_build_object('invocation_id',invocation_id,'step_seq',step_seq,'payload',payload) ORDER BY (payload->>'version')::bigint),'[]'::jsonb) FROM outbox WHERE step_kind='claim_transition_v1' AND payload->>'work_package_id'='" + key + "'"))
+        def discover_claim_keys(admin_port):
+            # Fixture-only read-only admin introspection. No claim payloads or lease tokens.
+            # This is an observed set, not an atomic, complete inventory under concurrent writes.
+            query = "SELECT service_key FROM state WHERE service_name = 'ClaimLeaseJournal' AND key = 'claim' ORDER BY service_key"
+            code, rows = post(f'http://127.0.0.1:{admin_port}/query', {'query':query})
+            assert code == 200, (code, rows)
+            return [r['service_key'] for r in rows['rows']]
         def start_sdk():
             p=launch([str(SDK),f'127.0.0.1:{sdk_port}'],f'sdk-{len(processes)}.log')
             deadline=time.monotonic()+20
@@ -90,6 +98,10 @@ def run():
             assert state['last_completion']['lease']['token']==lease['token']
             assert state['last_completion']['receipt']['diff']=='SQL_RECOVERY_DIFF_CANARY_MUST_BE_WITHHELD'
             original=snapshot();assert len(original)==3
+            assert call('initialize',spec,key='recovery-second')[0]==200
+            second_original=snapshot('recovery-second');assert len(second_original)==1
+            assert call('status',key='never-initialized')==(200,None)
+            assert discover_claim_keys(admin)==['recovery-second','recovery-task']
             safe=json.dumps(original)
             assert lease['token'] not in safe and 'SQL_RECOVERY_DIFF_CANARY' not in safe
             assert all(r['payload']['snapshot']['schema_version']==2 for r in original)
@@ -107,7 +119,12 @@ def run():
             server.kill();server.wait(timeout=10)
             server,base,admin=start_restate()
             assert call('status')==(200,state)
-            code,report=call('reexport_claim_history');assert code==200,(code,report)
+            discovered=discover_claim_keys(admin)
+            assert discovered==['recovery-second','recovery-task']
+            code,second_report=call('reexport_claim_history',key=discovered[0]);assert code==200,(code,second_report)
+            assert second_report=={'work_package_id':'recovery-second','events':1,'latest_version':1,'quarantined':False}
+            assert snapshot('recovery-second')==second_original
+            code,report=call('reexport_claim_history',key=discovered[1]);assert code==200,(code,report)
             assert report=={'work_package_id':'recovery-task','events':3,'latest_version':3,'quarantined':False},report
             assert snapshot()==original
             assert json.loads(sql("select snapshot from claim_lease_projection where work_package_id='recovery-task'"))==original[-1]['payload']['snapshot']
@@ -138,7 +155,7 @@ def run():
             subprocess.run(pgargs('createdb')+['sfactory_verification'],env=env,check=True)
             projection_env={**env,'SFACTORY_TEST_DATABASE_URL':env['SFACTORY_FIXTURE_DATABASE_URL']}
             subprocess.run([str(ROOT/'target/debug/examples/verify_projection')],env=projection_env,stdout=subprocess.DEVNULL,check=True)
-            print(json.dumps({'result':'PASS','database_loss':'dropped/recreated owned sfactory_verification database','pgvector':vector_version,'original_event_count':3,'original_ids_preserved':True,'reexports_across_restarts':3,'terminal_conflict_rollback':True,'retention_cap':128,'production_authentication':False,'sql_safe_schema':2,'claim_capabilities_and_raw_text_absent':True,'receipt_diff_stderr_canaries_absent':True},sort_keys=True))
+            print(json.dumps({'result':'PASS','database_loss':'dropped/recreated owned sfactory_verification database','pgvector':vector_version,'original_event_count':3,'original_ids_preserved':True,'admin_discovery_fixture_keys':2,'admin_discovery_is_complete_inventory':False,'reexports_across_restarts':3,'terminal_conflict_rollback':True,'retention_cap':128,'production_authentication':False,'sql_safe_schema':2,'claim_capabilities_and_raw_text_absent':True,'receipt_diff_stderr_canaries_absent':True},sort_keys=True))
         finally:
             for p in reversed(processes):stop(p)
             for log in logs:log.close()

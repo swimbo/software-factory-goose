@@ -1,0 +1,129 @@
+{
+  "$id": "urn:software-factory:legacy-shape:receipt:v1",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "The result of a single Goose run (consensus R6).\n\n`git diff` is *payload* inside `Completed`, never the status itself. The status discriminator is the `#[serde(tag)]`, parsed from `goose run --output-format json` stdout. A non-JSON stdout is `Failed` with a parse-error marker, not a silent fallback.",
+  "oneOf": [
+    {
+      "properties": {
+        "diff": {
+          "type": "string"
+        },
+        "exit_code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "sha": {
+          "type": "string"
+        },
+        "spend_usd": {
+          "description": "Cost accrued by this run (R7) — the pipeline's budget ledger consumes this.",
+          "format": "double",
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "completed"
+          ],
+          "type": "string"
+        },
+        "turn_count": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "wall_time_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "diff",
+        "exit_code",
+        "sha",
+        "spend_usd",
+        "status",
+        "turn_count",
+        "wall_time_ms"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "sha": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "timed_out"
+          ],
+          "type": "string"
+        },
+        "turn_count": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "wall_time_ms": {
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sha",
+        "status",
+        "turn_count",
+        "wall_time_ms"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "exit_code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "failed"
+          ],
+          "type": "string"
+        },
+        "stderr_tail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "exit_code",
+        "status",
+        "stderr_tail"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "core_dumped": {
+          "type": "boolean"
+        },
+        "signal": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "crashed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "core_dumped",
+        "signal",
+        "status"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Receipt"
+}

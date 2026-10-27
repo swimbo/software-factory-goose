@@ -1,6 +1,6 @@
 # Decision brief: distinct-account OS supervision
 
-**Status: proposed for review; no option selected or provisioned.**
+**Status: three-reviewer research completed; evidence insufficient for a production selection.** See `2026-10-27-os-supervision-boundary/evidence-ledger.md` and `spike-plan.md`. No option has been selected or provisioned.
 
 The Phase 9 worker must run under a distinct identity and an independent brake must stop its complete process family even if the worker or control plane hangs. The current macOS same-UID broker fixture owns and reaps its children and stops tested groups, but an unprivileged process cannot both assume arbitrary UIDs and signal children after they change identity. Process groups alone do not contain descendants that escape them. See `../verification/2026-10-27-watchdog-os-authority-review.md` and the broker lifecycle evidence.
 
