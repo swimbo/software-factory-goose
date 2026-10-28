@@ -52,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .bind(control_plane::idempotent_budget::IdempotentBudgetCounter)
         .bind(control_plane::inference_authority::InferenceAuthority)
         .bind(control_plane::atomic_inference_fixture::AtomicInferenceFixture)
+        .bind(control_plane::conversation_fixture::ConversationFixture)
         .bind(
             control_plane::intake_workflow::IntakeJournal::new_for_private_ingress(
                 "fixture-submitter".into(),
