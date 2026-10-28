@@ -3,6 +3,7 @@
 import concurrent.futures, json, os, pathlib, socket, subprocess, tempfile, time, urllib.error, urllib.request
 from worker_backend_proxy import verify_worker_backend, verify_promotion_decision, prepare_promotion_execution, verify_promotion_execution
 from trusted_inference_launcher_fixture import exercise as exercise_inference_launcher, verify_after_restart as verify_inference_launcher
+from inference_gate_fixture import exercise as exercise_inference_gate
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SERVER = '/Users/bo/.local/opt/node/bin/restate-server'
@@ -157,6 +158,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
                 begins=list(pool.map(lambda _:post(race_inference+'/begin',infer_request),range(10)))
             assert sorted(code for code,_ in begins)==[200]+[409]*9,begins
             launcher_ids=exercise_inference_launcher(base,env)
+            exercise_inference_gate(base,env,tmp)
             queue=base+'/restate/call/WorkerQueueJournal/fixture-queue'
             task={'work_package_id':'fixture-task','spec':{'repository':'fixture','base_revision':'a'*40}}
             for invalid_key in ('.', '..', '%2e', 'a/b', 'a\\b', 'a?b', 'a#b'):

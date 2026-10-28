@@ -201,3 +201,28 @@ fn inherited_auto_reaping_refuses_before_shell_spawn() {
     assert_eq!(response["reason"], "execution_unavailable");
     assert!(!f.0.join("marker").exists());
 }
+
+#[cfg(feature = "fixture-inherited-group")]
+#[test]
+fn inherited_group_fixture_refuses_without_direct_leader_parent() {
+    use std::os::unix::process::CommandExt;
+    let f = Fixture::new();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_execution"))
+        .arg("--fixture-inherited-tool-request")
+        .current_dir(&f.0)
+        .env_clear()
+        .process_group(0)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    // It may reject before reading the pipe; a broken pipe is an allowed outcome.
+    let _ = child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"command":"printf bad > marker"}"#);
+    assert!(!child.wait().unwrap().success());
+    assert!(!f.0.join("marker").exists());
+}

@@ -21,6 +21,9 @@ const MAX_OUTPUT_BYTES: usize = 1024 * 1024;
 
 static TERMINATION_REQUESTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
+#[cfg(feature = "fixture-inherited-group")]
+static FIXTURE_INHERITED_GROUP: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 fn termination_requested() -> bool {
     TERMINATION_REQUESTED.load(std::sync::atomic::Ordering::Relaxed)
@@ -192,6 +195,10 @@ fn require_child_wait_ownership() -> std::io::Result<()> {
 }
 
 fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Result<Captured> {
+    #[cfg(feature = "fixture-inherited-group")]
+    if FIXTURE_INHERITED_GROUP.load(std::sync::atomic::Ordering::Relaxed) {
+        return supervise_inherited_fixture(cmd, timeout);
+    }
     anyhow::ensure!(!termination_requested(), "execution cancelled");
     require_child_wait_ownership()?;
     cmd.stdin(Stdio::null())
@@ -234,6 +241,90 @@ fn supervise(cmd: &mut std::process::Command, timeout: Duration) -> anyhow::Resu
     };
     // Group cleanup occurred while the leader was still unreaped. Never signal its
     // numeric id again. Bound pipes held by descendants that escaped the group.
+    let cleanup = Instant::now();
+    while !(stdout.eof && stderr.eof) && cleanup.elapsed() < Duration::from_millis(250) {
+        stdout.drain(&mut stdout_pipe)?;
+        stderr.drain(&mut stderr_pipe)?;
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    stdout.truncated |= !stdout.eof;
+    stderr.truncated |= !stderr.eof;
+    anyhow::ensure!(!termination_requested(), "execution cancelled");
+    Ok(Captured {
+        status,
+        stdout,
+        stderr,
+        timed_out,
+    })
+}
+
+/// Fixture only: an external live parent is responsible for the inherited process
+/// group. This function may signal only its own direct child and cannot prove group
+/// cleanup. The launcher must withhold all results until it stops the complete group.
+#[cfg(feature = "fixture-inherited-group")]
+fn supervise_inherited_fixture(
+    cmd: &mut std::process::Command,
+    timeout: Duration,
+) -> anyhow::Result<Captured> {
+    struct DirectChild(Option<std::process::Child>);
+    impl Drop for DirectChild {
+        fn drop(&mut self) {
+            if let Some(mut child) = self.0.take() {
+                match child.try_wait() {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                    Err(_) => {} // ownership cannot be confirmed; never signal a numeric PID
+                }
+            }
+        }
+    }
+    anyhow::ensure!(!termination_requested(), "execution cancelled");
+    require_child_wait_ownership()?;
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = DirectChild(Some(cmd.spawn()?));
+    let mut stdout_pipe = child
+        .0
+        .as_mut()
+        .unwrap()
+        .stdout
+        .take()
+        .expect("piped stdout");
+    let mut stderr_pipe = child
+        .0
+        .as_mut()
+        .unwrap()
+        .stderr
+        .take()
+        .expect("piped stderr");
+    nonblocking(&stdout_pipe)?;
+    nonblocking(&stderr_pipe)?;
+    let start = Instant::now();
+    let mut stdout = Capture::default();
+    let mut stderr = Capture::default();
+    let mut timed_out = false;
+    let status = loop {
+        anyhow::ensure!(!termination_requested(), "execution cancelled");
+        stdout.drain(&mut stdout_pipe)?;
+        stderr.drain(&mut stderr_pipe)?;
+        if let Some(status) = child.0.as_mut().unwrap().try_wait()? {
+            child.0 = None;
+            break status;
+        }
+        if start.elapsed() >= timeout {
+            timed_out = true;
+            let owned = child.0.as_mut().unwrap();
+            owned.kill()?;
+            let status = owned.wait()?;
+            child.0 = None;
+            break status;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    };
     let cleanup = Instant::now();
     while !(stdout.eof && stderr.eof) && cleanup.elapsed() < Duration::from_millis(250) {
         stdout.drain(&mut stdout_pipe)?;
@@ -446,7 +537,23 @@ async fn main() -> anyhow::Result<()> {
 
     // Only the supported `sh -c <command>` route is accepted by the shim.
     let args: Vec<String> = std::env::args().collect();
-    if args.get(1).map(String::as_str) == Some("--tool-request") {
+    #[cfg(feature = "fixture-inherited-group")]
+    let inherited_fixture =
+        args.get(1).map(String::as_str) == Some("--fixture-inherited-tool-request");
+    #[cfg(not(feature = "fixture-inherited-group"))]
+    let inherited_fixture = false;
+    if args.get(1).map(String::as_str) == Some("--tool-request") || inherited_fixture {
+        #[cfg(feature = "fixture-inherited-group")]
+        if inherited_fixture {
+            let parent = unsafe { libc::getppid() };
+            anyhow::ensure!(
+                parent > 1
+                    && unsafe { libc::getpgrp() } == parent
+                    && unsafe { libc::getpgid(parent) } == parent,
+                "fixture requires direct live process-group leader parent"
+            );
+            FIXTURE_INHERITED_GROUP.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         install_termination_handlers()?;
         // Opt-in one-request local transport. JSON cannot supply execution authority.
         let response = (|| -> Result<tool_boundary::Response, tool_boundary::Response> {

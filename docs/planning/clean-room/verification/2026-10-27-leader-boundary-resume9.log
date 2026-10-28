@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running `target/debug/examples/leader_execution_boundary`
+CONFIRMED GAP: execution shell group survived outer leader stop
+PASS: inherited fixture shell stopped with leader

@@ -5,6 +5,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+fixture-inherited-group = []
+
 [dependencies]
 shared.workspace = true
 tokio.workspace = true
