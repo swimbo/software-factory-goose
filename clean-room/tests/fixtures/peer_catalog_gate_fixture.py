@@ -53,8 +53,13 @@ class Gate(http.server.BaseHTTPRequestHandler):
         data=json.dumps(body).encode();self.send_response(status);self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
     def do_POST(self):
         try:
-            if peer_uid(self.connection)!=self.server.expected_uid:
-                self.reply(403,{'error':'peer denied'});return
+            uid=peer_uid(self.connection)
+            if uid!=self.server.expected_uid:
+                self.server.denied_uid=uid
+                self.server.peer_denied.set()
+                try:self.reply(403,{'error':'peer denied'})
+                except (BrokenPipeError, ConnectionResetError):pass
+                return
             if self.path!='/infer':raise ValueError('route')
             length=int(self.headers.get('Content-Length','-1'))
             if not 0<length<=4096:raise ValueError('size')
@@ -103,6 +108,19 @@ def invoke(path,body,headers=None):
     finally:conn.close()
 
 
+def assert_wrong_peer_denied(path, body, server):
+    # A server may reject and close before http.client finishes sending the request body.
+    # Accept that transport outcome only when the server independently observed the actual
+    # peer UID and recorded the configured identity mismatch.
+    try:
+        status,_=invoke(path,body,{'X-Worker-Uid':str(server.expected_uid)})
+        assert status==403
+    except (BrokenPipeError, ConnectionResetError):
+        pass
+    assert server.peer_denied.wait(5), 'no kernel peer rejection observed'
+    assert server.denied_uid==os.geteuid() and server.denied_uid!=server.expected_uid
+
+
 def exercise(base, env, temp):
     queue=base+'/restate/call/WorkerQueueJournal/peer-catalog-queue'
     task='peer-catalog-task';spec={'repository':'fixture','base_revision':'a'*40}
@@ -130,6 +148,7 @@ def exercise(base, env, temp):
         for socket_path,uid in [(path,os.geteuid()),(wrong_path,os.geteuid()+1)]:
             server=UnixServer(socket_path,Gate);os.chmod(socket_path,0o600)
             server.expected_uid=uid;server.restate=base;server.provider=provider
+            server.peer_denied=threading.Event();server.denied_uid=None
             server.catalog={call:(task,spec,lease) for call in (CALL,STALE,REVOKED)}
             server.catalog[LATE]=(late_task,spec,late_lease)
             server.checked=threading.Event();server.resume=threading.Event()
@@ -138,7 +157,7 @@ def exercise(base, env, temp):
         for server in [upstream,*servers]:
             t=threading.Thread(target=server.serve_forever,daemon=True);t.start();threads.append((server,t))
         payload={'call_id':CALL,'payload':{'purpose':'synthetic'}}
-        assert invoke(wrong_path,payload,{'X-Worker-Uid':str(os.geteuid()+1)})[0]==403
+        assert_wrong_peer_denied(wrong_path,payload,servers[1])
         assert not upstream.calls
         for malformed in [{**payload,'task':task},{**payload,'uid':os.geteuid()},{**payload,'call_id':'forged'},{**payload,'payload':{'purpose':'synthetic','changed':True}}]:
             assert invoke(path,malformed)[0]==400

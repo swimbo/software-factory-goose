@@ -6,6 +6,7 @@ from trusted_inference_launcher_fixture import exercise as exercise_inference_la
 from inference_gate_fixture import exercise as exercise_inference_gate
 from peer_catalog_gate_fixture import exercise as exercise_peer_catalog_gate
 from atomic_inference_fixture import exercise as exercise_atomic_inference, verify as verify_atomic_inference
+from atomic_peer_launcher_fixture import exercise as exercise_atomic_peer, verify as verify_atomic_peer
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SERVER = '/Users/bo/.local/opt/node/bin/restate-server'
@@ -182,6 +183,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert count=='3',count
             exercise_peer_catalog_gate(base,env,tmp)
             atomic_checkpoint=exercise_atomic_inference(base)
+            atomic_peer_checkpoint=exercise_atomic_peer(base,env,tmp)
             second={'work_package_id':'fixture-task-2','spec':task['spec']}
             assert post(queue+'/schedule',second)[0]==200
             lost={'request_id':'01ARZ3NDEKTSV4RRFFQ69G5FAY','ttl_ms':300000}
@@ -229,6 +231,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
             verify_inference_launcher(base,launcher_ids)
             verify_atomic_inference(base,atomic_checkpoint)
+            verify_atomic_peer(base,atomic_peer_checkpoint)
             status,result=post(base+f'/restate/call/ApprovalJournal/{nonce}/consume',presentation)
             assert status==409,(status,result)
             verify_promotion_decision(ingress, env, tmp+'/promotion-decision.json', 'exercise')
@@ -244,6 +247,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
             verify_inference_launcher(base,launcher_ids)
             verify_atomic_inference(base,atomic_checkpoint)
+            verify_atomic_peer(base,atomic_peer_checkpoint)
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',pending_request)==(200,'Reserved')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==200
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==409

@@ -31,3 +31,7 @@ required-features = ["fixture"]
 [[example]]
 name = "broker_capture_fixture"
 required-features = ["fixture"]
+
+[[example]]
+name = "trusted_release_fixture"
+required-features = ["fixture"]

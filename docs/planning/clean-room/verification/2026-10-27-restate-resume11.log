@@ -1,0 +1,25 @@
+PASS: fixture launcher sends at most once across concurrent, lost-ack and process-death controls
+PASS: sandbox fixture denies direct provider/Restate access; catalog-bound gate sends once despite forgery and concurrent retries
+CONFIRMED LIMITATION: revocation after final status read can still reach synthetic provider
+PASS: real Unix peer UID and claim-bound fixture catalog deny spoofing, wrong peer and stale task; one concurrent provider send
+PASS: same-object revocation/begin ordering, bindings, budget and lost acknowledgement
+Traceback (most recent call last):
+  File "/Users/bo/code/software-factory-goose/clean-room/tests/fixtures/restate_replay.py", line 186, in <module>
+    atomic_peer_checkpoint=exercise_atomic_peer(base,env,tmp)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bo/code/software-factory-goose/clean-room/tests/fixtures/atomic_peer_launcher_fixture.py", line 87, in exercise
+    assert invoke(wrong_path,body(RACE),{'X-Worker-Uid':str(os.geteuid()+1)})[0]==403
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bo/code/software-factory-goose/clean-room/tests/fixtures/peer_catalog_gate_fixture.py", line 101, in invoke
+    conn.request('POST','/infer',json.dumps(body).encode(),{'Content-Type':'application/json',**(headers or {})})
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/client.py", line 1286, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/client.py", line 1332, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/client.py", line 1281, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/client.py", line 1080, in _send_output
+    self.send(chunk)
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/http/client.py", line 1002, in send
+    self.sock.sendall(data)
+BrokenPipeError: [Errno 32] Broken pipe

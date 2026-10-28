@@ -3,6 +3,8 @@
 //! Only children spawned by this registry can be targeted; no PID registration API exists.
 pub mod broker;
 #[cfg(feature = "fixture")]
+pub mod guarded_release;
+#[cfg(feature = "fixture")]
 pub mod recovery_latch;
 use anyhow::{Context, Result, ensure};
 use axum::{

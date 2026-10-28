@@ -1,5 +1,7 @@
 # Inherited-group trusted result-release fixture
 
+The example was subsequently refactored to use the [reusable guarded-release fixture](2026-10-27-reusable-guarded-release.md); its current invocation requires `--features fixture`.
+
 This disposable fixture connects the real feature-gated `execution --fixture-inherited-tool-request` to an owned live group leader. The leader captures the execution JSON through a bounded pipe and sends it to a separate launcher as a length-prefixed frame. The launcher bounds the frame, checks it still owns a live leader in the expected group, successfully signals that group, reaps the leader, and observes group absence before returning the bytes to its caller. A deadline while waiting for group absence returns an unresolved error; no nonzero signal is sent after reaping.
 
 The initial test failed with no guard implementation. An intermediate implementation correctly refused because group absence was not yet observable immediately after reap; the final version waits up to two seconds using observation only. `cargo build -p execution --features fixture-inherited-group --locked --offline`, strict example Clippy, and `cargo run -p watchdog --example trusted_release_fixture --locked --offline` passed. The fixture verified:
