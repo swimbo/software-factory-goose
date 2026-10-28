@@ -1,0 +1,3 @@
+    Checking control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Checking watchdog v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/watchdog)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.30s

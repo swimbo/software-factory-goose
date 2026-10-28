@@ -1,0 +1,11 @@
+# Disposable live group leader spike
+
+The execution supervisor's short-lived leader can become a zombie before group signaling; the macOS `EPERM` result cannot safely be ignored. This isolated experiment keeps a trusted, directly owned group leader alive after its direct command exits. The leader waits for the command, reports the exact exit status on a private output pipe, then waits on a control pipe. The parent checks the leader remains its unreaped child and in its own process group before signaling that group, checks the signal result, and reaps the leader once.
+
+Run from `clean-room` with `cargo run -p watchdog --example live_leader_spike --locked --offline`. The example passed twice; strict example Clippy passed. It used temporary owned files and fixed synthetic processes only:
+
+- A normal shell exits 7 and attempts to forge a different status on its own stdout; the dedicated leader channel reports 7. An in-group descendant produces a delayed marker if no stop is sent.
+- With the leader still live, an injected `EPERM` is rejected without reaping the leader; a subsequent real group signal succeeds, the leader is reaped with SIGKILL, and the descendant's marker stays absent.
+- A premature leader exit after reporting status is detected through non-reaping child observation. No group signal is sent using the dead leader; its finite descendant produces the delayed marker, demonstrating that exit status alone is not a stop proof.
+
+This is a candidate lifecycle pattern, not integrated execution or a production containment decision. Target stdout was intentionally discarded, so actual output capture, bounded control framing, launch deadlines, command cancellation, status authentication against a hostile same-UID process, and complete pipe handling remain to be designed and tested. The `EPERM` was injected rather than produced by a real permission boundary. A target that changes session/group can escape, and a hostile same-UID process may kill or impersonate a leader. There is still a race between observing a live leader and the kernel signal; failure must remain unresolved. Supervisor or guardian death, distinct-UID authority, independently observable teardown, and recovery after a lost acknowledgement are unproved. No production worker, account, service, VM, or existing process was touched.

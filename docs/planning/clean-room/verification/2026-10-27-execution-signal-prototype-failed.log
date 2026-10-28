@@ -1,0 +1,87 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling execution v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/execution)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.50s
+     Running unittests src/main.rs (target/debug/deps/execution-fef77f6b7bf92aa0)
+
+running 39 tests
+test policy::tests::denies_piped_to_shell ... ok
+test policy::tests::denies_blocked_binary ... ok
+test policy::tests::allows_normal_commands ... ok
+test policy::tests::catches_chained_command ... ok
+test policy::tests::allows_write_inside_worktree ... ok
+test policy::tests::denies_root_removal ... ok
+test policy::tests::denies_write_outside_worktree ... ok
+test policy::tests::empty_write_allowlist_denies_relative_targets ... ok
+test policy::tests::quote_aware_split ... ok
+test policy::tests::denies_traversal_substitution_and_background_bypass ... ok
+test tool_boundary::tests::request_bounds_and_invalid_shapes_fail_closed ... ok
+test policy::tests::denies_quoted_and_redirection_adjacent_executable_bypasses ... ok
+test tool_boundary::tests::timeout_and_limit_withhold_partial_successful_output ... FAILED
+test tool_output::tests::incomplete_cancelled_and_truncated_never_release_partial_content ... ok
+test tool_output::tests::invalid_limits_are_rejected ... ok
+test tool_output::tests::invalid_or_unfinished_utf8_never_becomes_lossy_text ... ok
+test tool_boundary::tests::trusted_cwd_controls_policy_and_execution_without_global_chdir ... FAILED
+test tool_output::tests::single_oversize_chunk_is_rejected_without_retaining_it ... ok
+test tool_boundary::tests::partial_request_without_eof_cannot_hold_boundary_open ... ok
+test tool_output::tests::unsupported_content_poisons_preceding_and_subsequent_text ... ok
+test worker_tests::accepts_positive_upstream_json_with_known_cost ... ok
+test tool_output::tests::exact_cap_succeeds_but_one_extra_byte_permanently_fails ... ok
+test tool_output::tests::split_utf8_and_empty_chunks_are_reassembled_without_loss ... ok
+test tool_output::tests::redaction_expansion_cannot_exceed_release_limit ... ok
+test mask::tests::leaves_benign_output_unchanged ... ok
+test mask::tests::masks_email_and_ipv4 ... ok
+test worker_tests::explicit_goose_binary_is_not_replaced_with_path_lookup ... ok
+test mask::tests::masks_aws_key_and_home_path ... ok
+test mask::tests::masks_pem_block ... ok
+test worker_tests::live_run_cannot_be_enabled_by_environment_flags ... ok
+test worker_tests::rejects_missing_malformed_and_negative_completion ... ok
+test tool_output::tests::every_secret_split_is_masked_after_complete_assembly ... ok
+test worker_tests::failed_group_signal_retains_child_for_retry ... ok
+test mask::tests::masks_provider_keys ... ok
+test worker_tests::normal_exit_keeps_pid_unreaped_until_single_group_cleanup ... FAILED
+test worker_tests::zero_exit_with_garbage_is_failed_receipt ... FAILED
+test worker_tests::exited_parent_does_not_leave_grandchild_holding_pipes ... ok
+test worker_tests::timeout_kills_group_and_returns_promptly ... ok
+test worker_tests::drains_both_pipes_past_capture_limit_without_deadlock ... FAILED
+
+failures:
+
+---- tool_boundary::tests::timeout_and_limit_withhold_partial_successful_output stdout ----
+
+thread 'tool_boundary::tests::timeout_and_limit_withhold_partial_successful_output' (29197045) panicked at crates/execution/src/tool_boundary.rs:268:9:
+assertion `left == right` failed
+  left: Refused { reason: "execution_unavailable" }
+ right: Refused { reason: "output_withheld" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tool_boundary::tests::trusted_cwd_controls_policy_and_execution_without_global_chdir stdout ----
+
+thread 'tool_boundary::tests::trusted_cwd_controls_policy_and_execution_without_global_chdir' (29197046) panicked at crates/execution/src/tool_boundary.rs:250:9:
+assertion failed: matches!(boundary.execute(request), Response::Executed { exit_code: 0, .. })
+
+---- worker_tests::normal_exit_keeps_pid_unreaped_until_single_group_cleanup stdout ----
+
+thread 'worker_tests::normal_exit_keeps_pid_unreaped_until_single_group_cleanup' (29197071) panicked at crates/execution/src/worker_tests.rs:117:41:
+called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- worker_tests::zero_exit_with_garbage_is_failed_receipt stdout ----
+
+thread 'worker_tests::zero_exit_with_garbage_is_failed_receipt' (29197076) panicked at crates/execution/src/worker_tests.rs:20:38:
+called `Result::unwrap()` on an `Err` value: Operation not permitted (os error 1)
+
+---- worker_tests::drains_both_pipes_past_capture_limit_without_deadlock stdout ----
+
+thread 'worker_tests::drains_both_pipes_past_capture_limit_without_deadlock' (29197064) panicked at crates/execution/src/worker_tests.rs:20:38:
+called `Result::unwrap()` on an `Err` value: Operation not permitted (os error 1)
+
+
+failures:
+    tool_boundary::tests::timeout_and_limit_withhold_partial_successful_output
+    tool_boundary::tests::trusted_cwd_controls_policy_and_execution_without_global_chdir
+    worker_tests::drains_both_pipes_past_capture_limit_without_deadlock
+    worker_tests::normal_exit_keeps_pid_unreaped_until_single_group_cleanup
+    worker_tests::zero_exit_with_garbage_is_failed_receipt
+
+test result: FAILED. 34 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `-p execution --bin execution`

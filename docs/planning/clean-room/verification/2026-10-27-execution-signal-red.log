@@ -1,0 +1,20 @@
+   Compiling execution v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/execution)
+error[E0599]: no method named `cleanup_with` found for struct `ProcessGroup` in the current scope
+   --> crates/execution/src/worker_tests.rs:8:23
+    |
+  8 |     let error = group.cleanup_with(|_| Err(std::io::Error::from_raw_os_error(libc::EPERM)));
+    |                       ^^^^^^^^^^^^
+    |
+   ::: crates/execution/src/main.rs:122:1
+    |
+122 | struct ProcessGroup(Option<std::process::Child>);
+    | ------------------- method `cleanup_with` not found for this struct
+    |
+help: there is a method `cleanup_and_wait` with a similar name, but with different arguments
+   --> crates/execution/src/main.rs:150:5
+    |
+150 |     fn cleanup_and_wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `execution` (bin "execution" test) due to 1 previous error

@@ -1,0 +1,27 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.34s
+     Running unittests src/lib.rs (target/debug/deps/control_plane-8f77437b9bfd1202)
+
+running 6 tests
+test driver::tests::topological_order_respects_blockers ... ok
+test driver::tests::cycle_is_rejected ... ok
+test driver::tests::completion_unblocks_dependent ... ok
+test driver::tests::completing_unknown_task_errors ... ok
+test driver::tests::only_unblocked_tasks_dispatch ... ok
+test driver::tests::ambiguous_or_invalid_graphs_cannot_dispatch_or_complete ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 180 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/control_plane-67c18ff560ecc378)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/promotion_eligibility.rs (target/debug/deps/promotion_eligibility-b350af5ba8b9f0de)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+

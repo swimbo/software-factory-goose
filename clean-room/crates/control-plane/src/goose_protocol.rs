@@ -2,9 +2,86 @@
 
 use serde_json::Value;
 
+/// Parse a bounded raw request while rejecting duplicate object keys at every nesting level.
+/// This remains an experimental shape check, not caller authentication or spend authority.
+pub fn validate_goose_fixture_bytes(
+    raw: &[u8],
+    model: &str,
+    trusted_tool: &Value,
+    max_tokens: u64,
+    max_bytes: usize,
+) -> anyhow::Result<Value> {
+    anyhow::ensure!(
+        (1..=1_048_576).contains(&max_bytes) && raw.len() <= max_bytes,
+        "request exceeds limit"
+    );
+    let parsed: UniqueJson =
+        serde_json::from_slice(raw).map_err(|_| anyhow::anyhow!("invalid or ambiguous JSON"))?;
+    validate_goose_fixture_request(&parsed.0, model, trusted_tool, max_tokens, max_bytes)?;
+    Ok(parsed.0)
+}
+
+struct UniqueJson(Value);
+impl<'de> serde::Deserialize<'de> for UniqueJson {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::{Error, MapAccess, SeqAccess, Visitor};
+        struct UniqueVisitor;
+        impl<'de> Visitor<'de> for UniqueVisitor {
+            type Value = UniqueJson;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("unambiguous JSON")
+            }
+            fn visit_bool<E: Error>(self, v: bool) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::Bool(v)))
+            }
+            fn visit_i64<E: Error>(self, v: i64) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::from(v)))
+            }
+            fn visit_u64<E: Error>(self, v: u64) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::from(v)))
+            }
+            fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
+                serde_json::Number::from_f64(v)
+                    .map(|n| UniqueJson(Value::Number(n)))
+                    .ok_or_else(|| E::custom("invalid number"))
+            }
+            fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::String(v.into())))
+            }
+            fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::String(v)))
+            }
+            fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::Null))
+            }
+            fn visit_none<E: Error>(self) -> Result<Self::Value, E> {
+                Ok(UniqueJson(Value::Null))
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut out = Vec::new();
+                while let Some(item) = seq.next_element::<UniqueJson>()? {
+                    out.push(item.0);
+                }
+                Ok(UniqueJson(Value::Array(out)))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut out = serde_json::Map::new();
+                while let Some((key, value)) = map.next_entry::<String, UniqueJson>()? {
+                    if out.contains_key(&key) {
+                        return Err(A::Error::custom("duplicate object key"));
+                    }
+                    out.insert(key, value.0);
+                }
+                Ok(UniqueJson(Value::Object(out)))
+            }
+        }
+        deserializer.deserialize_any(UniqueVisitor)
+    }
+}
+
 /// Check the exact two-turn tool exchange observed in the local Goose fixture. Configuration
 /// must be trusted: this function neither authenticates a client nor reserves inference spend.
-/// The caller must bound and duplicate-check raw JSON before parsing, and must independently
+/// Callers with raw JSON should use `validate_goose_fixture_bytes`; callers must independently
 /// bind tool results to earlier provider responses. This is not wired to a live gateway.
 pub fn validate_goose_fixture_request(
     value: &Value,
@@ -102,13 +179,13 @@ pub fn validate_goose_fixture_request(
                 && function.get("name").and_then(Value::as_str) == Some("factory__shell"),
             "invalid call binding"
         );
-        let arguments: Value = serde_json::from_str(
+        let arguments: UniqueJson = serde_json::from_str(
             function
                 .get("arguments")
                 .and_then(Value::as_str)
                 .ok_or_else(|| anyhow::anyhow!("missing arguments"))?,
         )?;
-        ensure!(arguments.is_object(), "invalid tool arguments");
+        ensure!(arguments.0.is_object(), "invalid tool arguments");
         let result = messages[3]
             .as_object()
             .ok_or_else(|| anyhow::anyhow!("invalid result"))?;
@@ -191,5 +268,43 @@ mod tests {
             }
             assert!(!validate(&req));
         }
+    }
+
+    #[test]
+    fn bounded_raw_json_rejects_duplicate_keys_at_all_object_depths() {
+        let raw = serde_json::to_string(&request()).unwrap();
+        assert!(
+            validate_goose_fixture_bytes(raw.as_bytes(), "fixture-model", &tool(), 100, 8192)
+                .is_ok()
+        );
+        for text in [
+            raw.replace(
+                "\"model\":\"fixture-model\"",
+                "\"model\":\"fixture-model\",\"model\":\"fixture-model\"",
+            ),
+            raw.replace(
+                "\"role\":\"system\"",
+                "\"role\":\"system\",\"role\":\"system\"",
+            ),
+            raw.replace(
+                "\"include_usage\":true",
+                "\"include_usage\":true,\"include_usage\":true",
+            ),
+            format!("{raw}null"),
+        ] {
+            assert_ne!(text, raw);
+            assert!(
+                validate_goose_fixture_bytes(text.as_bytes(), "fixture-model", &tool(), 100, 8192)
+                    .is_err()
+            );
+        }
+        assert!(
+            validate_goose_fixture_bytes(raw.as_bytes(), "fixture-model", &tool(), 100, 8).is_err()
+        );
+        let mut embedded = exchange();
+        embedded["messages"][2]["tool_calls"][0]["function"]["arguments"] =
+            json!("{\"command\":\"one\",\"command\":\"two\"}");
+        let bytes = serde_json::to_vec(&embedded).unwrap();
+        assert!(validate_goose_fixture_bytes(&bytes, "fixture-model", &tool(), 100, 8192).is_err());
     }
 }

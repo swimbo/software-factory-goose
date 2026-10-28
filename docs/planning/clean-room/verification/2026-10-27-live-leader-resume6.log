@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running `target/debug/examples/live_leader_spike`
+PASS: normal status, descendant suppression, EPERM retention, and premature-owner negative control

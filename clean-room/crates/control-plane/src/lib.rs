@@ -24,6 +24,11 @@ pub mod approval_workflow;
 pub mod operator_transport;
 pub mod promotion_eligibility;
 
+#[cfg(feature = "restate")]
+pub mod idempotent_budget;
+#[cfg(feature = "restate")]
+pub mod inference_authority;
+
 pub mod intake;
 #[cfg(all(feature = "restate", unix))]
 pub mod intake_adapter;

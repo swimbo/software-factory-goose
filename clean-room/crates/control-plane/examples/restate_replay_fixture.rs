@@ -49,6 +49,8 @@ async fn main() -> anyhow::Result<()> {
     }
     let mut builder = Endpoint::builder()
         .bind(control_plane::workflow::BudgetCounter)
+        .bind(control_plane::idempotent_budget::IdempotentBudgetCounter)
+        .bind(control_plane::inference_authority::InferenceAuthority)
         .bind(
             control_plane::intake_workflow::IntakeJournal::new_for_private_ingress(
                 "fixture-submitter".into(),

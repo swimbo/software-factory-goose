@@ -10,11 +10,15 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Eq)]
 pub enum DriverError {
     Cycle,
+    DuplicateTask(String),
     UnknownTask(String),
 }
 
 /// Tasks that are pending and whose blockers are all completed — ready to dispatch.
 pub fn dispatchable(tasks: &[Task]) -> Vec<&Task> {
+    if dispatch_order(tasks).is_err() {
+        return Vec::new();
+    }
     tasks.iter().filter(|t| t.is_dispatchable(tasks)).collect()
 }
 
@@ -43,7 +47,12 @@ pub fn dispatch_order(tasks: &[Task]) -> Result<Vec<String>, DriverError> {
         Ok(())
     }
 
-    let index: HashMap<String, &Task> = tasks.iter().map(|t| (t.id.clone(), t)).collect();
+    let mut index: HashMap<String, &Task> = HashMap::new();
+    for task in tasks {
+        if index.insert(task.id.clone(), task).is_some() {
+            return Err(DriverError::DuplicateTask(task.id.clone()));
+        }
+    }
     let mut state: HashMap<String, u8> = HashMap::new();
     let mut order = Vec::new();
     for t in tasks {
@@ -54,6 +63,7 @@ pub fn dispatch_order(tasks: &[Task]) -> Result<Vec<String>, DriverError> {
 
 /// Mark a task completed and remove it from every dependent's `blocked_by`.
 pub fn complete(tasks: &mut [Task], id: &str) -> Result<(), DriverError> {
+    dispatch_order(tasks)?;
     if !tasks.iter().any(|t| t.id == id) {
         return Err(DriverError::UnknownTask(id.to_string()));
     }
@@ -87,6 +97,21 @@ mod tests {
     fn cycle_is_rejected() {
         let tasks = vec![task("a", &["b"]), task("b", &["a"])];
         assert_eq!(dispatch_order(&tasks), Err(DriverError::Cycle));
+    }
+
+    #[test]
+    fn ambiguous_or_invalid_graphs_cannot_dispatch_or_complete() {
+        for mut tasks in [
+            vec![task("same", &[]), task("same", &[])],
+            vec![task("ready", &[]), task("dependent", &["missing"])],
+            vec![task("ready", &[]), task("a", &["b"]), task("b", &["a"])],
+        ] {
+            assert!(dispatch_order(&tasks).is_err());
+            assert!(dispatchable(&tasks).is_empty());
+            let before = format!("{tasks:?}");
+            assert!(complete(&mut tasks, "ready").is_err());
+            assert_eq!(format!("{tasks:?}"), before);
+        }
     }
 
     #[test]

@@ -43,9 +43,9 @@ impl SyntheticGateway {
     async fn invoke(
         &self,
         backend: &impl FixtureBackend,
-        request: &Value,
+        request: &[u8],
     ) -> Result<Vec<u8>, &'static str> {
-        crate::goose_protocol::validate_goose_fixture_request(
+        let parsed = crate::goose_protocol::validate_goose_fixture_bytes(
             request,
             &self.model,
             &self.tool,
@@ -61,7 +61,7 @@ impl SyntheticGateway {
             return Err("reservation denied");
         }
         let response = backend
-            .call_provider(request)
+            .call_provider(&parsed)
             .await
             .map_err(|_| "provider unavailable")?;
         if response.len() > self.max_response {
@@ -112,8 +112,8 @@ mod tests {
     fn tool() -> Value {
         json!({"type":"function","function":{"name":"factory__shell","parameters":{}}})
     }
-    fn request() -> Value {
-        json!({"model":"fixture","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"tools":[tool()],"max_tokens":100,"stream":true,"stream_options":{"include_usage":true}})
+    fn request() -> Vec<u8> {
+        serde_json::to_vec(&json!({"model":"fixture","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"tools":[tool()],"max_tokens":100,"stream":true,"stream_options":{"include_usage":true}})).unwrap()
     }
     fn gateway() -> SyntheticGateway {
         SyntheticGateway::new("fixture", tool(), 100, 8192, 1200, 64).unwrap()
@@ -131,9 +131,24 @@ mod tests {
     #[tokio::test]
     async fn invalid_request_and_denied_reservation_never_call_provider() {
         let backend = Fake::new(true, Some(vec![]));
-        let mut bad = request();
+        let mut bad: Value = serde_json::from_slice(&request()).unwrap();
         bad["extra"] = json!(true);
-        assert!(gateway().invoke(&backend, &bad).await.is_err());
+        assert!(
+            gateway()
+                .invoke(&backend, &serde_json::to_vec(&bad).unwrap())
+                .await
+                .is_err()
+        );
+        let duplicate = String::from_utf8(request()).unwrap().replace(
+            "\"model\":\"fixture\"",
+            "\"model\":\"fixture\",\"model\":\"fixture\"",
+        );
+        assert!(
+            gateway()
+                .invoke(&backend, duplicate.as_bytes())
+                .await
+                .is_err()
+        );
         assert_eq!(backend.reserve_calls.load(Ordering::SeqCst), 0);
         assert_eq!(backend.provider_calls.load(Ordering::SeqCst), 0);
         let backend = Fake::new(false, Some(vec![]));

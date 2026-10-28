@@ -81,3 +81,89 @@ fn guardian_stops_its_owned_group_after_controller_death() {
     );
     assert!(pair.guardian.wait().unwrap().success());
 }
+
+#[test]
+fn leaked_writer_cannot_postpone_guardian_cleanup_indefinitely() {
+    use std::os::{fd::OwnedFd, unix::net::UnixStream};
+    let (reader, writer) = UnixStream::pair().unwrap();
+    let leaked_writer = writer.try_clone().unwrap();
+    let controller = Command::new("/bin/sleep")
+        .arg("30")
+        .stdout(Stdio::from(OwnedFd::from(writer)))
+        .spawn()
+        .unwrap();
+    let mut guardian = Command::new(env!("CARGO_BIN_EXE_sf-watchdog-fixture"))
+        .arg("--fixture-controller-loss")
+        .stdin(Stdio::from(OwnedFd::from(reader)))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let output = guardian.stdout.take().unwrap();
+    let mut pair = OwnedPair {
+        controller,
+        guardian,
+    };
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(output).lines() {
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap(),
+        "READY"
+    );
+    pair.controller.kill().unwrap();
+    pair.controller.wait().unwrap();
+    // This test-owned duplicate keeps EOF suppressed even after controller death.
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(6)).unwrap().unwrap(),
+        "TIMEOUT_STOPPED"
+    );
+    assert!(!pair.guardian.wait().unwrap().success());
+    drop(leaked_writer);
+}
+
+#[test]
+fn data_on_controller_pipe_never_claims_controller_death() {
+    use std::{
+        io::Write,
+        os::{fd::OwnedFd, unix::net::UnixStream},
+    };
+    let (reader, mut writer) = UnixStream::pair().unwrap();
+    let controller = Command::new("/bin/sleep").arg("30").spawn().unwrap();
+    let mut guardian = Command::new(env!("CARGO_BIN_EXE_sf-watchdog-fixture"))
+        .arg("--fixture-controller-loss")
+        .stdin(Stdio::from(OwnedFd::from(reader)))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let output = guardian.stdout.take().unwrap();
+    let mut pair = OwnedPair {
+        controller,
+        guardian,
+    };
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(output).lines() {
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap(),
+        "READY"
+    );
+    writer.write_all(&[1]).unwrap();
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap(),
+        "INVALID_STOPPED"
+    );
+    assert!(!pair.guardian.wait().unwrap().success());
+    assert!(pair.controller.try_wait().unwrap().is_none());
+}

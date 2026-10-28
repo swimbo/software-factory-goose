@@ -198,6 +198,18 @@ fn validate_distinct(service_uid: u32, config: &OperatorSocketConfig) -> Result<
 // Commands only inspect fixed OS identity tools. Both output and runtime are bounded;
 // no user-supplied executable, shell command, environment, or argument option is used.
 fn identity_command(binary: &str, arguments: &[&str]) -> Result<String> {
+    // A reaped/reused numeric PID must never be targeted by cleanup. Refuse inherited
+    // auto-reaping before launch; changing SIGCHLD concurrently remains unsupported.
+    let mut action = std::mem::MaybeUninit::<libc::sigaction>::uninit();
+    // SAFETY: read-only query writes a complete sigaction on success.
+    if unsafe { libc::sigaction(libc::SIGCHLD, std::ptr::null(), action.as_mut_ptr()) } != 0 {
+        bail!("cannot inspect child-reaping policy");
+    }
+    let action = unsafe { action.assume_init() };
+    ensure!(
+        action.sa_sigaction == libc::SIG_DFL && action.sa_flags & libc::SA_NOCLDWAIT == 0,
+        "unsupported child-reaping policy"
+    );
     let mut child = Command::new(binary)
         .args(arguments)
         .env_clear()
@@ -205,34 +217,68 @@ fn identity_command(binary: &str, arguments: &[&str]) -> Result<String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
-    let stdout = child
+    let mut stdout = child
         .stdout
         .take()
         .context("identity output pipe missing")?;
-    let reader = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stdout.take(16_385).read_to_end(&mut bytes).map(|_| bytes)
-    });
+    use std::os::fd::AsRawFd;
+    // SAFETY: the pipe is owned and remains live until the end of this function.
+    let flags = unsafe { libc::fcntl(stdout.as_raw_fd(), libc::F_GETFL) };
+    if flags < 0
+        || unsafe { libc::fcntl(stdout.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0
+    {
+        let _ = child.kill();
+        let _ = child.wait();
+        bail!("identity output setup failed");
+    }
     let start = Instant::now();
-    let status = loop {
-        if let Some(status) = child.try_wait()? {
-            break status;
+    let mut bytes = Vec::new();
+    let mut status = None;
+    let mut eof = false;
+    let result = loop {
+        if start.elapsed() >= Duration::from_secs(3) {
+            break Err(anyhow::anyhow!("local identity lookup timed out"));
         }
-        if start.elapsed() > Duration::from_secs(3) {
-            let _ = child.kill();
-            let _ = child.wait();
-            bail!("local identity lookup timed out");
+        let mut block = [0u8; 4096];
+        match stdout.read(&mut block) {
+            Ok(0) => eof = true,
+            Ok(n) => {
+                if n > 16_384usize.saturating_sub(bytes.len()) {
+                    break Err(anyhow::anyhow!("identity output limit exceeded"));
+                }
+                bytes.extend_from_slice(&block[..n]);
+            }
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::Interrupted
+                ) => {}
+            Err(_) => break Err(anyhow::anyhow!("identity output unavailable")),
+        }
+        if status.is_none() {
+            match child.try_wait() {
+                Ok(s) => status = s,
+                Err(_) => break Err(anyhow::anyhow!("identity lookup wait failed")),
+            }
+        }
+        if eof && let Some(exit) = status {
+            if !exit.success() {
+                break Err(anyhow::anyhow!("local identity lookup failed"));
+            }
+            break String::from_utf8(bytes)
+                .map(|s| s.trim().to_owned())
+                .map_err(|_| anyhow::anyhow!("invalid identity output"));
         }
         std::thread::sleep(Duration::from_millis(10));
     };
-    let bytes = reader
-        .join()
-        .map_err(|_| anyhow::anyhow!("identity reader failed"))??;
-    ensure!(
-        status.success() && bytes.len() <= 16_384,
-        "local identity lookup failed or exceeded output limit"
-    );
-    Ok(String::from_utf8(bytes)?.trim().to_owned())
+    if status.is_none() {
+        // Only the still-owned direct child is killed; an already reaped child is never signaled.
+        if matches!(child.try_wait(), Ok(None)) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+    result
 }
 fn groups(uid: Option<u32>) -> Result<BTreeSet<u32>> {
     let text = if let Some(uid) = uid {
@@ -454,6 +500,31 @@ fn bind_checked(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn identity_lookup_refuses_inherited_auto_reaping_before_spawn() {
+        const MARKER: &str = "SFACTORY_TEST_IDENTITY_AUTO_REAP";
+        if std::env::var_os(MARKER).is_some() {
+            // This is an isolated test process; the parent test runner's SIGCHLD stays intact.
+            unsafe { libc::signal(libc::SIGCHLD, libc::SIG_IGN) };
+            assert!(super::identity_command("/usr/bin/true", &[]).is_err());
+            return;
+        }
+        let child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "operator_transport::tests::identity_lookup_refuses_inherited_auto_reaping_before_spawn"])
+            .env(MARKER, "1").output().unwrap();
+        assert!(child.status.success());
+    }
+
+    #[test]
+    fn identity_lookup_times_out_when_exited_child_leaves_pipe_open() {
+        let started = std::time::Instant::now();
+        let result = super::identity_command("/bin/sh", &["-c", "/bin/sleep 5 & printf fixture"]);
+        assert!(
+            result.is_err(),
+            "lookup returned success despite retained output pipe"
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(4));
+    }
     use super::*;
     use axum::{Extension, Json, Router, middleware, routing::post};
     use serde_json::{Value, json};

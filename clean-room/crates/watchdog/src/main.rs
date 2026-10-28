@@ -45,10 +45,16 @@ fn main() -> Result<()> {
                 stopped.leader_reaped && stopped.group_absent,
                 "fixture group stop unresolved"
             );
-            ensure!(
-                matches!(input, Ok(Ok(0))),
-                "controller pipe did not close cleanly"
-            );
+            if matches!(input, Err(std::sync::mpsc::RecvTimeoutError::Timeout)) {
+                println!("TIMEOUT_STOPPED");
+                std::io::stdout().flush()?;
+                anyhow::bail!("controller pipe deadline expired; EOF unverified");
+            }
+            if !matches!(input, Ok(Ok(0))) {
+                println!("INVALID_STOPPED");
+                std::io::stdout().flush()?;
+                anyhow::bail!("controller pipe produced data or failed; EOF unverified");
+            }
             println!("STOPPED");
             Ok(())
         }
