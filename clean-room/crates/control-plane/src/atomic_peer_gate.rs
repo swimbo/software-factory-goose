@@ -4,9 +4,13 @@ use crate::{
     worker_adapter::{AdapterError, UnixRestateBackend},
 };
 use axum::{
-    Extension, Json, Router,
-    extract::{ConnectInfo, DefaultBodyLimit, State, connect_info::Connected},
+    Json, Router,
+    extract::{
+        ConnectInfo, DefaultBodyLimit, Request as HttpRequest, State, connect_info::Connected,
+    },
     http::StatusCode,
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::post,
     serve::IncomingStream,
 };
@@ -52,6 +56,13 @@ impl Policy {
             !worker_id.is_empty() && !entries.is_empty() && entries.len() <= 64,
             "invalid catalog scope"
         );
+        let first = &entries[0];
+        anyhow::ensure!(
+            first.call.attempt > 0
+                && ulid::Ulid::from_string(&first.call.token)
+                    .is_ok_and(|id| id.to_string() == first.call.token),
+            "invalid lease scope"
+        );
         let mut ids = std::collections::HashSet::new();
         for e in &entries {
             anyhow::ensure!(
@@ -61,6 +72,9 @@ impl Policy {
                         .bytes()
                         .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
                     && e.call.worker_id == worker_id
+                    && e.task == first.task
+                    && e.call.token == first.call.token
+                    && e.call.attempt == first.call.attempt
                     && e.payload.len() <= 65_536
                     && format!("{:x}", Sha256::digest(&e.payload)) == e.call.request_digest
                     && ulid::Ulid::from_string(&e.call.call_id)
@@ -164,23 +178,35 @@ fn scoped_router<A: Authority, P: Provider>(
     authority: Arc<A>,
     provider: Arc<P>,
 ) -> Router {
+    let worker_uid = policy.worker_uid;
     Router::new()
         .route("/infer", post(infer::<A, P>))
         .layer(DefaultBodyLimit::max(4096))
+        .layer(middleware::from_fn_with_state(
+            worker_uid,
+            authenticate_peer,
+        ))
         .with_state(GateState {
             policy,
             authority,
             provider,
         })
 }
+async fn authenticate_peer(State(uid): State<u32>, request: HttpRequest, next: Next) -> Response {
+    if request
+        .extensions()
+        .get::<ConnectInfo<Peer>>()
+        .and_then(|peer| peer.0.uid)
+        != Some(uid)
+    {
+        return AdapterError::new(403, "worker peer denied").into_response();
+    }
+    next.run(request).await
+}
 async fn infer<A: Authority, P: Provider>(
     State(state): State<GateState<A, P>>,
-    peer: Option<Extension<ConnectInfo<Peer>>>,
     Json(request): Json<Request>,
 ) -> Result<StatusCode, AdapterError> {
-    if peer.and_then(|Extension(ConnectInfo(p))| p.uid) != Some(state.policy.worker_uid) {
-        return Err(AdapterError::new(403, "worker peer denied"));
-    }
     let entry = state
         .policy
         .entries
@@ -247,6 +273,22 @@ mod tests {
                 .insert(ConnectInfo(Peer { uid: Some(uid) }));
         }
         req
+    }
+
+    #[test]
+    fn policy_cannot_mix_tasks_or_lease_generations() {
+        let first = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW");
+        let next = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAX");
+        assert!(Policy::new(7, 8, "fixture-worker", vec![first.clone(), next.clone()]).is_ok());
+        let mut other_task = next.clone();
+        other_task.task = "other-task".into();
+        let mut other_token = next.clone();
+        other_token.call.token = "01ARZ3NDEKTSV4RRFFQ69G5FAY".into();
+        let mut other_attempt = next;
+        other_attempt.call.attempt = 2;
+        for invalid in [other_task, other_token, other_attempt] {
+            assert!(Policy::new(7, 8, "fixture-worker", vec![first.clone(), invalid]).is_err());
+        }
     }
     #[tokio::test]
     async fn catalog_and_peer_refuse_spoofing_before_authority_or_provider() {
@@ -321,6 +363,29 @@ mod tests {
         assert_eq!(provider.0.load(Ordering::SeqCst), 0);
     }
 
+    #[tokio::test]
+    async fn wrong_peer_is_denied_before_json_parsing() {
+        let call = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW");
+        let policy = Policy::checked(7, 8, "fixture-worker", vec![call]).unwrap();
+        let authority = Arc::new(Noop(AtomicUsize::new(0)));
+        let provider = Arc::new(Noop(AtomicUsize::new(0)));
+        let router = scoped_router(policy, authority.clone(), provider.clone());
+        let mut req = Request::builder()
+            .method("POST")
+            .uri("/infer")
+            .header("content-type", "application/json")
+            .body(Body::from("{"))
+            .unwrap();
+        req.extensions_mut()
+            .insert(ConnectInfo(Peer { uid: Some(9) }));
+        assert_eq!(
+            router.oneshot(req).await.unwrap().status(),
+            StatusCode::FORBIDDEN
+        );
+        assert_eq!(authority.0.load(Ordering::SeqCst), 0);
+        assert_eq!(provider.0.load(Ordering::SeqCst), 0);
+    }
+
     /// Explicitly invoked only by the owned disposable Restate fixture. Normal tests never
     /// assume loopback is trusted or require an existing service.
     #[tokio::test]
@@ -332,7 +397,10 @@ mod tests {
             path::PathBuf,
             time::{Duration, SystemTime, UNIX_EPOCH},
         };
-        use tokio::net::UnixListener;
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::{UnixListener, UnixStream},
+        };
         let relay = PathBuf::from(std::env::var("SFACTORY_TEST_ATOMIC_RELAY").unwrap());
         let socket = PathBuf::from(std::env::var("SFACTORY_TEST_ATOMIC_SOCKET").unwrap());
         let restate = std::env::var("SFACTORY_TEST_ATOMIC_RESTATE").unwrap();
@@ -428,6 +496,15 @@ mod tests {
             .build()
             .unwrap();
         let body = json!({"task":task,"call_id":first.call.call_id});
+        let mut raw = UnixStream::connect(&wrong_socket).await.unwrap();
+        raw.write_all(b"POST /infer HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 4000\r\n\r\n{").await.unwrap();
+        let mut response = [0; 512];
+        let bytes = tokio::time::timeout(Duration::from_secs(2), raw.read(&mut response))
+            .await
+            .expect("wrong peer must be rejected without waiting for its body")
+            .unwrap();
+        assert!(response[..bytes].starts_with(b"HTTP/1.1 403"));
+        assert_eq!(provider.0.load(Ordering::SeqCst), 0);
         let wrong_client = reqwest::Client::builder()
             .unix_socket(wrong_socket.clone())
             .no_proxy()

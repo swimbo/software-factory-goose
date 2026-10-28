@@ -13,6 +13,7 @@ fixture = []
 anyhow.workspace = true
 axum.workspace = true
 libc = "=0.2.190"
+sha2 = "=0.10.9"
 serde.workspace = true
 serde_json.workspace = true
 subtle = "=2.6.1"

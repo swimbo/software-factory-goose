@@ -119,3 +119,81 @@ fn concurrent_launchers_cannot_reserve_the_same_root_twice() {
         1
     );
 }
+
+#[test]
+fn replaced_or_rewritten_executable_is_refused_before_spawn() {
+    for replace in [true, false] {
+        let root = Root::new();
+        let binary = root.0.join("program");
+        fs::write(&binary, b"#!/bin/sh\nprintf old > ran\n").unwrap();
+        fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).unwrap();
+        let spec = FixtureSpec::new(&binary, [] as [&str; 0], &root.0).unwrap();
+        let mut launcher = FixtureLauncher::new(&root.0, spec).unwrap();
+        if replace {
+            let replacement = root.0.join("replacement");
+            fs::write(&replacement, b"#!/bin/sh\nprintf new > ran\n").unwrap();
+            fs::set_permissions(&replacement, fs::Permissions::from_mode(0o700)).unwrap();
+            fs::rename(&replacement, &binary).unwrap();
+        } else {
+            fs::write(&binary, b"#!/bin/sh\nprintf new > ran\n").unwrap();
+        }
+        let result = launcher.launch();
+        let rejected = result.is_err();
+        drop(result);
+        let ran = root.0.join("ran").exists();
+        let consumed = launcher.launch().is_err();
+        let _ = fs::remove_file(root.0.join("ran"));
+        fs::remove_file(binary).unwrap();
+        assert!(rejected, "changed executable accepted");
+        assert!(!ran);
+        assert!(consumed, "failure did not consume launch");
+    }
+}
+
+#[test]
+fn replaced_working_directory_is_refused_before_spawn() {
+    let root = Root::new();
+    let cwd = root.0.join("cwd");
+    let old = root.0.join("old");
+    fs::create_dir(&cwd).unwrap();
+    let spec = FixtureSpec::new("/bin/sh", ["-c", "printf bad > ran"], &cwd).unwrap();
+    let mut launcher = FixtureLauncher::new(&root.0, spec).unwrap();
+    fs::rename(&cwd, &old).unwrap();
+    fs::create_dir(&cwd).unwrap();
+    let result = launcher.launch();
+    let rejected = result.is_err();
+    drop(result);
+    let ran = cwd.join("ran").exists();
+    let _ = fs::remove_file(cwd.join("ran"));
+    fs::remove_dir(cwd).unwrap();
+    fs::remove_dir(old).unwrap();
+    assert!(rejected, "replaced working directory accepted");
+    assert!(!ran);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn acl_bearing_private_root_is_refused_before_marker_or_launch() {
+    use std::process::Command;
+    let root = Root::new();
+    let status = Command::new("/bin/chmod")
+        .args(["+a", "everyone allow delete,delete_child"])
+        .arg(&root.0)
+        .status()
+        .unwrap();
+    assert!(status.success(), "unable to set disposable test ACL");
+    let result = FixtureLauncher::new(&root.0, root.spec());
+    let rejected = result.is_err();
+    drop(result);
+    let marker = root.0.join("recovery-required").exists();
+    assert!(
+        Command::new("/bin/chmod")
+            .arg("-N")
+            .arg(&root.0)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(rejected, "ACL-bearing private root accepted");
+    assert!(!marker, "rejected root acquired a marker");
+}
