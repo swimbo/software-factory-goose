@@ -1,0 +1,2 @@
+PASS: precommit guardian SIGKILL; systemd ExecStopPost cleaned exact container; slice inode=6882200 populated 0
+LIMIT: systemd/engine loss, worker escape, persistent recovery and independent authentication unproved

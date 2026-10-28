@@ -24,6 +24,7 @@ class DisposableContainer:
         self.ident = None
         self.closed = False
         self.removed = False
+        self.started = False
         self.cgroup_parent = os.environ.get("SFACTORY_CGROUP_PARENT")
         if self.cgroup_parent is not None and (not self.cgroup_parent.startswith("sfactory")
             or not self.cgroup_parent.endswith("-worker.slice")
@@ -47,7 +48,7 @@ class DisposableContainer:
             raise RuntimeError("container ID mismatch")
         return obj
 
-    def start(self):
+    def prepare(self):
         if self.closed or self.ident is not None:
             raise RuntimeError("admission closed or already consumed")
         # A timeout may leave an owned, never-started create behind. The name and
@@ -65,8 +66,20 @@ class DisposableContainer:
         obj = self.inspect(self.ident)
         if obj is None:
             raise RuntimeError("created container missing")
-        docker("start", self.ident)
         return self.ident
+
+    def launch_prepared(self):
+        if self.closed or self.ident is None or self.started:
+            raise RuntimeError("fixture is not prepared or admission is closed")
+        if self.inspect(self.ident) is None:
+            raise RuntimeError("prepared container missing")
+        docker("start", self.ident)
+        self.started = True
+        return self.ident
+
+    def start(self):
+        self.prepare()
+        return self.launch_prepared()
 
     def cleanup(self):
         self.closed = True

@@ -62,3 +62,7 @@ O1 hosted open-weights through external Bifrost and O4 separate local operator/a
 - [x] Preliminary gaps categorized by severity; each has a concrete source and implementation location.
 - [x] Scope distinction recorded; no CI-provider or Okayr expansion inferred.
 - [ ] User has reviewed and approved the complete gap list before Phase 14 certification.
+
+## 2026-10-28 NUC integration evidence
+
+Cross-UID Rust peer admission and systemd-driven guardian-death cleanup now have actual NUC fixtures. Persistent slice observations and durable pre-create intent recovery strengthen G-02/G-05/G-10 evidence but do not close them: protected production provisioning, complete escape denial, independent authenticated brake, daemon/manager/host recovery, exclusive authority migration and the actual Goose/Bifrost loop remain missing. See verification/2026-10-28-nuc-cross-uid-gate.md, verification/2026-10-28-nuc-systemd-docker-recovery.md and verification/2026-10-28-nuc-systemd-precommit-intent.md. No phase or gap is marked complete by these fixtures.

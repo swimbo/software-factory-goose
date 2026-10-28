@@ -41,6 +41,28 @@ class GuardTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 owner.start()
 
+    def test_engine_timeout_can_retry_without_reopening_admission(self):
+        owner = DisposableContainer()
+        owner.ident = "a" * 64
+        def inspection(running):
+            obj = {"Id": owner.ident, "Config": {"Labels": {LABEL: owner.token}}, "State": {"Running": running}}
+            return subprocess.CompletedProcess([], 0, json.dumps([obj]), "")
+        ok = subprocess.CompletedProcess([], 0, "", "")
+        absent = subprocess.CompletedProcess([], 1, "", "no such object")
+        with patch("docker_owner_guardian.docker", side_effect=[inspection(True), subprocess.TimeoutExpired("kill", 8),
+                    inspection(True), ok, inspection(False), ok, absent]) as call:
+            with self.assertRaises(subprocess.TimeoutExpired):
+                owner.cleanup()
+            self.assertTrue(owner.closed)
+            self.assertFalse(owner.removed)
+            owner.cleanup()
+            owner.cleanup()
+            self.assertTrue(owner.removed)
+            self.assertEqual([x.args[0] for x in call.call_args_list],
+                             ["inspect", "kill", "inspect", "kill", "inspect", "rm", "inspect"])
+            with self.assertRaises(RuntimeError):
+                owner.start()
+
     def test_controller_kill_triggers_owned_cleanup(self):
         token = uuid.uuid4().hex
         fallback = DisposableContainer(token)

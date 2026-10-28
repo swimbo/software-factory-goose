@@ -4,6 +4,8 @@ import pathlib
 import subprocess
 import sys
 
+MODE=sys.argv[1] if len(sys.argv)==2 else 'controller'
+if MODE not in ('controller','guardian'): raise SystemExit('mode must be controller or guardian')
 HERE=pathlib.Path(__file__).resolve().parent
 source=(HERE/'nuc_docker_slice_spike.py').read_text()
 namespace={}
@@ -11,6 +13,7 @@ exec(source[source.index('ESCAPE='):source.index('\ndef run(')], namespace)
 guardian=(HERE/'docker_owner_guardian.py').read_text()
 module='IMAGE='+repr('sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937')+'\nLABEL='+repr('org.software-factory.escape-spike')+'\nMAIN='+repr(namespace['MAIN'])+'\n'
 DRIVER=r'''import os,pathlib,queue,subprocess,sys,tempfile,threading,time,uuid
+MODE=__MODE__
 TOKEN='6a2ae9a8ef374a84b94c15a1b1d4d7f0'
 PARENT='sfactory'+TOKEN+'.slice'; SLICE='sfactory'+TOKEN+'-worker.slice'
 SLICE_PATH=pathlib.Path('/sys/fs/cgroup')/PARENT/SLICE
@@ -72,13 +75,30 @@ with tempfile.TemporaryDirectory(prefix='sfactory-ownerloss-') as root:
   else: raise RuntimeError('escaped-session handshake missing')
   if 'populated 1' not in (SLICE_PATH/'cgroup.events').read_text(): raise RuntimeError('positive populated check failed')
   if guardian.poll() is not None or controller.poll() is not None: raise RuntimeError('controller or guardian died early')
-  controller.kill(); controller.wait(timeout=5)
-  if lines.get(timeout=15)!='REMOVED EOF': raise RuntimeError('guardian did not confirm cleanup')
-  if guardian.wait(timeout=5)!=0: raise RuntimeError('guardian failed')
+  if MODE=='controller':
+   controller.kill(); controller.wait(timeout=5)
+   if lines.get(timeout=15)!='REMOVED EOF': raise RuntimeError('guardian did not confirm cleanup')
+   if guardian.wait(timeout=5)!=0: raise RuntimeError('guardian failed')
+  else:
+   guardian.kill(); guardian.wait(timeout=5)
+   if controller.poll() is not None: raise RuntimeError('controller died before recovery')
+   obj=fallback.inspect(worker)
+   if obj is None or not obj['State']['Running']: raise RuntimeError('worker did not survive guardian death')
+   deadline=time.monotonic()+5
+   while time.monotonic()<deadline:
+    logs=run('logs',worker,check=False); out=logs.stdout+logs.stderr
+    if 'LATE_MARKER' in out: break
+    time.sleep(.05)
+   else: raise RuntimeError('guardian-death positive marker missing')
+   if 'populated 1' not in (SLICE_PATH/'cgroup.events').read_text(): raise RuntimeError('worker absent before recovery')
+   fallback.cleanup(); fallback.cleanup()
+   try: fallback.start()
+   except RuntimeError: pass
+   else: raise RuntimeError('recovery reopened admission')
   if fallback.inspect(worker) is not None: raise RuntimeError('worker container still present')
   event=(SLICE_PATH/'cgroup.events').read_text()
   if SLICE_PATH.stat().st_ino!=inode or 'populated 0' not in event: raise RuntimeError('same slice emptiness not observed')
-  print('PASS: controller SIGKILL; guardian removed owned worker; same slice inode='+str(inode)+' '+repr(event),flush=True)
+  print('PASS: '+MODE+' SIGKILL; independent owner removed worker; same slice inode='+str(inode)+' '+repr(event),flush=True)
  finally:
   if controller is not None:
    if controller.poll() is None: controller.kill()
@@ -92,8 +112,8 @@ with tempfile.TemporaryDirectory(prefix='sfactory-ownerloss-') as root:
   if anchor_info(anchor or name,anchor_token) is not None: run('rm','--force',anchor or name)
   if guardian is not None:
    guardian.stdout.close(); guardian.stderr.close()
-print('LIMIT: host guardian/daemon loss, full migration denial, authenticated brake and cross-identity isolation unproved')
+print('LIMIT: recovery coordinator/daemon loss, persistent recovery, full migration denial and authenticated brake unproved')
 '''
-script=DRIVER.replace('__GUARDIAN__',repr(guardian)).replace('__MODULE__',repr(module)).replace('__IMAGE__',repr('sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937'))
+script=DRIVER.replace('__MODE__',repr(MODE)).replace('__GUARDIAN__',repr(guardian)).replace('__MODULE__',repr(module)).replace('__IMAGE__',repr('sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937'))
 result=subprocess.run(['ssh','-o','BatchMode=yes','-o','ConnectTimeout=8','hermes-control','python3','-'],input=script,text=True,timeout=60)
 sys.exit(result.returncode)

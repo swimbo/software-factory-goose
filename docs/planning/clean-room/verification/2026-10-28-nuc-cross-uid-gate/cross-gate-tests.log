@@ -1,0 +1,16 @@
+   Compiling control-plane v0.1.0 (/tmp/sfactory-gate-linux.X4ZjF1LB/project/crates/control-plane)
+    Finished `test` profile [unoptimized] target(s) in 2.17s
+     Running unittests src/lib.rs (/tmp/sfactory-gate-linux.X4ZjF1LB/target/debug/deps/control_plane-5ad3f778de4e5aaa)
+
+running 8 tests
+test atomic_peer_gate::tests::real_unix_peer_and_atomic_journal_fixture ... ignored, requires owned disposable Restate fixture and private Unix relay
+test atomic_peer_gate::tests::policy_cannot_mix_tasks_or_lease_generations ... ok
+test atomic_peer_gate::tests::wrong_peer_is_denied_before_json_parsing ... ok
+test atomic_peer_gate::tests::unavailable_authority_never_calls_provider ... ok
+test atomic_peer_gate::tests::catalog_and_peer_refuse_spoofing_before_authority_or_provider ... ok
+test atomic_peer_gate::tests::provider_mismatch_never_admits_call ... ok
+test atomic_peer_gate::tests::unix_listener_uses_kernel_peer_credentials ... ok
+test atomic_peer_gate::tests::fixture_provider_refuses_mismatch_and_redirect ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 196 filtered out; finished in 0.04s
+

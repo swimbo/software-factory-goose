@@ -1,0 +1,2 @@
+PASS: committed manifest before start; systemd ExecStopPost cleaned guardian SIGKILL; slice inode=6882200 populated 0
+LIMIT: systemd/engine loss, worker escape, persistent recovery and independent authentication unproved

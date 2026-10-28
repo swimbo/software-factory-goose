@@ -732,7 +732,7 @@ mod tests {
         assert_eq!(parsed.host_str(), Some("127.0.0.1"));
         let uid = unsafe { libc::geteuid() };
         assert!(uid > 0);
-        let backend = UnixRestateBackend::new(relay, uid).await.unwrap();
+        let backend = UnixRestateBackend::new(relay.clone(), uid).await.unwrap();
         let authority = Arc::new(AtomicUnixAuthority::new(backend));
         let now = u64::try_from(
             SystemTime::now()
@@ -1136,6 +1136,123 @@ mod tests {
             StatusCode::CONFLICT
         );
         assert_eq!(calls.load(Ordering::SeqCst), 1);
+        #[cfg(target_os = "linux")]
+        if std::env::var_os("SFACTORY_TEST_CROSS_UID").as_deref() == Some(std::ffi::OsStr::new("1"))
+        {
+            // Disposable numeric UID in a network-disabled container, with exactly one
+            // bind-mounted socket. The 0700 host parent is a fixture prerequisite.
+            let cross_task = "rust-cross-uid-task";
+            let cross_call = entry(cross_task, "01ARZ3NDEKTSV4RRFFQ69G5FAW");
+            assert!(
+                restate_client
+                    .post(format!(
+                        "{restate}/restate/call/AtomicInferenceFixture/{cross_task}/initialize"
+                    ))
+                    .json(&lease)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status()
+                    .is_success()
+            );
+            let cross_socket = socket.with_file_name("cross-uid-gate.sock");
+            let cross_listener = UnixListener::bind(&cross_socket).unwrap();
+            std::fs::set_permissions(&cross_socket, std::fs::Permissions::from_mode(0o666))
+                .unwrap();
+            let cross_policy = Policy::new(uid, 1001, "fixture-worker", vec![cross_call]).unwrap();
+            let cross_backend = UnixRestateBackend::new(relay, uid).await.unwrap();
+            let cross_app = router(
+                cross_policy,
+                Arc::new(AtomicUnixAuthority::new(cross_backend)),
+                provider.clone(),
+            )
+            .unwrap();
+            let cross_server = tokio::spawn(async move {
+                serve_fixture_listener(cross_listener, cross_app, 1001)
+                    .await
+                    .unwrap()
+            });
+            let mut denied = UnixStream::connect(&cross_socket).await.unwrap();
+            let mut byte = [0; 1];
+            let result = tokio::time::timeout(Duration::from_secs(2), denied.read(&mut byte))
+                .await
+                .unwrap();
+            assert!(matches!(result, Ok(0) | Err(_)));
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+            let script = r#"import socket,http.client,json,sys
+class C(http.client.HTTPConnection):
+ def connect(self):
+  self.sock=socket.socket(socket.AF_UNIX);self.sock.settimeout(5);self.sock.connect('/gate.sock')
+def req(body):
+ c=C('localhost',timeout=5);c.request('POST','/infer',json.dumps(body),{'Content-Type':'application/json'});r=c.getresponse();status=r.status;r.read();c.close();return status
+b={'task':'rust-cross-uid-task','call_id':'01ARZ3NDEKTSV4RRFFQ69G5FAW'}
+if sys.argv[1]=='deny':
+ try:
+  c=socket.socket(socket.AF_UNIX);c.settimeout(5);c.connect('/gate.sock');c.sendall(b'x');assert c.recv(1)==b''
+ except (BrokenPipeError,ConnectionResetError): pass
+else:
+ assert req({**b,'payload':'forged'})==422
+ assert req({**b,'task':'forged'})==403
+ assert req(b)==204
+ assert req(b)==409
+"#;
+            async fn run_worker(path: &std::path::Path, uid: &str, mode: &str, script: &str) {
+                let name = format!(
+                    "sfactory-cross-{}",
+                    ulid::Ulid::new().to_string().to_lowercase()
+                );
+                let mount = format!("type=bind,src={},dst=/gate.sock,readonly", path.display());
+                let mut child = tokio::process::Command::new("/usr/bin/docker");
+                child.args([
+                    "run",
+                    "--name",
+                    &name,
+                    "--rm",
+                    "--pull=never",
+                    "--network=none",
+                    "--read-only",
+                    "--user",
+                    uid,
+                    "--cap-drop=ALL",
+                    "--security-opt=no-new-privileges",
+                    "--pids-limit=16",
+                    "--memory=64m",
+                    "--cpus=0.5",
+                    "--log-driver=none",
+                    "--mount",
+                    &mount,
+                    "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+                    "python3",
+                    "-c",
+                    script,
+                    mode,
+                ]);
+                child.kill_on_drop(true);
+                let output = tokio::time::timeout(Duration::from_secs(30), child.output()).await;
+                if output.is_err() {
+                    let _ = tokio::process::Command::new("/usr/bin/docker")
+                        .args(["rm", "-f", &name])
+                        .output()
+                        .await;
+                }
+                let output = output.expect("fixture worker timeout").unwrap();
+                assert!(
+                    output.status.success(),
+                    "fixture worker failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            run_worker(&cross_socket, "1002:1002", "deny", script).await;
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+            release.add_permits(1);
+            run_worker(&cross_socket, "1001:1001", "allow", script).await;
+            assert_eq!(calls.load(Ordering::SeqCst), 2);
+            println!(
+                "PASS: kernel UID 1000 and container UID 1002 denied; UID 1001 admitted once and replay denied"
+            );
+            cross_server.abort();
+            std::fs::remove_file(cross_socket).unwrap();
+        }
         server.abort();
         wrong_server.abort();
         denied_server.abort();
