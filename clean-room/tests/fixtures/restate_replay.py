@@ -4,6 +4,8 @@ import concurrent.futures, json, os, pathlib, socket, subprocess, tempfile, time
 from worker_backend_proxy import verify_worker_backend, verify_promotion_decision, prepare_promotion_execution, verify_promotion_execution
 from trusted_inference_launcher_fixture import exercise as exercise_inference_launcher, verify_after_restart as verify_inference_launcher
 from inference_gate_fixture import exercise as exercise_inference_gate
+from peer_catalog_gate_fixture import exercise as exercise_peer_catalog_gate
+from atomic_inference_fixture import exercise as exercise_atomic_inference, verify as verify_atomic_inference
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SERVER = '/Users/bo/.local/opt/node/bin/restate-server'
@@ -178,6 +180,8 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(queue+'/complete',invalid)[0]==409
             count=subprocess.check_output([pg_bin+'/psql','-h','127.0.0.1','-p',str(pg_port),'-U','sfactory','-d','sfactory_verification','-tAc',"select count(*) from outbox where step_kind='claim_transition_v1'"],env=pg_env,text=True).strip()
             assert count=='3',count
+            exercise_peer_catalog_gate(base,env,tmp)
+            atomic_checkpoint=exercise_atomic_inference(base)
             second={'work_package_id':'fixture-task-2','spec':task['spec']}
             assert post(queue+'/schedule',second)[0]==200
             lost={'request_id':'01ARZ3NDEKTSV4RRFFQ69G5FAY','ttl_ms':300000}
@@ -224,6 +228,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',infer_request)==(200,'DispatchingUnknown')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
             verify_inference_launcher(base,launcher_ids)
+            verify_atomic_inference(base,atomic_checkpoint)
             status,result=post(base+f'/restate/call/ApprovalJournal/{nonce}/consume',presentation)
             assert status==409,(status,result)
             verify_promotion_decision(ingress, env, tmp+'/promotion-decision.json', 'exercise')
@@ -238,6 +243,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',infer_request)==(200,'DispatchingUnknown')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
             verify_inference_launcher(base,launcher_ids)
+            verify_atomic_inference(base,atomic_checkpoint)
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',pending_request)==(200,'Reserved')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==200
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==409

@@ -25,6 +25,8 @@ pub mod operator_transport;
 pub mod promotion_eligibility;
 
 #[cfg(feature = "restate")]
+pub mod atomic_inference_fixture;
+#[cfg(feature = "restate")]
 pub mod idempotent_budget;
 #[cfg(feature = "restate")]
 pub mod inference_authority;
