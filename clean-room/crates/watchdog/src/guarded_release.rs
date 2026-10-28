@@ -80,7 +80,11 @@ impl FixtureGroup {
     fn live(&self) -> Result<bool> {
         self.owned_leader_alive()
     }
-    fn read_frame(&mut self, timeout: Duration) -> Result<Vec<u8>> {
+    fn read_frame(
+        &mut self,
+        timeout: Duration,
+        mut check: impl FnMut() -> Result<()>,
+    ) -> Result<Vec<u8>> {
         ensure!(
             !timeout.is_zero() && timeout <= Duration::from_secs(30),
             "invalid frame deadline"
@@ -89,6 +93,7 @@ impl FixtureGroup {
         let mut data = Vec::new();
         let mut chunk = [0u8; 1024];
         loop {
+            check()?;
             match self.stdout.read(&mut chunk) {
                 Ok(0) => anyhow::bail!("frame incomplete"),
                 Ok(n) => {
@@ -164,12 +169,65 @@ impl FixtureGroup {
             }
         })
     }
+    /// Fixture guardian: EOF denies output and stops the owned group. The caller
+    /// must supply the sole read end of a controller pipe and keep it open.
+    pub fn complete_with_controller(
+        &mut self,
+        timeout: Duration,
+        controller: &impl AsRawFd,
+    ) -> Result<Option<Vec<u8>>> {
+        self.complete_controller_with(timeout, controller, |pid| {
+            if unsafe { libc::kill(-pid, libc::SIGKILL) } == 0 {
+                Ok(())
+            } else {
+                Err(std::io::Error::last_os_error())
+            }
+        })
+    }
+    fn complete_controller_with(
+        &mut self,
+        timeout: Duration,
+        controller: &impl AsRawFd,
+        signal: impl FnOnce(i32) -> std::io::Result<()>,
+    ) -> Result<Option<Vec<u8>>> {
+        let fd = controller.as_raw_fd();
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } != 0 {
+            self.stop_with(signal)?;
+            anyhow::bail!("controller pipe setup failed");
+        }
+        let mut eof = false;
+        let mut check = || -> Result<()> {
+            let mut byte = 0u8;
+            let n = unsafe { libc::read(fd, (&mut byte as *mut u8).cast(), 1) };
+            if n == 0 {
+                eof = true;
+                anyhow::bail!("controller EOF");
+            }
+            if n > 0 {
+                anyhow::bail!("unexpected controller data");
+            }
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::WouldBlock {
+                return Ok(());
+            }
+            Err(error.into())
+        };
+        let frame = self.read_frame(timeout, &mut check);
+        self.stop_with(signal)?;
+        let final_check = if frame.is_ok() { check() } else { Ok(()) };
+        if eof {
+            return Ok(None);
+        }
+        final_check?;
+        frame.map(Some)
+    }
     fn complete_with(
         &mut self,
         timeout: Duration,
         signal: impl FnOnce(i32) -> std::io::Result<()>,
     ) -> Result<Vec<u8>> {
-        let frame = self.read_frame(timeout);
+        let frame = self.read_frame(timeout, || Ok(()));
         let stopped = self.stop_with(signal);
         match (frame, stopped) {
             (Ok(frame), Ok(())) => Ok(frame),
@@ -218,6 +276,64 @@ impl Drop for FixtureGroup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn controller_failure_paths_stop_or_retain_owned_group() {
+        use std::{io::Write, os::unix::net::UnixStream};
+        // Unexpected data and an open but silent controller both deny release.
+        for invalid in [true, false] {
+            let (reader, mut writer) = UnixStream::pair().unwrap();
+            if invalid {
+                writer.write_all(b"x").unwrap();
+            }
+            let mut group = FixtureGroup::launch(Command::new("/bin/sleep").arg("5")).unwrap();
+            assert!(
+                group
+                    .complete_with_controller(Duration::from_millis(100), &reader)
+                    .is_err()
+            );
+            assert!(group.is_reaped());
+        }
+        let (reader, writer) = UnixStream::pair().unwrap();
+        drop(writer);
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "printf 'SFR1\\000\\000\\000\\003yes'; exec sleep 5"]);
+        let mut group = FixtureGroup::launch(&mut command).unwrap();
+        assert_eq!(
+            group
+                .complete_with_controller(Duration::from_secs(1), &reader)
+                .unwrap(),
+            None
+        );
+        assert!(group.is_reaped());
+        let (reader, writer) = UnixStream::pair().unwrap();
+        drop(writer);
+        let mut group = FixtureGroup::launch(Command::new("/bin/sleep").arg("5")).unwrap();
+        assert!(
+            group
+                .complete_controller_with(Duration::from_secs(1), &reader, |_| Err(
+                    std::io::Error::from_raw_os_error(libc::EPERM)
+                ))
+                .is_err()
+        );
+        assert!(!group.is_reaped() && group.live().unwrap());
+        group.stop().unwrap();
+        assert!(group.is_reaped());
+    }
+    #[test]
+    fn live_controller_allows_only_stopped_group_frame() {
+        use std::os::unix::net::UnixStream;
+        let (reader, _writer) = UnixStream::pair().unwrap();
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "printf 'SFR1\\000\\000\\000\\003yes'; exec sleep 5"]);
+        let mut group = FixtureGroup::launch(&mut command).unwrap();
+        assert_eq!(
+            group
+                .complete_with_controller(Duration::from_secs(3), &reader)
+                .unwrap(),
+            Some(b"yes".to_vec())
+        );
+        assert!(group.is_reaped());
+    }
     #[test]
     fn signal_failure_withholds_frame_and_retains_live_owned_leader() {
         let mut command = Command::new("/bin/sh");

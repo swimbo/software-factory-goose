@@ -43,6 +43,24 @@ fn main() -> Result<()> {
             std::thread::sleep(Duration::from_secs(3));
             Ok(())
         }
+        Some("--fixture-guarded-controller-loss") => {
+            ensure!(arguments.len() == 2, "fixture requires private root");
+            let root = Path::new(&arguments[1]);
+            let spec = watchdog::guarded_admission::FixtureSpec::new(
+                "/bin/sh",
+                ["-c", "exec sleep 5"],
+                root,
+            )?;
+            let mut launcher = watchdog::guarded_admission::FixtureLauncher::new(root, spec)?;
+            let mut group = launcher.launch()?;
+            println!("READY");
+            std::io::stdout().flush()?;
+            let result =
+                group.complete_with_controller(Duration::from_secs(4), &std::io::stdin())?;
+            ensure!(result.is_none(), "unexpected frame released");
+            println!("STOPPED");
+            Ok(())
+        }
         Some("--fixture-controller-loss") => {
             ensure!(
                 arguments.len() == 1,

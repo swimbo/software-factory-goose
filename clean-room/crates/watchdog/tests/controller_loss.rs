@@ -167,3 +167,61 @@ fn data_on_controller_pipe_never_claims_controller_death() {
     assert!(!pair.guardian.wait().unwrap().success());
     assert!(pair.controller.try_wait().unwrap().is_none());
 }
+
+#[test]
+fn guarded_owner_stops_group_after_controller_loss() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let root = std::env::temp_dir().join(format!("sf-guarded-controller-{}", ulid::Ulid::new()));
+    fs::create_dir(&root).unwrap();
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
+    struct Root(std::path::PathBuf);
+    impl Drop for Root {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(self.0.join("recovery-required"));
+            let _ = fs::remove_dir(&self.0);
+        }
+    }
+    let root = Root(root);
+    let mut controller = Command::new("/bin/sleep")
+        .arg("30")
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let input = controller.stdout.take().unwrap();
+    let mut guardian = Command::new(env!("CARGO_BIN_EXE_sf-watchdog-fixture"))
+        .arg("--fixture-guarded-controller-loss")
+        .arg(&root.0)
+        .stdin(Stdio::from(input))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let output = guardian.stdout.take().unwrap();
+    let mut pair = OwnedPair {
+        controller,
+        guardian,
+    };
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(output).lines() {
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap(),
+        "READY"
+    );
+    assert!(matches!(
+        rx.recv_timeout(Duration::from_millis(200)),
+        Err(mpsc::RecvTimeoutError::Timeout)
+    ));
+    pair.controller.kill().unwrap();
+    pair.controller.wait().unwrap();
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap(),
+        "STOPPED"
+    );
+    assert!(pair.guardian.wait().unwrap().success());
+}

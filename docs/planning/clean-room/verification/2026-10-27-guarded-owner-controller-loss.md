@@ -1,0 +1,7 @@
+# Guarded owner and controller loss fixture
+
+A disposable guardian now holds the single-use `FixtureLauncher` and its `FixtureGroup` while monitoring a dedicated controller pipe. EOF withholds frame bytes and only reports `STOPPED` after the guardian has signalled and reaped its directly owned group leader and observed the group absent. A controller-loss test keeps a task-owned controller alive until the guardian announces readiness, then kills and reaps that controller and requires the guardian's stop acknowledgment. The benign worker has a fixed five-second lifetime if fixture cleanup itself fails. No saved PID or unrelated process is signalled.
+
+Fixture unit controls cover a live controller and valid frame, EOF before frame, unexpected pipe data, a silent controller deadline, and injected signal denial. Data or deadline denies release and stops the owned group; signal denial returns an error and retains its unreaped owned leader for retry. This monitor is an opt-in fixture method and does not replace existing launch paths or provide peer authentication.
+
+The pipe can be leaked, spoofed, or held by a same-UID actor; the last liveness check races subsequent controller death. A hung or killed guardian cannot enforce cleanup; group signaling cannot contain an escaped session; launch setup may block; and separate identity, independent recovery and teardown are unproven. No production activation, account, VM, or service was used.

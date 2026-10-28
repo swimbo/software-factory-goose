@@ -110,7 +110,82 @@ pub trait Authority: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), AdapterError>> + Send;
 }
 pub trait Provider: Send + Sync + 'static {
-    fn send(&self, payload: &[u8]) -> impl Future<Output = Result<(), AdapterError>> + Send;
+    fn send(
+        &self,
+        call: &Call,
+        payload: &[u8],
+    ) -> impl Future<Output = Result<(), AdapterError>> + Send;
+}
+/// Fixed loopback fixture only. It is not a production provider or credential broker.
+/// A single catalogued model and exact payload are bound at trusted bootstrap.
+pub struct LoopbackFixtureProvider {
+    client: reqwest::Client,
+    endpoint: reqwest::Url,
+    credential: reqwest::header::HeaderValue,
+    model: String,
+    payload: Vec<u8>,
+}
+impl LoopbackFixtureProvider {
+    pub fn new(
+        endpoint: &str,
+        credential: &str,
+        model: &str,
+        payload: Vec<u8>,
+    ) -> anyhow::Result<Self> {
+        let url = reqwest::Url::parse(endpoint)?;
+        anyhow::ensure!(
+            url.scheme() == "http"
+                && url.host_str() == Some("127.0.0.1")
+                && url.port().is_some()
+                && url.path() == "/fixture"
+                && url.query().is_none()
+                && url.fragment().is_none()
+                && url.username().is_empty()
+                && url.password().is_none(),
+            "invalid fixture provider endpoint"
+        );
+        anyhow::ensure!(
+            !model.is_empty() && model.len() <= 256 && payload.len() <= 65_536,
+            "invalid fixture provider binding"
+        );
+        let mut key = reqwest::header::HeaderValue::from_str(credential)
+            .map_err(|_| anyhow::anyhow!("invalid fixture credential"))?;
+        anyhow::ensure!(!key.is_empty(), "invalid fixture credential");
+        key.set_sensitive(true);
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(std::time::Duration::from_secs(5))
+            .build()?;
+        Ok(Self {
+            client,
+            endpoint: url,
+            credential: key,
+            model: model.into(),
+            payload,
+        })
+    }
+}
+impl Provider for LoopbackFixtureProvider {
+    async fn send(&self, call: &Call, payload: &[u8]) -> Result<(), AdapterError> {
+        if call.model != self.model || payload != self.payload {
+            return Err(AdapterError::new(403, "fixture provider binding mismatch"));
+        }
+        let response = self
+            .client
+            .post(self.endpoint.clone())
+            .header("x-fixture-key", self.credential.clone())
+            .body(self.payload.clone())
+            .send()
+            .await
+            .map_err(|_| AdapterError::new(502, "fixture provider unavailable"))?;
+        if response.status() != StatusCode::NO_CONTENT
+            || response.content_length().is_some_and(|n| n != 0)
+        {
+            return Err(AdapterError::new(502, "fixture provider response rejected"));
+        }
+        Ok(())
+    }
 }
 /// The sole backend methods here call the atomic fixture's exact prepare/begin handlers.
 /// No arbitrary service/route forwarding is exposed to the worker.
@@ -214,7 +289,7 @@ async fn infer<A: Authority, P: Provider>(
         .find(|e| e.task == request.task && e.call.call_id == request.call_id)
         .ok_or_else(|| AdapterError::new(403, "call absent from catalog"))?;
     state.authority.admit(&entry.task, &entry.call).await?;
-    state.provider.send(&entry.payload).await?;
+    state.provider.send(&entry.call, &entry.payload).await?;
     // Never return a begin capability or raw provider content to the worker.
     Ok(StatusCode::NO_CONTENT)
 }
@@ -256,7 +331,7 @@ mod tests {
         }
     }
     impl Provider for Noop {
-        async fn send(&self, _: &[u8]) -> Result<(), AdapterError> {
+        async fn send(&self, _: &Call, _: &[u8]) -> Result<(), AdapterError> {
             self.0.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -289,6 +364,60 @@ mod tests {
         for invalid in [other_task, other_token, other_attempt] {
             assert!(Policy::new(7, 8, "fixture-worker", vec![first.clone(), invalid]).is_err());
         }
+    }
+    #[tokio::test]
+    async fn fixture_provider_refuses_mismatch_and_redirect() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/fixture", listener.local_addr().unwrap());
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = calls.clone();
+        let server = tokio::spawn(async move {
+            let app = Router::new().route(
+                "/fixture",
+                post(move || {
+                    let seen = seen.clone();
+                    async move {
+                        seen.fetch_add(1, Ordering::SeqCst);
+                        (StatusCode::TEMPORARY_REDIRECT, [("location", "/fixture")])
+                    }
+                }),
+            );
+            axum::serve(listener, app).await.unwrap();
+        });
+        assert!(
+            LoopbackFixtureProvider::new(
+                "http://example.com/fixture",
+                "key",
+                "fixture-model",
+                vec![]
+            )
+            .is_err()
+        );
+        assert!(
+            LoopbackFixtureProvider::new(
+                &format!("{endpoint}?key=secret"),
+                "key",
+                "fixture-model",
+                vec![]
+            )
+            .is_err()
+        );
+        let provider = LoopbackFixtureProvider::new(
+            &endpoint,
+            "fixture-only-key",
+            "fixture-model",
+            b"synthetic".to_vec(),
+        )
+        .unwrap();
+        let mut call = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW").call;
+        call.model = "other".into();
+        assert!(provider.send(&call, b"synthetic").await.is_err());
+        call.model = "fixture-model".into();
+        assert!(provider.send(&call, b"changed").await.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert!(provider.send(&call, b"synthetic").await.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        server.abort();
     }
     #[tokio::test]
     async fn catalog_and_peer_refuse_spoofing_before_authority_or_provider() {
@@ -399,7 +528,7 @@ mod tests {
         };
         use tokio::{
             io::{AsyncReadExt, AsyncWriteExt},
-            net::{UnixListener, UnixStream},
+            net::{TcpListener, UnixListener, UnixStream},
         };
         let relay = PathBuf::from(std::env::var("SFACTORY_TEST_ATOMIC_RELAY").unwrap());
         let socket = PathBuf::from(std::env::var("SFACTORY_TEST_ATOMIC_SOCKET").unwrap());
@@ -444,15 +573,42 @@ mod tests {
                 .status()
                 .is_success()
         );
-        struct CountingProvider(AtomicUsize);
-        impl Provider for CountingProvider {
-            async fn send(&self, payload: &[u8]) -> Result<(), AdapterError> {
-                assert_eq!(payload, b"synthetic");
-                self.0.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            }
-        }
-        let provider = Arc::new(CountingProvider(AtomicUsize::new(0)));
+        // Fixed, synthetic endpoint and credential are owned by the gate, never the worker.
+        // This exercises an actual HTTP hop, but is not a production provider client.
+        let calls = Arc::new(AtomicUsize::new(0));
+        let upstream_calls = calls.clone();
+        let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/fixture", upstream.local_addr().unwrap());
+        let upstream_server = tokio::spawn(async move {
+            let route = Router::new().route(
+                "/fixture",
+                post(
+                    move |headers: axum::http::HeaderMap, body: axum::body::Bytes| {
+                        let calls = upstream_calls.clone();
+                        async move {
+                            if headers.get("x-fixture-key").and_then(|v| v.to_str().ok())
+                                != Some("fixture-only-key")
+                                || body.as_ref() != b"synthetic"
+                            {
+                                return StatusCode::FORBIDDEN;
+                            }
+                            calls.fetch_add(1, Ordering::SeqCst);
+                            StatusCode::NO_CONTENT
+                        }
+                    },
+                ),
+            );
+            axum::serve(upstream, route).await.unwrap();
+        });
+        let provider = Arc::new(
+            LoopbackFixtureProvider::new(
+                &endpoint,
+                "fixture-only-key",
+                "fixture-model",
+                b"synthetic".to_vec(),
+            )
+            .unwrap(),
+        );
         // This private test-only constructor uses same UID deliberately; public constructor forbids it.
         let policy = Policy::checked(
             uid,
@@ -504,7 +660,7 @@ mod tests {
             .expect("wrong peer must be rejected without waiting for its body")
             .unwrap();
         assert!(response[..bytes].starts_with(b"HTTP/1.1 403"));
-        assert_eq!(provider.0.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         let wrong_client = reqwest::Client::builder()
             .unix_socket(wrong_socket.clone())
             .no_proxy()
@@ -522,7 +678,7 @@ mod tests {
                 .status(),
             StatusCode::FORBIDDEN
         );
-        assert_eq!(provider.0.load(Ordering::SeqCst), 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         let response = client
             .post("http://localhost/infer")
             .json(&json!({"task":"other","call_id":first.call.call_id}))
@@ -530,6 +686,30 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        for extra in [
+            "payload",
+            "credential",
+            "endpoint",
+            "token",
+            "amount_microusd",
+        ] {
+            let mut forged = body.clone();
+            forged
+                .as_object_mut()
+                .unwrap()
+                .insert(extra.into(), json!("forged"));
+            assert_eq!(
+                client
+                    .post("http://localhost/infer")
+                    .json(&forged)
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::UNPROCESSABLE_ENTITY
+            );
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         let mut jobs = tokio::task::JoinSet::new();
         // Each Unix backend call holds a preflight connection while opening the request;
         // keep concurrency below the fixture relay's eight-connection bound.
@@ -556,7 +736,18 @@ mod tests {
             }
         }
         assert_eq!(sent, 1);
-        assert_eq!(provider.0.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            client
+                .post("http://localhost/infer")
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::CONFLICT
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert!(
             restate_client
                 .post(format!(
@@ -579,9 +770,10 @@ mod tests {
                 .status(),
             StatusCode::CONFLICT
         );
-        assert_eq!(provider.0.load(Ordering::SeqCst), 1);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         server.abort();
         wrong_server.abort();
+        upstream_server.abort();
         std::fs::remove_file(socket).unwrap();
         std::fs::remove_file(wrong_socket).unwrap();
     }
