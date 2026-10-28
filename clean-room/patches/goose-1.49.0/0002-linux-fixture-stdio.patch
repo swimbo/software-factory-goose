@@ -1,0 +1,38 @@
+--- a/crates/goose/Cargo.toml
++++ b/crates/goose/Cargo.toml
+@@ -10,6 +10,8 @@
+ 
+ [features]
+ default = []
++# Isolated Linux MCP containment experiment only. Never enable for production.
++linux-fixture-stdio = []
+ telemetry = []
+ otel = [
+     "dep:tracing-opentelemetry",
+--- a/crates/goose-cli/Cargo.toml
++++ b/crates/goose-cli/Cargo.toml
+@@ -117,6 +117,8 @@
+ portable-default = ["rustls-tls", "aws-providers", "telemetry", "otel"]
+ # disables the update command
+ disable-update = []
++# Isolated Linux MCP containment experiment only. Never enable for production.
++linux-fixture-stdio = ["goose/linux-fixture-stdio"]
+ rustls-tls = [
+     "dep:axum-server",
+     "reqwest/rustls",
+--- a/crates/goose/src/agents/extension_manager.rs
++++ b/crates/goose/src/agents/extension_manager.rs
+@@ -452,11 +452,11 @@
+         // Restricted macOS launch: the broker owns the Goose process group.
+         // Do not call configure_subprocess, which creates a separate Unix group.
+-        #[cfg(target_os = "macos")]
++        #[cfg(any(target_os = "macos", all(target_os = "linux", feature = "linux-fixture-stdio")))]
+         {
+             rmcp::transport::TokioChildProcess::builder(command)
+                 .stderr(std::process::Stdio::piped()).spawn()?
+         }
+-        #[cfg(not(target_os = "macos"))]
++        #[cfg(not(any(target_os = "macos", all(target_os = "linux", feature = "linux-fixture-stdio"))))]
+         {
+             return Err(ExtensionError::SetupError(
+                 "factory restricted: MCP group inheritance is only verified on macOS".into()));

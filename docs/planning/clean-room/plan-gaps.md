@@ -66,3 +66,7 @@ O1 hosted open-weights through external Bifrost and O4 separate local operator/a
 ## 2026-10-28 NUC integration evidence
 
 Cross-UID Rust peer admission and systemd-driven guardian-death cleanup now have actual NUC fixtures. Persistent slice observations and durable pre-create intent recovery strengthen G-02/G-05/G-10 evidence but do not close them: protected production provisioning, complete escape denial, independent authenticated brake, daemon/manager/host recovery, exclusive authority migration and the actual Goose/Bifrost loop remain missing. See verification/2026-10-28-nuc-cross-uid-gate.md, verification/2026-10-28-nuc-systemd-docker-recovery.md and verification/2026-10-28-nuc-systemd-precommit-intent.md. No phase or gap is marked complete by these fixtures.
+
+## 2026-10-28 Linux Goose and brake evidence
+
+Actual pinned Linux Goose/MCP execution and owner-loss cleanup plus cross-UID authenticated independent brake now have NUC fixture evidence. The default Linux binary still refuses restricted stdio MCP, and its separately hashed feature candidate is not a production release. Existing Bifrost auto complexity routing is the user-selected path; current desktop scope must be preserved, with dedicated factory task credentials and reviewed pricing/token/fallback bounds before live inference. Genesis inventory is unregistered and does not close exclusive authority/migration. No G-01..G-11 gap is closed by these additions; see dated NUC Goose/brake/preflight and genesis notes.

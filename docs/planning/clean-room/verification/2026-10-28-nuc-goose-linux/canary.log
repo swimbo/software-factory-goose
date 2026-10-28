@@ -1,0 +1,9 @@
+Warning: Failed to initialize logging: failed to set up logger: failed to create directory `/.local/state/goose/logs`: Read-only file system (os error 30)
+{"format": "json", "case": "success", "exit": 0, "provider_requests": 1, "hook_disabled": true, "pass": true}
+{"format": "json", "case": "provider_error", "exit": 1, "provider_requests": 4, "hook_disabled": true, "pass": true}
+{"format": "json", "case": "cancel", "exit": 1, "provider_requests": 1, "hook_disabled": true, "pass": true}
+{"format": "stream-json", "case": "success", "exit": 0, "provider_requests": 1, "hook_disabled": true, "pass": true}
+{"format": "stream-json", "case": "provider_error", "exit": 1, "provider_requests": 4, "hook_disabled": true, "pass": true}
+{"format": "stream-json", "case": "cancel", "exit": 1, "provider_requests": 1, "hook_disabled": true, "pass": true}
+{"case": "linux_mcp_refused", "exit": 1, "provider_requests": 0, "pass": true}
+PASS: Linux network-none Goose terminal and protected hook canaries

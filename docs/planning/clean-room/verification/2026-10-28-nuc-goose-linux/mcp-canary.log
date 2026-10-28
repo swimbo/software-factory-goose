@@ -1,0 +1,8 @@
+{"case": "allowed", "provider_requests": 2, "tool_response": {"status": "executed", "exit_code": 0, "stdout": "VISIBLE_ALLOWED", "stderr": ""}, "pass": true}
+{"case": "denied_command", "provider_requests": 2, "tool_response": {"status": "refused", "reason": "policy_denied"}, "pass": true}
+{"case": "masked_nonzero", "provider_requests": 2, "tool_response": {"status": "executed", "exit_code": 7, "stdout": "[REDACTED]", "stderr": "[REDACTED]"}, "pass": true}
+{"case": "invalid_utf8", "provider_requests": 2, "tool_response": {"status": "refused", "reason": "output_withheld"}, "pass": true}
+{"case": "authority_override", "provider_requests": 2, "tool_response": {"status": "refused", "reason": "invalid_request"}, "pass": true}
+{"case": "outside_write", "provider_requests": 2, "tool_response": {"status": "refused", "reason": "policy_denied"}, "pass": true}
+{"case": "bad_mcp_initialization", "provider_requests": 0, "pass": true}
+PASS: Linux network-none Goose to factory MCP and execution tool canaries

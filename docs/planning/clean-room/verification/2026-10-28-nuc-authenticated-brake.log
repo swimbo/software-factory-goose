@@ -1,0 +1,2 @@
+PASS: real UID 1003 denied; UID 1002 wrong key denied; unknown target denied; UID 1002 stopped owned Docker worker; same slice populated 0
+LIMIT: real separately provisioned operator, authenticated durable recovery, daemon loss, migration escape and production activation remain unproved

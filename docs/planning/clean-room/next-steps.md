@@ -59,3 +59,9 @@ The protected-launch Goose canary passed its narrow hook/configuration checks; m
 ## Deployment target clarification
 
 The user specified the local NUC, not Railway. Continue implementation and host preflight for the NUC. Verify its current OS, cgroup/container support, independent supervision, private ingress, service identities and recovery before installation or worker activation. Preserve existing NUC services and data. Historical macOS/OrbStack fixtures are component evidence only.
+
+## 2026-10-28 NUC integration checkpoint
+
+The NUC now has real cross-UID Rust admission, authenticated independent Docker brake, systemd guardian recovery and actual feature-gated Linux Goose/MCP execution fixture evidence. Latest shared-source gate is 405 passed, two runtime-dependent ignored (see progress and dated logs). These replace historical counts above as the latest component snapshot, not acceptance.
+
+Use the existing Bifrost `auto` complexity/model/reasoning router. The current automatic rules are desktop-key scoped; do not borrow its secret or edit its rules. Finish the reviewed factory-only provisioning proposal, enforce conservative cost/output/fallback contract in the sole atomic authority, connect protected actual Goose traffic, and run real INT-LOOP. Fixture-only Linux MCP support remains disabled in normal builds. Record production genesis/legacy closure and durable recovery before activation.

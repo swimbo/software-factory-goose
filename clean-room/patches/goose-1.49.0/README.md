@@ -61,3 +61,10 @@ a protected launcher that directly owns that group and approved adapter command.
 Ordinary Goose retains separate MCP groups. Tool roots creating new groups must still
 be broker-owned; this change does not prevent arbitrary descendant escape. Restricted
 extension initialization failures return a nonzero exit before any inference call.
+
+`0002-linux-fixture-stdio.patch` is a separate, test-only experiment applied after the
+final patch. It adds the non-default `linux-fixture-stdio` build feature so an isolated
+Linux candidate can exercise stdio MCP under an independently supervised disposable
+container. Without that feature the original non-macOS refusal remains. Enabling the
+feature does not itself verify a launcher, cgroup, protected identity, socket, model
+gateway or cleanup and is not approved for production.

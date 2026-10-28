@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/fixtures/nuc_goose_mcp_canary.py", line 79, in <module>
+    if __name__=='__main__': main()
+                             ^^^^^^
+  File "/fixtures/nuc_goose_mcp_canary.py", line 68, in main
+    assert len(records)==2 and responses==[expected],(name,len(records),responses)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('allowed', 2, [{'status': 'executed', 'exit_code': 126, 'stdout': '', 'stderr': '/bin/sh: 1: ./allowed: Permission denied\n'}])

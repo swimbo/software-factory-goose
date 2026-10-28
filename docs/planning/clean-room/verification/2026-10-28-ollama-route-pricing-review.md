@@ -1,0 +1,5 @@
+# Public route-price evidence, 2026-10-28
+
+Ollama's official pricing page https://ollama.com/pricing lists DeepSeek v4.1 Flash at $0.30 input/$1.20 output per million tokens, and v4 Pro at $1.32 input/$3.96 output; use those peak, noncached rates rather than discounted rates for any conservative candidate contract. Its OpenAI compatibility documentation https://docs.ollama.com/api/openai-compatibility describes a supported subset, not blanket feature equivalence.
+
+These public family rates do not independently establish the exact NUC's version-tag mappings, all fallback destinations, total billable reasoning/output bound, retries, tool schema/token overhead or deployed task-key accounting. They also do not establish the current subscription/provider-key charging contract. The live router's missing local pricing records remain relevant. A new reviewed factory-scoped `auto` route must preserve complexity selection and cover every eligible destination, including fallbacks, before using these as budget authority. No configuration or price rows were changed and no provider request was sent during this review.

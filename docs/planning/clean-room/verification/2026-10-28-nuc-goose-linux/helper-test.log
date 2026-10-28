@@ -1,0 +1,4 @@
+error: failed to download `env-lock v1.0.2`
+
+Caused by:
+  attempting to make an HTTP request, but --offline was specified

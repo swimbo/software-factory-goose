@@ -1,6 +1,7 @@
 //! Independent stop-only brake component. No control-plane, journal, gateway or DB dependency.
 //! No production daemon is enabled. The optional binary is a disposable verification fixture.
 //! Only children spawned by this registry can be targeted; no PID registration API exists.
+pub mod brake_authority;
 pub mod broker;
 #[cfg(feature = "fixture")]
 pub mod guarded_admission;
