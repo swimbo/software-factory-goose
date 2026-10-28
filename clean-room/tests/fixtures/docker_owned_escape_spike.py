@@ -47,7 +47,7 @@ def run(*args, check=True, timeout=8):
 def owned(name, token):
     result = run("inspect", "--format", '{{json .Config.Labels}}', name, check=False)
     if result.returncode:
-        if "No such object" in result.stderr:
+        if "no such object" in result.stderr.lower():
             return False
         raise RuntimeError("cannot establish container identity " + name + ": " + result.stderr.strip())
     return json.loads(result.stdout).get(LABEL) == token

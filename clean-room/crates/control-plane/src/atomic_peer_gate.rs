@@ -255,6 +255,65 @@ pub fn router<A: Authority, P: Provider>(
     anyhow::ensure!(uid == policy.service_uid, "service identity mismatch");
     Ok(scoped_router(policy, authority, provider))
 }
+/// Experimental HTTP/1 listener, for an already privately provisioned Unix socket only.
+/// Socket ownership, access permissions, safe cleanup and shutdown are caller obligations.
+/// Accepted requests are not cancelled by a server-wide request deadline.
+pub async fn serve_fixture_listener(
+    listener: UnixListener,
+    app: Router,
+    worker_uid: u32,
+) -> std::io::Result<()> {
+    serve_with_connection_limit(
+        listener,
+        app,
+        worker_uid,
+        Arc::new(tokio::sync::Semaphore::new(16)),
+    )
+    .await
+}
+async fn serve_with_connection_limit(
+    listener: UnixListener,
+    app: Router,
+    worker_uid: u32,
+    connections: Arc<tokio::sync::Semaphore>,
+) -> std::io::Result<()> {
+    use hyper::{server::conn::http1, service::service_fn};
+    use hyper_util::rt::{TokioIo, TokioTimer};
+    use tower::ServiceExt;
+    loop {
+        let (stream, _) = listener.accept().await?;
+        let peer_uid = match stream.peer_cred() {
+            Ok(peer) if peer.uid() == worker_uid => peer.uid(),
+            _ => continue,
+        };
+        let Ok(permit) = connections.clone().try_acquire_owned() else {
+            continue;
+        };
+        let app = app.clone();
+        tokio::spawn(async move {
+            let _permit = permit;
+            let service = service_fn(move |request: hyper::Request<hyper::body::Incoming>| {
+                let app = app.clone();
+                async move {
+                    let mut request = request.map(axum::body::Body::new);
+                    request.extensions_mut().insert(ConnectInfo(Peer {
+                        uid: Some(peer_uid),
+                    }));
+                    app.oneshot(request).await
+                }
+            });
+            let mut builder = http1::Builder::new();
+            builder
+                .timer(TokioTimer::new())
+                .header_read_timeout(std::time::Duration::from_secs(2))
+                .max_buf_size(8192)
+                .keep_alive(false);
+            let _ = builder
+                .serve_connection(TokioIo::new(stream), service)
+                .await;
+        });
+    }
+}
 fn scoped_router<A: Authority, P: Provider>(
     policy: Policy,
     authority: Arc<A>,
@@ -646,6 +705,10 @@ mod tests {
         // This exercises an actual HTTP hop, but is not a production provider client.
         let calls = Arc::new(AtomicUsize::new(0));
         let upstream_calls = calls.clone();
+        let accepted = Arc::new(tokio::sync::Notify::new());
+        let upstream_accepted = accepted.clone();
+        let release = Arc::new(tokio::sync::Semaphore::new(0));
+        let upstream_release = release.clone();
         let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let endpoint = format!("http://{}/fixture", upstream.local_addr().unwrap());
         let upstream_server = tokio::spawn(async move {
@@ -654,6 +717,8 @@ mod tests {
                 post(
                     move |headers: axum::http::HeaderMap, body: axum::body::Bytes| {
                         let calls = upstream_calls.clone();
+                        let accepted = upstream_accepted.clone();
+                        let release = upstream_release.clone();
                         async move {
                             if headers.get("x-fixture-key").and_then(|v| v.to_str().ok())
                                 != Some("fixture-only-key")
@@ -662,6 +727,8 @@ mod tests {
                                 return StatusCode::FORBIDDEN;
                             }
                             calls.fetch_add(1, Ordering::SeqCst);
+                            accepted.notify_one();
+                            release.acquire().await.unwrap().forget();
                             StatusCode::NO_CONTENT
                         }
                     },
@@ -722,6 +789,20 @@ mod tests {
         std::fs::set_permissions(&wrong_socket, std::fs::Permissions::from_mode(0o600)).unwrap();
         let wrong_authority = authority.clone();
         let wrong_provider = provider.clone();
+        let denied_socket = socket.with_file_name("denied-atomic-gate.sock");
+        let denied_listener = UnixListener::bind(&denied_socket).unwrap();
+        let denied_policy = wrong_policy.clone();
+        let denied_authority = authority.clone();
+        let denied_provider = provider.clone();
+        let denied_server = tokio::spawn(async move {
+            serve_fixture_listener(
+                denied_listener,
+                scoped_router(denied_policy, denied_authority, denied_provider),
+                uid + 1,
+            )
+            .await
+            .unwrap();
+        });
         let wrong_server = tokio::spawn(async move {
             axum::serve(
                 wrong_listener,
@@ -736,11 +817,14 @@ mod tests {
         let provider_for_server = provider.clone();
         let limit = Arc::new(tokio::sync::Semaphore::new(8));
         let server_limit = limit.clone();
+        let connections = Arc::new(tokio::sync::Semaphore::new(16));
+        let server_connections = connections.clone();
         let server = tokio::spawn(async move {
-            axum::serve(
+            serve_with_connection_limit(
                 listener,
-                scoped_router_with_limit(policy, authority, provider_for_server, server_limit)
-                    .into_make_service_with_connect_info::<Peer>(),
+                scoped_router_with_limit(policy, authority, provider_for_server, server_limit),
+                uid,
+                server_connections,
             )
             .await
             .unwrap();
@@ -752,6 +836,72 @@ mod tests {
             .build()
             .unwrap();
         let body = json!({"task":task,"call_id":first.call.call_id});
+        let mut denied = UnixStream::connect(&denied_socket).await.unwrap();
+        let mut denied_buf = [0; 1];
+        let denied_read =
+            tokio::time::timeout(Duration::from_secs(1), denied.read(&mut denied_buf))
+                .await
+                .unwrap();
+        assert!(matches!(denied_read, Ok(0) | Err(_)));
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        // A mix of silent and partial-header peers cannot pin more than 16 connections.
+        let mut headers = Vec::new();
+        for i in 0..16 {
+            let mut stream = UnixStream::connect(&socket).await.unwrap();
+            if i % 2 == 0 {
+                stream
+                    .write_all(b"POST /infer HTTP/1.1\r\nHost:")
+                    .await
+                    .unwrap();
+            }
+            headers.push(stream);
+        }
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while connections.available_permits() != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("all connection permits must be held");
+        let mut overflow = UnixStream::connect(&socket).await.unwrap();
+        let mut buf = [0; 512];
+        let rejected = tokio::time::timeout(Duration::from_secs(1), overflow.read(&mut buf))
+            .await
+            .unwrap();
+        assert!(matches!(rejected, Ok(0) | Err(_)));
+        for mut stream in headers {
+            let n = tokio::time::timeout(Duration::from_secs(4), stream.read(&mut buf))
+                .await
+                .unwrap();
+            match n {
+                Ok(0) | Err(_) => (),
+                Ok(n) => assert!(buf[..n].starts_with(b"HTTP/1.1 408")),
+            }
+        }
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while connections.available_permits() != 16 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("timed-out connections must release permits");
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let disconnect = UnixStream::connect(&socket).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while connections.available_permits() == 16 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        drop(disconnect);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while connections.available_permits() != 16 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("disconnect must release its connection permit");
         // Authenticated clients cannot hold unbounded body reads or gate slots.
         let mut stalled = Vec::new();
         for _ in 0..8 {
@@ -859,6 +1009,14 @@ mod tests {
                     .status()
             });
         }
+        tokio::time::timeout(Duration::from_secs(10), accepted.notified())
+            .await
+            .expect("provider must receive admitted request");
+        assert!(
+            connections.available_permits() < 16,
+            "connection must stay counted while provider is in flight"
+        );
+        release.add_permits(1);
         let mut sent = 0;
         while let Some(result) = jobs.join_next().await {
             let status = result.unwrap();
@@ -869,6 +1027,13 @@ mod tests {
             }
         }
         assert_eq!(sent, 1);
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while connections.available_permits() != 16 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("completed responses must release connection permits");
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         assert_eq!(
             client
@@ -906,8 +1071,10 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         server.abort();
         wrong_server.abort();
+        denied_server.abort();
         upstream_server.abort();
         std::fs::remove_file(socket).unwrap();
         std::fs::remove_file(wrong_socket).unwrap();
+        std::fs::remove_file(denied_socket).unwrap();
     }
 }

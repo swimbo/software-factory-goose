@@ -358,6 +358,8 @@ dependencies = [
  "dotenvy",
  "evaluator",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "libc",
  "reqwest",
  "restate-sdk",
