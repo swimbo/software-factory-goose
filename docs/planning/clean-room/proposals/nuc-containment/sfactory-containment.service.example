@@ -1,0 +1,21 @@
+# REVIEW ARTIFACT ONLY: intentionally inert until an administrator explicitly
+# supplies and reviews the missing implementation and gate file. Do not install.
+[Unit]
+Description=Software Factory containment authority (proposal)
+ConditionPathExists=/etc/sfactory/APPROVED_CONTAINMENT_NOT_YET_PROVISIONED
+After=local-fs.target
+
+[Service]
+Type=notify
+User=root
+Group=root
+ExecStart=/usr/local/libexec/sfactory/containment-authority --config /etc/sfactory/containment.toml
+Delegate=yes
+KillMode=control-group
+Restart=no
+RuntimeDirectory=sfactory-containment
+RuntimeDirectoryMode=0700
+UMask=0077
+
+# A second independent stop/recovery authority and a real readiness protocol
+# are required. This stub does not provide either and must not be enabled.

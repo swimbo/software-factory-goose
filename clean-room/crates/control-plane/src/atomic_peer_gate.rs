@@ -469,6 +469,73 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn unix_listener_uses_kernel_peer_credentials() {
+        use std::os::unix::fs::PermissionsExt;
+        use tokio::io::AsyncReadExt;
+        let uid = unsafe { libc::geteuid() };
+        assert!(uid > 0);
+        let dir = std::env::temp_dir().join(format!("sfactory-peer-{}", ulid::Ulid::new()));
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let good_path = dir.join("good.sock");
+        let bad_path = dir.join("bad.sock");
+        let good_listener = UnixListener::bind(&good_path).unwrap();
+        let bad_listener = UnixListener::bind(&bad_path).unwrap();
+        std::fs::set_permissions(&good_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::set_permissions(&bad_path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let call = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW");
+        let authority = Arc::new(Noop(AtomicUsize::new(0)));
+        let provider = Arc::new(Noop(AtomicUsize::new(0)));
+        let good_app = scoped_router(
+            Policy::checked(uid, uid, "fixture-worker", vec![call.clone()]).unwrap(),
+            authority.clone(),
+            provider.clone(),
+        );
+        let bad_app = scoped_router(
+            Policy::checked(uid, uid + 1, "fixture-worker", vec![call.clone()]).unwrap(),
+            authority.clone(),
+            provider.clone(),
+        );
+        let good = tokio::spawn(async move {
+            serve_fixture_listener(good_listener, good_app, uid)
+                .await
+                .unwrap()
+        });
+        let bad = tokio::spawn(async move {
+            serve_fixture_listener(bad_listener, bad_app, uid + 1)
+                .await
+                .unwrap()
+        });
+        let mut wrong = tokio::net::UnixStream::connect(&bad_path).await.unwrap();
+        let mut byte = [0; 1];
+        let denied = tokio::time::timeout(std::time::Duration::from_secs(2), wrong.read(&mut byte))
+            .await
+            .unwrap();
+        assert!(matches!(denied, Ok(0) | Err(_)));
+        assert_eq!(authority.0.load(Ordering::SeqCst), 0);
+        assert_eq!(provider.0.load(Ordering::SeqCst), 0);
+        let client = reqwest::Client::builder()
+            .unix_socket(good_path.clone())
+            .no_proxy()
+            .timeout(std::time::Duration::from_secs(3))
+            .build()
+            .unwrap();
+        let response = client
+            .post("http://localhost/infer")
+            .json(&json!({"task":call.task,"call_id":call.call.call_id}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(authority.0.load(Ordering::SeqCst), 1);
+        assert_eq!(provider.0.load(Ordering::SeqCst), 1);
+        good.abort();
+        bad.abort();
+        std::fs::remove_file(good_path).unwrap();
+        std::fs::remove_file(bad_path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
+    #[tokio::test]
     async fn provider_mismatch_never_admits_call() {
         let call = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW");
         let policy = Policy::checked(7, 8, "fixture-worker", vec![call.clone()]).unwrap();

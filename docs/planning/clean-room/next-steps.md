@@ -55,3 +55,7 @@ User approved and reviewers completed the debate. The first offline positive-con
 ## Latest component checkpoint — 2026-10-27
 
 The protected-launch Goose canary passed its narrow hook/configuration checks; model-bound split-secret masking canaries exposed per-chunk leakage and validated reassembly on tested channels. See the protected-config and mask-boundary verification reports. The latest all-target/all-feature local suite passed **200 tests**, with fmt, Clippy, doctests and build clean; `verification/2026-10-27-*-latest.log` records commands and output. Unregistered intake, first-attempt queue, fixture holdout runner, explicit-ref promotion, bounded tool boundary and integer budget primitives are available, but no live factory acceptance or production isolation is claimed. Continue at the open runtime integration and safety gates listed above.
+
+## Deployment target clarification
+
+The user specified the local NUC, not Railway. Continue implementation and host preflight for the NUC. Verify its current OS, cgroup/container support, independent supervision, private ingress, service identities and recovery before installation or worker activation. Preserve existing NUC services and data. Historical macOS/OrbStack fixtures are component evidence only.

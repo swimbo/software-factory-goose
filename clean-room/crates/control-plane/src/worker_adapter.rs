@@ -459,11 +459,8 @@ impl UnixRestateBackend {
             .map_err(|_| AdapterError::new(502, "invalid durable response"))
     }
 }
+#[cfg(target_os = "macos")]
 async fn check_private_acls(path: &Path) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        cfg!(target_os = "macos"),
-        "private ingress ACL inspection is currently macOS-only"
-    );
     for entry in path.ancestors() {
         let text = entry
             .to_str()
@@ -491,6 +488,48 @@ async fn check_private_acls(path: &Path) -> anyhow::Result<()> {
         );
     }
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+async fn check_private_acls(path: &Path) -> anyhow::Result<()> {
+    use std::{ffi::CString, os::unix::ffi::OsStrExt};
+    for entry in path.ancestors() {
+        let raw = entry.as_os_str().as_bytes();
+        anyhow::ensure!(
+            !raw.iter().any(u8::is_ascii_control),
+            "unsupported socket pathname"
+        );
+        let entry = CString::new(raw)?;
+        // This first Linux implementation supports the reviewed ext4 ACL model only;
+        // other filesystem ACL semantics require separate verification.
+        let mut fs = std::mem::MaybeUninit::<libc::statfs>::uninit();
+        let status = unsafe { libc::statfs(entry.as_ptr(), fs.as_mut_ptr()) };
+        anyhow::ensure!(status == 0, "filesystem inspection unavailable");
+        let fs = unsafe { fs.assume_init() };
+        anyhow::ensure!(
+            fs.f_type == 0xef53,
+            "unsupported private ingress filesystem"
+        );
+        for name in [c"system.posix_acl_access", c"system.posix_acl_default"] {
+            // Any ACL, including a non-granting one, is unsupported. lgetxattr avoids
+            // following the final symlink; separate ownership/mode checks reject links.
+            let result =
+                unsafe { libc::lgetxattr(entry.as_ptr(), name.as_ptr(), std::ptr::null_mut(), 0) };
+            if result >= 0 {
+                anyhow::bail!("extended ACL needs explicit review");
+            }
+            let error = std::io::Error::last_os_error();
+            anyhow::ensure!(
+                error.raw_os_error() == Some(libc::ENODATA),
+                "ACL inspection unavailable: {error}"
+            );
+        }
+    }
+    Ok(())
+}
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+async fn check_private_acls(_path: &Path) -> anyhow::Result<()> {
+    anyhow::bail!("private ingress ACL inspection unsupported")
 }
 
 fn check_private_socket(path: &Path, uid: u32) -> anyhow::Result<(u64, u64)> {
@@ -559,6 +598,81 @@ impl WorkerBackend for UnixRestateBackend {
 mod tests {
     use super::*;
     use crate::workflow::{ActiveLease, LeaseSpec};
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn linux_private_acl_checks_deny_access_and_default_entries() {
+        use std::{
+            ffi::CString,
+            os::unix::{ffi::OsStrExt, fs::PermissionsExt},
+        };
+        let base = PathBuf::from(std::env::var_os("HOME").unwrap())
+            .join(format!(".sfactory-acl-{}", ulid::Ulid::new()));
+        std::fs::create_dir(&base).unwrap();
+        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let path = CString::new(base.as_os_str().as_bytes()).unwrap();
+        let mut acl = 2_u32.to_le_bytes().to_vec();
+        for (tag, perm, id) in [
+            (1_u16, 7_u16, u32::MAX),
+            (2, 0, 1001),
+            (4, 0, u32::MAX),
+            (16, 0, u32::MAX),
+            (32, 0, u32::MAX),
+        ] {
+            acl.extend(tag.to_le_bytes());
+            acl.extend(perm.to_le_bytes());
+            acl.extend(id.to_le_bytes());
+        }
+        assert!(check_private_acls(&base).await.is_ok());
+        for name in ["system.posix_acl_access", "system.posix_acl_default"] {
+            let name = CString::new(name).unwrap();
+            assert_eq!(
+                unsafe {
+                    libc::setxattr(
+                        path.as_ptr(),
+                        name.as_ptr(),
+                        acl.as_ptr().cast(),
+                        acl.len(),
+                        0,
+                    )
+                },
+                0,
+                "{}",
+                std::io::Error::last_os_error()
+            );
+            assert!(check_private_acls(&base).await.is_err());
+            assert_eq!(
+                unsafe { libc::removexattr(path.as_ptr(), name.as_ptr()) },
+                0
+            );
+            assert!(check_private_acls(&base).await.is_ok());
+        }
+        let uid = unsafe { libc::geteuid() };
+        let socket = base.join("relay.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(check_private_socket(&socket, uid).is_ok());
+        let alias = base.join("alias.sock");
+        std::os::unix::fs::symlink(&socket, &alias).unwrap();
+        assert!(check_private_socket(&alias, uid).is_err());
+        std::fs::remove_file(alias).unwrap();
+        let parent_alias = base.join("parent-alias");
+        std::os::unix::fs::symlink(&base, &parent_alias).unwrap();
+        assert!(check_private_socket(&parent_alias.join("relay.sock"), uid).is_err());
+        std::fs::remove_file(parent_alias).unwrap();
+        let backend = UnixRestateBackend::new(socket.clone(), uid).await.unwrap();
+        let original = base.join("original.sock");
+        std::fs::rename(&socket, &original).unwrap();
+        let replacement = UnixListener::bind(&socket).unwrap();
+        std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let result: Result<bool, _> = backend
+            .call::<(), _>("AtomicInferenceFixture", "fixture", "inspect", None)
+            .await;
+        assert_eq!(result.unwrap_err().code, 503);
+        drop((listener, replacement));
+        std::fs::remove_file(socket).unwrap();
+        std::fs::remove_file(original).unwrap();
+        std::fs::remove_dir(base).unwrap();
+    }
     fn binding(uid: u32) -> WorkerBinding {
         WorkerBinding {
             uid,

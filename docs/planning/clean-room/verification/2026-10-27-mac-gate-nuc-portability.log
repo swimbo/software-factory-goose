@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running unittests src/lib.rs (target/debug/deps/control_plane-8c166442c20b38b0)
+
+running 8 tests
+test atomic_peer_gate::tests::real_unix_peer_and_atomic_journal_fixture ... ignored, requires owned disposable Restate fixture and private Unix relay
+test atomic_peer_gate::tests::policy_cannot_mix_tasks_or_lease_generations ... ok
+test atomic_peer_gate::tests::wrong_peer_is_denied_before_json_parsing ... ok
+test atomic_peer_gate::tests::unavailable_authority_never_calls_provider ... ok
+test atomic_peer_gate::tests::provider_mismatch_never_admits_call ... ok
+test atomic_peer_gate::tests::catalog_and_peer_refuse_spoofing_before_authority_or_provider ... ok
+test atomic_peer_gate::tests::fixture_provider_refuses_mismatch_and_redirect ... ok
+test atomic_peer_gate::tests::unix_listener_uses_kernel_peer_credentials ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 195 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/control_plane-a3d8a7d2928d46d3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/promotion_eligibility.rs (target/debug/deps/promotion_eligibility-61f2263450239a7b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+

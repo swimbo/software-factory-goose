@@ -111,6 +111,8 @@ Internal plane coordination is via Restate workflow handlers (claim/release/comp
 
 ## Infrastructure
 
+- **Deployment target (user clarification)**: the local NUC. Railway is not a deployment target. Host-specific isolation, identities, service supervision and recovery must be verified on the NUC before activation; macOS fixtures do not establish NUC readiness.
+
 - **Deployment (MVP)**: local/dev — `restate-server` binary + Postgres (Docker Compose) + LiteLLM gateway (self-hosted) + `sfctl`. Production path (documented, not built in MVP): Kubernetes Operator for Restate, managed Postgres, gateway as a service.
 - **Environments**: `dev` (local). Staging/prod topology is documented but out of scope for the MVP vertical slice.
 - **Secrets strategy**: no secret in any agent context. Gateway issues short-lived task-scoped virtual keys; the control plane holds no model credentials beyond a gateway-admin key. A dedicated agent secret set is distinct from developer/CI secrets.

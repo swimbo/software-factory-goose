@@ -1,0 +1,19 @@
+   Compiling control-plane v0.1.0 (/tmp/sfactory-gate-linux.X4ZjF1LB/project/crates/control-plane)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.89s
+     Running unittests src/lib.rs (/tmp/sfactory-gate-linux.X4ZjF1LB/target/debug/deps/control_plane-c3bf3057853da1be)
+
+running 11 tests
+test worker_adapter::tests::pull_requires_authoritative_binding_and_live_deadline ... ok
+test worker_adapter::tests::policy_never_accepts_shared_or_root_identity ... ok
+test worker_adapter::tests::policy_rejects_ambiguous_transport_keys ... ok
+test worker_adapter::tests::completion_read_only_lookup_exact_retry_and_changed_result ... ok
+test worker_adapter::tests::linux_private_acl_checks_deny_access_and_default_entries ... ok
+test worker_adapter::tests::contradictory_completion_stage_is_unknown_and_retry_is_rejected ... ok
+test worker_adapter::tests::unknown_outcome_preserves_request_identity_for_caller_retry ... ok
+test worker_adapter::tests::deadline_and_stale_state_deny_replayed_delivery ... ok
+test worker_adapter::tests::missing_connection_metadata_and_oversized_payload_fail_before_backend ... ok
+test worker_adapter::tests::unix_backend_uses_exact_routes_json_and_rejects_changed_socket_permissions ... ok
+test worker_adapter::tests::actual_peer_wins_over_headers_and_body_and_wrong_uid_denies ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.08s
+

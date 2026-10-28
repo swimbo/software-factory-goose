@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fixture-only Docker owner-loss controller; never a production brake."""
 import json
+import os
 import select
 import subprocess
 import sys
@@ -23,6 +24,12 @@ class DisposableContainer:
         self.ident = None
         self.closed = False
         self.removed = False
+        self.cgroup_parent = os.environ.get("SFACTORY_CGROUP_PARENT")
+        if self.cgroup_parent is not None and (not self.cgroup_parent.startswith("sfactory")
+            or not self.cgroup_parent.endswith("-worker.slice")
+            or len(self.cgroup_parent) != len("sfactory") + 32 + len("-worker.slice")
+            or any(c not in "0123456789abcdef" for c in self.cgroup_parent[8:-13])):
+            raise ValueError("invalid task-owned worker slice")
 
     def inspect(self, target):
         result = docker("inspect", target, check=False)
@@ -45,8 +52,9 @@ class DisposableContainer:
             raise RuntimeError("admission closed or already consumed")
         # A timeout may leave an owned, never-started create behind. The name and
         # random label permit cleanup only after a successful identity check.
+        group_args = ["--cgroup-parent", self.cgroup_parent] if self.cgroup_parent else []
         result = docker("create", "--name", self.name, "--label", LABEL + "=" + self.token,
-            "--network", "none", "--read-only", "--cap-drop", "ALL",
+            *group_args, "--network", "none", "--read-only", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges", "--pids-limit", "24",
             "--memory", "96m", "--cpus", "0.5", "--user", "65534:65534",
             "--entrypoint", "python3", "--pull", "never", IMAGE, "-u", "-c", MAIN)
