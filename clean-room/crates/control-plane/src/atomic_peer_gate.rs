@@ -6,7 +6,8 @@ use crate::{
 use axum::{
     Json, Router,
     extract::{
-        ConnectInfo, DefaultBodyLimit, Request as HttpRequest, State, connect_info::Connected,
+        ConnectInfo, DefaultBodyLimit, FromRequest, Request as HttpRequest, State,
+        connect_info::Connected,
     },
     http::StatusCode,
     middleware::{self, Next},
@@ -110,6 +111,8 @@ pub trait Authority: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), AdapterError>> + Send;
 }
 pub trait Provider: Send + Sync + 'static {
+    /// Pure check of immutable trusted provider bindings; grants no dispatch authority.
+    fn check_binding(&self, call: &Call, payload: &[u8]) -> Result<(), AdapterError>;
     fn send(
         &self,
         call: &Call,
@@ -167,10 +170,14 @@ impl LoopbackFixtureProvider {
     }
 }
 impl Provider for LoopbackFixtureProvider {
-    async fn send(&self, call: &Call, payload: &[u8]) -> Result<(), AdapterError> {
+    fn check_binding(&self, call: &Call, payload: &[u8]) -> Result<(), AdapterError> {
         if call.model != self.model || payload != self.payload {
             return Err(AdapterError::new(403, "fixture provider binding mismatch"));
         }
+        Ok(())
+    }
+    async fn send(&self, call: &Call, payload: &[u8]) -> Result<(), AdapterError> {
+        self.check_binding(call, payload)?;
         let response = self
             .client
             .post(self.endpoint.clone())
@@ -253,10 +260,24 @@ fn scoped_router<A: Authority, P: Provider>(
     authority: Arc<A>,
     provider: Arc<P>,
 ) -> Router {
+    scoped_router_with_limit(
+        policy,
+        authority,
+        provider,
+        Arc::new(tokio::sync::Semaphore::new(8)),
+    )
+}
+fn scoped_router_with_limit<A: Authority, P: Provider>(
+    policy: Policy,
+    authority: Arc<A>,
+    provider: Arc<P>,
+    limit: Arc<tokio::sync::Semaphore>,
+) -> Router {
     let worker_uid = policy.worker_uid;
     Router::new()
         .route("/infer", post(infer::<A, P>))
         .layer(DefaultBodyLimit::max(4096))
+        .layer(middleware::from_fn_with_state(limit, limit_inflight))
         .layer(middleware::from_fn_with_state(
             worker_uid,
             authenticate_peer,
@@ -266,6 +287,16 @@ fn scoped_router<A: Authority, P: Provider>(
             authority,
             provider,
         })
+}
+async fn limit_inflight(
+    State(limit): State<Arc<tokio::sync::Semaphore>>,
+    request: HttpRequest,
+    next: Next,
+) -> Response {
+    let Ok(_permit) = limit.try_acquire_owned() else {
+        return AdapterError::new(429, "gate busy").into_response();
+    };
+    next.run(request).await
 }
 async fn authenticate_peer(State(uid): State<u32>, request: HttpRequest, next: Next) -> Response {
     if request
@@ -280,14 +311,24 @@ async fn authenticate_peer(State(uid): State<u32>, request: HttpRequest, next: N
 }
 async fn infer<A: Authority, P: Provider>(
     State(state): State<GateState<A, P>>,
-    Json(request): Json<Request>,
+    request: HttpRequest,
 ) -> Result<StatusCode, AdapterError> {
+    // Only body extraction has a deadline. Once admission begins, do not cancel an
+    // ambiguous journal or provider operation under a router timeout.
+    let Json(request) = tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        Json::<Request>::from_request(request, &()),
+    )
+    .await
+    .map_err(|_| AdapterError::new(408, "request body timed out"))?
+    .map_err(|e| AdapterError::new(e.status().as_u16(), "invalid request body"))?;
     let entry = state
         .policy
         .entries
         .iter()
         .find(|e| e.task == request.task && e.call.call_id == request.call_id)
         .ok_or_else(|| AdapterError::new(403, "call absent from catalog"))?;
+    state.provider.check_binding(&entry.call, &entry.payload)?;
     state.authority.admit(&entry.task, &entry.call).await?;
     state.provider.send(&entry.call, &entry.payload).await?;
     // Never return a begin capability or raw provider content to the worker.
@@ -331,6 +372,9 @@ mod tests {
         }
     }
     impl Provider for Noop {
+        fn check_binding(&self, _: &Call, _: &[u8]) -> Result<(), AdapterError> {
+            Ok(())
+        }
         async fn send(&self, _: &Call, _: &[u8]) -> Result<(), AdapterError> {
             self.0.fetch_add(1, Ordering::SeqCst);
             Ok(())
@@ -364,6 +408,31 @@ mod tests {
         for invalid in [other_task, other_token, other_attempt] {
             assert!(Policy::new(7, 8, "fixture-worker", vec![first.clone(), invalid]).is_err());
         }
+    }
+    #[tokio::test]
+    async fn provider_mismatch_never_admits_call() {
+        let call = entry("task", "01ARZ3NDEKTSV4RRFFQ69G5FAW");
+        let policy = Policy::checked(7, 8, "fixture-worker", vec![call.clone()]).unwrap();
+        let authority = Arc::new(Noop(AtomicUsize::new(0)));
+        let provider = Arc::new(
+            LoopbackFixtureProvider::new(
+                "http://127.0.0.1:9/fixture",
+                "fixture-key",
+                "other-model",
+                call.payload.clone(),
+            )
+            .unwrap(),
+        );
+        let app = scoped_router(policy, authority.clone(), provider);
+        let response = app
+            .oneshot(request(
+                json!({"task":call.task,"call_id":call.call.call_id}),
+                Some(8),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(authority.0.load(Ordering::SeqCst), 0);
     }
     #[tokio::test]
     async fn fixture_provider_refuses_mismatch_and_redirect() {
@@ -617,6 +686,35 @@ mod tests {
             vec![first.clone(), second.clone()],
         )
         .unwrap();
+        // A misconfigured provider must not create a reservation or dispatch record.
+        let mismatch = Arc::new(
+            LoopbackFixtureProvider::new(
+                &endpoint,
+                "fixture-only-key",
+                "wrong-model",
+                b"synthetic".to_vec(),
+            )
+            .unwrap(),
+        );
+        let mismatch_app = scoped_router(policy.clone(), authority.clone(), mismatch);
+        let mismatched = mismatch_app
+            .oneshot(request(
+                json!({"task": task,"call_id":first.call.call_id}),
+                Some(uid),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(mismatched.status(), StatusCode::FORBIDDEN);
+        let inspect = restate_client
+            .post(format!(
+                "{restate}/restate/call/AtomicInferenceFixture/{task}/inspect"
+            ))
+            .json(&first.call)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(inspect.status(), StatusCode::NOT_FOUND);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         let wrong_policy =
             Policy::checked(uid, uid + 1, "fixture-worker", vec![first.clone()]).unwrap();
         let wrong_socket = socket.with_file_name("wrong-atomic-gate.sock");
@@ -636,10 +734,12 @@ mod tests {
         let listener = UnixListener::bind(&socket).unwrap();
         std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
         let provider_for_server = provider.clone();
+        let limit = Arc::new(tokio::sync::Semaphore::new(8));
+        let server_limit = limit.clone();
         let server = tokio::spawn(async move {
             axum::serve(
                 listener,
-                scoped_router(policy, authority, provider_for_server)
+                scoped_router_with_limit(policy, authority, provider_for_server, server_limit)
                     .into_make_service_with_connect_info::<Peer>(),
             )
             .await
@@ -652,6 +752,39 @@ mod tests {
             .build()
             .unwrap();
         let body = json!({"task":task,"call_id":first.call.call_id});
+        // Authenticated clients cannot hold unbounded body reads or gate slots.
+        let mut stalled = Vec::new();
+        for _ in 0..8 {
+            let mut stream = UnixStream::connect(&socket).await.unwrap();
+            stream.write_all(b"POST /infer HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 4000\r\n\r\n{").await.unwrap();
+            stalled.push(stream);
+        }
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while limit.available_permits() != 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("all stalled requests must reach the gate");
+        assert_eq!(
+            client
+                .post("http://localhost/infer")
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        for mut stream in stalled {
+            let mut buf = [0; 512];
+            let n = tokio::time::timeout(Duration::from_secs(4), stream.read(&mut buf))
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(buf[..n].starts_with(b"HTTP/1.1 408"));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         let mut raw = UnixStream::connect(&wrong_socket).await.unwrap();
         raw.write_all(b"POST /infer HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 4000\r\n\r\n{").await.unwrap();
         let mut response = [0; 512];
