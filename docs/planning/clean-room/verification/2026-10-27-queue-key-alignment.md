@@ -1,0 +1,3 @@
+# Queue key and transport alignment
+
+The private worker adapter rejected ambiguous URL path segments, but the durable queue accepted them. Its schedule validation and queue binding now reject dot segments and slash, backslash, percent, question-mark and hash characters before accepting new work. A focused regression failed before the fix and passed afterwards. The disposable real Restate replay also rejected each malformed work-package ID before scheduling its ordinary task and passed its existing retry and restart checks. Repository names are not treated as transport keys. Previously persisted incompatible IDs may require a reviewed migration; no existing data was changed.

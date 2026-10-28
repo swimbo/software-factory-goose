@@ -2,7 +2,7 @@
 use anyhow::{Context, Result, ensure};
 use std::{
     fs::{self, OpenOptions},
-    io::Write,
+    io::{Read, Write},
     os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -23,6 +23,44 @@ fn write_new(path: &Path, value: &serde_json::Value) -> Result<()> {
 fn main() -> Result<()> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
     match arguments.first().and_then(|a| a.to_str()) {
+        Some("--fixture-controller-loss") => {
+            ensure!(
+                arguments.len() == 1,
+                "fixture requires only a controller pipe"
+            );
+            let registry = Registry::new()?;
+            // This fixed-duration benign child limits fixture lifetime even if its
+            // guardian is forcibly killed; no restored PID is ever signalled.
+            let target = registry.spawn_owned(Command::new("/bin/sleep").arg("5"))?;
+            let (tx, rx) = std::sync::mpsc::sync_channel(1);
+            std::thread::spawn(move || {
+                let mut byte = [0_u8];
+                let _ = tx.send(std::io::stdin().read(&mut byte));
+            });
+            println!("READY");
+            std::io::stdout().flush()?;
+            let input = rx.recv_timeout(Duration::from_secs(4));
+            let stopped = registry.stop(&target)?;
+            ensure!(
+                stopped.leader_reaped && stopped.group_absent,
+                "fixture group stop unresolved"
+            );
+            ensure!(
+                matches!(input, Ok(Ok(0))),
+                "controller pipe did not close cleanly"
+            );
+            println!("STOPPED");
+            Ok(())
+        }
+        Some("--fixture-recovery-latch") => {
+            ensure!(arguments.len() == 2, "fixture latch requires private root");
+            watchdog::recovery_latch::arm(Path::new(&arguments[1]))?;
+            println!("armed");
+            std::io::stdout().flush()?;
+            loop {
+                std::thread::sleep(Duration::from_secs(1));
+            }
+        }
         Some("--fixture-descendant") => loop {
             std::thread::sleep(Duration::from_secs(1));
         },
@@ -108,6 +146,9 @@ async fn serve_fixture(root: &Path, family_fixture: bool) -> Result<()> {
             && metadata.mode() & 0o777 == 0o700,
         "fixture root must be owned private directory"
     );
+    // The fixture makes its durable unresolved-run marker before listener creation
+    // or process launch. There is intentionally no automatic recovery/reset.
+    watchdog::recovery_latch::arm(root)?;
     let socket = root.join("brake.sock");
     ensure!(
         !socket.try_exists()? && fs::symlink_metadata(&socket).is_err(),

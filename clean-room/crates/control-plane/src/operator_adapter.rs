@@ -335,8 +335,11 @@ async fn prepare<A: PromotionAuthority, B: ApprovalBackend>(
             )
             .await
             .map_err(|_| OperatorError::unknown(nonce.clone()))?;
-        verify_record(&record, &nonce, &operator, &state.config.audience)?;
-        let now = now_ms()?;
+        // Once issue has been invoked, every later failure is an unknown durable
+        // outcome. Preserve the server-created nonce so status can reconcile it.
+        verify_record(&record, &nonce, &operator, &state.config.audience)
+            .map_err(|_| OperatorError::unknown(nonce.clone()))?;
+        let now = now_ms().map_err(|_| OperatorError::unknown(nonce.clone()))?;
         if record.action != action
             || record.consumed_at_ms.is_some()
             || record.issued_at_ms > now
@@ -347,7 +350,9 @@ async fn prepare<A: PromotionAuthority, B: ApprovalBackend>(
         }
         // Keep source exclusion through response validation; not a durable execution claim.
         drop(guard);
-        Ok(Json(Presentation::new(record)?))
+        Ok(Json(
+            Presentation::new(record).map_err(|_| OperatorError::unknown(nonce.clone()))?,
+        ))
     })
     .await
     .map_err(|_| OperatorError::unknown(nonce))?

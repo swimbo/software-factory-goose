@@ -1,0 +1,22 @@
+    Blocking waiting for file lock on artifact directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.84s
+     Running unittests src/lib.rs (target/debug/deps/control_plane-8f77437b9bfd1202)
+
+running 1 test
+test worker_queue::tests::queue_and_task_keys_reject_ambiguous_transport_segments ... FAILED
+
+failures:
+
+---- worker_queue::tests::queue_and_task_keys_reject_ambiguous_transport_segments stdout ----
+
+thread 'worker_queue::tests::queue_and_task_keys_reject_ambiguous_transport_segments' (28982078) panicked at crates/control-plane/src/worker_queue.rs:435:13:
+accepted task key .
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    worker_queue::tests::queue_and_task_keys_reject_ambiguous_transport_segments
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p control-plane --lib`

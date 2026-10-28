@@ -42,6 +42,7 @@ struct Journal {
     consumes: AtomicUsize,
     lost_ack: AtomicBool,
     lost_issue_ack: AtomicBool,
+    corrupt_issue_reply: AtomicBool,
     consume_started: tokio::sync::Notify,
 }
 impl ApprovalBackend for Journal {
@@ -63,7 +64,11 @@ impl ApprovalBackend for Journal {
         if self.lost_issue_ack.load(Ordering::SeqCst) {
             std::future::pending::<()>().await;
         }
-        Ok(record)
+        let mut reply = record;
+        if self.corrupt_issue_reply.load(Ordering::SeqCst) {
+            reply.operator_uid = 0;
+        }
+        Ok(reply)
     }
     async fn status(&self, nonce: String) -> Result<Option<ApprovalRecord>, OperatorError> {
         Ok(self.records.lock().await.get(&nonce).cloned())
@@ -145,6 +150,7 @@ async fn fixture() -> (Router, Arc<Authority>, Arc<Journal>) {
         consumes: AtomicUsize::new(0),
         lost_ack: AtomicBool::new(false),
         lost_issue_ack: AtomicBool::new(false),
+        corrupt_issue_reply: AtomicBool::new(false),
         consume_started: tokio::sync::Notify::new(),
     });
     let router = scoped_router(
@@ -212,6 +218,33 @@ impl Running {
         assert_eq!(response.status(), 200);
         response.json().await.unwrap()
     }
+}
+
+#[tokio::test]
+async fn corrupt_issue_reply_retains_nonce_for_status_reconciliation() {
+    let (router, _, journal) = fixture().await;
+    journal.corrupt_issue_reply.store(true, Ordering::SeqCst);
+    let server = Running::new(router).await;
+    let response = server
+        .post(
+            "/prepare",
+            serde_json::json!({"task_id":"task","reason":"reviewed"}),
+        )
+        .await;
+    assert_eq!(response.status(), 503);
+    let unknown: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(unknown["code"], "approval_outcome_unknown");
+    let nonce = unknown["nonce"].as_str().unwrap();
+    assert!(nonce_valid(nonce));
+    let status = server
+        .post("/status", serde_json::json!({"nonce":nonce}))
+        .await;
+    assert_eq!(status.status(), 200);
+    let record: serde_json::Value = status.json().await.unwrap();
+    assert_eq!(record["record"]["nonce"], nonce);
+    assert_eq!(record["execution"], "not_executed");
+    assert_eq!(journal.issues.load(Ordering::SeqCst), 1);
+    assert_eq!(journal.consumes.load(Ordering::SeqCst), 0);
 }
 
 #[tokio::test]

@@ -1,0 +1,7 @@
+# Rust synthetic request/reservation ordering
+
+An isolated `cfg(test)` Rust fixture connects the experimental Goose request validator to a synthetic reservation backend and then a synthetic provider. The fixed model, tool schema, token and byte limits, reservation amount and response cap are trusted fixture configuration; neither request identity nor a real price is accepted from the caller. There is no listener and the module is absent from non-test builds.
+
+Four tests passed after the initial missing-implementation compilation failure. They assert validation happens before reservation; an invalid request or denied/unknown reservation makes zero provider calls; an accepted reservation precedes the provider call; and provider failure or an oversized response returns an error with no refund operation. Scoped all-target/all-feature Clippy passed with warnings denied.
+
+The provider and reservation are in-process mocks. The response length check follows receipt of an already allocated mock `Vec` and is not a safe streaming transport; it does not parse or validate SSE. This test proves call ordering only, not a network boundary, actual conservative price contract, Restate ledger, concurrent cumulative accounting, idempotent reservation, crash recovery, trusted task binding, real Goose connectivity or Bifrost enforcement. The earlier Python loopback Goose experiment is separate; no production route or worker was enabled.

@@ -75,11 +75,21 @@ fn canonical_text(value: &str) -> bool {
         && value.trim() == value
         && !value.chars().any(char::is_control)
 }
+// Queue and work-package IDs become Restate URL path segments in the private worker
+// adapter. Reject ambiguous forms before persisting work the adapter cannot safely use.
+fn canonical_transport_key(value: &str) -> bool {
+    canonical_text(value)
+        && value != "."
+        && value != ".."
+        && !value
+            .chars()
+            .any(|c| matches!(c, '/' | '\\' | '%' | '?' | '#'))
+}
 fn canonical_id(value: &str) -> bool {
     ulid::Ulid::from_string(value).is_ok_and(|id| id.to_string() == value)
 }
 fn validate_schedule(request: &ScheduleRequest) -> Result<(), TerminalError> {
-    if !canonical_text(&request.work_package_id)
+    if !canonical_transport_key(&request.work_package_id)
         || !canonical_text(&request.spec.repository)
         || !matches!(request.spec.base_revision.len(), 40 | 64)
         || !request
@@ -102,7 +112,7 @@ impl QueueState {
         }
     }
     fn check_binding(&self, key: &str, worker: &str) -> Result<(), TerminalError> {
-        if !canonical_text(key) || self.queue_id != key || self.worker_id != worker {
+        if !canonical_transport_key(key) || self.queue_id != key || self.worker_id != worker {
             return Err(error(403, "queue scope mismatch"));
         }
         Ok(())
@@ -426,6 +436,30 @@ mod tests {
         changed.spec.base_revision = "b".repeat(40);
         assert!(restored.record_schedule(changed).is_err());
         assert!(restored.check_binding("queue", "other").is_err());
+    }
+    #[test]
+    fn queue_and_task_keys_reject_ambiguous_transport_segments() {
+        for invalid in [".", "..", "%2e", "a/b", "a\\b", "a?b", "a#b"] {
+            let mut req = request();
+            req.work_package_id = invalid.into();
+            assert!(
+                validate_schedule(&req).is_err(),
+                "accepted task key {invalid}"
+            );
+            let q = QueueState::new(invalid, "worker");
+            assert!(
+                q.check_binding(invalid, "worker").is_err(),
+                "accepted queue key {invalid}"
+            );
+        }
+        let mut req = request();
+        req.work_package_id = "unit:task-1".into();
+        assert!(validate_schedule(&req).is_ok());
+        assert!(
+            QueueState::new("queue:1", "worker")
+                .check_binding("queue:1", "worker")
+                .is_ok()
+        );
     }
     #[test]
     fn lost_ack_returns_original_assignment_without_new_claim() {

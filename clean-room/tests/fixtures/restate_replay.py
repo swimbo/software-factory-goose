@@ -110,6 +110,8 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert results.count((200,True))==7 and results.count((200,False))==3,results
             queue=base+'/restate/call/WorkerQueueJournal/fixture-queue'
             task={'work_package_id':'fixture-task','spec':{'repository':'fixture','base_revision':'a'*40}}
+            for invalid_key in ('.', '..', '%2e', 'a/b', 'a\\b', 'a?b', 'a#b'):
+                assert post(queue+'/schedule',{**task,'work_package_id':invalid_key})[0]==400
             assert post(queue+'/schedule',task)[0]==200
             assert post(queue+'/schedule',task)[0]==200
             request={'request_id':'01ARZ3NDEKTSV4RRFFQ69G5FAW','ttl_ms':300000}

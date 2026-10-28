@@ -1,0 +1,7 @@
+# Disposable guardian on controller loss
+
+A separate fixture guardian directly spawns and owns a fixed five-second `/bin/sleep` child, then waits on a controller pipe whose write end belongs to another owned process. The registry closes the child's inherited stdin, so the child does not keep that pipe alive. When the test kills and reaps its controller through a live `Child` handle, pipe EOF makes the guardian stop and reap its own child before reporting success. The test first verifies that the guardian has not reported stop while the controller remains alive. Before the implementation the focused test failed because the fixture mode did not exist.
+
+The test's cleanup kills only its own controller, gives the guardian seven seconds to exit, and if necessary kills only that owned guardian and waits another six seconds for the benign child's fixed lifetime. It never signals an orphan or a stored PID. This timeout is a practical fixture cleanup bound, not a guarantee against a kernel hang, suspended worker, or hostile workload.
+
+This proves only the same-UID fixed child and ordinary pipe-EOF case with the guardian alive and responsive. It does not prove teardown after guardian death, escaped descendants, stalled spawn, prevention of a leaked write end, separate identities, network isolation, or durable recovery. The guardian has no production serve mode and this experiment does not enable a worker.

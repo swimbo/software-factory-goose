@@ -2,6 +2,8 @@
 //! No production daemon is enabled. The optional binary is a disposable verification fixture.
 //! Only children spawned by this registry can be targeted; no PID registration API exists.
 pub mod broker;
+#[cfg(feature = "fixture")]
+pub mod recovery_latch;
 use anyhow::{Context, Result, ensure};
 use axum::{
     Json, Router,

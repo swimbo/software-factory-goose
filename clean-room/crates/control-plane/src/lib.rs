@@ -5,6 +5,9 @@
 pub mod driver;
 pub mod gates;
 pub mod gateway;
+#[cfg(test)]
+mod goose_fixture_gateway;
+pub mod goose_protocol;
 pub mod memory;
 pub mod pipeline;
 pub mod projection;

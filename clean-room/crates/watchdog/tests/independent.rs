@@ -39,6 +39,7 @@ impl Drop for Fixture {
             "children-worker.json",
             "children-goose.json",
             "children-tool.json",
+            "recovery-required",
         ] {
             let _ = fs::remove_file(self.root.join(name));
         }
