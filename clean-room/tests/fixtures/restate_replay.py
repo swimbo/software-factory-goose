@@ -2,6 +2,7 @@
 """Disposable same-host Restate journal fixture; not an authenticated deployment test."""
 import concurrent.futures, json, os, pathlib, socket, subprocess, tempfile, time, urllib.error, urllib.request
 from worker_backend_proxy import verify_worker_backend, verify_promotion_decision, prepare_promotion_execution, verify_promotion_execution
+from trusted_inference_launcher_fixture import exercise as exercise_inference_launcher, verify_after_restart as verify_inference_launcher
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SERVER = '/Users/bo/.local/opt/node/bin/restate-server'
@@ -155,6 +156,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
                 begins=list(pool.map(lambda _:post(race_inference+'/begin',infer_request),range(10)))
             assert sorted(code for code,_ in begins)==[200]+[409]*9,begins
+            launcher_ids=exercise_inference_launcher(base,env)
             queue=base+'/restate/call/WorkerQueueJournal/fixture-queue'
             task={'work_package_id':'fixture-task','spec':{'repository':'fixture','base_revision':'a'*40}}
             for invalid_key in ('.', '..', '%2e', 'a/b', 'a\\b', 'a?b', 'a#b'):
@@ -219,6 +221,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/IdempotentBudgetCounter/idem-unit/reserve',idem_denied)==(200,False)
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',infer_request)==(200,'DispatchingUnknown')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
+            verify_inference_launcher(base,launcher_ids)
             status,result=post(base+f'/restate/call/ApprovalJournal/{nonce}/consume',presentation)
             assert status==409,(status,result)
             verify_promotion_decision(ingress, env, tmp+'/promotion-decision.json', 'exercise')
@@ -232,6 +235,7 @@ with tempfile.TemporaryDirectory(prefix='sfactory-restate-replay-') as tmp:
             assert post(base+'/restate/call/IdempotentBudgetCounter/idem-unit/reserve',idem_denied)==(200,False)
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',infer_request)==(200,'DispatchingUnknown')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',infer_request)[0]==409
+            verify_inference_launcher(base,launcher_ids)
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/prepare',pending_request)==(200,'Reserved')
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==200
             assert post(base+'/restate/call/InferenceAuthority/inference-unit/begin',pending_request)[0]==409
