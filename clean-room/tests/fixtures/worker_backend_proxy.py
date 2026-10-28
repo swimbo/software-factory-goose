@@ -98,6 +98,18 @@ def verify_worker_backend(ingress_port, env):
                 subprocess.run([str(ROOT / 'target/debug/examples/intake_backend_fixture'), path, lost_path], cwd=ROOT, env=env, check=True, timeout=90)
                 if not lost_reply.is_set():
                     raise RuntimeError('intake fixture did not exercise reply-loss injection')
+                # Test-only same-UID gate path: production policy rejects shared identities.
+                # Cargo and Rustup locations are explicit because the fixture HOME is private.
+                cargo_home = os.environ.get('CARGO_HOME', str(pathlib.Path.home() / '.cargo'))
+                rustup_home = os.environ.get('RUSTUP_HOME', str(pathlib.Path.home() / '.rustup'))
+                gate_env = {**env, 'CARGO_HOME': cargo_home, 'RUSTUP_HOME': rustup_home,
+                    'SFACTORY_TEST_ATOMIC_RELAY': path,
+                    'SFACTORY_TEST_ATOMIC_SOCKET': str(pathlib.Path(directory) / 'atomic-gate.sock'),
+                    'SFACTORY_TEST_ATOMIC_RESTATE': f'http://127.0.0.1:{ingress_port}'}
+                subprocess.run([str(pathlib.Path(cargo_home) / 'bin/cargo'), 'test', '--offline', '--locked',
+                    '--manifest-path', str(ROOT / 'Cargo.toml'), '-p', 'control-plane', '--all-features', '--lib',
+                    'atomic_peer_gate::tests::real_unix_peer_and_atomic_journal_fixture', '--', '--ignored', '--exact'],
+                    cwd=ROOT, env=gate_env, check=True, timeout=120)
             finally:
                 for current, thread in started:
                     current.shutdown()

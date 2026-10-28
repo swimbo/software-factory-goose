@@ -1,0 +1,7 @@
+# Guarded-release exited leader cleanup
+
+An exited but unreaped owned group leader previously caused `live()` to deny both release and cleanup, leaving same-group descendants running. A real disposable shell fixture spawned a descendant that would create a temporary marker after 0.8 seconds, wrote a frame, and exited; the test initially failed because the marker appeared.
+
+`FixtureGroup` now uses `waitid(WNOWAIT)` to confirm direct-child ownership before any group signal, including after leader exit. A live leader must still have its expected group ID. Signal failure, including `EPERM`, leaves the leader unreaped and output withheld; successful group signaling does not make a naturally exited leader a valid release proof. The real marker fixture passed afterward, as did the injected `EPERM` retention check and existing release/absence controls.
+
+Verification: `cargo test --offline --locked -p watchdog --features fixture guarded_release` passed 3 matching library tests; `cargo test --offline --locked -p watchdog --features fixture --test guarded_release` passed all 4 integration tests; strict `cargo clippy --offline --locked -p watchdog --all-targets --all-features -- -D warnings` passed. Tests ran on local macOS using disposable same-UID processes. This does not prove independent containment, privileged cross-UID cleanup, escaped descendant termination, or cleanup after controller loss. macOS may reject group signals or absence checks with `EPERM`; those cases remain errors and cannot authorize output release.

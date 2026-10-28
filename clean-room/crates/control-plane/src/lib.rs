@@ -26,6 +26,8 @@ pub mod promotion_eligibility;
 
 #[cfg(feature = "restate")]
 pub mod atomic_inference_fixture;
+#[cfg(all(feature = "restate", unix))]
+pub mod atomic_peer_gate;
 #[cfg(feature = "restate")]
 pub mod idempotent_budget;
 #[cfg(feature = "restate")]

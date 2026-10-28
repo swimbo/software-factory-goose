@@ -34,3 +34,23 @@ fn dead_leader_never_releases_frame() {
     std::thread::sleep(Duration::from_millis(100));
     assert!(group.complete(Duration::from_secs(1)).is_err());
 }
+
+#[test]
+fn exited_leader_group_descendant_is_stopped_without_releasing_frame() {
+    let root = std::env::temp_dir().join(format!("guarded-dead-leader-{}", std::process::id()));
+    std::fs::create_dir(&root).unwrap();
+    let marker = root.join("descendant-survived");
+    let script = format!(
+        "(/bin/sleep 0.8; /usr/bin/touch '{}') & printf 'SFR1\\000\\000\\000\\003yes'; exit 0",
+        marker.display()
+    );
+    let mut command = Command::new("/bin/sh");
+    command.args(["-c", &script]);
+    let mut group = FixtureGroup::launch(&mut command).unwrap();
+    std::thread::sleep(Duration::from_millis(100));
+    assert!(group.complete(Duration::from_secs(1)).is_err());
+    std::thread::sleep(Duration::from_millis(1000));
+    let survived = marker.exists();
+    std::fs::remove_dir_all(&root).unwrap();
+    assert!(!survived, "same-group descendant survived exited leader");
+}

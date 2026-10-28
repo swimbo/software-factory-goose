@@ -23,6 +23,26 @@ fn write_new(path: &Path, value: &serde_json::Value) -> Result<()> {
 fn main() -> Result<()> {
     let arguments: Vec<_> = std::env::args_os().skip(1).collect();
     match arguments.first().and_then(|a| a.to_str()) {
+        Some("--fixture-admission-owner") => {
+            ensure!(arguments.len() == 2, "fixture requires private root");
+            let root = Path::new(&arguments[1]);
+            let spec = watchdog::guarded_admission::FixtureSpec::new(
+                "/bin/sh",
+                ["-c", "printf ready > ready; exec sleep 2"],
+                root,
+            )?;
+            let mut launcher = watchdog::guarded_admission::FixtureLauncher::new(root, spec)?;
+            let _group = launcher.launch()?;
+            let deadline = std::time::Instant::now() + Duration::from_secs(3);
+            while !root.join("ready").is_file() && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            ensure!(root.join("ready").is_file(), "fixture child not ready");
+            println!("armed");
+            std::io::stdout().flush()?;
+            std::thread::sleep(Duration::from_secs(3));
+            Ok(())
+        }
         Some("--fixture-controller-loss") => {
             ensure!(
                 arguments.len() == 1,

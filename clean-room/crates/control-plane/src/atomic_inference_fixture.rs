@@ -252,7 +252,7 @@ impl AtomicInferenceFixture {
         Ok(Json(stage))
     }
     #[handler]
-    async fn begin(&self, ctx: ObjectContext<'_>, call: Json<Call>) -> HandlerResult<()> {
+    async fn begin(&self, ctx: ObjectContext<'_>, call: Json<Call>) -> HandlerResult<Json<bool>> {
         let mut state = ctx
             .get::<Json<State>>("state")
             .await?
@@ -261,7 +261,7 @@ impl AtomicInferenceFixture {
         let now = ctx.run(now_ms).await?;
         state.begin(ctx.key(), &call.0, now)?;
         ctx.set("state", Json(state));
-        Ok(())
+        Ok(Json(true))
     }
     #[handler]
     async fn revoke(&self, ctx: ObjectContext<'_>, lease: Json<Lease>) -> HandlerResult<()> {

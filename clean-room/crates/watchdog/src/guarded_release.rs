@@ -51,7 +51,9 @@ impl FixtureGroup {
     pub fn is_reaped(&self) -> bool {
         self.child.is_none()
     }
-    fn live(&self) -> Result<bool> {
+    // WNOWAIT proves the direct child remains ours, including an exited zombie whose
+    // PID still anchors the original group. Never reap it before the signal attempt.
+    fn owned_leader_alive(&self) -> Result<bool> {
         crate::check_reaping_policy()?;
         let child = self.child.as_ref().context("owned leader unavailable")?;
         let mut info = unsafe { std::mem::zeroed::<libc::siginfo_t>() };
@@ -66,8 +68,17 @@ impl FixtureGroup {
             } == 0,
             "leader ownership unavailable"
         );
-        Ok(unsafe { info.si_pid() } == 0
-            && unsafe { libc::getpgid(child.id() as i32) } == child.id() as i32)
+        let alive = unsafe { info.si_pid() } == 0;
+        if alive {
+            ensure!(
+                unsafe { libc::getpgid(child.id() as i32) } == child.id() as i32,
+                "live leader group identity changed"
+            );
+        }
+        Ok(alive)
+    }
+    fn live(&self) -> Result<bool> {
+        self.owned_leader_alive()
     }
     fn read_frame(&mut self, timeout: Duration) -> Result<Vec<u8>> {
         ensure!(
@@ -105,7 +116,9 @@ impl FixtureGroup {
     }
     fn stop_with(&mut self, signal: impl FnOnce(i32) -> std::io::Result<()>) -> Result<()> {
         if !self.signalled {
-            ensure!(self.live()?, "leader is not live");
+            // An exited but unreaped leader still anchors the original group ID.
+            // An error (including EPERM) preserves ownership and prevents release.
+            let _ = self.owned_leader_alive()?;
             let pid = self.child.as_ref().unwrap().id() as i32;
             signal(pid)?;
             self.signalled = true;
@@ -218,6 +231,31 @@ mod tests {
         group.stop().unwrap();
         assert!(group.is_reaped());
     }
+    #[test]
+    fn signal_failure_after_leader_exit_preserves_unreaped_ownership() {
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", "/bin/sleep 2 & exit 0"]);
+        let mut group = FixtureGroup::launch(&mut command).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while !matches!(group.live(), Ok(false)) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(matches!(group.live(), Ok(false)), "leader did not exit");
+        assert!(
+            group
+                .stop_with(|_| Err(std::io::Error::from_raw_os_error(libc::EPERM)))
+                .is_err()
+        );
+        assert!(
+            !group.is_reaped(),
+            "failed signal must preserve leader ownership"
+        );
+        assert!(!group.live().unwrap());
+        // The group signal succeeds, but a naturally exited leader is never a release proof.
+        assert!(group.stop().is_err());
+        assert!(group.is_reaped());
+    }
+
     #[test]
     fn absence_observation_fails_closed_on_present_or_eperm() {
         assert!(confirm_absence(Duration::ZERO, || Ok(())).is_err());

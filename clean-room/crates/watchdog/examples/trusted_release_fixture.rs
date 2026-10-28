@@ -15,6 +15,16 @@ impl Drop for Root {
         for name in ["masked", "slow", "ready", "marker"] {
             let _ = fs::remove_file(self.0.join(name));
         }
+        for lane in [
+            "normal",
+            "oversize",
+            "slow-positive",
+            "slow-timeout",
+            "dead",
+        ] {
+            let _ = fs::remove_file(self.0.join(lane).join("recovery-required"));
+            let _ = fs::remove_dir(self.0.join(lane));
+        }
         let _ = fs::remove_dir(&self.0);
     }
 }
@@ -31,10 +41,23 @@ fn start(
     root: &Path,
     execution: &Path,
     mode: &str,
+    lane: &str,
 ) -> Result<watchdog::guarded_release::FixtureGroup> {
-    let mut command = Command::new(std::env::current_exe()?);
-    command.arg("guard").arg(root).arg(execution).arg(mode);
-    watchdog::guarded_release::FixtureGroup::launch(&mut command)
+    let reservation = root.join(lane);
+    fs::create_dir(&reservation)?;
+    fs::set_permissions(&reservation, fs::Permissions::from_mode(0o700))?;
+    let spec = watchdog::guarded_admission::FixtureSpec::new(
+        std::env::current_exe()?,
+        [
+            std::ffi::OsString::from("guard"),
+            root.as_os_str().to_owned(),
+            execution.as_os_str().to_owned(),
+            std::ffi::OsString::from(mode),
+        ],
+        root,
+    )?;
+    let mut launcher = watchdog::guarded_admission::FixtureLauncher::new(&reservation, spec)?;
+    launcher.launch()
 }
 fn guard(root: &Path, execution: &Path, mode: &str) -> Result<()> {
     if mode == "oversize" {
@@ -132,7 +155,7 @@ fn main() -> Result<()> {
     for name in ["masked", "slow"] {
         fs::set_permissions(root.0.join(name), fs::Permissions::from_mode(0o700))?;
     }
-    let mut leader = start(&root.0, &bin, "normal")?;
+    let mut leader = start(&root.0, &bin, "normal", "normal")?;
     let released = leader
         .complete(Duration::from_secs(5))
         .context("normal release")?;
@@ -143,13 +166,13 @@ fn main() -> Result<()> {
             && response["stderr"] == "[REDACTED]",
         "masked response invalid"
     );
-    let mut malformed = start(&root.0, &bin, "oversize")?;
+    let mut malformed = start(&root.0, &bin, "oversize", "oversize")?;
     ensure!(
         malformed.complete(Duration::from_secs(3)).is_err(),
         "oversize frame accepted"
     );
     ensure!(malformed.is_reaped(), "malformed guard not reaped");
-    let mut positive = start(&root.0, &bin, "slow")?;
+    let mut positive = start(&root.0, &bin, "slow", "slow-positive")?;
     let completed = positive
         .complete(Duration::from_secs(5))
         .context("slow positive release")?;
@@ -160,7 +183,7 @@ fn main() -> Result<()> {
     );
     fs::remove_file(root.0.join("ready"))?;
     fs::remove_file(root.0.join("marker"))?;
-    let mut slow = start(&root.0, &bin, "slow")?;
+    let mut slow = start(&root.0, &bin, "slow", "slow-timeout")?;
     let deadline = Instant::now() + Duration::from_secs(3);
     while !root.0.join("ready").is_file() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(2));
@@ -173,7 +196,7 @@ fn main() -> Result<()> {
     ensure!(slow.is_reaped(), "timeout leader not reaped");
     std::thread::sleep(Duration::from_millis(2400));
     ensure!(!root.0.join("marker").exists(), "timed-out child survived");
-    let mut dead = start(&root.0, &bin, "die")?;
+    let mut dead = start(&root.0, &bin, "die", "dead")?;
     std::thread::sleep(Duration::from_millis(500));
     ensure!(
         dead.complete(Duration::from_secs(1)).is_err(),
