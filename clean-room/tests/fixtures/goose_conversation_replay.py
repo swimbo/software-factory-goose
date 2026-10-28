@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Actual Goose synthetic tool exchange through fresh Restate fixture, not production authorization."""
-import http.server,json,os,pathlib,sys,threading,time,urllib.request,uuid
+import hashlib,http.server,json,os,pathlib,sys,threading,time,urllib.request,uuid
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT.parent/'docs/planning/clean-room/verification'))
 import goose_factory_boundary_spike as original
@@ -13,6 +13,17 @@ EXPECTED={
  './emit-secret':{'status':'executed','exit_code':7,'stdout':'[REDACTED]','stderr':'[REDACTED]'},
  './invalid-output':{'status':'refused','reason':'output_withheld'},
 }
+def call_id(task, lease, turn):
+ # IDs are assigned by the fixture gate, not supplied by Goose. Scope is durable
+ # only for the lifetime of this synthetic trusted bootstrap.
+ scope=json.dumps(["fixture-conversation-v1",task,lease["worker_id"],lease["token"],lease["attempt"],turn],separators=(",", ":")).encode()
+ number=int.from_bytes(hashlib.sha256(scope).digest()[:16],"big")
+ alphabet="0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+ result=""
+ for _ in range(26):
+  result=alphabet[number & 31]+result;number >>= 5
+ return result
+
 def checked(url, payload, expected, label):
  result=post(url,payload)
  if result!=expected:raise ValueError(f'{label}: {result}')
@@ -36,13 +47,15 @@ class JournalProxy(original.Stub):
     lease={'worker_id':'fixture-worker','token':'01ARZ3NDEKTSV4RRFFQ69G5FAV','attempt':1,'issued_ms':now-1000,'expires_ms':now+299000}
     def route(name,rate):return {'model':name,'review_digest':'a'*64,'reviewed_at_ms':now-1000,'valid_until_ms':now+299000,'input_microusd_per_million':rate,'output_microusd_per_million':rate,'max_billable_input_tokens':1000000,'max_billable_output_tokens':1000000,'fixed_call_microusd':0,'max_request_bytes':65536,'output_limit_field':'max_tokens'}
     spec={'lease':lease,'initial':encoded,'tool':body['tools'][0],'max_tokens':16384,'routes':[route('fixture-cheap',100),route('fixture-expensive',200)]}
-    self.server.journal=self.server.base+'/restate/call/ConversationFixture/goose-'+uuid.uuid4().hex
+    self.server.task='goose-'+uuid.uuid4().hex
+    self.server.ids=[call_id(self.server.task,lease,turn) for turn in (0,1)]
+    self.server.journal=self.server.base+'/restate/call/ConversationFixture/'+self.server.task
     checked(self.server.journal+'/initialize',spec,(200,None),'initialize')
    elif len(messages)==4:
-    x={'call_id':'01ARZ3NDEKTSV4RRFFQ69G5FAW','assistant':self.server.assistant,'tool_result':{'role':'tool','tool_call_id':self.server.tool_id,'content':json.dumps(expected(self.server.arguments),separators=(',',':'))}}
+    x={'call_id':self.server.ids[0],'assistant':self.server.assistant,'tool_result':{'role':'tool','tool_call_id':self.server.tool_id,'content':json.dumps(expected(self.server.arguments),separators=(',',':'))}}
     checked(self.server.journal+'/bind',x,(200,True),'bind')
    else:raise ValueError('sequence')
-   admission={'call_id':'01ARZ3NDEKTSV4RRFFQ69G5FAW' if first else '01ARZ3NDEKTSV4RRFFQ69G5FAX','turn':0 if first else 1,'request':encoded}
+   admission={'call_id':self.server.ids[0 if first else 1],'turn':0 if first else 1,'request':encoded}
    checked(self.server.journal+'/prepare',admission,(200,True),'prepare')
    checked(self.server.journal+'/begin',admission,(200,True),'begin')
    self.server.reservations+=1

@@ -1,0 +1,4 @@
+synthetic response: {"role":"tool","tool_call_id":"synthetic-provider-1","content":"{\"status\":\"executed\",\"exit_code\":0,\"stdout\":\"RELAY_OK\",\"stderr\":\"\"}"}
+PASS: captured actual isolated execution reply bound to disposable Restate; forged continuation and replay denied
+PASS: kernel UIDs 1000 and 1002 denied; UID1001 synthetic call executed once in network-none container and replay denied
+PASS: NUC disposable journal with service-captured isolated tool response
