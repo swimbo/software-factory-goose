@@ -1,0 +1,17 @@
+# Synthetic writer preflight: unresolved Docker create
+
+The synthetic writer preflight on hermes-control, using task-owned code under `/tmp/sfactory-writer-preflight.WdzouOy1`, timed out during Docker create of the Goose root before any start, provider request, or writer invocation. The create attempt was named `sf-owner-224a71d2db764249aa6cade3c1b39c80` and carried label `org.software-factory.escape-spike=224a71d2db764249aa6cade3c1b39c80`. The exact command and Python failure are retained in `/tmp/sfactory-writer-preflight.WdzouOy1/run2.log` on the NUC.
+
+`Batch.stop()` reported `uncommitted target unresolved`. The driver used an automatically cleaned temporary batch directory; the directory and durable intent were consequently removed even though cleanup did not establish resolution. This is a fixture defect. Read-only inspection after the timeout found no container by that exact name or label and observed the designated worker slice `populated 0`. Neither observation proves that the Docker daemon cannot finish the timed-out create later. The create remains **unresolved**; do not infer a clean teardown or retry against that authority from these observations.
+
+The local synthetic driver now requires a caller-supplied retained private batch root for writer mode. It has not been rerun. The NUC fixture directory, candidate, snapshot and diagnostic log are retained. This evidence does not modify or reconcile previous live-run fences and does not claim a successful writer integration.
+
+## Later read-only reconciliation
+
+At 2026-10-29 02:53 UTC the timed-out create's **original container** was observed under the exact name and label, with full ID `04f7717345b35b6cb6b3c5a2bfdf234c64346e90cc7c3b3c16d6b71eb0e10062`. Its state was `Created`, PID 0, never started; the observed image, fixed command, user, cgroup, mounts and restrictions matched the captured create command. No surviving old controller was observed. The worker slice remained `populated 0`. Read-only checks are in `clean-room/tests/fixtures/nuc_reconcile_created_original.py`; the fsynced NUC record is `/tmp/sfactory-writer-preflight.WdzouOy1/reconciliation/original.json`.
+
+The original occupies the name; no additional guard was created. This is a conditional observation tied to daemon ID `56d25a60-5f64-4212-b904-e750067ac6a5`, PID 2145, Docker 29.8.0 commit `3ce5872`, and the continued exact name, ID and created state. A daemon restart or name/state change invalidates the observation. Never start, rename, remove or prune this container. This does not restore the lost original manifest or prove general daemon recovery.
+
+## Pinned primary-source basis for the conditional name fence
+
+Read-only NUC inspection reports Docker29.8.0, Git `3ce5872`. At that exact commit, [name reservation](https://github.com/moby/moby/blob/3ce5872/daemon/names.go) calls the daemon's [transactional name store](https://github.com/moby/moby/blob/3ce5872/daemon/container/view.go): a different container ID conflicts with an occupied name. [Creation](https://github.com/moby/moby/blob/3ce5872/daemon/create.go) obtains its container/name before subsequent setup. The inference used here is limited: retaining the inspected original under the exact name prevents a different late same-name create while this daemon/name binding remains valid. It does not reconstruct the deleted intent or establish old-request cancellation. A conflict without an inspectable object would not suffice; no separate guard container was created.
