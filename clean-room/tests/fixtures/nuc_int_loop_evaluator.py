@@ -4,6 +4,8 @@ import fcntl,hashlib,json,os,pathlib,shlex,stat,subprocess,sys,time,uuid
 from docker_batch_guardian import Batch,APPROVED_SLICE,CGROUP_PATH
 from nuc_int_loop_task import check_behavior
 from trusted_tool_relay import valid_response
+from nuc_run_fence import RunFence
+from nuc_file_contract import canonical_arguments
 
 IMAGE='sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937'
 EXEC='/tmp/sfactory-gate-linux.X4ZjF1LB/goose-build/execution-target/debug/execution'
@@ -14,6 +16,15 @@ def private(path):
  st=path.lstat()
  if path.resolve(strict=True)!=path or not stat.S_ISDIR(st.st_mode) or st.st_uid!=os.getuid() or stat.S_IMODE(st.st_mode)!=0o700:raise RuntimeError('private root unavailable')
  return path
+
+def read_private_json(path):
+ fd=os.open(path,os.O_RDONLY|os.O_NONBLOCK|os.O_NOFOLLOW)
+ try:
+  st=os.fstat(fd)
+  if not stat.S_ISREG(st.st_mode) or st.st_uid!=os.getuid() or stat.S_IMODE(st.st_mode)!=0o600 or st.st_nlink!=1 or st.st_size>65536:raise RuntimeError('private record unavailable')
+  with os.fdopen(fd,'r') as f:fd=-1;return json.load(f)
+ finally:
+  if fd>=0:os.close(fd)
 
 def store(path,value):
  with open(path,'x',encoding='utf8') as f:
@@ -28,11 +39,33 @@ def freeze(task,source,generation):
  if source.resolve(strict=True)!=source or not source.is_dir():raise RuntimeError('candidate path unavailable')
  # This closes admission and requires both recorded roots removed and the exact
  # approved subtree empty before opening a single candidate file.
- Batch(generation,APPROVED_SLICE,CGROUP_PATH).stop()
+ owner=Batch(generation,APPROVED_SLICE,CGROUP_PATH);owner.stop()
+ intent=owner.read('executor.intent');binding=intent.get('candidate')
+ if intent.get('executor_kind')!='writer':raise RuntimeError('generation is not the fixed writer')
+ source_stat=source.stat()
+ if binding!={'path':str(source),'dev':source_stat.st_dev,'inode':source_stat.st_ino,'readonly':False}:raise RuntimeError('candidate generation binding differs')
+ scope=read_private_json(source.parent/'run-scope.json');task_spec=read_private_json(task/'task.json')
+ if scope.get('baseline')!=task_spec.get('baseline'):raise RuntimeError('generation task differs')
+ fence=RunFence(source.parent/'dispatch-fence',scope['run'],scope['baseline'])
+ try:
+  with fence.locked():state=fence.read()
+ finally:os.close(fence.dirfd)
+ success={'status':'executed','exit_code':0,'stdout':'Both task files written.','stderr':''}
+ receipt=hashlib.sha256(json.dumps(success,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+ if state.get('stage')!='done' or state.get('tool_result')!=receipt:raise RuntimeError('generation is quarantined')
  root=task/('evaluation-'+uuid.uuid4().hex);root.mkdir(mode=0o700)
  snapshot=root/'snapshot';snapshot.mkdir(mode=0o755);digests={}
  fd=os.open(source,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
  try:
+  if set(os.listdir(fd))!={'README.md',*FILES}:raise RuntimeError('candidate entry set differs')
+  baseline=os.open('README.md',os.O_RDONLY|os.O_NONBLOCK|os.O_NOFOLLOW,dir_fd=fd)
+  try:
+   entry=os.fstat(baseline)
+   if not stat.S_ISREG(entry.st_mode) or entry.st_nlink!=1 or entry.st_size>32768:raise RuntimeError('baseline file rejected')
+   with os.fdopen(baseline,'rb') as f:baseline=-1;original=f.read(32769)
+  finally:
+   if baseline>=0:os.close(baseline)
+  if original!=(task/'repo'/'README.md').read_bytes():raise RuntimeError('baseline content changed')
   for name in FILES:
    child=os.open(name,os.O_RDONLY|os.O_NONBLOCK|os.O_NOFOLLOW,dir_fd=fd)
    try:
@@ -45,6 +78,9 @@ def freeze(task,source,generation):
    with open(snapshot/name,'xb') as f:f.write(data);f.flush();os.fsync(f.fileno())
    (snapshot/name).chmod(0o444);digests[name]=hashlib.sha256(data).hexdigest()
  finally:os.close(fd)
+ if set(os.listdir(source))!={'README.md',*FILES}:raise RuntimeError('candidate changed during snapshot')
+ arguments={'files':{name:(snapshot/name).read_bytes().decode('utf-8') for name in FILES}}
+ if hashlib.sha256(canonical_arguments(arguments)).hexdigest()!=state.get('arguments'):raise RuntimeError('artifact differs from provider-bound files')
  snapshot.chmod(0o555);store(root/'snapshot.json',digests)
  return root
 

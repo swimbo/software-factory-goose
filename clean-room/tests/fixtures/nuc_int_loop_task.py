@@ -13,7 +13,7 @@ def create(root):
  (repo/'README.md').write_text('Disposable software-factory Goose INT-LOOP task.\n')
  git(repo,'init','-q');git(repo,'config','user.name','Factory INT-LOOP');git(repo,'config','user.email','factory-int-loop@localhost');git(repo,'add','README.md');git(repo,'commit','-qm','Initialize owned INT-LOOP task')
  manifest={'spec':SPEC,'baseline':git(repo,'rev-parse','HEAD'),'allowed':['hello.py','test_hello.py'],'monetary_cap':None}
- (root/'task.json').write_text(json.dumps(manifest,indent=2)+'\n')
+ (root/'task.json').write_text(json.dumps(manifest,indent=2)+'\n');(root/'task.json').chmod(0o600)
  print(json.dumps({'root':str(root),'baseline':manifest['baseline'],'spec':SPEC}))
 
 def finalize(root):
