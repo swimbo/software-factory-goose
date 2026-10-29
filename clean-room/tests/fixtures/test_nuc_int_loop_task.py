@@ -7,6 +7,8 @@ import tempfile
 import subprocess
 import sys
 import unittest
+from unittest import mock
+import nuc_int_loop_task
 from nuc_int_loop_task import create, check_behavior, finalize
 
 class HoldoutControls(unittest.TestCase):
@@ -30,5 +32,20 @@ class HoldoutControls(unittest.TestCase):
    (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'candidate_tests':'pass','files':digests}))
    (repo/'hello.py').write_text('# changed after evaluation\n')
    with self.assertRaisesRegex(RuntimeError,'evaluated content changed'):finalize(root)
+ def test_write_between_digest_and_staging_withholds_commit_acceptance(self):
+  with tempfile.TemporaryDirectory() as parent:
+   root=pathlib.Path(parent)/'task'
+   with contextlib.redirect_stdout(io.StringIO()):create(root)
+   repo=root/'repo'
+   for name in ('hello.py','test_hello.py'):(repo/name).write_text('# evaluated\n')
+   files={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in ('hello.py','test_hello.py')}
+   (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'candidate_tests':'pass','files':files}))
+   original=nuc_int_loop_task.git
+   def raced_git(directory,*args):
+    if args[0]=='add':(repo/'hello.py').write_text('# late change\n')
+    return original(directory,*args)
+   with mock.patch.object(nuc_int_loop_task,'git',side_effect=raced_git):
+    with self.assertRaisesRegex(RuntimeError,'committed content differs'):finalize(root)
+   self.assertFalse((root/'evaluation.json').exists())
 
 if __name__=='__main__':unittest.main()
