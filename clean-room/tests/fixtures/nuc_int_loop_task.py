@@ -16,13 +16,6 @@ def create(root):
  (root/'task.json').write_text(json.dumps(manifest,indent=2)+'\n')
  print(json.dumps({'root':str(root),'baseline':manifest['baseline'],'spec':SPEC}))
 
-def check(repo):
- manifest={"allowed":["hello.py","test_hello.py"]}
- for name in manifest["allowed"]:
-  st=(repo/name).lstat()
-  if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_size>32768:raise RuntimeError("candidate file invalid")
- return check_behavior(repo)
-
 def finalize(root):
  repo=root/'repo';manifest=json.loads((root/'task.json').read_text())
  if git(repo,'rev-parse','HEAD')!=manifest['baseline']:raise RuntimeError('baseline changed')
@@ -36,25 +29,32 @@ def finalize(root):
  if result.get('files')!=expected:raise RuntimeError('evaluated content changed')
  groups=result['groups']
  git(repo,'add','--',*manifest['allowed']);git(repo,'commit','-qm','Implement evaluated greeting CLI')
- revision=git(repo,'rev-parse','HEAD');diff=subprocess.check_output(['git','-C',str(repo),'diff',manifest['baseline'],revision,'--'])
+ revision=git(repo,'rev-parse','HEAD')
+ for name,digest in expected.items():
+  blob=subprocess.check_output(['git','-C',str(repo),'show',revision+':'+name])
+  if hashlib.sha256(blob).hexdigest()!=digest:raise RuntimeError('committed content differs from evaluation')
+ diff=subprocess.check_output(['git','-C',str(repo),'diff',manifest['baseline'],revision,'--'])
  result={'baseline':manifest['baseline'],'candidate':revision,'diff_sha256':hashlib.sha256(diff).hexdigest(),'holdout_groups':groups,'candidate_tests':'pass','promotion':'pending human action-bound approval','monetary_cap':None}
  (root/'candidate.diff').write_bytes(diff);(root/'evaluation.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))
 
-def check_behavior(repo):
- def run(*args):
-  return subprocess.run(['python3','-I',str(repo/'hello.py'),*args],cwd=repo,capture_output=True,timeout=3,env={'PATH':'/usr/bin:/bin','LANG':'C.UTF-8'})
+def check_behavior(run, run_tests, files):
+ """Host-held challenges; callbacks MUST execute only in the owned sandbox.
+
+ No candidate subprocess is ever launched here. No holdout code is mounted
+ into a candidate container. The caller supplies immutable snapshot hashes.
+ """
  groups=[]
  for cases in [ [([], 'hello world\n'),(['Ada'],'hello Ada\n')], [(['Zoë Smith'],'hello Zoë Smith\n'),(['--uppercase','Ada'],'HELLO ADA\n'),(['Ada','--uppercase'],'HELLO ADA\n')], [(['a','b'],None),(['--bogus'],None)]]:
   for args,expected in cases:
    r=run(*args)
-   if expected is None:assert r.returncode==2 and not r.stdout and r.stderr.strip(), 'invalid-input behavior'
-   else:assert r.returncode==0 and r.stdout.decode()==expected and not r.stderr, 'greeting behavior'
+   if expected is None:
+    if r.returncode!=2 or r.stdout or not r.stderr.strip():raise RuntimeError('invalid-input behavior')
+   elif r.returncode!=0 or r.stdout.decode()!=expected or r.stderr:raise RuntimeError('greeting behavior')
   groups.append('pass')
- tests=subprocess.run(['python3','-I','-m','unittest','discover','-s',str(repo),'-p','test_hello.py'],cwd=repo,capture_output=True,timeout=10)
+ tests=run_tests()
  count=re.search(rb'Ran ([0-9]+) tests?',tests.stderr)
  if tests.returncode or not count or int(count[1])<1:raise RuntimeError('candidate tests failed or empty')
- files={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in ('hello.py','test_hello.py')}
- print(json.dumps({'groups':groups,'candidate_tests':'pass','files':files}))
+ return {'groups':groups,'candidate_tests':'pass','files':files}
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('action',choices=['create','check','finalize']);p.add_argument('root',type=pathlib.Path);a=p.parse_args();{'create':create,'check':check,'finalize':finalize}[a.action](a.root)
+ p=argparse.ArgumentParser();p.add_argument('action',choices=['create','finalize']);p.add_argument('root',type=pathlib.Path);a=p.parse_args();{'create':create,'finalize':finalize}[a.action](a.root)
