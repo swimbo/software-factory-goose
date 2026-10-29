@@ -26,6 +26,7 @@ def finalize(root):
  result=json.loads((root/'holdout-result.json').read_text())
  if result.get('groups')!=['pass','pass','pass'] or result.get('candidate_tests')!='pass':raise RuntimeError('holdout failed')
  if result.get('repetitions')!=3 or not isinstance(result.get('scenario_votes'),list) or len(result['scenario_votes'])!=7 or any(type(v) is not int or v not in (2,3) for v in result['scenario_votes']):raise RuntimeError('holdout repetition evidence missing')
+ if sum(result['scenario_votes'])*10<7*3*9:raise RuntimeError('holdout aggregate below 90 percent')
  expected={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in manifest['allowed']}
  if result.get('files')!=expected:raise RuntimeError('evaluated content changed')
  groups=result['groups']
@@ -56,6 +57,7 @@ def check_behavior(run, run_tests, files):
    votes.append(passed)
    if passed<2:raise RuntimeError('invalid-input behavior' if expected is None else 'greeting behavior')
   groups.append('pass')
+ if sum(votes)*10<len(votes)*3*9:raise RuntimeError('holdout aggregate below 90 percent')
  tests=run_tests()
  count=re.search(rb'Ran ([0-9]+) tests?',tests.stderr)
  if tests.returncode or not count or int(count[1])<1:raise RuntimeError('candidate tests failed or empty')

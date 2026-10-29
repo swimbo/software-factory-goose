@@ -108,12 +108,15 @@ def drive(root):
    batch.prepare_fixed('executor',IMAGE,['-u','-c','import time;time.sleep(20)'],options);batch.seal();batch.start('executor')
    raw=batch.exec_once(json.dumps({'command':shlex.join(argv)},ensure_ascii=False).encode())
    result=json.loads(raw)
+   # Keep diagnostics host-private before checking behavior; never publish this
+   # untrusted output as evaluator evidence or mount it into another challenge.
+   store(directory/'execution-result.json',result)
    if not valid_response(result) or result['status']!='executed':raise RuntimeError('challenge unavailable')
    output=subprocess.CompletedProcess(argv,result['exit_code'],result['stdout'].encode(),result['stderr'].encode())
   finally:batch.stop()
   return output
- def run(*args):return launch(['python3','-I','/work/hello.py',*args])
- def tests():return launch(['python3','-I','-m','unittest','discover','-s','/work','-p','test_hello.py'])
+ def run(*args):return launch(['/usr/local/bin/python3','-I','/work/hello.py',*args])
+ def tests():return launch(['/usr/local/bin/python3','-I','-m','unittest','discover','-s','/work','-p','test_hello.py'])
  result=check_behavior(run,tests,files)
  # All challenge roots are stopped before the trusted result is published.
  recover(root)
