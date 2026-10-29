@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Task-owned NUC relay plus disposable journal; never touches existing deployments."""
-import json, os, pathlib, socket, subprocess, tempfile, time, urllib.request
+import contextlib, json, os, pathlib, socket, subprocess, tempfile, time, urllib.request
 from nuc_trusted_tool_relay import post
 ROOT=pathlib.Path('/tmp/sfactory-tool-relay-code.f6O9xEoS')
 SERVER=pathlib.Path('/tmp/sfactory-gate-linux.X4ZjF1LB/restate-server')
@@ -14,8 +14,12 @@ def stop(p):
 
 def main():
     assert os.getuid()==1000 and SDK.is_file() and SERVER.is_file()
-    with tempfile.TemporaryDirectory(prefix='journal-',dir=ROOT) as tmp:
-        root=pathlib.Path(tmp);(root/'state').mkdir()
+    configured=os.environ.get('SFACTORY_JOURNAL_ROOT')
+    scope=contextlib.nullcontext(configured) if configured else tempfile.TemporaryDirectory(prefix='journal-',dir=ROOT)
+    with scope as tmp:
+        root=pathlib.Path(tmp)
+        if configured and (root.is_symlink() or not root.is_dir() or root.stat().st_uid!=os.getuid() or (root.stat().st_mode & 0o777)!=0o700):raise RuntimeError('invalid journal root')
+        (root/'state').mkdir()
         s=socket.socket();s.bind(('127.0.0.1',0));port=s.getsockname()[1];s.close()
         env={'PATH':'/usr/bin:/bin','HOME':str(root),'RUST_LOG':'info'}
         sdk=None;server=None
@@ -37,7 +41,8 @@ def main():
                 request=urllib.request.Request('http://127.0.0.1:%s/deployments'%ports['admin-api-server'],data=json.dumps({'uri':'http://127.0.0.1:%s'%port}).encode(),headers={'content-type':'application/json'},method='POST')
                 with urllib.request.urlopen(request,timeout=10) as response:assert response.status in (200,201)
                 base='http://127.0.0.1:%s/restate/call/ConversationFixture/nuc-relay'%ports['http-ingress-server']
-                subprocess.run(['python3',str(ROOT/'nuc_trusted_tool_relay.py')],env={**env,'SFACTORY_FIXTURE_JOURNAL':base,'PYTHONDONTWRITEBYTECODE':'1'},cwd=ROOT,timeout=90,check=True)
+                driver='nuc_goose_relay_batch.py' if os.environ.get('SFACTORY_FIXTURE_GOOSE_BATCH')=='1' else 'nuc_trusted_tool_relay.py'
+                subprocess.run(['python3',str(ROOT/driver)],env={**env,'SFACTORY_FIXTURE_JOURNAL':base,'PYTHONDONTWRITEBYTECODE':'1',**{k:os.environ[k] for k in ('SFACTORY_BATCH_ROOT','SFACTORY_FIXTURE_HOLD','SFACTORY_TASK_PROMPT','SFACTORY_CAPTURE_INITIAL','SFACTORY_FENCE_PREFLIGHT') if k in os.environ}},cwd=ROOT,timeout=90,check=True)
                 print('PASS: NUC disposable journal with service-captured isolated tool response',flush=True)
         finally:stop(server);stop(sdk)
 

@@ -2,6 +2,7 @@
 """Fresh run-only durable dispatch fence. Not a production budget authority."""
 import fcntl,hashlib,json,os,pathlib,stat,uuid
 from contextlib import contextmanager
+from nuc_stream_contract import RAW_SSE_BYTES
 
 class Denied(Exception):pass
 
@@ -63,7 +64,7 @@ class RunFence:
    if s.get('stage')!=f'ready{turn}':raise Denied('dispatch unavailable')
    call=digest(canonical([self.run,self.task,turn,digest(request)]));s.update(stage=f'unknown{turn}',call=call,request=digest(request));self.commit(s);return call
  def record_tool(self,call,response,tool_id,arguments):
-  if not isinstance(response,bytes) or not 0<len(response)<=1048576 or not isinstance(tool_id,str) or not 0<len(tool_id)<=128 or not isinstance(arguments,dict):raise Denied('response unavailable')
+  if not isinstance(response,bytes) or not 0<len(response)<=RAW_SSE_BYTES or not isinstance(tool_id,str) or not 0<len(tool_id)<=128 or not isinstance(arguments,dict):raise Denied('response unavailable')
   with self.locked():
    s=self.read()
    if s.get('stage')!='unknown0' or s.get('call')!=call:raise Denied('dispatch unavailable')
@@ -80,7 +81,7 @@ class RunFence:
    if s.get('stage')!='tool_unknown' or s.get('tool_id')!=tool_id:raise Denied('tool unavailable')
    s.update(stage='ready1',tool_result=digest(result));self.commit(s)
  def record_final(self,call,response):
-  if not isinstance(response,bytes) or not 0<len(response)<=1048576:raise Denied('response unavailable')
+  if not isinstance(response,bytes) or not 0<len(response)<=RAW_SSE_BYTES:raise Denied('response unavailable')
   with self.locked():
    s=self.read()
    if s.get('stage')!='unknown1' or s.get('call')!=call:raise Denied('dispatch unavailable')
