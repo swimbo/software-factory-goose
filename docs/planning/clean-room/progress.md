@@ -79,3 +79,36 @@ New planning effort: fold 4 best practices from the `code-machine` analysis into
 
 ## Errors
 - *(none)*
+
+## Late Phase 9 — real uncapped Goose generation/evaluation, 2026-10-28
+
+Continued from 1ad8838 without restarting Phase 1. User explicitly waived every monetary cap for this named INT-LOOP, including the $0.75 task ledger; no Bifrost key/router settings were changed. Actual NUC generation10 completed Goose → UID-gated host relay → existing Bifrost model:auto → fixed structured two-file writer → exact continuation. Both routed observations were deepseek-v4.1-flash:1017, selected by the existing router. Its durable fence is done, manager recovery verified, both owned roots removed, exact worker slice empty, original inert create guard intact and Docker/Hermes services active.
+
+Candidate b468844bcfb6a3ec4e337efe8e2e6d45cdedbd90 (baseline40b84df26736e522e0e98180d836b24e021d788b) passed 21/21 independent isolated executions and candidate tests; evaluated/committed blobs match. A second exact-blob run passed21/21 after enforcing the >=90% aggregate gate. The accepted ref remains absent; proposed promotion is prepared, not approved/executed. Evidence: verification/2026-10-28-real-int-loop/ and verification/2026-10-28-runtime-verification.md.
+
+Errors/mutations: earlier distinct attempts remain fenced and retained, never reset. Fixes include held-open nc stdin, strict complete HTTP framing, coherent bounded response sizes/incremental parsing, observed bounded Bifrost reasoning_details/SSE comments, and exact Goose per-delta reasoning reconstruction in the continuation. Retained response diagnostics were reparsed offline before fresh attempts. A reference evaluator exposed its Python PATH assumption; fixed absolute contained interpreter and then reference/actual runs passed. Independent audit found missing all-runs aggregate enforcement; collector/finalizer and negative controls fixed, actual exact blobs revalidated. Full chronology: verification/2026-10-28-live-intloop-attempt.md. Provider captures remain sensitive host-only0600/0700 data; literal credential-byte checks are not general sanitization.
+
+## Phase 11 Results — current component evidence, 2026-10-28
+
+Locked/offline all-target/all-feature Rust workspace:408 passed,0failed,2ignored; both runtime-dependent cases subsequently exercised through the full disposable native Restate/Postgres replay and diagnostic projection. Formatting, strict workspace Clippy, doctests and all examples build passed. Final Python discovery:111 passed,0failed. Raw logs: verification/2026-10-28-uncapped-*.log and final-evaluator-controls.log. No UI exists; UI design/accessibility gate is not applicable. These results do not certify complete P0 acceptance, test adequacy/mutation coverage or enterprise readiness.
+
+## Current blocking boundary and gate reconciliation — 2026-10-28
+
+Independent story, runtime/architecture and NUC deployment reviews reconcile current gaps in verification/2026-10-28-late-phase9-boundary-audit.md. G-01–G-11 remain open; no full INT-LOOP or production activation claim. Diagnostic entrypoints, authoritative intake/cascade/queue/launcher/wall/promotion integration and separate operator provisioning remain incomplete. Docker live restore is disabled; Docker-only guardian/operator fixtures do not establish daemon-independent stop. Noninteractive sudo unavailable and no host account exists for fixture UID1002. No shared service/account/data was modified, restarted or migrated.
+
+A human choice is pending on the explicit host-administration mechanism in deployment/nuc-administrative-boundary.md. Existing Docker fixture permission is not silently treated as approval to modify the host OS. No root installer ran. Existing pre-session dirty phase1/phased-plan/progress edits and root README are preserved outside these commits.
+
+Canonical done-means-done checklists were located in bo-planner0.2.0/done-means-done. This is a blocking-state reconciliation, not the final all-phase audit:
+
+| Phase | Gate | Status | Evidence |
+| --- | --- | --- | --- |
+| 9 | Scope fidelity / every P0 user story fulfilled | fail | independent boundary audit; G-01–G-11 |
+| 9 | Architecture and supported production deployment | fail | diagnostic/fixture entrypoints; unprovisioned roles/independent supervisor |
+| 9/11 | Build, lint, typed compilation and component tests | pass | uncapped workspace/replay/projection/examples/Python logs |
+| 11 | Every P0 live acceptance / full connected E2E | missing | generation/evaluation slice passes; intake→merge loop remains incomplete |
+| 11.6 | Enterprise A/B assessment | missing | profile/must-pass selection and assessment not reached |
+| 12 | All earlier phases closed / explicit delivery sign-off | missing | no delivery approval requested or inferred |
+| 13 | Full artifact coverage and user-approved gap severities | missing | current audit preliminary; no user certification |
+| 14 | Zero open blocker/major gaps and final sign-off | fail | G-01–G-11 retained, no waiver |
+
+Continue from late Phase9 operating boundaries, preserving every unknown attempt and the scoped candidate. Do not regenerate the successful candidate or replay a prior fence merely to resume.
