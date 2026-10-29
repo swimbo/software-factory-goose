@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from docker_owner_guardian import DisposableContainer, LABEL, docker
 
 ROLES = frozenset(('goose', 'executor'))
+ROLE_MEMORY = {'goose':512*1024*1024, 'executor':128*1024*1024}
 APPROVED_SLICE = 'sfactory6a2ae9a8ef374a84b94c15a1b1d4d7f0-worker.slice'
 CGROUP_PATH = pathlib.Path('/sys/fs/cgroup/sfactory6a2ae9a8ef374a84b94c15a1b1d4d7f0.slice') / APPROVED_SLICE
 
@@ -138,23 +139,35 @@ class Batch:
     def verify_slice(self):
         if self.cgroup.stat().st_ino != self.inode: raise RuntimeError('slice identity changed')
 
-    def prepare_fixed(self, role, image, command, options=()):
+    def prepare_fixed(self, role, image, command, options=(), *, executor_kind='shell'):
         if role not in ROLES or not image.startswith('sha256:') or len(image) != 71 or any(c not in '0123456789abcdef' for c in image[7:]) or not command:
             raise RuntimeError('invalid fixed spec')
+        if executor_kind not in ('shell','writer') or (role!='executor' and executor_kind!='shell'):
+            raise RuntimeError('invalid executor kind')
         options = list(options)
+        writer_targets=[]
         for i in range(0, len(options), 2):
             if i+1 >= len(options) or options[i] not in ('--mount','--tmpfs','--workdir','--env','--entrypoint'):
                 raise RuntimeError('unsupported fixed spec option')
             if options[i] == '--mount' and ('readonly' not in options[i+1].split(',') or 'type=bind' not in options[i+1].split(',')):
                 raise RuntimeError('only read-only bind mounts permitted')
+            if options[i] == '--mount':
+                for part in options[i+1].split(','):
+                    if part in ('dst=/factory-writer.py','destination=/factory-writer.py','target=/factory-writer.py'): writer_targets.append('/factory-writer.py')
+                    if part in ('dst=/nuc_file_contract.py','destination=/nuc_file_contract.py','target=/nuc_file_contract.py'): writer_targets.append('/nuc_file_contract.py')
+            if executor_kind=='writer' and options[i]=='--tmpfs' and options[i+1].split(':',1)[0] in ('/factory-writer.py','/nuc_file_contract.py'):
+                raise RuntimeError('writer mount target reserved')
             if role=='executor' and self.candidate is not None and ((options[i]=='--mount' and any(x in ('dst=/work','destination=/work','target=/work') for x in options[i+1].split(','))) or (options[i]=='--tmpfs' and options[i+1].split(':',1)[0]=='/work')):
                 raise RuntimeError('candidate mount target is reserved')
+        if executor_kind=='writer' and (role!='executor' or sorted(writer_targets)!=['/factory-writer.py','/nuc_file_contract.py']):
+            raise RuntimeError('writer mounts unavailable')
         with self.locked():
             self.verify_slice()
             if (self.root/'closed.json').exists() or (self.root/'sealed.json').exists() or (self.root/(role+'.intent')).exists():
                 raise RuntimeError('admission closed or role already reserved')
             token = uuid.uuid4().hex
-            intent = {'role':role,'token':token,'slice':self.slice,'inode':self.inode}
+            intent = {'role':role,'token':token,'slice':self.slice,'inode':self.inode,'memory':ROLE_MEMORY[role]}
+            if role=='executor': intent['executor_kind']=executor_kind
             if role=='executor' and self.candidate is not None:
                 self.check_candidate(); intent['candidate']=dict(self.candidate)
                 options += ['--mount','type=bind,src='+self.candidate['path']+',dst=/work'+(',readonly' if self.candidate['readonly'] else '')]
@@ -162,13 +175,13 @@ class Batch:
             owner = DisposableContainer(token)
             result = docker('create','--name',owner.name,'--label',LABEL+'='+token,'--cgroup-parent',self.slice,
                 '--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges',
-                '--pids-limit','24','--memory','128m','--cpus','0.5','--user','1001:1001','--pull','never',
+                '--pids-limit','24','--memory',('512m' if role=='goose' else '128m'),'--cpus','0.5','--user','1001:1001','--pull','never',
                 '--log-driver','json-file','--log-opt','max-size=1m','--log-opt','max-file=2',
                 *options,image,*command)
             ident = result.stdout.strip()
             if len(ident)!=64 or any(c not in '0123456789abcdef' for c in ident): raise RuntimeError('invalid engine ID')
             owner.ident = ident; obj = owner.inspect(ident)
-            if obj is None or obj['State']['Running'] or obj['State']['Status'] != 'created' or obj['HostConfig']['CgroupParent'] != self.slice:
+            if obj is None or obj['State']['Running'] or obj['State']['Status'] != 'created' or obj['HostConfig']['CgroupParent'] != self.slice or obj['HostConfig']['Memory'] != ROLE_MEMORY[role]:
                 raise RuntimeError('created root unverified')
             self.commit(role+'.manifest',dict(intent,id=ident))
             if (self.root/'closed.json').exists(): raise RuntimeError('admission closed during create; root quarantined')
@@ -181,13 +194,13 @@ class Batch:
             ids=set()
             for role in ROLES:
                 intent=self.read(role+'.intent'); manifest=self.read(role+'.manifest')
-                if any(manifest.get(k)!=intent[k] for k in ('role','token','slice','inode')) or manifest.get('candidate')!=intent.get('candidate') or intent['role']!=role or intent['slice']!=self.slice or intent['inode']!=self.inode:
+                if any(manifest.get(k)!=intent[k] for k in ('role','token','slice','inode')) or manifest.get('memory')!=ROLE_MEMORY[role] or intent.get('memory')!=ROLE_MEMORY[role] or manifest.get('candidate')!=intent.get('candidate') or manifest.get('executor_kind')!=intent.get('executor_kind') or intent['role']!=role or intent['slice']!=self.slice or intent['inode']!=self.inode:
                     raise RuntimeError('catalogue unverified')
                 if intent.get('candidate') is not None:
                     if self.candidate!=intent['candidate']: raise RuntimeError('candidate binding unavailable')
                     self.check_candidate()
                 owner=DisposableContainer(intent['token']); owner.ident=manifest['id']; obj=owner.inspect(owner.ident)
-                if obj is None or obj['State']['Running'] or obj['State']['Status']!='created' or obj['HostConfig']['CgroupParent']!=self.slice or owner.ident in ids:
+                if obj is None or obj['State']['Running'] or obj['State']['Status']!='created' or obj['HostConfig']['CgroupParent']!=self.slice or obj['HostConfig']['Memory']!=ROLE_MEMORY[role] or owner.ident in ids:
                     raise RuntimeError('catalogue target unavailable')
                 ids.add(owner.ident)
             self.commit('sealed.json', {'slice':self.slice,'inode':self.inode})
@@ -198,13 +211,13 @@ class Batch:
             if role not in ROLES or (self.root/'closed.json').exists() or not (self.root/'sealed.json').exists() or (self.root/(role+'.started')).exists():
                 raise RuntimeError('launch denied')
             record=self.read(role+'.manifest'); intent=self.read(role+'.intent'); seal=self.read('sealed.json')
-            if any(record.get(k)!=intent[k] for k in ('role','token','slice','inode')) or record.get('candidate')!=intent.get('candidate') or seal != {'slice':self.slice,'inode':self.inode}: raise RuntimeError('catalogue identity changed')
+            if any(record.get(k)!=intent[k] for k in ('role','token','slice','inode')) or record.get('memory')!=ROLE_MEMORY[role] or intent.get('memory')!=ROLE_MEMORY[role] or record.get('candidate')!=intent.get('candidate') or record.get('executor_kind')!=intent.get('executor_kind') or seal != {'slice':self.slice,'inode':self.inode}: raise RuntimeError('catalogue identity changed')
             if intent.get('candidate') is not None:
                 if self.candidate!=intent['candidate']: raise RuntimeError('candidate binding unavailable')
                 self.check_candidate()
             if record['role']!=role or record['slice']!=self.slice or record['inode']!=self.inode: raise RuntimeError('manifest mismatch')
             owner=DisposableContainer(record['token']); owner.ident=record['id']; obj=owner.inspect(owner.ident)
-            if obj is None or obj['State']['Status']!='created' or obj['HostConfig']['CgroupParent']!=self.slice: raise RuntimeError('launch identity changed')
+            if obj is None or obj['State']['Status']!='created' or obj['HostConfig']['CgroupParent']!=self.slice or obj['HostConfig']['Memory']!=ROLE_MEMORY[role]: raise RuntimeError('launch identity changed')
             # Write before starting: ambiguous Docker outcomes can never be retried as a fresh start.
             self.commit(role+'.started',{'id':owner.ident})
             docker('start',owner.ident)
@@ -218,21 +231,29 @@ class Batch:
 
     def exec_once(self, payload):
         """Trusted host supplies bounded input; Docker argv and target are fixed."""
-        if not isinstance(payload,bytes) or len(payload)>65536: raise RuntimeError('input bound exceeded')
+        return self._invoke_once(payload,'shell')
+
+    def write_once(self, payload):
+        """Invoke only the fixed mounted writer; admission is shared with exec_once."""
+        return self._invoke_once(payload,'writer')
+
+    def _invoke_once(self, payload, kind):
+        if not isinstance(payload,bytes) or len(payload)>(12288 if kind=='writer' else 65536): raise RuntimeError('input bound exceeded')
         with self.locked():
             self.verify_slice()
             if (self.root/'closed.json').exists() or not (self.root/'sealed.json').exists() or (self.root/'executor.exec').exists(): raise RuntimeError('executor unavailable')
             intent=self.read('executor.intent'); record=self.read('executor.manifest')
-            if any(record.get(k)!=intent[k] for k in ('role','token','slice','inode')) or record.get('candidate')!=intent.get('candidate') or record['role']!='executor': raise RuntimeError('executor binding mismatch')
+            if any(record.get(k)!=intent[k] for k in ('role','token','slice','inode')) or record.get('memory')!=ROLE_MEMORY['executor'] or intent.get('memory')!=ROLE_MEMORY['executor'] or record.get('candidate')!=intent.get('candidate') or record.get('executor_kind')!=intent.get('executor_kind') or intent.get('executor_kind','shell')!=kind or record['role']!='executor': raise RuntimeError('executor binding mismatch')
             if not (self.root/'executor.started').is_file() or self.read('sealed.json') != {'slice':self.slice,'inode':self.inode} or self.read('executor.started') != {'id':record['id']}: raise RuntimeError('executor start not owned')
             if intent.get('candidate') is not None:
                 if self.candidate!=intent['candidate']: raise RuntimeError('candidate binding unavailable')
                 self.check_candidate()
             owner=DisposableContainer(record['token']); owner.ident=record['id']; obj=owner.inspect(owner.ident)
-            if obj is None or not obj['State']['Running'] or obj['HostConfig']['CgroupParent']!=self.slice: raise RuntimeError('executor not running')
+            if obj is None or not obj['State']['Running'] or obj['HostConfig']['CgroupParent']!=self.slice or obj['HostConfig']['Memory']!=ROLE_MEMORY['executor']: raise RuntimeError('executor not running')
             self.commit('executor.exec',{'id':owner.ident})
             try:
-                result=_bounded_exec(['docker','exec','-i',owner.ident,'/execution','--tool-request'],payload,lambda:(self.root/'closed.json').exists())
+                argv=['/execution','--tool-request'] if kind=='shell' else ['/usr/local/bin/python3','-B','/factory-writer.py','--tool-request']
+                result=_bounded_exec(['docker','exec','-i',owner.ident,*argv],payload,lambda:(self.root/'closed.json').exists())
                 if (self.root/'closed.json').exists(): raise RuntimeError('stop requested before output release')
                 return result
             except Exception:
@@ -258,7 +279,7 @@ class Batch:
                 manifest_path=self.root/(role+'.manifest')
                 if manifest_path.exists():
                     manifest=self.read(role+'.manifest')
-                    if any(manifest.get(k)!=intent[k] for k in ('role','token','slice','inode')) or manifest.get('candidate')!=intent.get('candidate'): raise RuntimeError('manifest mismatch')
+                    if any(manifest.get(k)!=intent[k] for k in ('role','token','slice','inode')) or manifest.get('candidate')!=intent.get('candidate') or manifest.get('executor_kind')!=intent.get('executor_kind'): raise RuntimeError('manifest mismatch')
                     owner.ident=manifest['id']; obj=owner.inspect(owner.ident)
                     if obj is None or obj['HostConfig']['CgroupParent']!=self.slice: raise RuntimeError('owned target unavailable')
                     owner.cleanup()

@@ -9,7 +9,7 @@ class Fake:
   self.actions.append(args[0]); self.commands.append(args); op=args[0]
   if op=='create':
    name=args[args.index('--name')+1]; token=args[args.index('--label')+1].split('=',1)[1]; parent=args[args.index('--cgroup-parent')+1]
-   ident=f'{len(self.items)+1:064x}'; self.items[ident]={'Id':ident,'Name':'/'+name,'Config':{'Labels':{LABEL:token}},'HostConfig':{'CgroupParent':parent},'State':{'Running':False,'Status':'created'}}
+   memory=args[args.index('--memory')+1]; ident=f'{len(self.items)+1:064x}'; self.items[ident]={'Id':ident,'Name':'/'+name,'Config':{'Labels':{LABEL:token}},'HostConfig':{'CgroupParent':parent,'Memory':int(memory[:-1])*1024*1024},'State':{'Running':False,'Status':'created'}}
    if self.ambiguous: raise subprocess.TimeoutExpired('create',8)
    return subprocess.CompletedProcess(args,0,ident+'\n','')
   if op=='inspect':
@@ -43,6 +43,20 @@ class Tests(unittest.TestCase):
     with self.assertRaises(RuntimeError): batch.start('goose')
     with self.assertRaises(RuntimeError): batch.prepare_fixed('goose',image,['worker'])
     self.assertEqual(fake.actions.count('kill'),2)
+ def test_role_memory_caps_are_fixed_and_sealed(self):
+  with tempfile.TemporaryDirectory() as d:
+   batch,fake=self.setup_batch(pathlib.Path(d)); image='sha256:'+'a'*64
+   with patch('docker_batch_guardian.docker',side_effect=fake), patch('docker_owner_guardian.docker',side_effect=fake):
+    batch.prepare_fixed('goose',image,['worker']); batch.prepare_fixed('executor',image,['executor'])
+    creates=[x for x in fake.commands if x[0]=='create']
+    self.assertEqual(creates[0][creates[0].index('--memory')+1],'512m')
+    self.assertEqual(creates[1][creates[1].index('--memory')+1],'128m')
+    goose=batch.read('goose.manifest')['id']; fake.items[goose]['HostConfig']['Memory']=128*1024*1024
+    with self.assertRaises(RuntimeError):batch.seal()
+    fake.items[goose]['HostConfig']['Memory']=512*1024*1024;batch.seal()
+    fake.items[goose]['HostConfig']['Memory']=128*1024*1024
+    with self.assertRaises(RuntimeError):batch.start('goose')
+    self.assertTrue(batch.stop())
  def test_ambiguous_create_recovers_only_never_started_owned_root(self):
   with tempfile.TemporaryDirectory() as d:
    batch,fake=self.setup_batch(pathlib.Path(d)); fake.ambiguous=True
@@ -160,6 +174,35 @@ class Tests(unittest.TestCase):
      self.assertEqual(run.call_args.args[0],['docker','exec','-i',ident,'/execution','--tool-request'])
      self.assertEqual(run.call_args.args[1],b'{"command":"x"}')
      with self.assertRaises(RuntimeError): batch.exec_once(b'other')
+    self.assertTrue(batch.stop())
+ def test_writer_mode_has_fixed_argv_and_cannot_switch_or_replay(self):
+  with tempfile.TemporaryDirectory() as d:
+   batch,fake=self.setup_batch(pathlib.Path(d)); image='sha256:'+'a'*64
+   opts=['--mount','type=bind,src=/trusted/writer,dst=/factory-writer.py,readonly','--mount','type=bind,src=/trusted/contract,dst=/nuc_file_contract.py,readonly']
+   with patch('docker_batch_guardian.docker',side_effect=fake), patch('docker_owner_guardian.docker',side_effect=fake):
+    batch.prepare_fixed('goose',image,['worker']); batch.prepare_fixed('executor',image,['executor'],opts,executor_kind='writer'); batch.seal(); ident=batch.start('executor')
+    with patch('docker_batch_guardian._bounded_exec',return_value=b'ok') as run:
+     with self.assertRaises(RuntimeError): batch.exec_once(b'{}')
+     run.assert_not_called()
+     with self.assertRaises(RuntimeError): batch.write_once(b'x'*12289)
+     run.assert_not_called()
+     self.assertEqual(batch.write_once(b'{}'),b'ok')
+     self.assertEqual(run.call_args.args[0],['docker','exec','-i',ident,'/usr/local/bin/python3','-B','/factory-writer.py','--tool-request'])
+     with self.assertRaises(RuntimeError): batch.write_once(b'{}')
+    self.assertTrue(batch.stop())
+ def test_writer_requires_fixed_mounts_and_kind_is_sealed(self):
+  with tempfile.TemporaryDirectory() as d:
+   batch,fake=self.setup_batch(pathlib.Path(d)); image='sha256:'+'a'*64
+   with patch('docker_batch_guardian.docker',side_effect=fake), patch('docker_owner_guardian.docker',side_effect=fake):
+    with self.assertRaises(RuntimeError): batch.prepare_fixed('executor',image,['executor'],executor_kind='writer')
+    self.assertEqual(fake.actions,[])
+    duplicate=['--mount','type=bind,src=/a,dst=/factory-writer.py,readonly','--mount','type=bind,src=/b,dst=/nuc_file_contract.py,readonly','--tmpfs','/factory-writer.py:rw']
+    with self.assertRaises(RuntimeError): batch.prepare_fixed('executor',image,['executor'],duplicate,executor_kind='writer')
+    self.assertEqual(fake.actions,[])
+    batch.prepare_fixed('goose',image,['worker']); batch.prepare_fixed('executor',image,['executor']); batch.seal(); batch.start('executor')
+    with patch('docker_batch_guardian._bounded_exec') as run:
+     with self.assertRaises(RuntimeError): batch.write_once(b'{}')
+     run.assert_not_called()
     self.assertTrue(batch.stop())
  def test_exec_rejects_externally_started_executor(self):
   with tempfile.TemporaryDirectory() as d:
