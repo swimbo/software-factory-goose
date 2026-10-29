@@ -1,0 +1,23 @@
+{
+  "baseline": "40b84df26736e522e0e98180d836b24e021d788b",
+  "candidate": "b468844bcfb6a3ec4e337efe8e2e6d45cdedbd90",
+  "diff_sha256": "d70313bade73a359d4f5c9a2177e3e1ad4759466bb1088f7c6d7750018788393",
+  "holdout_groups": [
+    "pass",
+    "pass",
+    "pass"
+  ],
+  "scenario_votes": [
+    3,
+    3,
+    3,
+    3,
+    3,
+    3,
+    3
+  ],
+  "repetitions": 3,
+  "candidate_tests": "pass",
+  "promotion": "pending human action-bound approval",
+  "monetary_cap": null
+}

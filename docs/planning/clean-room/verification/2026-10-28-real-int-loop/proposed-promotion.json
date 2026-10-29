@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "prepared_not_approved",
+  "scope": "disposable NUC greeting CLI only",
+  "repository": "/tmp/sfactory-real-int-loop-20261028/repo",
+  "operation": "create_exact_ref",
+  "ref": "refs/heads/accepted",
+  "expected_ref": null,
+  "baseline": "40b84df26736e522e0e98180d836b24e021d788b",
+  "candidate": "b468844bcfb6a3ec4e337efe8e2e6d45cdedbd90",
+  "diff_sha256": "d70313bade73a359d4f5c9a2177e3e1ad4759466bb1088f7c6d7750018788393",
+  "evaluation_sha256": "24795f624e60575910d0bdc79bf553ddd2636e2f0cd3ed0ec95b288a62c68308",
+  "requires": "separate operator identity and action-bound human approval; do not execute from this document"
+}

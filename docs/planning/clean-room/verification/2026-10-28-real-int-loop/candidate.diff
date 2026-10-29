@@ -1,0 +1,125 @@
+diff --git a/hello.py b/hello.py
+new file mode 100644
+index 0000000..446d78d
+--- /dev/null
++++ b/hello.py
+@@ -0,0 +1,47 @@
++#!/usr/bin/env python3
++"""A minimal, dependency-free hello-world command line program."""
++
++import sys
++
++
++USAGE = "usage: python3 hello.py [--uppercase] [name]"
++
++
++def _parse_arguments(arguments):
++    uppercase = False
++    names = []
++
++    for argument in arguments:
++        if argument == "--uppercase":
++            uppercase = True
++        elif argument.startswith("-"):
++            raise ValueError("unknown option")
++        else:
++            names.append(argument)
++
++    if len(names) > 1:
++        raise ValueError("more than one name")
++
++    return (names[0] if names else None), uppercase
++
++
++def main(argv=None):
++    if argv is None:
++        argv = sys.argv[1:]
++
++    try:
++        name, uppercase = _parse_arguments(argv)
++    except ValueError:
++        print(USAGE, file=sys.stderr)
++        return 2
++
++    greeting = "hello " + (name if name is not None else "world")
++    if uppercase:
++        greeting = greeting.upper()
++
++    print(greeting)
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/test_hello.py b/test_hello.py
+new file mode 100644
+index 0000000..762f1a4
+--- /dev/null
++++ b/test_hello.py
+@@ -0,0 +1,66 @@
++import contextlib
++import io
++import unittest
++
++from hello import main
++
++
++class HelloCliTests(unittest.TestCase):
++    def call_main(self, *arguments):
++        stdout = io.StringIO()
++        stderr = io.StringIO()
++        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
++            exit_code = main(list(arguments))
++        return exit_code, stdout.getvalue(), stderr.getvalue()
++
++    def test_default_greeting(self):
++        self.assertEqual(self.call_main(), (0, "hello world\n", ""))
++
++    def test_name_replaces_world_and_preserves_spaces_and_unicode(self):
++        self.assertEqual(
++            self.call_main("Åsa 你好"),
++            (0, "hello Åsa 你好\n", ""),
++        )
++
++    def test_uppercase_before_name(self):
++        self.assertEqual(self.call_main("--uppercase", "Ada"), (0, "HELLO ADA\n", ""))
++
++    def test_uppercase_after_name(self):
++        self.assertEqual(self.call_main("Ada", "--uppercase"), (0, "HELLO ADA\n", ""))
++
++    def test_uppercase_without_name(self):
++        self.assertEqual(self.call_main("--uppercase"), (0, "HELLO WORLD\n", ""))
++
++    def test_uppercase_applies_to_unicode_name(self):
++        self.assertEqual(
++            self.call_main("straße", "--uppercase"),
++            (0, "HELLO STRASSE\n", ""),
++        )
++
++    def test_more_than_one_name_exits_two_without_stdout(self):
++        exit_code, stdout, stderr = self.call_main("one", "two")
++        self.assertEqual(exit_code, 2)
++        self.assertEqual(stdout, "")
++        self.assertIn("usage:", stderr)
++
++    def test_unknown_option_exits_two_without_stdout(self):
++        exit_code, stdout, stderr = self.call_main("--unknown")
++        self.assertEqual(exit_code, 2)
++        self.assertEqual(stdout, "")
++        self.assertIn("usage:", stderr)
++
++    def test_unknown_option_after_name_exits_two_without_stdout(self):
++        exit_code, stdout, stderr = self.call_main("Ada", "--unknown")
++        self.assertEqual(exit_code, 2)
++        self.assertEqual(stdout, "")
++        self.assertIn("usage:", stderr)
++
++    def test_uppercase_may_be_repeated(self):
++        self.assertEqual(
++            self.call_main("--uppercase", "Ada", "--uppercase"),
++            (0, "HELLO ADA\n", ""),
++        )
++
++
++if __name__ == "__main__":
++    unittest.main()

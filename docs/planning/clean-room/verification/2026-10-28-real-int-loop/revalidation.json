@@ -1,0 +1,1 @@
+{"candidate_tests": "pass", "files": {"hello.py": "87a1506ef08a00c1cc44f4dd32d375dd4de156459f96b13440bc36c12ba5026e", "test_hello.py": "01f3290dbea2c08842b011fb876eddcd961043c6370a5bc315a362b92233e23d"}, "groups": ["pass", "pass", "pass"], "repetitions": 3, "scenario_votes": [3, 3, 3, 3, 3, 3, 3]}

@@ -1,0 +1,39 @@
+{
+  "kind": "scoped_experiment_evidence_not_production_receipt",
+  "observed_utc": "2026-10-29T03:52:07.846864+00:00",
+  "run": "96e2a23880cc443386a090bb0580954d",
+  "baseline": "40b84df26736e522e0e98180d836b24e021d788b",
+  "monetary_cap": null,
+  "requested_model": "auto",
+  "provider_observations": [
+    {
+      "model": "deepseek-v4.1-flash:1017",
+      "reasoning_bytes": 70047,
+      "reasoning_fields": [
+        "reasoning",
+        "reasoning_content",
+        "reasoning_details"
+      ]
+    },
+    {
+      "model": "deepseek-v4.1-flash:1017",
+      "reasoning_bytes": 0,
+      "reasoning_fields": []
+    }
+  ],
+  "fence_stage": "done",
+  "provider_arguments_sha256": "00734eb4e6c226876916db518303cb935398d9e3d359bbed245782859893d873",
+  "tool_result_sha256": "cbdf83791512758e132ce168b562260525f4e719114f4671a74d7df081053f62",
+  "generation_root": "/tmp/sfactory-real-int-loop-20261028/attempt10",
+  "manager_root": "/tmp/sfactory-writer-live10.uTHZdXE4",
+  "manager_recovery_verified": true,
+  "worker_cgroup_inode": 6882200,
+  "worker_cgroup_empty": true,
+  "original_inert_guard_verified": true,
+  "services": {
+    "docker.service": "active",
+    "hermes-dashboard.service": "active",
+    "hermes-gateway.service": "active"
+  },
+  "remaining": "action-bound promotion and production pipeline/provisioning are not complete"
+}
