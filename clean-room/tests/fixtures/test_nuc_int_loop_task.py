@@ -12,6 +12,26 @@ import nuc_int_loop_task
 from nuc_int_loop_task import create, check_behavior, finalize
 
 class HoldoutControls(unittest.TestCase):
+ def test_each_scenario_runs_three_times_and_requires_two_votes(self):
+  seen={}
+  def candidate(*args):
+   seen[args]=seen.get(args,0)+1
+   if seen[args]==1:return subprocess.CompletedProcess(args,1,b'',b'transient')
+   if args in (('a','b'),('--bogus',)):return subprocess.CompletedProcess(args,2,b'',b'usage')
+   name=next((a for a in args if a!='--uppercase'),'world')
+   text='hello '+name
+   if '--uppercase' in args:text=text.upper()
+   return subprocess.CompletedProcess(args,0,(text+'\n').encode(),b'')
+  tests=lambda:subprocess.CompletedProcess([],0,b'',b'Ran 1 test\nOK')
+  result=check_behavior(candidate,tests,{})
+  self.assertEqual(list(seen.values()),[3]*7)
+  self.assertEqual(result['scenario_votes'],[2]*7)
+ def test_one_good_vote_does_not_pass(self):
+  seen={}
+  def candidate(*args):
+   seen[args]=seen.get(args,0)+1
+   return subprocess.CompletedProcess(args,0,b'hello world\n' if seen[args]==1 else b'wrong\n',b'')
+  with self.assertRaisesRegex(RuntimeError,'greeting behavior'):check_behavior(candidate,lambda:None,{})
  def test_constant_greeting_is_rejected(self):
   def bad_candidate(*args):
    return subprocess.CompletedProcess(args,0,b'hello world\n',b'')
@@ -29,7 +49,7 @@ class HoldoutControls(unittest.TestCase):
    repo=root/'repo'
    for name in ('hello.py','test_hello.py'):(repo/name).write_text('# original\n')
    digests={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in ('hello.py','test_hello.py')}
-   (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'candidate_tests':'pass','files':digests}))
+   (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'repetitions':3,'scenario_votes':[3]*7,'candidate_tests':'pass','files':digests}))
    (repo/'hello.py').write_text('# changed after evaluation\n')
    with self.assertRaisesRegex(RuntimeError,'evaluated content changed'):finalize(root)
  def test_write_between_digest_and_staging_withholds_commit_acceptance(self):
@@ -39,7 +59,7 @@ class HoldoutControls(unittest.TestCase):
    repo=root/'repo'
    for name in ('hello.py','test_hello.py'):(repo/name).write_text('# evaluated\n')
    files={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in ('hello.py','test_hello.py')}
-   (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'candidate_tests':'pass','files':files}))
+   (root/'holdout-result.json').write_text(json.dumps({'groups':['pass']*3,'repetitions':3,'scenario_votes':[3]*7,'candidate_tests':'pass','files':files}))
    original=nuc_int_loop_task.git
    def raced_git(directory,*args):
     if args[0]=='add':(repo/'hello.py').write_text('# late change\n')

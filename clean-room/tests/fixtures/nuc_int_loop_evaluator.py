@@ -128,10 +128,10 @@ def launch_manager(task,root):
  task=private(task);root=private(root);script=pathlib.Path(__file__).resolve();unit='sfactory-eval-'+uuid.uuid4().hex+'.service'
  store(root/'unit.json',{'unit':unit,'script':str(script)})
  if system('show',unit,'-p','LoadState','--value',check=False).stdout.strip() not in ('','not-found'):raise RuntimeError('unit collision')
- argv=['/usr/bin/systemd-run','--user','--unit='+unit,'--collect','--property=Description='+unit,'--property=RuntimeMaxSec=180s','--property=TimeoutStopSec=60s','--property=KillMode=control-group','--property=StandardOutput=append:'+str(root/'output.log'),'--property=StandardError=append:'+str(root/'output.log'),'--property=ExecStopPost=/usr/bin/python3 '+str(script)+' recover '+str(root),'/usr/bin/python3',str(script),'drive',str(root)]
+ argv=['/usr/bin/systemd-run','--user','--unit='+unit,'--collect','--property=Description='+unit,'--property=RuntimeMaxSec=540s','--property=TimeoutStopSec=60s','--property=KillMode=control-group','--property=StandardOutput=append:'+str(root/'output.log'),'--property=StandardError=append:'+str(root/'output.log'),'--property=ExecStopPost=/usr/bin/python3 '+str(script)+' recover '+str(root),'/usr/bin/python3',str(script),'drive',str(root)]
  try:
   subprocess.run(argv,capture_output=True,check=True,timeout=15)
-  deadline=time.monotonic()+200
+  deadline=time.monotonic()+610
   while time.monotonic()<deadline:
    state=system('show',unit,'-p','ActiveState','--value',check=False).stdout.strip()
    if state in ('','inactive','failed'):break

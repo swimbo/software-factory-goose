@@ -25,6 +25,7 @@ def finalize(root):
   if not stat.S_ISREG(st.st_mode) or st.st_nlink!=1 or st.st_size>32768:raise RuntimeError('candidate file invalid')
  result=json.loads((root/'holdout-result.json').read_text())
  if result.get('groups')!=['pass','pass','pass'] or result.get('candidate_tests')!='pass':raise RuntimeError('holdout failed')
+ if result.get('repetitions')!=3 or not isinstance(result.get('scenario_votes'),list) or len(result['scenario_votes'])!=7 or any(type(v) is not int or v not in (2,3) for v in result['scenario_votes']):raise RuntimeError('holdout repetition evidence missing')
  expected={name:hashlib.sha256((repo/name).read_bytes()).hexdigest() for name in manifest['allowed']}
  if result.get('files')!=expected:raise RuntimeError('evaluated content changed')
  groups=result['groups']
@@ -34,7 +35,7 @@ def finalize(root):
   blob=subprocess.check_output(['git','-C',str(repo),'show',revision+':'+name])
   if hashlib.sha256(blob).hexdigest()!=digest:raise RuntimeError('committed content differs from evaluation')
  diff=subprocess.check_output(['git','-C',str(repo),'diff',manifest['baseline'],revision,'--'])
- result={'baseline':manifest['baseline'],'candidate':revision,'diff_sha256':hashlib.sha256(diff).hexdigest(),'holdout_groups':groups,'candidate_tests':'pass','promotion':'pending human action-bound approval','monetary_cap':None}
+ result={'baseline':manifest['baseline'],'candidate':revision,'diff_sha256':hashlib.sha256(diff).hexdigest(),'holdout_groups':groups,'scenario_votes':result['scenario_votes'],'repetitions':3,'candidate_tests':'pass','promotion':'pending human action-bound approval','monetary_cap':None}
  (root/'candidate.diff').write_bytes(diff);(root/'evaluation.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))
 
 def check_behavior(run, run_tests, files):
@@ -43,18 +44,22 @@ def check_behavior(run, run_tests, files):
  No candidate subprocess is ever launched here. No holdout code is mounted
  into a candidate container. The caller supplies immutable snapshot hashes.
  """
- groups=[]
+ groups=[];votes=[]
  for cases in [ [([], 'hello world\n'),(['Ada'],'hello Ada\n')], [(['Zoë Smith'],'hello Zoë Smith\n'),(['--uppercase','Ada'],'HELLO ADA\n'),(['Ada','--uppercase'],'HELLO ADA\n')], [(['a','b'],None),(['--bogus'],None)]]:
   for args,expected in cases:
-   r=run(*args)
-   if expected is None:
-    if r.returncode!=2 or r.stdout or not r.stderr.strip():raise RuntimeError('invalid-input behavior')
-   elif r.returncode!=0 or r.stdout.decode()!=expected or r.stderr:raise RuntimeError('greeting behavior')
+   passed=0
+   for repetition in range(3):
+    r=run(*args)
+    if expected is None:
+     passed+=int(r.returncode==2 and not r.stdout and bool(r.stderr.strip()))
+    else:passed+=int(r.returncode==0 and r.stdout==expected.encode() and not r.stderr)
+   votes.append(passed)
+   if passed<2:raise RuntimeError('invalid-input behavior' if expected is None else 'greeting behavior')
   groups.append('pass')
  tests=run_tests()
  count=re.search(rb'Ran ([0-9]+) tests?',tests.stderr)
  if tests.returncode or not count or int(count[1])<1:raise RuntimeError('candidate tests failed or empty')
- return {'groups':groups,'candidate_tests':'pass','files':files}
+ return {'groups':groups,'scenario_votes':votes,'repetitions':3,'candidate_tests':'pass','files':files}
 
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('action',choices=['create','finalize']);p.add_argument('root',type=pathlib.Path);a=p.parse_args();{'create':create,'finalize':finalize}[a.action](a.root)
