@@ -157,3 +157,7 @@ A 5-persona adversarial debate (AI Agent Systems, Systems Architect, Rust Backen
 12. **Cost figure corrected ~15× → ~4×** (inference-only), and the serving backend is the open cost question. → R12
 
 O1 is resolved to hosted open-weights via external Bifrost. O4 is resolved (2026-10-26) to a separate local operator account and action-bound approval channel, with no MFA claim. The scoped three-reviewer debate and explicit user selection are recorded in `decisions/2026-10-26-operator-auth.md`. The private Unix transport checks actual kernel peer UID; immutable approval records bind the operation, task/repository/ref, exact candidate/base SHA, evidence digest, audience, nonce and expiry. Journal consumption does not itself execute a promotion. Distinct accounts, protected ingress and replay-safe execution still need runtime verification. O2/O3/O5/O6 retain their documented follow-on work in `consensus-plan.md`.
+
+## Scoped structured writer — 2026-10-28
+
+Three-reviewer debate selects a two-file, factory-owned structured MCP writer for the uncapped owned INT-LOOP; shell policy stays unchanged. Distinct fixed executor invocation, strict bytes/identity/fences, partial-write quarantine, exact baseline/generation snapshot and isolated evaluation remain mandatory. No production activation or completed INT-LOOP is claimed. See `decisions/2026-10-28-structured-task-writer/consensus-plan.md` for the decision and discriminating pre-live gates.

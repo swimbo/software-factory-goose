@@ -46,3 +46,7 @@ T2/T3/T4/T5 (shared+control-plane) are interdependent → sequence; T6 (executio
 
 ## Exit signal
 The factory produces a merged, wall-verified greenfield artifact with gates enforced.
+
+## Scoped structured writer — 2026-10-28
+
+Three-reviewer debate selects a two-file, factory-owned structured MCP writer for the uncapped owned INT-LOOP; shell policy stays unchanged. Distinct fixed executor invocation, strict bytes/identity/fences, partial-write quarantine, exact baseline/generation snapshot and isolated evaluation remain mandatory. No production activation or completed INT-LOOP is claimed. See `decisions/2026-10-28-structured-task-writer/consensus-plan.md` for the decision and discriminating pre-live gates.

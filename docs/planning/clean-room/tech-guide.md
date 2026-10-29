@@ -102,3 +102,7 @@ The architecture debate (see `consensus-plan.md`, `debate-transcript.md`) valida
 - **Rust MSRV 1.90** already reflects Restate 0.12.1's requirement.
 - **Cost anchor**: historical planning estimate only; actual gateway prices and spend require runtime evidence. O1 is resolved to hosted open-weights.
 - **Operator authentication (2026-10-26)**: separate local operator account, kernel Unix peer credentials and action-bound single-use approvals; no MFA claim. See `decisions/2026-10-26-operator-auth.md`. Axum/Tokio Unix transport and feature-gated Restate approval journal compile against the lockfile. The journal remains unregistered until private ingress, identity separation and authoritative action eligibility are verified.
+
+## Scoped structured writer — 2026-10-28
+
+Three-reviewer debate selects a two-file, factory-owned structured MCP writer for the uncapped owned INT-LOOP; shell policy stays unchanged. Distinct fixed executor invocation, strict bytes/identity/fences, partial-write quarantine, exact baseline/generation snapshot and isolated evaluation remain mandatory. No production activation or completed INT-LOOP is claimed. See `decisions/2026-10-28-structured-task-writer/consensus-plan.md` for the decision and discriminating pre-live gates.
