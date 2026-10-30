@@ -14,3 +14,5 @@
 - 2026-10-30: [Native launch access amendment](2026-10-30-native-launch-read-access/consensus-plan.md) — three-reviewer conditional A: root:2000/0710 callback parent and cap-empty launcher, versioned admission-fenced upgrade, lifecycle exclusion and native UID/capability controls before another claim.
 
 - 2026-10-30: [Root-attested finalization](2026-10-30-root-finalization/consensus-plan.md) — three-reviewer consensus: same exclusive claim journal, immutable outcome with unknown spend, reconstructible SQL projection and separate human approval. Exact Root-published request authorization closes direct private-ingress bypass; retained pending publication denies after a publisher crash. Production integration and full pinned-runtime verification remain required.
+
+- 2026-10-30: [Registry ingress fence](2026-10-30-registry-ingress-fence/consensus-plan.md) — three-reviewer conditional consensus: test pinned Unix-only admin with fixed Root-mediated UID2004 operations and retirement of all ungated SDK1–4 endpoints, including8080 forwarding and retained-work controls. Disposable proof and exact live transition review precede adoption; nft remains fallback only.

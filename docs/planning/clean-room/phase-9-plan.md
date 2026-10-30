@@ -39,6 +39,7 @@ T2/T3/T4/T5 (shared+control-plane) are interdependent → sequence; T6 (executio
 
 ## Verification (Hard Gates)
 - [ ] Full loop runs: greenfield intent → merged diff + wall pass (INT-LOOP).
+- [ ] Prove the conditional Unix-admin/old-SDK-retirement direction in a disposable pinned-runtime fixture, then complete the separately reviewed registry transition before another real claim. See `decisions/2026-10-30-registry-ingress-fence/consensus-plan.md`; synthetic success alone does not close INT-LOOP.
 - [x] Local component gate: all-target/all-feature locked offline suite **342 passed, 0 failed, 1 ignored**; the ignored database-dependent test runs separately in its disposable PostgreSQL fixture. Clippy with warnings denied, formatting and build passed. See `verification/2026-10-27-*-resume3-final.log`. This does not close INT-LOOP or live safety gates.
 - [ ] Receipt bound to exact git SHA (US-16).
 - [ ] Budget cap hard-stops an overage unit (US-9).

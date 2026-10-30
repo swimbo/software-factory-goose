@@ -145,3 +145,20 @@ The native synthetic authorization canary passed exact delivery, changed digest,
 missing/unsafe authorization, UID2001 lock denial and publisher death after file
 fsync but before parent fsync. This proves that bounded permission/crash control,
 not production journal integration, pass/fail evaluator provenance or promotion.
+
+### Registry administration and old SDK retirement (2026-10-30)
+
+The [three-reviewer ingress-fence decision](decisions/2026-10-30-registry-ingress-fence/consensus-plan.md)
+conditionally selects a pinned disposable experiment: Unix-only Restate admin,
+fixed Root-mediated operations executed through PID1 as trusted journalUID2004,
+and persistent retirement of all ungated SDK1–4 endpoints. Keep private data
+permissions strict; SDKUID2000 receives no admin connection or arbitrary proxy.
+The gate/SQL snapshot alone cannot fence old code, and leaving8080 available can
+forward calls to old SDKs. Test that route and existing connections explicitly.
+
+Preserve old deployment histories and all retained work. Unavailable old-pinned
+work is not drained. A tested zero or explicit bounded quarantine classification,
+one non-force registration receipt, serving-process attestation and all-history
+replay are separate live gates. No live admin configuration or endpoint retirement
+has yet been performed; namespace filtering is only a fallback if the Unix proof
+fails. See the decision for exact disposable and later cutover requirements.
