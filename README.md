@@ -8,6 +8,65 @@ A Rust software factory that coordinates Goose coding workers, durable Restate w
 
 The intended flow is intent → qualification → task graph → controlled worker execution → independent evaluation → human-approved promotion.
 
+### Component boundaries
+
+This is the intended runtime architecture; the connections below are design relationships, not a claim that every integration gate has passed. The diagnostic quick start uses the separate path shown later.
+
+```mermaid
+flowchart TB
+    human["Human operator"] --> cli["sfctl"]
+    subgraph orchestration["Trusted orchestration"]
+        control["Control plane: qualification, task graph, gates"]
+        journal[("Restate: durable workflow authority")]
+        projection[("PostgreSQL: read projection")]
+        control <--> journal
+        journal -->|"Derived state"| projection
+    end
+    cli -->|"Authenticated private runtime interface"| control
+    subgraph generation["Restricted generation boundary"]
+        execution["Execution plane: policy and supervision"]
+        goose["Goose worker"]
+        candidate["Candidate worktree"]
+        execution --> goose
+        goose -->|"Controlled tools"| candidate
+    end
+    control -->|"Bounded task and launch authority"| execution
+    goose -->|"Mediated inference"| gateway["External Bifrost gateway"]
+    gateway --> models["Model providers"]
+    candidate -->|"Exact revision snapshot"| evaluator["Independent evaluator"]
+    store[("Protected holdout store")] -->|"Trusted evaluator access"| evaluator
+    evaluator -->|"Revision-bound verdict"| control
+    control --> approval["Action-bound human approval"]
+    human --> approval
+    approval --> promotion["Approved exact-revision promotion"]
+    human -->|"Independent stop path"| watchdog["Watchdog and trusted launch components"]
+    watchdog -->|"Own, supervise and stop"| execution
+```
+
+The generator and evaluator have separate trust boundaries. Holdout contents belong to the evaluator path; they must not enter the worker context. The independent stop path must remain usable when the control plane or database is unavailable.
+
+### Task lifecycle and gates
+
+This flow summarizes the intended gates rather than defining API state names. Unknown or incomplete evidence cannot authorize promotion.
+
+```mermaid
+flowchart TD
+    intent["Intent and acceptance criteria"] --> qualify{"Qualification and admission"}
+    qualify -->|"Needs clarification or approval"| wait["Wait for operator input"]
+    wait --> qualify
+    qualify -->|"Admitted"| tasks["Build task graph"]
+    tasks --> reserve["Reserve bounded execution authority"]
+    reserve --> generate["Generate candidate through controlled tools"]
+    generate --> snapshot["Pin exact candidate revision"]
+    snapshot --> evaluate["Run independent evaluation"]
+    evaluate --> verdict{"Complete, trusted evidence?"}
+    verdict -->|"Unavailable or ambiguous"| reconcile["Fence affected attempt; reconcile uncertainty"]
+    verdict -->|"Evaluated failure"| failed["Record failure; any retry needs admission"]
+    verdict -->|"Evaluated pass"| decision{"Human approves this exact action?"}
+    decision -->|"Pending or denied"| held["Retain candidate without promotion"]
+    decision -->|"Approved"| promote["Promote the approved revision"]
+```
+
 | Component | Responsibility | Source |
 | --- | --- | --- |
 | Control plane | Qualification, workflow coordination, budgets, approvals, diagnostic HTTP API | `clean-room/crates/control-plane` |
@@ -42,6 +101,30 @@ cargo run --locked -p sfctl -- private --help
 These commands build the code and display CLI usage without starting infrastructure or workers. Dependency downloads require network access; use `--offline` only after the dependencies are cached.
 
 ### Try the diagnostic HTTP API
+
+The quick start exercises qualification and in-memory inspection only:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as sfctl
+    participant API as Loopback diagnostic API :8081
+    participant Memory as In-memory intent state
+    User->>CLI: submit title, description, acceptance
+    CLI->>API: POST /v1/intents
+    API->>API: Compute diagnostic qualification
+    API->>Memory: Store diagnostic intent
+    API-->>CLI: Intent identifier and qualification
+    CLI-->>User: Display response
+    User->>CLI: inspect INTENT_ID
+    CLI->>API: GET /v1/intents/INTENT_ID
+    API->>Memory: Read intent
+    Memory-->>API: Diagnostic state
+    API-->>CLI: Intent details
+    CLI-->>User: Display response
+    Note over API,Memory: Restart loses in-memory intents; no worker is launched
+```
+
 
 In a terminal, from `clean-room/`:
 
