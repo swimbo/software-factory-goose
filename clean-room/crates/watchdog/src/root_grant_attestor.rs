@@ -19,36 +19,51 @@ use std::{
 };
 #[cfg(not(feature = "registry-grant"))]
 const ATTEST: &str = "/etc/software-factory-goose/real-process-attestation.json";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const ATTEST: &str = "/etc/software-factory-goose/registry-process-attestation.json";
+#[cfg(feature = "registry-v5-grant")]
+const ATTEST: &str = "/etc/software-factory-goose/registry-v5-process-attestation.json";
 #[cfg(not(feature = "registry-grant"))]
 const UNIT: &str = "software-factory-goose-real-runtime.service";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const UNIT: &str = "software-factory-goose-registry-runtime.service";
+#[cfg(feature = "registry-v5-grant")]
+const UNIT: &str = "software-factory-goose-registry-v5-runtime.service";
 #[cfg(not(feature = "registry-grant"))]
 const UNITFILE: &str = "/etc/systemd/system/software-factory-goose-real-runtime.service";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const UNITFILE: &str = "/etc/systemd/system/software-factory-goose-registry-runtime.service";
+#[cfg(feature = "registry-v5-grant")]
+const UNITFILE: &str = "/etc/systemd/system/software-factory-goose-registry-v5-runtime.service";
 #[cfg(not(feature = "registry-grant"))]
 const BIN: &str = "/usr/local/libexec/software-factory-goose/private-real-sidecar";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const BIN: &str = "/usr/local/libexec/software-factory-goose/private-registry-sidecar";
+#[cfg(feature = "registry-v5-grant")]
+const BIN: &str = "/usr/local/libexec/software-factory-goose/private-registry-v5-sidecar";
 #[cfg(not(feature = "registry-grant"))]
 const CONFIG: &str = "/etc/software-factory-goose/real-runtime.json";
 #[cfg(feature = "registry-grant")]
 const CONFIG: &str = "/etc/software-factory-goose/catalog-registry.json";
 #[cfg(not(feature = "registry-grant"))]
 const SOCKET: &str = "/run/software-factory-goose/real-launch-grant.sock";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const SOCKET: &str = "/run/software-factory-goose/registry-launch-grant.sock";
+#[cfg(feature = "registry-v5-grant")]
+const SOCKET: &str = "/run/software-factory-goose/registry-v5-launch-grant.sock";
 #[cfg(not(feature = "registry-grant"))]
 const CGROUP: &str = "/sys/fs/cgroup/system.slice/software-factory-goose-real-runtime.service";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const CGROUP: &str = "/sys/fs/cgroup/system.slice/software-factory-goose-registry-runtime.service";
+#[cfg(feature = "registry-v5-grant")]
+const CGROUP: &str =
+    "/sys/fs/cgroup/system.slice/software-factory-goose-registry-v5-runtime.service";
 #[cfg(not(feature = "registry-grant"))]
 const MEMBERSHIP: &str = "/system.slice/software-factory-goose-real-runtime.service";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const MEMBERSHIP: &str = "/system.slice/software-factory-goose-registry-runtime.service";
+#[cfg(feature = "registry-v5-grant")]
+const MEMBERSHIP: &str = "/system.slice/software-factory-goose-registry-v5-runtime.service";
 const ANCHOR_UNIT: &str = "software-factory-goose-private-net.service";
 const ANCHOR_UNITFILE: &str = "/etc/systemd/system/software-factory-goose-private-net.service";
 const ANCHOR_DROPIN: &str =
@@ -241,7 +256,12 @@ impl ServiceAttestation for RootAttestor {
                 .collect();
             ensure!(
                 active.len() == 1
-                    && active[0].0.sdk_port == 9084
+                    && active[0].0.sdk_port
+                        == if cfg!(feature = "registry-v5-grant") {
+                            9085
+                        } else {
+                            9084
+                        }
                     && active[0].0.launch_scope.is_some(),
                 "registry active scope invalid"
             );
@@ -388,7 +408,7 @@ mod tests {
     use super::*;
     #[test]
     fn selected_profile_has_one_matching_unit_and_socket() {
-        #[cfg(feature = "registry-grant")]
+        #[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
         {
             assert_eq!(UNIT, "software-factory-goose-registry-runtime.service");
             assert_eq!(
@@ -399,6 +419,18 @@ mod tests {
             assert_eq!(
                 ATTEST,
                 "/etc/software-factory-goose/registry-process-attestation.json"
+            );
+        }
+        #[cfg(feature = "registry-v5-grant")]
+        {
+            assert_eq!(UNIT, "software-factory-goose-registry-v5-runtime.service");
+            assert_eq!(
+                SOCKET,
+                "/run/software-factory-goose/registry-v5-launch-grant.sock"
+            );
+            assert_eq!(
+                ATTEST,
+                "/etc/software-factory-goose/registry-v5-process-attestation.json"
             );
         }
         #[cfg(not(feature = "registry-grant"))]

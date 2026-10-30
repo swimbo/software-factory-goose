@@ -7,6 +7,10 @@ use watchdog::root_cgroup;
 #[allow(dead_code)]
 #[path = "../root_grant.rs"]
 mod root_grant;
+#[cfg(all(target_os = "linux", feature = "registry-grant"))]
+#[allow(dead_code)]
+#[path = "../root_grant_attestor.rs"]
+mod root_grant_attestor;
 #[cfg(target_os = "linux")]
 #[allow(dead_code)]
 #[path = "../root_grant_deadline.rs"]
@@ -34,6 +38,13 @@ fn main() -> anyhow::Result<()> {
         sync::Mutex,
         time::Duration,
     };
+    #[cfg(feature = "registry-grant")]
+    let _registry_admission = watchdog::registry_admission::SharedAdmission::acquire()?;
+    #[cfg(feature = "registry-grant")]
+    {
+        use root_grant::ServiceAttestation;
+        root_grant_attestor::RootAttestor.verify()?;
+    }
     const STATE: &str = "/var/lib/software-factory-goose/stop";
     const HELPER: &str = "/usr/local/libexec/software-factory-goose/root-launch-host.py";
     const MANIFEST: &str = "/etc/software-factory-goose/root-launch-host.json";

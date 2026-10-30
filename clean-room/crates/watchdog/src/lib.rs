@@ -13,6 +13,8 @@ pub mod guarded_admission;
 pub mod guarded_release;
 #[cfg(feature = "fixture")]
 pub mod recovery_latch;
+#[cfg(target_os = "linux")]
+pub mod registry_admission;
 pub mod root_cgroup;
 pub mod stop_wire;
 use anyhow::{Context, Result, ensure};

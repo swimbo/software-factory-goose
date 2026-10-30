@@ -9,6 +9,7 @@ license.workspace = true
 default = []
 fixture = []
 registry-grant = ["dep:control-plane"]
+registry-v5-grant = ["registry-grant", "control-plane/registry-v5"]
 
 [dependencies]
 anyhow.workspace = true

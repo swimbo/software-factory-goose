@@ -22,8 +22,10 @@ use std::{
 };
 #[cfg(not(feature = "registry-grant"))]
 const SOCKET: &str = "/run/software-factory-goose/real-launch-grant.sock";
-#[cfg(feature = "registry-grant")]
+#[cfg(all(feature = "registry-grant", not(feature = "registry-v5-grant")))]
 const SOCKET: &str = "/run/software-factory-goose/registry-launch-grant.sock";
+#[cfg(feature = "registry-v5-grant")]
+const SOCKET: &str = "/run/software-factory-goose/registry-v5-launch-grant.sock";
 #[cfg(target_os = "linux")]
 fn no_acl(f: &File) -> Result<()> {
     no_attr(f, "system.posix_acl_access")

@@ -24,6 +24,8 @@ fn main() -> anyhow::Result<()> {
     let _ = args.next();
     let generation = args.next().context("generation required")?;
     ensure!(args.next().is_none(), "unexpected arguments");
+    #[cfg(feature = "registry-grant")]
+    let _registry_admission = watchdog::registry_admission::SharedAdmission::acquire()?;
     let catalog = root_grant::load_root_catalog(&generation)?;
     let state = OpenOptions::new()
         .read(true)
