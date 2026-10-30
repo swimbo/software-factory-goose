@@ -10,7 +10,7 @@ class DeadlineTests(unittest.TestCase):
  def test_positive_and_margin(self):
   self.assertEqual(d.validate(self.grant,self.catalog,self.g,self.boot,self.now),25)
  def test_bad_scope_expiry_and_clock_are_denied(self):
-  for key,value in [('purpose','production'),('boot_id','other'),('target_id','wrong'),('catalog_sha256','x'*64),('expires_unix_ns',self.now),('issued_unix_ns',self.now+1),('max_duration_seconds',121)]:
+  for key,value in [('purpose','production'),('boot_id','other'),('target_id','wrong'),('catalog_sha256','x'*64),('expires_unix_ns',self.now),('issued_unix_ns',self.now+1),('max_duration_seconds',241)]:
    bad=copy.deepcopy(self.grant);bad[key]=value
    with self.subTest(key=key),self.assertRaises(RuntimeError):d.validate(bad,self.catalog,self.g,self.boot,self.now)
  def test_insufficient_margin_denied(self):

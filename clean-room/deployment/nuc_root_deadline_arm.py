@@ -13,7 +13,7 @@ CGROUP=pathlib.Path('/sys/fs/cgroup')
 BINARY=pathlib.Path('/usr/local/libexec/software-factory-goose/sfactory_deadline_kernel_stop')
 BINARY_SHA='e286a8daab464f29e14e11beed0147cf24a11b585b4dfc50e48cb8615d0a325a'
 ENV={'PATH':'/usr/bin:/bin','HOME':'/nonexistent','SYSTEMD_IN_CHROOT':'0','LC_ALL':'C'}
-MAX_SECONDS=120
+MAX_SECONDS=240
 
 def run(*argv,timeout=10):
  p=subprocess.run(argv,capture_output=True,text=True,timeout=timeout,env=ENV)
