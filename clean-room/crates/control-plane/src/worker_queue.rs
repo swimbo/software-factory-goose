@@ -267,19 +267,59 @@ impl QueueState {
 /// The ClaimLeaseJournal deployment must use the same configured worker scope.
 pub struct WorkerQueueJournal {
     worker_id: String,
+    scopes: Option<Vec<(String, String)>>,
 }
 impl WorkerQueueJournal {
     pub fn new_for_private_ingress(worker_id: String) -> anyhow::Result<Self> {
         anyhow::ensure!(canonical_text(&worker_id), "invalid queue worker scope");
-        Ok(Self { worker_id })
+        Ok(Self {
+            worker_id,
+            scopes: None,
+        })
+    }
+    pub fn new_with_preserved_queue(
+        worker_id: String,
+        queue: String,
+        old_worker: String,
+        old_queue: String,
+    ) -> anyhow::Result<Self> {
+        Self::new_with_queue_scopes(vec![(old_queue, old_worker), (queue, worker_id)])
+    }
+    pub fn new_with_queue_scopes(scopes: Vec<(String, String)>) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            !scopes.is_empty() && scopes.len() <= 3,
+            "invalid queue scope count"
+        );
+        let mut seen = std::collections::BTreeSet::new();
+        for (queue, worker) in &scopes {
+            anyhow::ensure!(
+                canonical_transport_key(queue) && canonical_text(worker) && seen.insert(queue),
+                "queue scopes collide or are invalid"
+            );
+        }
+        Ok(Self {
+            worker_id: scopes[0].1.clone(),
+            scopes: Some(scopes),
+        })
+    }
+    fn worker_for(&self, key: &str) -> Result<&str, TerminalError> {
+        match &self.scopes {
+            None => Ok(&self.worker_id),
+            Some(scopes) => scopes
+                .iter()
+                .find(|(queue, _)| queue == key)
+                .map(|(_, worker)| worker.as_str())
+                .ok_or_else(|| error(403, "queue outside root catalog")),
+        }
     }
     async fn load(&self, ctx: &ObjectContext<'_>) -> HandlerResult<QueueState> {
+        let worker = self.worker_for(ctx.key())?;
         let state = ctx
             .get::<Json<QueueState>>("queue")
             .await?
             .map(|s| s.0)
-            .unwrap_or_else(|| QueueState::new(ctx.key(), &self.worker_id));
-        state.check_binding(ctx.key(), &self.worker_id)?;
+            .unwrap_or_else(|| QueueState::new(ctx.key(), worker));
+        state.check_binding(ctx.key(), worker)?;
         Ok(state)
     }
 }
@@ -364,7 +404,9 @@ impl WorkerQueueJournal {
         let Some(state) = ctx.get::<Json<QueueState>>("queue").await? else {
             return Ok(Json(None));
         };
-        state.0.check_binding(ctx.key(), &self.worker_id)?;
+        state
+            .0
+            .check_binding(ctx.key(), self.worker_for(ctx.key())?)?;
         Ok(Json(
             state
                 .0
@@ -398,6 +440,49 @@ impl WorkerQueueJournal {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn three_queue_scopes_are_exact_and_duplicate_queue_is_denied() {
+        let q = super::WorkerQueueJournal::new_with_queue_scopes(vec![
+            ("a".into(), "w1".into()),
+            ("b".into(), "w2".into()),
+            ("c".into(), "w3".into()),
+        ])
+        .unwrap();
+        assert_eq!(q.worker_for("a").unwrap(), "w1");
+        assert_eq!(q.worker_for("b").unwrap(), "w2");
+        assert_eq!(q.worker_for("c").unwrap(), "w3");
+        assert!(q.worker_for("other").is_err());
+        assert!(
+            super::WorkerQueueJournal::new_with_queue_scopes(vec![
+                ("a".into(), "w1".into()),
+                ("a".into(), "w2".into())
+            ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn protected_two_queue_binding_rejects_unknown_and_collisions() {
+        let q = super::WorkerQueueJournal::new_with_preserved_queue(
+            "new-worker".into(),
+            "new-queue".into(),
+            "old-worker".into(),
+            "old-queue".into(),
+        )
+        .unwrap();
+        assert_eq!(q.worker_for("old-queue").unwrap(), "old-worker");
+        assert_eq!(q.worker_for("new-queue").unwrap(), "new-worker");
+        assert!(q.worker_for("other").is_err());
+        assert!(
+            super::WorkerQueueJournal::new_with_preserved_queue(
+                "new-worker".into(),
+                "same".into(),
+                "old-worker".into(),
+                "same".into()
+            )
+            .is_err()
+        );
+    }
+
     use super::*;
     fn request() -> ScheduleRequest {
         ScheduleRequest {

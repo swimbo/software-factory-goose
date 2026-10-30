@@ -275,6 +275,72 @@ mod lease_tests {
             token: lease.token.clone(),
         }
     }
+    #[tokio::test]
+    async fn protected_two_claim_scopes_bind_worker_by_task() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://fixture@127.0.0.1/fixture")
+            .unwrap();
+        let scope = crate::launch_reservation::LaunchScope {
+            task_id: "new-task".into(),
+            intent_id: "new-intent".into(),
+            queue_id: "new-queue".into(),
+            generation: "generation".into(),
+            spec: LeaseSpec {
+                repository: "repo".into(),
+                base_revision: "a".repeat(40),
+            },
+            worker_id: "new-worker".into(),
+            catalog_sha256: "b".repeat(64),
+        };
+        let j = ClaimLeaseJournal::new_with_preserved_launch_scope(
+            "new-worker".into(),
+            pool,
+            scope,
+            "old-task".into(),
+            "old-worker".into(),
+        )
+        .unwrap();
+        assert_eq!(j.worker_for("old-task").unwrap(), "old-worker");
+        assert_eq!(j.worker_for("new-task").unwrap(), "new-worker");
+        assert!(j.worker_for("unknown").is_err());
+    }
+    #[tokio::test]
+    async fn three_claim_scopes_preserve_each_root_grant_and_reject_rebinding() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .connect_lazy("postgres://fixture@127.0.0.1/fixture")
+            .unwrap();
+        let scope = |task: &str, worker: &str| crate::launch_reservation::LaunchScope {
+            task_id: task.into(),
+            intent_id: format!("{task}-intent"),
+            queue_id: format!("{task}-queue"),
+            generation: format!("{task}-gen"),
+            spec: LeaseSpec {
+                repository: "repo".into(),
+                base_revision: "a".repeat(40),
+            },
+            worker_id: worker.into(),
+            catalog_sha256: "b".repeat(64),
+        };
+        let workers = vec![
+            ("old".into(), "w1".into()),
+            ("canary".into(), "w2".into()),
+            ("real".into(), "w3".into()),
+        ];
+        let j = ClaimLeaseJournal::new_with_catalog_scopes(
+            pool.clone(),
+            workers.clone(),
+            vec![scope("canary", "w2"), scope("real", "w3")],
+        )
+        .unwrap();
+        assert_eq!(j.worker_for("old").unwrap(), "w1");
+        assert_eq!(j.launch_for("canary").unwrap().worker_id, "w2");
+        assert_eq!(j.launch_for("real").unwrap().worker_id, "w3");
+        assert!(j.launch_for("old").is_err());
+        assert!(
+            ClaimLeaseJournal::new_with_catalog_scopes(pool, workers, vec![scope("canary", "w3")])
+                .is_err()
+        );
+    }
     #[test]
     fn outbox_versions_only_real_transitions_including_rejected_expiry() {
         let mut s = state();
@@ -877,6 +943,8 @@ pub struct ClaimReexportReport {
 pub struct ClaimLeaseJournal {
     worker_id: String,
     projection_pool: sqlx::PgPool,
+    launch_scopes: Vec<crate::launch_reservation::LaunchScope>,
+    worker_scopes: Option<Vec<(String, String)>>,
 }
 impl ClaimLeaseJournal {
     pub fn new_for_private_ingress(
@@ -890,7 +958,93 @@ impl ClaimLeaseJournal {
         Ok(Self {
             worker_id,
             projection_pool,
+            launch_scopes: Vec::new(),
+            worker_scopes: None,
         })
+    }
+
+    /// The scope must come from protected deployment configuration, never the request.
+    pub fn new_with_root_launch_scope(
+        worker_id: String,
+        projection_pool: sqlx::PgPool,
+        scope: crate::launch_reservation::LaunchScope,
+    ) -> anyhow::Result<Self> {
+        scope.validate()?;
+        anyhow::ensure!(scope.worker_id == worker_id, "launch worker scope mismatch");
+        let mut journal = Self::new_for_private_ingress(worker_id, projection_pool)?;
+        journal.launch_scopes.push(scope);
+        Ok(journal)
+    }
+    pub fn new_with_preserved_launch_scope(
+        worker_id: String,
+        pool: sqlx::PgPool,
+        scope: crate::launch_reservation::LaunchScope,
+        old_task: String,
+        old_worker: String,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            canonical_lease_text(&old_task)
+                && canonical_lease_text(&old_worker)
+                && old_task != scope.task_id,
+            "claim scopes collide or are invalid"
+        );
+        let new_task = scope.task_id.clone();
+        let mut journal = Self::new_with_root_launch_scope(worker_id.clone(), pool, scope)?;
+        journal.worker_scopes = Some(vec![(old_task, old_worker), (new_task, worker_id)]);
+        Ok(journal)
+    }
+    pub fn new_with_catalog_scopes(
+        pool: sqlx::PgPool,
+        workers: Vec<(String, String)>,
+        scopes: Vec<crate::launch_reservation::LaunchScope>,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            !workers.is_empty() && workers.len() <= 3 && scopes.len() <= workers.len(),
+            "invalid claim scopes"
+        );
+        let mut keys = std::collections::BTreeSet::new();
+        for (task, worker) in &workers {
+            anyhow::ensure!(
+                canonical_lease_text(task) && canonical_lease_text(worker) && keys.insert(task),
+                "claim scopes collide or invalid"
+            );
+        }
+        let mut launches = std::collections::BTreeSet::new();
+        for scope in &scopes {
+            scope.validate()?;
+            anyhow::ensure!(
+                launches.insert(&scope.task_id)
+                    && workers
+                        .iter()
+                        .any(|(task, worker)| task == &scope.task_id && worker == &scope.worker_id),
+                "launch scope mismatch"
+            );
+        }
+        Ok(Self {
+            worker_id: workers[0].1.clone(),
+            projection_pool: pool,
+            launch_scopes: scopes,
+            worker_scopes: Some(workers),
+        })
+    }
+    fn worker_for(&self, key: &str) -> Result<&str, TerminalError> {
+        match &self.worker_scopes {
+            None => Ok(&self.worker_id),
+            Some(scopes) => scopes
+                .iter()
+                .find(|(task, _)| task == key)
+                .map(|(_, worker)| worker.as_str())
+                .ok_or_else(|| lease_error(403, "claim outside root catalog")),
+        }
+    }
+    fn launch_for(
+        &self,
+        key: &str,
+    ) -> Result<&crate::launch_reservation::LaunchScope, TerminalError> {
+        self.launch_scopes
+            .iter()
+            .find(|scope| scope.task_id == key)
+            .ok_or_else(|| lease_error(403, "launch scope unavailable"))
     }
 }
 
@@ -903,6 +1057,8 @@ impl ClaimLeaseJournal {
         spec: restate_sdk::serde::Json<LeaseSpec>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimLeaseState>> {
         use restate_sdk::serde::Json;
+        let _ = self.worker_for(ctx.key())?;
+        ensure_launch_unreserved(&ctx).await?;
         ensure_projection_healthy(&ctx).await?;
         let mut requested = new_lease_state(ctx.key(), spec.0)?;
         if let Some(existing) = ctx.get::<Json<ClaimLeaseState>>("claim").await? {
@@ -927,11 +1083,13 @@ impl ClaimLeaseJournal {
         request: restate_sdk::serde::Json<ClaimRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ActiveLease>> {
         use restate_sdk::serde::Json;
+        let worker = self.worker_for(ctx.key())?;
+        ensure_launch_unreserved(&ctx).await?;
         let mut state = load_claim(&ctx).await?;
         let before = state.clone();
         let now = ctx.run(lease_clock_millis).await?;
         let token = ctx.run(|| async { Ok(shared::new_id()) }).await?;
-        let result = conditional_claim(&mut state, &self.worker_id, token, &request.0, now);
+        let result = conditional_claim(&mut state, worker, token, &request.0, now);
         // Persist expiry/cooldown transitions even if this request is refused.
         persist_claim_transition(&ctx, &self.projection_pool, Some(&before), &mut state).await?;
         result.map(Json).map_err(Into::into)
@@ -944,16 +1102,12 @@ impl ClaimLeaseJournal {
         request: restate_sdk::serde::Json<RenewRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ActiveLease>> {
         use restate_sdk::serde::Json;
+        let worker = self.worker_for(ctx.key())?;
+        ensure_launch_unreserved(&ctx).await?;
         let mut state = load_claim(&ctx).await?;
         let before = state.clone();
         let now = ctx.run(lease_clock_millis).await?;
-        let result = renew_lease(
-            &mut state,
-            &self.worker_id,
-            request.0.proof,
-            request.0.ttl_ms,
-            now,
-        );
+        let result = renew_lease(&mut state, worker, request.0.proof, request.0.ttl_ms, now);
         persist_claim_transition(&ctx, &self.projection_pool, Some(&before), &mut state).await?;
         result.map(Json).map_err(Into::into)
     }
@@ -965,19 +1119,79 @@ impl ClaimLeaseJournal {
         request: restate_sdk::serde::Json<CompleteLeaseRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimLeaseState>> {
         use restate_sdk::serde::Json;
+        let worker = self.worker_for(ctx.key())?;
+        ensure_launch_unreserved(&ctx).await?;
         let mut state = load_claim(&ctx).await?;
         let before = state.clone();
         let now = ctx.run(lease_clock_millis).await?;
-        let result = complete_lease(
-            &mut state,
-            &self.worker_id,
-            request.0.proof,
-            request.0.receipt,
-            now,
-        );
+        let result = complete_lease(&mut state, worker, request.0.proof, request.0.receipt, now);
         persist_claim_transition(&ctx, &self.projection_pool, Some(&before), &mut state).await?;
         result?;
         Ok(Json(state))
+    }
+
+    /// Single-use reservation in the same exclusive claim journal. No clearing handler
+    /// exists until authenticated root closure and engine reconciliation are implemented.
+    #[handler]
+    async fn reserve_launch(
+        &self,
+        ctx: ObjectContext<'_>,
+        proof: restate_sdk::serde::Json<LeaseProof>,
+    ) -> HandlerResult<restate_sdk::serde::Json<crate::launch_reservation::LaunchReservation>> {
+        use restate_sdk::serde::Json;
+        let _ = self.worker_for(ctx.key())?;
+        let scope = self.launch_for(ctx.key())?;
+        let state = load_claim(&ctx).await?;
+        let now = ctx.run(lease_clock_millis).await?;
+        let grant = crate::launch_reservation::reserve(scope, &state, &proof.0, now)
+            .map_err(|_| lease_error(409, "launch reservation denied"))?;
+        if let Some(old) = ctx
+            .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+            .await?
+        {
+            if old.0 != grant {
+                return Err(lease_error(409, "launch reservation conflict").into());
+            }
+            return Ok(old);
+        }
+        ctx.set("launch_reservation_v1", Json(grant.clone()));
+        Ok(Json(grant))
+    }
+
+    /// The root-only adapter supplies no lease fields. The exclusive claim object
+    /// derives the proof from its own current state, then journals the same permanent
+    /// reservation used by reserve_launch. This is not a root-consumption receipt.
+    #[handler]
+    async fn reserve_current_launch(
+        &self,
+        ctx: ObjectContext<'_>,
+    ) -> HandlerResult<restate_sdk::serde::Json<crate::launch_reservation::LaunchReservation>> {
+        use restate_sdk::serde::Json;
+        let _ = self.worker_for(ctx.key())?;
+        let scope = self.launch_for(ctx.key())?;
+        let state = load_claim(&ctx).await?;
+        let active = state
+            .active
+            .as_ref()
+            .ok_or_else(|| lease_error(409, "active claim unavailable"))?;
+        let proof = LeaseProof {
+            attempt: active.attempt,
+            token: active.token.clone(),
+        };
+        let now = ctx.run(lease_clock_millis).await?;
+        let grant = crate::launch_reservation::reserve(scope, &state, &proof, now)
+            .map_err(|_| lease_error(409, "launch reservation denied"))?;
+        if let Some(old) = ctx
+            .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+            .await?
+        {
+            if old.0 != grant {
+                return Err(lease_error(409, "launch reservation conflict").into());
+            }
+            return Ok(old);
+        }
+        ctx.set("launch_reservation_v1", Json(grant.clone()));
+        Ok(Json(grant))
     }
 
     /// Explicit fresh recovery invocation: completed delivery runs do NOT rerun after SQL
@@ -989,6 +1203,7 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimReexportReport>> {
         use restate_sdk::serde::Json;
+        let _ = self.worker_for(ctx.key())?;
         let state = ctx
             .get::<Json<ClaimLeaseState>>("claim")
             .await?
@@ -1030,12 +1245,23 @@ impl ClaimLeaseJournal {
         ctx: SharedObjectContext<'_>,
     ) -> HandlerResult<restate_sdk::serde::Json<Option<ClaimLeaseState>>> {
         use restate_sdk::serde::Json;
+        let _ = self.worker_for(ctx.key())?;
         Ok(Json(
             ctx.get::<Json<ClaimLeaseState>>("claim")
                 .await?
                 .map(|s| s.0),
         ))
     }
+}
+
+async fn ensure_launch_unreserved(ctx: &ObjectContext<'_>) -> HandlerResult<()> {
+    use restate_sdk::serde::Json;
+    let reserved = ctx
+        .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+        .await?;
+    crate::launch_reservation::allow_mutation(reserved.as_ref().map(|r| &r.0))
+        .map_err(|_| lease_error(409, "launch reserved; closure and reconciliation required"))?;
+    Ok(())
 }
 
 /// Status is a stored snapshot, not a current wall-clock lease-validity assertion. Mutating

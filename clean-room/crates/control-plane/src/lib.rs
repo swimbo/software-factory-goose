@@ -54,3 +54,21 @@ pub mod promotion_decision;
 pub mod promotion_execution;
 #[cfg(feature = "restate")]
 pub mod worker_adapter;
+
+#[cfg(feature = "restate")]
+pub mod runtime_intake;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod private_runtime;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod runtime_loopback_backend;
+
+#[cfg(feature = "restate")]
+pub mod launch_reservation;
+
+#[cfg(feature = "restate")]
+pub mod private_database_genesis;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod root_launch_grant;
