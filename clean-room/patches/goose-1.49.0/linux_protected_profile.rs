@@ -1,0 +1,181 @@
+//! Additional Linux entry checks; root launcher attestation remains external.
+use anyhow::{ensure, Result};
+use serde::Deserialize;
+use std::{
+    fs,
+    io::Read,
+    os::unix::fs::{MetadataExt, OpenOptionsExt},
+    path::Path,
+};
+
+const PATH: &str = "/run/software-factory-goose/profile.json";
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Profile {
+    schema: u32,
+    profile: String,
+    task_id: String,
+    generation: String,
+    recipe_sha256: String,
+    worker_uid: u32,
+}
+fn canonical(value: &str) -> bool {
+    value.len() == 26
+        && matches!(value.as_bytes()[0], b'0'..=b'7')
+        && value
+            .bytes()
+            .all(|c| b"0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(&c))
+}
+fn parse_profile(bytes: &[u8]) -> Result<()> {
+    let p: Profile = serde_json::from_slice(bytes)?;
+    ensure!(
+        p.schema == 1
+            && p.profile == "nuc-root-supervised-stdio-v1"
+            && canonical(&p.task_id)
+            && canonical(&p.generation)
+            && p.worker_uid == 2001
+            && p.recipe_sha256.len() == 64
+            && p.recipe_sha256
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)),
+        "factory restricted: invalid Linux profile"
+    );
+    Ok(())
+}
+fn validate_status(status: &str) -> Result<()> {
+    for (name, expected) in [("NoNewPrivs", "1"), ("Seccomp", "2")] {
+        let values: Vec<_> = status
+            .lines()
+            .filter_map(|l| l.split_once(':'))
+            .filter(|(n, _)| *n == name)
+            .map(|(_, v)| v.trim())
+            .collect();
+        ensure!(
+            values == [expected],
+            "factory restricted: Linux process protection missing"
+        );
+    }
+    for name in ["CapEff", "CapPrm", "CapBnd", "CapAmb"] {
+        let values: Vec<_> = status
+            .lines()
+            .filter_map(|l| l.split_once(':'))
+            .filter(|(n, _)| *n == name)
+            .map(|(_, v)| v.trim())
+            .collect();
+        ensure!(
+            values.len() == 1 && u64::from_str_radix(values[0], 16).ok() == Some(0),
+            "factory restricted: capabilities forbidden"
+        );
+    }
+    Ok(())
+}
+fn readonly_mount(mountinfo: &str, path: &str) -> bool {
+    mountinfo
+        .lines()
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split_whitespace().collect();
+            if fields.len() < 10 {
+                return None;
+            }
+            let point = fields[4];
+            (point == "/"
+                || path == point
+                || path.strip_prefix(point).is_some_and(|s| s.starts_with('/')))
+            .then_some((point.len(), fields[5].split(',').any(|v| v == "ro")))
+        })
+        .max_by_key(|(length, _)| *length)
+        .is_some_and(|(_, ro)| ro)
+}
+/// These checks are defense in depth, not proof of host containment or authority.
+/// The trusted launcher must pin this binary, exact arguments, cgroup, mounts,
+/// adapter and profile/catalogue binding before admitting any inference or tool.
+pub fn verify() -> Result<()> {
+    // SAFETY: these calls only read process credentials.
+    ensure!(
+        unsafe { libc::getuid() == 2001 && libc::geteuid() == 2001 },
+        "factory restricted: dedicated Linux worker identity required"
+    );
+    validate_status(&fs::read_to_string("/proc/self/status")?)?;
+    let interfaces: Vec<_> = fs::read_dir("/sys/class/net")?
+        .map(|entry| entry.map(|e| e.file_name()))
+        .collect::<std::io::Result<_>>()?;
+    ensure!(
+        interfaces.len() == 1 && interfaces[0] == "lo",
+        "factory restricted: isolated Linux network required"
+    );
+    let mounts = fs::read_to_string("/proc/self/mountinfo")?;
+    ensure!(
+        readonly_mount(&mounts, "/") && readonly_mount(&mounts, PATH),
+        "factory restricted: readonly root and profile required"
+    );
+    for parent in Path::new(PATH)
+        .parent()
+        .into_iter()
+        .flat_map(Path::ancestors)
+    {
+        let meta = fs::symlink_metadata(parent)?;
+        ensure!(
+            meta.is_dir() && meta.uid() == 0 && meta.mode() & 0o022 == 0,
+            "factory restricted: unprotected profile ancestor"
+        );
+    }
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC)
+        .open(PATH)?;
+    let meta = file.metadata()?;
+    ensure!(
+        meta.is_file()
+            && meta.uid() == 0
+            && meta.nlink() == 1
+            && meta.mode() & 0o7777 == 0o444
+            && meta.size() > 0
+            && meta.size() <= 4096,
+        "factory restricted: protected profile required"
+    );
+    let mut bytes = Vec::new();
+    file.by_ref().take(4097).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() <= 4096, "factory restricted: profile too large");
+    parse_profile(&bytes)?;
+    ensure!(
+        std::env::var("OPENAI_API_KEY").ok().as_deref() == Some("factory-relay-no-provider-secret"),
+        "factory restricted: credential-free relay required"
+    );
+    let host = std::env::var("OPENAI_HOST")?;
+    ensure!(
+        host.strip_prefix("http://127.0.0.1:")
+            .and_then(|v| v.parse::<u16>().ok())
+            .is_some_and(|v| v >= 1024)
+            && std::env::var("OPENAI_BASE_PATH").ok().as_deref() == Some("v1/chat/completions"),
+        "factory restricted: fixed loopback relay required"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn capability_and_seccomp_failures_are_not_accepted() {
+        let good = "NoNewPrivs:\t1\nSeccomp:\t2\nCapEff:\t0\nCapPrm:\t0\nCapBnd:\t0\nCapAmb:\t0\n";
+        assert!(validate_status(good).is_ok());
+        for (from, to) in [
+            ("NoNewPrivs:\t1", "NoNewPrivs:\t0"),
+            ("Seccomp:\t2", "Seccomp:\t0"),
+            ("CapBnd:\t0", "CapBnd:\t1"),
+        ] {
+            assert!(validate_status(&good.replace(from, to)).is_err());
+        }
+        assert!(validate_status(&(good.to_owned() + "CapEff:\t0\n")).is_err());
+    }
+    #[test]
+    fn writable_nested_mount_is_not_hidden_by_readonly_root() {
+        let root = "1 0 1:1 / / ro - overlay overlay ro\n";
+        assert!(readonly_mount(root, PATH));
+        assert!(!readonly_mount(
+            &(root.to_owned() + "2 1 1:2 / /run rw - tmpfs tmpfs rw\n"),
+            PATH
+        ));
+        assert!(readonly_mount(&(root.to_owned() + "2 1 1:2 / /run rw - tmpfs tmpfs rw\n3 2 1:3 / /run/software-factory-goose/profile.json ro - ext4 disk rw\n"), PATH));
+    }
+}

@@ -68,3 +68,12 @@ Linux candidate can exercise stdio MCP under an independently supervised disposa
 container. Without that feature the original non-macOS refusal remains. Enabling the
 feature does not itself verify a launcher, cgroup, protected identity, socket, model
 gateway or cleanup and is not approved for production.
+
+`0003-linux-protected-stdio.patch` is an alternative to 0002, applied after
+0001 to pristine pinned source. Its non-default `linux-protected-stdio` feature
+requires dedicated UID2001, no capabilities, NNP, filtered seccomp, loopback-only
+network, readonly root and protected root-authored profile, plus a credential-free
+loopback relay. The root launcher must still independently authorize and contain
+the entire generation; the profile is defense in depth. The exact NUC candidate
+and offline positive/negative receipts are documented in
+[the protected Linux report](../../../docs/planning/clean-room/verification/2026-10-30-protected-linux-goose.md).
