@@ -1,0 +1,128 @@
+{
+  "artifact_sha256": {
+    "factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81",
+    "harness_evaluation.py": "66d621f0a93d6a6944a8edb4e1d66911227ab455b33f2a30b643bed12151afa9",
+    "harness_mcp.py": "81f2d7327580041e721689abf2ce80f5816253b1dcaa1bae0efd12efc2185349",
+    "harness_session.py": "7b42b0ed5d22e33d7b62072e4241f826d3b5da185544a28dd7613a6a1db84709",
+    "normalizer": "547cc0156254a6514c8ed7d78675b1ad31f8c30223292c3a81eb6c2ded9efcc1",
+    "script-host": "19e36d8445a7e09fe8f402c06cff7150cccafa246dcc1083161cdbd61612483c"
+  },
+  "candidate_enabled": false,
+  "cases": [
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": "AUTHORIZED",
+      "masked_result_observed": false,
+      "name": "allowed",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "086981dcf0cd7ce6c5419981b0453489a464b632d6531a63415ce8dddbde8dce",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "executed"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    },
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": null,
+      "masked_result_observed": false,
+      "name": "unknown_tool",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "bc13cabd43bee2db1ce5dc0b0cbf7ffaff7b03fce65dcd6ee11d2827d99bdba6",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "refused"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    },
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": null,
+      "masked_result_observed": true,
+      "name": "masked",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "2e17cf723b6395dca3214857d9a83d910e63ff0457ba3e6b8f25327ca2585938",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "executed"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    },
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": null,
+      "masked_result_observed": false,
+      "name": "authority_override",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "8a99029ed56ee0e51ea9c29f86f594c8a488b20fdb473e913adceab311db52cd",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "refused"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    },
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": null,
+      "masked_result_observed": false,
+      "name": "outside_write",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "7e6ff8b5380809d8d144494d1aa6ebeef3b55e90baf3baafd68280a22e6aedc3",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "refused"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    },
+    {
+      "exit_code": 0,
+      "external_network_denied": true,
+      "marker": null,
+      "masked_result_observed": false,
+      "name": "schema_discovery",
+      "passed": true,
+      "protected_code_write_denied": true,
+      "provider_calls": 2,
+      "request_sha256": "3ab9751be1df54c5f58f56f793d0e35326175052612c84c86ff1fca8f100d73f",
+      "secret_absent": true,
+      "timed_out": false,
+      "tool_statuses": [
+        "executed"
+      ],
+      "tool_value_correct": true,
+      "two_core_tools_only": true
+    }
+  ],
+  "goose_sha256": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+  "live_benchmark_runs": 0,
+  "passed": true,
+  "production_registered": false,
+  "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-harness-goose-kkhpxqec",
+  "synthetic": true,
+  "version": 1
+}

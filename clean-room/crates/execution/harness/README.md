@@ -1,6 +1,6 @@
 # Phase 11A harness candidate
 
-**Disabled. Not installed in Goose or the protected relay.** This is the local
+**Disabled. Not registered in production Goose or the protected relay.** This is the local
 candidate runtime and evaluation interface, not a production-readiness receipt.
 Current relay requests are exact-match, fixed two-turn `write_files` conversations;
 rewriting them to add tools or dynamic prompts would invalidate their authority.
@@ -95,7 +95,23 @@ No live benchmark or claimed savings is included in this repository milestone.
 ## Remaining admission work
 
 The general script capability needs a reviewed protected relay/launcher contract,
-actual pinned-Goose MCP integration proof, bounded production broker transport
+provisioned Linux pinned-Goose MCP/authority integration proof, bounded production broker transport
 proof, independent safety evidence, and the 120-run model comparison after the
 existing correctness/runtime gaps close. That boundary is intentionally not
 widened by importing this module. Phase 11A and Phase 12 remain incomplete.
+
+## Actual protected Goose canary
+
+`goose_harness_probe.py` exercises the reviewed patched Goose 1.49.0 through
+`harness_mcp.py`, with the trusted fixture broker outside the worker sandbox.
+The stdio CLI requires `--offline-fixture` and a synthetic loopback broker; it is
+not an admission path for live providers or production tools. The first actual
+six-case canary passed, including masking, denied writes and authority overrides.
+Cancellation and EOF suppression have isolated-process tests. See
+`docs/planning/clean-room/verification/2026-10-30-harness-goose-integration.md`
+from the repository root for exact evidence and live admission blockers.
+
+The 120-run benchmark remains at zero live attempts: the existing task/daily
+atomic authority is not connected to general script traffic, and complete
+classifier-plus-answer billed-cost receipts are unavailable. No old monetary
+waiver is carried forward and no synthetic result is relabeled as live evidence.

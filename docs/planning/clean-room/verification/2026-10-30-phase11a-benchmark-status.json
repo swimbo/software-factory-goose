@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "phase": "11A",
+  "status": "blocked",
+  "candidate_enabled": false,
+  "required_live_runs": 120,
+  "completed_live_runs": 0,
+  "synthetic_canary_provider_calls": 12,
+  "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
+  "performance_gate": {
+    "version": 1,
+    "passed": false,
+    "reason": "incomplete_pairs",
+    "candidate_enabled": false
+  },
+  "blockers": [
+    "General script conversation not admitted through the sole authenticated task/daily spending authority.",
+    "No reviewed aggregate price/token bound covering every auto classifier/fallback/answer path.",
+    "No correlated complete trusted billed-cost receipts for classifier plus answer calls."
+  ],
+  "observations": {
+    "factory_key_active": true,
+    "attached_key_budget_rows": 0,
+    "exact_local_deepseek_price_rows": 0,
+    "historical_factory_chat_costs_partial": true,
+    "historical_classifier_cost_missing": true
+  },
+  "note": "Missing exact price rows/key budget alone do not establish the full admission decision. No live call, waiver, key change, or ledger reset occurred."
+}
