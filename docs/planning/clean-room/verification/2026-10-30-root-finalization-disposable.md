@@ -1,0 +1,17 @@
+# Disposable root-finalization journal verification
+
+Three independent NUC fixtures passed for synthetic `evaluated_pass`, `evaluated_fail` without a commit, and `unknown`. Each used a new private loopback PostgreSQL data directory, Restate base directory and two SDK ports; all owned processes and successful fixture data directories were removed afterward. No production journal, provider, worker, Docker engine, credentials or root endpoint was used.
+
+The pinned installed Restate binary was SHA-256 checked (`a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db`). The isolated SDK was built with the lockfile, Rust `restate` feature, and two build jobs under `/tmp/sfactory-finalization-fixture.lTSmLHXN`. Exact commands, with output captured locally:
+
+```sh
+ssh hermes-control 'python3 -I -B /tmp/sfactory-finalization-fixture.lTSmLHXN/nuc_finalization_runtime_spike.py pass' > /tmp/sfactory-finalization-pass.log 2>&1
+ssh hermes-control 'python3 -I -B /tmp/sfactory-finalization-fixture.lTSmLHXN/nuc_finalization_runtime_spike.py fail' > /tmp/sfactory-finalization-fail.log 2>&1
+ssh hermes-control 'python3 -I -B /tmp/sfactory-finalization-fixture.lTSmLHXN/nuc_finalization_runtime_spike.py unknown' > /tmp/sfactory-finalization-unknown.log 2>&1
+```
+
+Each log reports PASS for a six-second expired-but-reserved claim; three concurrent identical replays after a connection read only the first response byte and closed; changed replay rejection; continued initialize/claim/renew/complete denial; sanitized historical claim status; initial SQL reexport, row deletion and idempotent reexport restoration; a conflicting SQL payload producing persistent quarantine; and same-payload replay after stopping and restarting the owned SDK and Restate. One prior catalog's claim history remained readable across separate SDK URIs and after restart. The unknown-spend value remained explicit. The source fixture and runner are `clean-room/crates/control-plane/examples/finalization_runtime_fixture.rs` and `clean-room/tests/fixtures/nuc_finalization_runtime_spike.py`.
+
+Limits: direct synthetic loopback calls do not test root Unix peer authentication, private-ingress isolation, immutable evidence provenance, real evaluator or container cleanup. The two SDK endpoints were built from the same current source; the prior-history check is not a replay test across an earlier binary version. The lost-ack case closes after receiving the first HTTP response byte; it does not kill the server at the exact journal-commit boundary. SQL conflict is deliberately injected only into the disposable database. This evidence does not authorize promotion or production registration.
+
+A further disposable query check (`/tmp/sfactory-registry-deployment-metadata-check3.log`) confirmed that the pinned Restate admin query requires `Accept: application/json` for JSON and returns a `rows` object with `key` and `value_utf8` fields. The source-only history probe hashed all returned claim state values in memory, checked the exact deployment ID and normalized loopback URI, and observed unchanged prior claim and permanent-reservation/finalization state hashes after the owned Restate/SDK restart. No raw state or token was output. This did not exercise PID1 UID 2000 in the production private namespace or compare every actual root catalog. Two earlier failed synthetic diagnostic directories were retained on the NUC at `/tmp/sfactory-finalization-run-kilxfezg` and `/tmp/sfactory-finalization-run-pfq57658`; their owned processes were stopped.
