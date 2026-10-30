@@ -272,6 +272,19 @@ fn open_checked(path: &Path) -> Result<File> {
             .open(path),
     )
 }
+#[cfg(target_os = "linux")]
+fn open_checked_dir(path: &Path) -> Result<File> {
+    checked(
+        OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_PATH | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(path),
+    )
+}
+#[cfg(not(target_os = "linux"))]
+fn open_checked_dir(path: &Path) -> Result<File> {
+    open_checked(path)
+}
 #[cfg(target_os = "macos")]
 fn no_acl(file: &File) -> Result<()> {
     use std::os::fd::AsRawFd;
@@ -291,7 +304,32 @@ fn no_acl(file: &File) -> Result<()> {
     }
     Ok(())
 }
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
+fn no_acl(file: &File) -> Result<()> {
+    use std::{ffi::CString, os::fd::AsRawFd};
+    let metadata = checked(file.metadata())?;
+    let attributes: &[&str] = if metadata.is_dir() {
+        &["system.posix_acl_access", "system.posix_acl_default"]
+    } else {
+        &["system.posix_acl_access"]
+    };
+    for attribute in attributes {
+        let name = checked(CString::new(*attribute))?;
+        let size = if metadata.is_dir() {
+            let pinned = checked(CString::new(format!("/proc/self/fd/{}", file.as_raw_fd())))?;
+            // SAFETY: the proc fd path references the already pinned inode, and both strings are NUL terminated.
+            unsafe { libc::getxattr(pinned.as_ptr(), name.as_ptr(), std::ptr::null_mut(), 0) }
+        } else {
+            // SAFETY: fd and NUL-terminated name are valid; null buffer requests only size.
+            unsafe { libc::fgetxattr(file.as_raw_fd(), name.as_ptr(), std::ptr::null_mut(), 0) }
+        };
+        if size >= 0 || std::io::Error::last_os_error().raw_os_error() != Some(libc::ENODATA) {
+            return Err(ExecutionError);
+        }
+    }
+    Ok(())
+}
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn no_acl(_file: &File) -> Result<()> {
     Err(ExecutionError)
 }
@@ -300,7 +338,7 @@ fn protected_root(path: &Path, uid: u32) -> Result<(u64, u64)> {
         return Err(ExecutionError);
     }
     for ancestor in path.ancestors() {
-        let file = open_checked(ancestor)?;
+        let file = open_checked_dir(ancestor)?;
         let meta = checked(file.metadata())?;
         if !meta.is_dir() || (meta.uid() != 0 && meta.uid() != uid) || meta.mode() & 0o022 != 0 {
             return Err(ExecutionError);

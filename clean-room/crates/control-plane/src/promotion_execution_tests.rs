@@ -442,3 +442,35 @@ fn legacy_nonce_fence_is_not_silently_replaced_by_ref_fence() {
     );
     assert_eq!(fs::read_dir(dir).unwrap().count(), 1);
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_extended_access_and_default_acls_are_denied() {
+    let dir = std::env::temp_dir().join(format!("promotion-acl-{}", shared::new_id()));
+    fs::create_dir(&dir).unwrap();
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
+    let fd = open_checked_dir(&dir).unwrap();
+    assert!(no_acl(&fd).is_ok());
+    let command = |rule: &str| {
+        let status = Command::new("/usr/bin/setfacl")
+            .arg("-m")
+            .arg(rule)
+            .arg(&dir)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    };
+    command("u:2001:r-x");
+    assert!(no_acl(&fd).is_err());
+    assert!(
+        Command::new("/usr/bin/setfacl")
+            .arg("-b")
+            .arg(&dir)
+            .status()
+            .unwrap()
+            .success()
+    );
+    command("d:u:2001:r-x");
+    assert!(no_acl(&fd).is_err());
+    fs::remove_dir_all(dir).unwrap();
+}
