@@ -1,0 +1,11 @@
+# REVIEW ONLY: parent is precreated by root UID2000:GID2000 0700.
+[Unit]
+Description=Software Factory fixed relay socket generation @GENERATION@
+[Socket]
+ListenStream=/run/software-factory-goose/relay/@GENERATION@/relay.sock
+SocketUser=root
+SocketGroup=sfgoose-worker
+SocketMode=0660
+FileDescriptorName=callback
+Accept=no
+Service=sfactory-relay-@GENERATION_LOWER@.service

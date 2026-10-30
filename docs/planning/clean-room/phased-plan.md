@@ -1,5 +1,9 @@
 # Phased Plan — Clean-Room Software Factory (on Goose)
 
+## Current restart state — 2026-10-26
+
+Resume **late Phase 9**, preserving the existing implementation. Phases 1, 3–6, and applicable CLI Phase 7 are recorded complete; Phases 2 and 8 are skipped with reasons. Phase 4 still carries a story-review confirmation deferred to Delivery. Phases 10–14 remain unfinished. The original environment snapshot and delegation table below are historical. See `restart-audit-2026-10-26.md` for source-backed reconciliation; do not restart Phase 1 or workspace scaffolding.
+
 ## Problem Statement
 
 Build a **working MVP of a "dark software factory"** — an autonomous, lights-out software-delivery system in which AI agents take work from intent to production without a human authoring or reviewing the diff. Per the research in `dark-software-factory-report.md`, the factory is *not* the harness: the interesting, must-build-yourself pieces are the **wall** (holdout acceptance scenarios + an isolated evaluator the generator never sees), the **qualifier** (routes each unit into a dark lane or leaves it for humans), and the **gates** (budget, destructive ops, initial production deployment, credential issuance).
@@ -35,7 +39,7 @@ The first working slice is a **greenfield demo**: the factory takes a machine-ch
 
 ## Environment
 
-- **cwd**: `/Users/bo/code/software-factory`
+- **cwd**: `/Users/bo/code/software-factory-goose`
 - **git status**: not a git repository (greenfield; will `git init` as a monorepo per decision).
 - **Existing files**: only `dark-software-factory-report.md` (37 KB research report) and an empty `.claude/` directory (containing `.cc-writes/`). No prior planning session.
 - **Languages detected**: none yet (greenfield). Per user global stack: TypeScript/Rust/Python are the preferred languages; Rust chosen for this control plane.
@@ -51,7 +55,7 @@ The first working slice is a **greenfield demo**: the factory takes a machine-ch
 - **Models**: **open-weights via gateway** (user decision) — no single-vendor frontier lock-in.
 - **Workload**: **greenfield demo** for the first slice (user decision).
 - **Isolation**: **git worktrees** (user decision), deny-by-default network, no inherited secrets.
-- **Repo**: **monorepo** under `/Users/bo/code/software-factory` (user decision).
+- **Repo**: **monorepo** under `/Users/bo/code/software-factory-goose` (user decision).
 - **No other hard constraints reported** (no deadline, no compliance regime, no team size, no budget ceiling specified by the user).
 
 ## Decisions (locked this session)
@@ -63,7 +67,7 @@ The first working slice is a **greenfield demo**: the factory takes a machine-ch
 | D3 | Durable substrate | Restate | replay-based audit, one binary |
 | D4 | Models | Open-weights via gateway | GLM-5/DeepSeek-V4 through **Bifrost** (external, operator-run) |
 | D5 | First workload | Greenfield demo | spec → project end-to-end |
-| D6 | Repo | Monorepo here | `git init` at `/Users/bo/code/software-factory` |
+| D6 | Repo | Monorepo here | `git init` at `/Users/bo/code/software-factory-goose` |
 | D7 | Isolation | Git worktrees | deny-by-default network, no host secrets |
 
 ## Phases
@@ -94,3 +98,16 @@ Customized from the 14-phase pattern. Conditional phases (UI, browser E2E) are s
 | Research Restate Rust SDK (current) | general-purpose | in_progress | → tech-guide.md |
 | Research Goose headless/recipes/MCP/worktree | general-purpose | in_progress | → tech-guide.md |
 | Research gateway + open-weights serving | general-purpose | in_progress | → tech-guide.md |
+
+## Current delegated work — 2026-10-26 continuation
+
+The earlier research-agent table is historical; this is the current implementation delegation.
+
+| Area | Agent | Status | Evidence / boundary |
+| --- | --- | --- | --- |
+| Worker supervision/policy/masking, setup, evaluator pre-filter | worker | component fixes and pinned Goose audit complete; tool-boundary decision pending | execution tests, setup fixtures, evaluator9 tests; live worker disabled |
+| Exact revision evaluator, operator transport, story audit | verifier | component fixes and private-ingress research complete | evaluator integration fixtures, transport6 tests, preliminary story matrix |
+| Gateway/projection, approval journal, claim/lease journal | durability | bounded journal/outbox components and disposable DB fixture verified | scoped Restate/lease13 tests, disposable Postgres fixture; live replay unproved |
+| Intake/status/gate safety, integration review and planning reconciliation | root | in progress | route/qualifier regressions and current gap register |
+
+Continue late Phase9 at the unresolved runtime boundaries, then the remaining gates. O4 is resolved to separate local operator and action-bound approval without MFA. The proposed Goose boundary debate is a new contract issue supported by pinned source evidence, not a restart of O4 or Phase1.

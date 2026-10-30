@@ -10,3 +10,5 @@
 - 2026-10-28: [Bounded task writer](2026-10-28-structured-task-writer/consensus-plan.md) — three-reviewer consensus for task-only structured writes; pre-live integration/crash/evaluation controls required, no shell relaxation or production activation.
 
 - 2026-10-29: [NUC protected root supervisor](2026-10-29-nuc-root-supervisor/consensus-plan.md) — three-reviewer research/canary/one-round guarded implementation consensus; production recovery/integration gates retained.
+
+- 2026-10-30: [Native launch access amendment](2026-10-30-native-launch-read-access/consensus-plan.md) — three-reviewer conditional A: root:2000/0710 callback parent and cap-empty launcher, versioned admission-fenced upgrade, lifecycle exclusion and native UID/capability controls before another claim.

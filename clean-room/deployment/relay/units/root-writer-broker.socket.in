@@ -1,0 +1,11 @@
+# REVIEW ONLY: root:2000 mode0710 parent is provisioned separately and verified.
+[Unit]
+Description=Software Factory fixed writer broker socket @GENERATION@
+[Socket]
+ListenStream=/run/software-factory-goose/writer/@GENERATION@.sock
+SocketUser=root
+SocketGroup=sfgoose-control
+SocketMode=0660
+FileDescriptorName=writer
+Accept=no
+Service=sfactory-writer-@GENERATION_LOWER@.service

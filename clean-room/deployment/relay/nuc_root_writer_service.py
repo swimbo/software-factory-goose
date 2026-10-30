@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """Root-owned per-generation broker candidate. Not installed or activated."""
+import ctypes
 import json
 import pathlib
 import hashlib
@@ -32,6 +33,22 @@ def safe_dir(path,owner=0,group=0,mode=None):
                 or (mode is not None and stat.S_IMODE(st.st_mode)!=mode)):
             raise Denied('directory unavailable')
         _no_acl(fd,True)
+        return fd
+    except Exception:
+        os.close(fd);raise
+
+
+def cgroup2_dir(generation,task):
+    """Open the exact root-owned cgroup2 inode; cgroupfs does not implement ACLs."""
+    if sys.platform!='linux' or os.uname().machine!='x86_64' or not re.fullmatch(r'[0-7][0-9A-HJKMNP-TV-Z]{25}',generation):raise Denied('cgroup unavailable')
+    path=CG+'/sfactory'+generation.lower()+'.slice'
+    fd=os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC)
+    try:
+        st=os.fstat(fd);buf=ctypes.create_string_buffer(256);libc=ctypes.CDLL(None,use_errno=True)
+        if libc.fstatfs(fd,ctypes.byref(buf))!=0:raise Denied('cgroup unavailable')
+        if (not stat.S_ISDIR(st.st_mode) or st.st_uid!=0 or st.st_gid!=0 or st.st_mode&0o022
+                or (st.st_dev,st.st_ino)!=(task.get('cgroup_dev'),task.get('cgroup_ino'))
+                or ctypes.c_long.from_buffer(buf).value!=0x63677270):raise Denied('cgroup unavailable')
         return fd
     except Exception:
         os.close(fd);raise
@@ -282,7 +299,9 @@ def validate_writer_listener(fd,generation):
     finally:listener.close()
 
 
+STARTUP_STAGE='identity'
 def main():
+    global STARTUP_STAGE
     if os.getuid()!=0 or os.geteuid()!=0 or len(sys.argv)!=2:raise Denied('root launcher binding unavailable')
     generation=sys.argv[1]
     if not re.fullmatch(r'[0-7][0-9A-HJKMNP-TV-Z]{25}',generation):raise Denied('generation unavailable')
@@ -293,29 +312,35 @@ def main():
            'catalog':ETC+'/launch-catalog/'+generation+'.json','consumed':ROOT+'/'+generation+'.launch-consumed'}
     opened=[]
     try:
+        STARTUP_STAGE='parent_directories'
         for path in paths.values():
             for parent in pathlib.Path(path).parents:
                 fd=safe_dir(str(parent));os.close(fd)
         fds={}
         for name,path in paths.items():
             fds[name]=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK|os.O_CLOEXEC);opened.append(fds[name])
+        STARTUP_STAGE='scope_binding'
         scope,binding=load_root_scope(fds['scope'],fds['consumed'],fds['catalog'],fds['provider'])
         if scope['generation']!=generation:raise Denied('generation unavailable')
+        STARTUP_STAGE='task'
         task=json.loads(root_file(ETC+'/tasks/'+generation+'.json'),object_pairs_hook=no_duplicates)
         if (set(task)!={'schema','target_id','task_id','generation','boot_id','cgroup_dev','cgroup_ino'}
                 or task['schema']!=1 or task['target_id']!=generation or task['generation']!=generation or task['task_id']!=scope['task_id']):raise Denied('stop catalog unavailable')
+        STARTUP_STAGE='handoff_directories'
         for parent in (HANDOFF,HANDOFF+'/'+generation):
             fd=safe_dir(parent,mode=0o700);os.close(fd)
         dirfds={}
         for name,owner in (('input',0),('output',2001),('candidate',2001)):
             fd=safe_dir(HANDOFF+'/'+generation+'/'+name,owner,owner,0o755);opened.append(fd);dirfds[name+'_dir']=fd
+        STARTUP_STAGE='writer_binding'
         wfd=os.open(prefix+'.writer.json',os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK|os.O_CLOEXEC);opened.append(wfd)
-        writer_binding=load_writer_binding(wfd,scope,task,dirfds);verify_writer_provenance(writer_binding)
-        state_fd=safe_dir(ROOT,mode=0o700);opened.append(state_fd)
-        cgroup_fd=safe_dir(CG+'/sfactory'+generation.lower()+'.slice');opened.append(cgroup_fd)
-        validate_writer_listener(3,generation)
+        writer_binding=load_writer_binding(wfd,scope,task,dirfds)
+        STARTUP_STAGE='writer_provenance';verify_writer_provenance(writer_binding)
+        STARTUP_STAGE='state_directory';state_fd=safe_dir(ROOT,mode=0o700);opened.append(state_fd)
+        STARTUP_STAGE='cgroup_directory';cgroup_fd=cgroup2_dir(generation,task);opened.append(cgroup_fd)
+        STARTUP_STAGE='listener';validate_writer_listener(3,generation)
         authority=HostAuthority(generation,scope,binding,writer_binding,task,state_fd,cgroup_fd)
-        authority.verify();serve_listener(3,WriterBroker(generation,authority,state_fd,dirfds['input_dir'],dirfds['output_dir']))
+        STARTUP_STAGE='authority';authority.verify();STARTUP_STAGE='serving';serve_listener(3,WriterBroker(generation,authority,state_fd,dirfds['input_dir'],dirfds['output_dir']))
     finally:
         for fd in opened:os.close(fd)
 
@@ -323,4 +348,4 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception:
-        print('writer broker unavailable',file=sys.stderr);raise SystemExit(1)
+        print('writer broker unavailable stage='+STARTUP_STAGE,file=sys.stderr);raise SystemExit(1)

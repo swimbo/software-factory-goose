@@ -124,3 +124,23 @@ class ActivatedListener(unittest.TestCase):
    service.validate_writer_listener(3,G)
   with patch.object(service.socket,'fromfd',return_value=Listener()),patch.object(service,'safe_dir',return_value=5),patch.object(service.os,'close'),patch.object(service.os,'stat',return_value=endpoint),patch.object(service.os,'getxattr',return_value=b'acl',create=True):
    with self.assertRaises(Denied):service.validate_writer_listener(3,G)
+
+class CgroupFilesystem(unittest.TestCase):
+ def test_requires_cgroup2_root_and_exact_task_inode(self):
+  import ctypes,stat,types
+  good=types.SimpleNamespace(st_mode=stat.S_IFDIR|0o755,st_uid=0,st_gid=0,st_dev=29,st_ino=42)
+  task={'cgroup_dev':29,'cgroup_ino':42}
+  def libc(magic,status=0):
+   def fstatfs(fd,p):
+    ctypes.cast(p,ctypes.POINTER(ctypes.c_long))[0]=magic
+    return status
+   return types.SimpleNamespace(fstatfs=fstatfs)
+  with patch.object(service.sys,'platform','linux'),patch.object(service.os,'uname',return_value=types.SimpleNamespace(machine='x86_64')),patch.object(service.os,'open',return_value=8),patch.object(service.os,'close') as close,patch.object(service.os,'fstat',return_value=good),patch.object(service.ctypes,'CDLL',return_value=libc(0x63677270)):
+   self.assertEqual(service.cgroup2_dir(G,task),8);close.assert_not_called()
+  for fs,st,t in [(0x1234,good,task),(0x63677270,good,{'cgroup_dev':29,'cgroup_ino':43}),(0x63677270,types.SimpleNamespace(st_mode=stat.S_IFDIR|0o775,st_uid=0,st_gid=0,st_dev=29,st_ino=42),task),(0x63677270,types.SimpleNamespace(st_mode=stat.S_IFDIR|0o755,st_uid=2000,st_gid=0,st_dev=29,st_ino=42),task),(0x63677270,types.SimpleNamespace(st_mode=stat.S_IFDIR|0o755,st_uid=0,st_gid=2000,st_dev=29,st_ino=42),task)]:
+   with self.subTest(fs=fs,st=st,t=t),patch.object(service.sys,'platform','linux'),patch.object(service.os,'uname',return_value=types.SimpleNamespace(machine='x86_64')),patch.object(service.os,'open',return_value=8),patch.object(service.os,'close') as close,patch.object(service.os,'fstat',return_value=st),patch.object(service.ctypes,'CDLL',return_value=libc(fs)):
+    with self.assertRaises(Denied):service.cgroup2_dir(G,t)
+    close.assert_called_once_with(8)
+  with patch.object(service.os,'open') as opened:
+   with self.assertRaises(Denied):service.cgroup2_dir('../bad',task)
+   opened.assert_not_called()

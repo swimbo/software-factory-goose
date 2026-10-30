@@ -1,0 +1,29 @@
+# REVIEW ONLY: placeholder substitutions and root guard/writer broker are unresolved.
+[Unit]
+Description=Software Factory fixed relay generation @GENERATION@
+Requires=sfactory-relay-@GENERATION_LOWER@.socket
+After=sfactory-relay-@GENERATION_LOWER@.socket
+[Service]
+Type=exec
+User=sfgoose-control
+Group=sfgoose-control
+Slice=sfactory@GENERATION_LOWER@.slice
+Sockets=sfactory-relay-@GENERATION_LOWER@.socket
+NetworkNamespacePath=@VERIFIED_SANDBOX_KEY@
+OpenFile=/etc/software-factory-goose/relay-scopes/@GENERATION@.json:scope:read-only
+OpenFile=/etc/software-factory-goose/launches/@GENERATION@.json:catalog:read-only
+OpenFile=@UNRESOLVED_CONSUMED_PATH@:consumed:read-only
+OpenFile=/etc/software-factory-goose/provider-bindings/@GENERATION@.json:provider-binding:read-only
+OpenFile=/home/bo/.hermes/bifrost/factory-secrets/software-factory-goose/credential:provider:read-only
+ExecStart=/usr/bin/python3 -I -B /usr/local/libexec/software-factory-goose/relay/nuc_relay_server.py
+Restart=no
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressDeny=any
+IPAddressAllow=localhost
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/software-factory-goose/relay/@GENERATION@
+UMask=0077

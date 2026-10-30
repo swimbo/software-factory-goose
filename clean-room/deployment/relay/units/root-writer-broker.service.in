@@ -1,0 +1,21 @@
+# REVIEW ONLY: root launch and sealed writer binding are unresolved; service startup currently refuses.
+[Unit]
+Description=Software Factory root fixed writer broker @GENERATION@
+Requires=sfactory-writer-@GENERATION_LOWER@.socket
+After=sfactory-writer-@GENERATION_LOWER@.socket
+[Service]
+Type=exec
+User=root
+Group=root
+Slice=system.slice
+Sockets=sfactory-writer-@GENERATION_LOWER@.socket
+ExecStart=/usr/bin/python3 -I -B /usr/local/libexec/software-factory-goose/relay/nuc_root_writer_service.py @GENERATION@
+Restart=no
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/software-factory-goose/stop /var/lib/software-factory-goose/handoff/@GENERATION@/input
+UMask=0077

@@ -1,0 +1,19 @@
+# Root-attested generation finalization — draft for review
+
+The permanent `ClaimLeaseJournal` launch reservation fences `initialize`, `claim`, `renew`, and worker `complete`. A completed generation therefore cannot use the worker completion path. That fence must remain in place after lease expiry and after finalization.
+
+A separate, root-only, fixed-generation Unix listener may submit one finalization to the **same exclusive claim object**. The server authenticates the accepted kernel peer as UID 0 before reading a bounded body. The listener resolves task and generation from a root-protected catalog; the peer cannot supply an arbitrary task, claim proof, evaluation result, or filesystem path. The listener must identify the serving process using a root-owned post-start attestation; UID 0 from a systemd-created listener establishes listener provenance only.
+
+The trusted root finalizer should read and validate immutable, root-owned, single-link, no-ACL evidence before sending a canonical finalization record:
+
+- Exact generation, task, attempt, repository, baseline, and full root grant binding; the journal must compare these to its stored reservation and active claim under the same object lock.
+- Root closure, frozen cgroup identity, and an empty observation for the same boot and cgroup inode; the independent deadline and close record remain active.
+- Reconciliation that proves both exact container IDs are absent, all create/start operations are terminal, and the broker/relay units and jobs cannot restart; unknown means no finalization.
+- The root-owned immutable candidate snapshot and independent evaluator receipt, including exact content hashes, evaluated Git commit SHA, and confirmation that committed blobs equal evaluated bytes. A generated test or worker-published claim is not evaluation authority.
+- Explicit result type (`evaluated_pass`, `evaluated_fail`, or `unknown`), evidence digests and version, without inventing token/cost data. Unknown outcomes do not become success.
+
+The handler checks the complete binding against `launch_reservation_v1` and current claim state, stores a single immutable finalization record plus a monotonic outbox event atomically, and returns the same result for an identical replay. A changed receipt, changed candidate, different reservation, missing evidence or ambiguous root outcome is terminally rejected. Expiry after a valid reservation does not erase it or permit a new claim. The finalizer records completion after shutdown; it must not depend on the expired worker lease remaining live.
+
+The existing `ClaimLeaseState` projection expects an `Evaluating` state to carry a `Receipt::Completed` with a numeric `spend_usd`. The uncapped run has no established exact total for routed inference and classifier calls. The first additive implementation must expose a separate typed root-finalization status and leave the legacy claim state and projection unchanged; it must not synthesize a zero cost or falsely mark legacy completion. A later reviewed schema/projection migration can represent unknown actual spend and connect the finalization to the full pipeline. This draft does not authorize promotion or bypass the human action-bound approval.
+
+Tests before adoption must use disposable Restate and Postgres: no reservation, wrong task/generation/attempt/full binding, forged UID or direct worker access, absent/changed closure or reconciliation, changed candidate/evaluation digest, unknown result, lost acknowledgment and exact replay, changed replay, and restart. Confirm the original, grant-canary and real-catalog histories remain readable through a distinct SDK URI without force registration. Crash between journal commit and acknowledgment must not repeat any external effect. No production registration or service activation is implied by this document.

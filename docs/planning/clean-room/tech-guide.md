@@ -110,3 +110,14 @@ Three-reviewer debate selects a two-file, factory-owned structured MCP writer fo
 ## Scoped NUC administration — 2026-10-29
 
 The user authorized existing Docker permission for scoped host-root deployment. Use reviewed fixed administrative bridges and exact-ID/config/intent checks; never give workers Docker or arbitrary root commands. Five locked role accounts and factory-only root directories are installed, with bo retained as the distinct human operator. No shared restart/reboot or login-key/sudo/group change follows. The three-reviewer NUC supervisor debate is recorded in `decisions/2026-10-29-nuc-root-supervisor/consensus-plan.md`; production admission remains gated on deployed socket/network namespace, supervisor/worker/recovery and complete INT-LOOP evidence. See `verification/2026-10-29-nuc-identities/README.md` for precise paths, permissions and preservation limits.
+
+### NUC native launcher access amendment (2026-10-30)
+
+The selected callback parent is root:sfgoose-control mode0710. The relay traverses
+it through a pinned O_PATH descriptor, while only root can replace the socket;
+the model receives only its socket bind mount. Keep the native launcher cap-empty.
+Follow the [reviewed amendment](decisions/2026-10-30-native-launch-read-access/consensus-plan.md)
+for versioned package/helper updates, callback lifecycle exclusion and actual
+native UID/capability controls. This updates the local NUC implementation boundary;
+its integration gates must pass before admission, and the previous closed task
+and all existing services/data remain preserved.

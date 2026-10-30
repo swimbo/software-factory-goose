@@ -1,0 +1,21 @@
+# REVIEW DRAFT: no deadline has been installed or verified by this unit alone.
+# Root launcher must install a bounded timer before any engine effect.
+[Unit]
+Description=Software Factory fixed generation deadline %i
+Requires=software-factory-goose-root-stop.socket
+After=software-factory-goose-root-stop.socket
+[Service]
+Type=oneshot
+User=sfgoose-brake
+Group=sfgoose-brake
+ExecStart=/usr/local/libexec/software-factory-goose/sfactory_deadline_stop %i
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+TimeoutStartSec=12
+Restart=on-failure
+RestartSec=1
