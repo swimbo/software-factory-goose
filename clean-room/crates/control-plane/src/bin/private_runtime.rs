@@ -153,8 +153,7 @@ fn activated_grant_requires_exact_unique_names_in_any_order() {
 }
 
 #[cfg(all(target_os = "linux", feature = "restate"))]
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn run() -> anyhow::Result<()> {
     use control_plane::{
         intake_adapter::{IntakePeer, IntakePolicy, intake_router},
         intake_workflow::IntakeJournal,
@@ -666,6 +665,15 @@ async fn main() -> anyhow::Result<()> {
         }
     };
     tokio::select! {result=a=>{result?;anyhow::bail!("intake listener exited")},result=b=>{result?;anyhow::bail!("worker listener exited")},result=sdk=>{result?;anyhow::bail!("SDK listener exited")},result=c=>{result?;anyhow::bail!("grant listener exited")}}
+}
+#[cfg(all(target_os = "linux", feature = "restate"))]
+fn main() -> anyhow::Result<()> {
+    #[cfg(feature = "registry-v5")]
+    control_plane::sdk5_startup_guard::verify()?;
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(run())
 }
 #[cfg(not(all(target_os = "linux", feature = "restate")))]
 fn main() {

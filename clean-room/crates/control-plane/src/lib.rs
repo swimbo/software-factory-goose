@@ -89,3 +89,6 @@ pub mod private_database_genesis;
 
 #[cfg(all(feature = "restate", unix))]
 pub mod root_launch_grant;
+
+#[cfg(all(target_os = "linux", feature = "registry-v5"))]
+pub mod sdk5_startup_guard;

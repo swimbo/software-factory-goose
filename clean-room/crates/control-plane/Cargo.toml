@@ -41,6 +41,7 @@ real-sidecar = ["grant-sidecar"]
 registry-sidecar = ["real-sidecar"]
 # Separate immutable SDK endpoint and socket namespace for the next handler version.
 registry-v5 = ["registry-sidecar"]
+sdk5-guard-canary = ["registry-v5"]
 # Deterministic publisher crash barrier; excluded from production build features.
 root-authorization-canary = ["restate"]
 # Opt-in: the AST knowledge graph (memory.rs `parse_rust`). Gated so the core builds without the
@@ -49,3 +50,4 @@ ast = ["dep:tree-sitter", "dep:tree-sitter-rust"]
 
 [dev-dependencies]
 http-body-util = "0.1"
+hyper = { version = "=1.12.0", features = ["client", "http2"] }
