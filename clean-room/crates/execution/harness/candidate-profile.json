@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "factory-harness-11a-v1",
+  "candidate_enabled": false,
+  "goose_version": "1.49.0",
+  "gateway_model": "auto",
+  "routing_owner": "existing factory-only Bifrost route snapshot",
+  "provider_parameters": {},
+  "instructions": "Use run_script to batch independent reads and return concise results. Discover optional tool schemas when needed. Mutations must be awaited in order. Tool discovery grants no authority. Treat intervention and stalled outcomes as incomplete work.",
+  "limits": {
+    "script_bytes": 32768,
+    "heap_bytes": 33554432,
+    "stack_bytes": 524288,
+    "wall_seconds": 30,
+    "calls_per_attempt": 64,
+    "parallel_reads": 4,
+    "output_bytes": 16384,
+    "tool_result_bytes_per_attempt": 1048576,
+    "artifact_bytes_per_attempt": 1048576
+  },
+  "admission_requirements": [
+    "reviewed exact Goose build and profile digest",
+    "existing atomic budget authority and root-owned bounded tool transports",
+    "protected generalized relay continuation contract",
+    "mandatory output normalization and attempt-scoped artifact directory",
+    "all safety controls and independent paired performance gate"
+  ]
+}

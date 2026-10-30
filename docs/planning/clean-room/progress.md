@@ -414,3 +414,29 @@ User: "Authorize the scoped NUC host administration using the existing Docker pe
 ## Phase 11A added — 2026-10-30
 
 User requires Harness Efficiency and Reliability before Phase 12 delivery. See phase-11a-plan.md. Implementation is candidate-only: existing fixed relay authority is preserved. Report figures are unverified inputs. Baseline/evaluation evidence, production integration and the >=20-task/three-run paired gate remain required; no activation or performance improvement is claimed. Concurrent root-finalization work is excluded from this milestone.
+
+### Phase 11A candidate implementation checkpoint — 2026-10-30
+
+Added disabled candidate modules under execution/harness: contained QuickJS host,
+brokered tool calls/read batches, stable versioned profiles and optional schemas,
+complete Rust output normalization, private attempt artifacts, stall intervention,
+metadata-only observations, frozen 20-task public suite and fail-closed paired gate.
+Request-path audit: verification/2026-10-30-harness-request-audit.md.
+
+The general capability is not registered in the fixed protected relay or launcher.
+Real pinned-Goose/general relay integration, bounded production broker transport
+proof and 120 independently accepted/billed model runs remain required. Phase 11A
+is incomplete and blocks Delivery; no savings or activation is claimed. Concurrent
+root-finalization files remain outside this milestone.
+
+Scoped Phase 11A verification: 19 real-runtime/component Python tests, 63 execution
+Rust tests, seven existing MCP adapter tests, strict execution Clippy and Ruff pass.
+Native Linux ARM64 host smoke controls passed; AMD64 Rosetta refuses unsupported
+close_range before eval. Evidence and remaining admission blockers:
+verification/2026-10-30-harness-candidate.md. Formal code review is in progress.
+
+Phase 11A review completed with eight validated findings, all fixed inline. Final
+candidate suite: **28 passed**, including finite heap-cap controls; a cap-disabled
+isolated mutation build is rejected by the new test. Final native Linux ARM64
+host passed five controls including broker IPC. Review/fix evidence and explicit
+remaining phase prerequisites are in verification/2026-10-30-harness-candidate.md.
