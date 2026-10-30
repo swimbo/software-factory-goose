@@ -499,3 +499,23 @@ Verified source milestones are committed and pushed in separate commits through
 approved a new three-reviewer admin-ingress/old-SDK retirement debate after the
 direct admin bypass was identified. That debate and its bounded disposable proof
 must precede the real registry transition and connected INT-LOOP.
+
+### Unix-admin debate and failed-probe reconciliation
+
+The approved three-reviewer ingress debate reached conditional consensus for a
+Unix-only admin endpoint, fixed trusted UID2004 operations and permanent old-SDK
+retirement. The disposable pinned-runtime permission proof passed; the v4 toy SDK
+also passed native startup and inherited-descriptor denial. Its combined fixture
+then registered only the old toy SDK and failed on the first direct discovery:
+the probe used HTTP/1.1 against the SDK's HTTP/2-only server. Read-only snapshots
+showed no invocations, queue entries or counter effects; independent native HTTP/2
+discovery succeeded. Exact owned-fixture shutdown passed with data retained and
+the original unknown outcome preserved. See
+verification/2026-10-30-unix-admin-sdk-fixture.md. The corrected client still needs
+native connection reuse/closure controls and the full retirement/recovery fixture.
+
+The inactive production finalizer package is installed and its fixed unknown
+evidence passed native Root capability-empty/NNP readiness, without publishing
+authorization or calling the journal. SDK5's separate process probe is installed
+but unrun; SDK5 remains inactive. No production registry transition, new real
+claim, connected INT-LOOP, promotion or later-phase completion is claimed.
