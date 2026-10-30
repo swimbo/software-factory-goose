@@ -84,3 +84,9 @@ the conflict/admission race, and exact-evidence eligibility with separate human
 approval. Actual immutable evidence producers and independent evaluator authority
 remain host integration blockers; current docs and mocked journal tests cannot
 establish them. Fresh-generation registry admission is a separate open gate.
+
+## Native authorization evidence
+
+The [native synthetic authorization canary](../../verification/2026-10-30-nuc-root-authorization-canary.md) passed with UID 0 publication, UID 2000 exact read and denial controls, UID 2001 lock denial, and a publisher kill after file fsync before directory fsync. Its pending marker remained and the reader denied the interrupted publication. Exact source, binary hashes and retained bridge receipts are recorded there. This establishes only the filesystem/identity fixture: the earlier [disposable journal results](../../verification/2026-10-30-root-finalization-disposable.md) preceded mandatory authorization and do not prove direct journal denial, authorized replay or restart under the new gate. Those checks remain required with a real UID 2000 SDK and root publisher.
+
+The subsequent [authorized disposable journal fixture](../../verification/2026-10-30-authorized-journal-fixture.md) exercised the mandatory reader under UID 2000: direct unpublished delivery returned 403, exact root-published delivery succeeded, changed delivery returned 403, and identical replay survived owned SDK/Restate restart. It remains a synthetic restate-only fixture without production registry admission; the trust and lost-ack limits are recorded in the receipt.

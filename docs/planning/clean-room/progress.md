@@ -440,3 +440,62 @@ candidate suite: **28 passed**, including finite heap-cap controls; a cap-disabl
 isolated mutation build is rejected by the new test. Final native Linux ARM64
 host passed five controls including broker IPC. Review/fix evidence and explicit
 remaining phase prerequisites are in verification/2026-10-30-harness-candidate.md.
+
+## Late Phase 9 continuation — Root finalization, 2026-10-30
+
+The user-approved three-reviewer finalization debate reached consensus; its
+contract and exact Root-authorization amendment are folded into the decisions
+index and tech guide. Same-key immutable finalization preserves the launch fence,
+unknown spend and separate human approval. The native Root/UID2000/UID2001
+authorization canary passed, including publisher death after authorization-file
+fsync and before parent fsync: the retained pending marker denies admission.
+Receipt: `/tmp/sfactory-identity-admin-0iadbv5i` on the NUC. This is a synthetic
+permission/crash proof, not production journal acceptance.
+
+Current local scoped verification: 16 Root-finalization Rust tests and 33 Root
+deployment Python tests passed. Earlier disposable journal receipts predate the
+mandatory authorization check; a new real-UID2000 fixture is required. No later
+phase is closed by these component results.
+
+Evaluator canary2 completed 21/21 independent holdout executions plus candidate
+tests with exact-ID cleanup. Canary3's owner-loss signal was denied by the
+administrative transport; no kill or owner-loss success is claimed. Its independent
+deadline closed and froze the exact empty cgroup. Separately reviewed cleanup
+removed only the recorded exited container and stopped only the fixture broker;
+the result remains unknown and all records/cgroup are retained. Production
+candidate binding and owner-loss acceptance remain open.
+
+SDK5 preparation uses a distinct 9085 endpoint and fresh r3 identifiers, retaining
+SDK4 and prior histories. Installation, attestation, registry transition/replay,
+real Goose/Bifrost integration, evaluator provenance and finalization remain
+separate gates. Preserve existing NUC services and data; resume late Phase9.
+
+### Subsequent native acceptance and source publication
+
+The updated isolated journal fixture subsequently passed with actual PID1-managed
+UID2000, cap-empty/NNP and mandatory Root authorization: unpublished direct403,
+exact authorized concurrent/lost-response replay, changed-payload403, permanent
+worker fence, sanitized status, projection deletion/reexport, persistent conflict
+quarantine, and owned SDK/Restate restart with unchanged history digests. Its
+owned processes/data were cleaned up; synthetic Root records remain retained.
+See verification/2026-10-30-authorized-journal-fixture.md for the initial failed
+credential check, separately reviewed recovery, receipt chain and trust limits.
+
+Canary4 then supplied linked actual broker SIGKILL/independent deadline/replay
+refusal and exact-ID cleanup observations. The original native driver response
+remains unknown, with its post-kill failure stage unavailable; the later Root
+observations do not rewrite it. All records and frozen target cgroup remain.
+
+Current complete local workspace verification passed 505 Rust tests, zero failed,
+two ignored across 50 suites, formatting and strict all-target/all-feature Clippy.
+Deployment discovery passed 262 tests after the separate per-generation evaluator
+drafts. Logs: `/tmp/sfactory-workspace-20261030-finalization-current.log`,
+`/tmp/sfactory-clippy-20261030-current.log`, and
+`/tmp/sfactory-deployment-20261030-runtime-final.log`. These component receipts do
+not close full P0 acceptance, mutation adequacy, enterprise assessment or Delivery.
+
+Verified source milestones are committed and pushed in separate commits through
+`fb724fc`; publication is not runtime activation. SDK5 remains inactive. User
+approved a new three-reviewer admin-ingress/old-SDK retirement debate after the
+direct admin bypass was identified. That debate and its bounded disposable proof
+must precede the real registry transition and connected INT-LOOP.
