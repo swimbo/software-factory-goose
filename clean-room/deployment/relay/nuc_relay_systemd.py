@@ -64,8 +64,8 @@ def validate_listener(fd, generation):
         entry = os.stat('relay.sock', dir_fd=directory_fd, follow_symlinks=False)
         sock = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            if (not stat.S_ISDIR(directory.st_mode) or directory.st_uid != 2000
-                    or directory.st_gid != 2000 or stat.S_IMODE(directory.st_mode) != 0o700
+            if (not stat.S_ISDIR(directory.st_mode) or directory.st_uid != 0
+                    or directory.st_gid != 2000 or stat.S_IMODE(directory.st_mode) != 0o710
                     or not stat.S_ISSOCK(entry.st_mode) or entry.st_uid != 0 or entry.st_gid != 2001
                     or stat.S_IMODE(entry.st_mode) != 0o660
                     or sock.getsockname() != path

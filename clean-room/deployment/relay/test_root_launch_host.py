@@ -72,6 +72,31 @@ class HostTests(unittest.TestCase):
    self.assertEqual(h.phase_verify(G,None),{'binding_sha256':B});units.assert_called_once_with(G,pre_start=True)
   with patch.object(h,'context',return_value=({}, {}, {}, B)),patch.object(h,'provenance'),patch.object(h,'validate_inputs'),patch.object(h,'helper_records',return_value={'writer_id':W,'binding_sha256':B}),patch.object(h,'load',return_value={'schema':1,'generation':G,'id':W,'binding_sha256':B}),patch.object(h,'validate_units') as units,patch.object(h.os.path,'lexists',side_effect=[True,False]):
    self.assertEqual(h.phase_verify(G,None),{'binding_sha256':B});units.assert_called_once_with(G,pre_start=False)
+ def test_callback_lock_excludes_concurrent_rebinder(self):
+  import fcntl,os,types
+  with tempfile.TemporaryDirectory() as temp:
+   real_fstat=os.fstat
+   def owned(fd):
+    st=real_fstat(fd);return types.SimpleNamespace(st_mode=st.st_mode,st_uid=0,st_gid=0,st_nlink=st.st_nlink)
+   with patch.object(h,'STATE',Path(temp)),patch.object(h,'directory'),patch.object(h,'no_acl'),patch.object(h.os,'fstat',side_effect=owned):
+    with h.callback_lifecycle(G):
+     fd=os.open(Path(temp)/(G+'.callback-lifecycle.lock'),os.O_RDWR)
+     try:
+      with self.assertRaises(BlockingIOError):fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+     finally:os.close(fd)
+ def test_unknown_create_durably_denies_callback_rebind(self):
+  with tempfile.TemporaryDirectory() as temp:
+   state=Path(temp)
+   with patch.object(h,'STATE',state):
+    self.assertTrue(h.callback_rebind_allowed(G))
+    (state/(G+'.goose-create-intent.json')).write_text('unknown')
+    with self.assertRaisesRegex(RuntimeError,'rebind denied'):h.callback_rebind_allowed(G)
+ def test_callback_replacement_denies_before_goose_create(self):
+  import contextlib
+  cat={'scope':{'task_id':'task'}}
+  with patch.object(h,'callback_lifecycle',return_value=contextlib.nullcontext()),patch.object(h,'context',return_value=(cat,{}, {},B)),patch.object(h,'provenance'),patch.object(h,'validate_inputs',return_value=({},{})),patch.object(h,'validate_units'),patch.object(h,'scope_template',return_value={}),patch.object(h,'rootfile',return_value=(G+'\n'+B+'\n').encode()),patch.object(h,'store'),patch.object(h,'guard'),patch.object(h,'callback_identity',side_effect=[((1,2),(3,4)),((1,2),(3,5))]),patch.object(h,'create_role',return_value=W) as create:
+   with self.assertRaisesRegex(RuntimeError,'callback identity changed'):h.phase_create(G,None)
+   create.assert_called_once_with(G,'writer',B)
  def test_fixed_start_order(self):
   ids={'schema':1,'generation':G,'binding_sha256':B,'writer_id':W,'goose_id':GID};names=h.unit_names(G);calls=[]
   cat={'scope':{'task_id':'task'}};recipe={};stop={}

@@ -4,7 +4,7 @@
 Only a root-authorized supervisor may call one fixed phase plus a generation.
 Every unknown effect retains durable state. No provider key is read here.
 """
-import errno,hashlib,importlib.util,json,os,pathlib,re,selectors,stat,subprocess,sys,time,types
+import contextlib,errno,fcntl,hashlib,importlib.util,json,os,pathlib,re,selectors,stat,subprocess,sys,time,types
 ROOT=pathlib.Path('/etc/software-factory-goose');STATE=pathlib.Path('/var/lib/software-factory-goose/stop')
 PKG=pathlib.Path('/usr/local/libexec/software-factory-goose/relay');HANDOFF=pathlib.Path('/var/lib/software-factory-goose/handoff')
 RUN=pathlib.Path('/run/software-factory-goose');SYSTEM=pathlib.Path('/etc/systemd/system')
@@ -180,6 +180,34 @@ def secure_socket(path,gid):
  except OSError as e:
   if e.errno!=errno.ENODATA:raise RuntimeError('socket ACL unavailable') from None
  else:raise RuntimeError('socket ACL present')
+ return (sock.st_dev,sock.st_ino)
+
+def callback_identity(g):
+ parent=directory(RUN/'relay'/g,0,2000,0o710)
+ return parent,secure_socket(mount_paths(g)['socket'],2001)
+
+@contextlib.contextmanager
+def callback_lifecycle(g):
+ if not ID.fullmatch(g):raise RuntimeError('generation unavailable')
+ directory(STATE,mode=0o700)
+ fd=os.open(STATE/(g+'.callback-lifecycle.lock'),os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW|os.O_CLOEXEC,0o600)
+ try:
+  st=os.fstat(fd)
+  if not stat.S_ISREG(st.st_mode) or (st.st_uid,st.st_gid,st.st_nlink,stat.S_IMODE(st.st_mode))!=(0,0,1,0o600):raise RuntimeError('callback lock unavailable')
+  no_acl(fd);fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+  os.fsync(fd);parent=os.open(STATE,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC)
+  try:os.fsync(parent)
+  finally:os.close(parent)
+  yield
+ finally:os.close(fd)
+
+def callback_rebind_allowed(g):
+ # Call only while holding callback_lifecycle. Until a reviewed recovery
+ # protocol proves all producers quiescent and engine operations reconciled,
+ # any durable create intent permanently denies socket stop/rebind.
+ if any(os.path.lexists(STATE/(g+'.'+suffix)) for suffix in ('host-create-intent.json','writer-create-intent.json','goose-create-intent.json')):
+  raise RuntimeError('callback create may be unresolved; rebind denied')
+ return True
 
 def validate_inputs(g,recipe):
  p=mount_paths(g);dirs={}
@@ -192,7 +220,7 @@ def validate_inputs(g,recipe):
  core={k:recipe[k] for k in keys}
  if profile!={'schema':1,'profile':'nuc-root-supervised-stdio-v1','task_id':recipe['task_id'],'generation':g,'recipe_sha256':digest(canonical(core)),'worker_uid':2001}:raise RuntimeError('protected profile mismatch')
  for parent in (RUN,RUN/'relay'):directory(parent)
- directory(RUN/'relay'/g,2000,2000,0o700)
+ directory(RUN/'relay'/g,0,2000,0o710)
  secure_socket(p['socket'],2001)
  return p,dirs
 
@@ -347,15 +375,21 @@ def phase_arm(g,deadline,prod):
  guard(g);return {'binding_sha256':binding,'armed':True}
 
 def phase_create(g,prod):
- cat,recipe,stop,binding=context(g,prod);provenance(recipe);_,dirs=validate_inputs(g,recipe);validate_units(g);scope=scope_template(g,cat,recipe,binding)
- # Outer transaction must have durably consumed this exact binding first.
- if rootfile(STATE/(g+'.launch-consumed'))!=(g+'\n'+binding+'\n').encode():raise RuntimeError('outer consumption mismatch')
- store(STATE/(g+'.host-create-intent.json'),canonical({'schema':1,'generation':g,'binding_sha256':binding}));guard(g)
- store(ROOT/'relay-catalog'/(g+'.scope.json'),canonical(scope));guard(g)
- writer=create_role(g,'writer',binding);goose=create_role(g,'goose',binding)
- store(ROOT/'relay-catalog'/(g+'.writer.json'),canonical(writer_seal(g,cat,recipe,stop,binding,writer,dirs)));guard(g)
- store(STATE/(g+'.host-created.json'),canonical({'schema':1,'generation':g,'binding_sha256':binding,'writer_id':writer,'goose_id':goose}));guard(g)
- return {'id':goose}
+ # Every trusted socket stop/rebind must take the same lock and reject an
+ # unresolved create intent, even after this process exits and releases flock.
+ with callback_lifecycle(g):
+  cat,recipe,stop,binding=context(g,prod);provenance(recipe);_,dirs=validate_inputs(g,recipe);validate_units(g);scope=scope_template(g,cat,recipe,binding)
+  socket_identity=callback_identity(g)
+  if rootfile(STATE/(g+'.launch-consumed'))!=(g+'\n'+binding+'\n').encode():raise RuntimeError('outer consumption mismatch')
+  store(STATE/(g+'.host-create-intent.json'),canonical({'schema':1,'generation':g,'binding_sha256':binding}));guard(g)
+  store(ROOT/'relay-catalog'/(g+'.scope.json'),canonical(scope));guard(g)
+  writer=create_role(g,'writer',binding)
+  if callback_identity(g)!=socket_identity:raise RuntimeError('callback identity changed')
+  goose=create_role(g,'goose',binding)
+  if callback_identity(g)!=socket_identity:raise RuntimeError('callback identity changed')
+  store(ROOT/'relay-catalog'/(g+'.writer.json'),canonical(writer_seal(g,cat,recipe,stop,binding,writer,dirs)));guard(g)
+  store(STATE/(g+'.host-created.json'),canonical({'schema':1,'generation':g,'binding_sha256':binding,'writer_id':writer,'goose_id':goose}));guard(g)
+  return {'id':goose}
 
 def phase_verify_created(g,prod):
  cat,recipe,stop,binding=context(g,prod);provenance(recipe);_,dirs=validate_inputs(g,recipe);validate_units(g);scope=scope_template(g,cat,recipe,binding);verify_scope_file(g,scope)
