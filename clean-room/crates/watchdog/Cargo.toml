@@ -8,6 +8,7 @@ license.workspace = true
 [features]
 default = []
 fixture = []
+registry-grant = ["dep:control-plane"]
 
 [dependencies]
 anyhow.workspace = true
@@ -19,6 +20,9 @@ serde_json.workspace = true
 subtle = "=2.6.1"
 tokio.workspace = true
 ulid.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+control-plane = { path = "../control-plane", optional = true, features = ["registry-sidecar"] }
 
 [dev-dependencies]
 reqwest.workspace = true

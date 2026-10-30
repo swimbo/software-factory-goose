@@ -17,13 +17,38 @@ use std::{
     path::Path,
     time::Duration,
 };
+#[cfg(not(feature = "registry-grant"))]
 const ATTEST: &str = "/etc/software-factory-goose/real-process-attestation.json";
+#[cfg(feature = "registry-grant")]
+const ATTEST: &str = "/etc/software-factory-goose/registry-process-attestation.json";
+#[cfg(not(feature = "registry-grant"))]
 const UNIT: &str = "software-factory-goose-real-runtime.service";
+#[cfg(feature = "registry-grant")]
+const UNIT: &str = "software-factory-goose-registry-runtime.service";
+#[cfg(not(feature = "registry-grant"))]
 const UNITFILE: &str = "/etc/systemd/system/software-factory-goose-real-runtime.service";
+#[cfg(feature = "registry-grant")]
+const UNITFILE: &str = "/etc/systemd/system/software-factory-goose-registry-runtime.service";
+#[cfg(not(feature = "registry-grant"))]
 const BIN: &str = "/usr/local/libexec/software-factory-goose/private-real-sidecar";
+#[cfg(feature = "registry-grant")]
+const BIN: &str = "/usr/local/libexec/software-factory-goose/private-registry-sidecar";
+#[cfg(not(feature = "registry-grant"))]
 const CONFIG: &str = "/etc/software-factory-goose/real-runtime.json";
+#[cfg(feature = "registry-grant")]
+const CONFIG: &str = "/etc/software-factory-goose/catalog-registry.json";
+#[cfg(not(feature = "registry-grant"))]
 const SOCKET: &str = "/run/software-factory-goose/real-launch-grant.sock";
+#[cfg(feature = "registry-grant")]
+const SOCKET: &str = "/run/software-factory-goose/registry-launch-grant.sock";
+#[cfg(not(feature = "registry-grant"))]
 const CGROUP: &str = "/sys/fs/cgroup/system.slice/software-factory-goose-real-runtime.service";
+#[cfg(feature = "registry-grant")]
+const CGROUP: &str = "/sys/fs/cgroup/system.slice/software-factory-goose-registry-runtime.service";
+#[cfg(not(feature = "registry-grant"))]
+const MEMBERSHIP: &str = "/system.slice/software-factory-goose-real-runtime.service";
+#[cfg(feature = "registry-grant")]
+const MEMBERSHIP: &str = "/system.slice/software-factory-goose-registry-runtime.service";
 const ANCHOR_UNIT: &str = "software-factory-goose-private-net.service";
 const ANCHOR_UNITFILE: &str = "/etc/systemd/system/software-factory-goose-private-net.service";
 const ANCHOR_DROPIN: &str =
@@ -205,6 +230,28 @@ impl ServiceAttestation for RootAttestor {
                 && sha(&config) == b.config_sha256,
             "service pinned file mismatch"
         );
+        #[cfg(feature = "registry-grant")]
+        {
+            // Reuse the authoritative loader: it validates every referenced file,
+            // required historical pins and each qualified catalog fingerprint.
+            let (registry, catalogs) = control_plane::private_runtime::load_catalog_registry()?;
+            let active: Vec<_> = catalogs
+                .iter()
+                .filter(|(cfg, _)| cfg.intent_id == registry.active_intent)
+                .collect();
+            ensure!(
+                active.len() == 1
+                    && active[0].0.sdk_port == 9084
+                    && active[0].0.launch_scope.is_some(),
+                "registry active scope invalid"
+            );
+            // Detect replacement during loading; a restart needs a new protected binding.
+            let (after, _) = fixed_file(CONFIG, 0o644, 65536)?;
+            ensure!(
+                sha(&after) == b.config_sha256,
+                "registry changed during attestation"
+            );
+        }
         let cli = BoundedCli;
         let expected = [
             ("LoadState", "loaded"),
@@ -212,10 +259,7 @@ impl ServiceAttestation for RootAttestor {
             ("Names", UNIT),
             ("FragmentPath", UNITFILE),
             ("DropInPaths", ""),
-            (
-                "ControlGroup",
-                "/system.slice/software-factory-goose-real-runtime.service",
-            ),
+            ("ControlGroup", MEMBERSHIP),
             ("User", "sfgoose-control"),
             ("Group", "sfgoose-control"),
             ("NoNewPrivileges", "yes"),
@@ -307,7 +351,7 @@ impl ServiceAttestation for RootAttestor {
         );
         let membership = fs::read_to_string(format!("/proc/{}/cgroup", b.pid))?;
         ensure!(
-            membership.trim() == "0::/system.slice/software-factory-goose-real-runtime.service",
+            membership.trim() == format!("0::{MEMBERSHIP}"),
             "process cgroup differs"
         );
         let sock = fs::symlink_metadata(SOCKET)?;
@@ -342,6 +386,29 @@ impl ServiceAttestation for RootAttestor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn selected_profile_has_one_matching_unit_and_socket() {
+        #[cfg(feature = "registry-grant")]
+        {
+            assert_eq!(UNIT, "software-factory-goose-registry-runtime.service");
+            assert_eq!(
+                SOCKET,
+                "/run/software-factory-goose/registry-launch-grant.sock"
+            );
+            assert_eq!(CONFIG, "/etc/software-factory-goose/catalog-registry.json");
+            assert_eq!(
+                ATTEST,
+                "/etc/software-factory-goose/registry-process-attestation.json"
+            );
+        }
+        #[cfg(not(feature = "registry-grant"))]
+        {
+            assert_eq!(UNIT, "software-factory-goose-real-runtime.service");
+            assert_eq!(SOCKET, "/run/software-factory-goose/real-launch-grant.sock");
+        }
+        assert_eq!(CGROUP, format!("/sys/fs/cgroup{MEMBERSHIP}"));
+        assert_eq!(UNITFILE, format!("/etc/systemd/system/{UNIT}"));
+    }
     #[test]
     fn rejects_changed_uid_gid_capabilities_and_nnp() {
         let good = "Uid:\t2000\t2000\t2000\t2000\nGid:\t2000\t2000\t2000\t2000\nCapEff:\t0000000000000000\nNoNewPrivs:\t1\n";

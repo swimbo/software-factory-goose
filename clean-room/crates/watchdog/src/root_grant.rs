@@ -4,6 +4,8 @@
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::OpenOptionsExt;
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -11,14 +13,17 @@ use std::{
     os::{
         fd::{AsRawFd, FromRawFd},
         unix::{
-            fs::{FileTypeExt, MetadataExt, OpenOptionsExt},
+            fs::{FileTypeExt, MetadataExt},
             net::UnixStream,
         },
     },
     path::Path,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+#[cfg(not(feature = "registry-grant"))]
 const SOCKET: &str = "/run/software-factory-goose/real-launch-grant.sock";
+#[cfg(feature = "registry-grant")]
+const SOCKET: &str = "/run/software-factory-goose/registry-launch-grant.sock";
 #[cfg(target_os = "linux")]
 fn no_acl(f: &File) -> Result<()> {
     no_attr(f, "system.posix_acl_access")
