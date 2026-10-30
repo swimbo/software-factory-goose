@@ -1,0 +1,26 @@
+[Unit]
+Description=Software factory root finalization for %i
+BindsTo=software-factory-goose-private-net.service
+After=software-factory-goose-private-net.service
+JoinsNamespaceOf=software-factory-goose-private-net.service
+Requires=software-factory-goose-root-finalization@%i.socket
+
+[Service]
+Type=exec
+User=root
+Group=root
+Sockets=software-factory-goose-root-finalization@%i.socket
+ExecStart=/usr/local/libexec/software-factory-goose/root_finalization_runtime %i
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX AF_INET
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryMax=128M
+TasksMax=8
+TimeoutStopSec=15s

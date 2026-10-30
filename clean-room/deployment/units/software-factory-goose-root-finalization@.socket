@@ -1,0 +1,14 @@
+[Unit]
+Description=Software factory fixed-generation finalization socket %i
+
+[Socket]
+ListenStream=/run/software-factory-goose/root-finalization/%i.sock
+FileDescriptorName=root-finalization
+SocketUser=root
+SocketGroup=1000
+SocketMode=0660
+Accept=no
+Service=software-factory-goose-root-finalization@%i.service
+
+[Install]
+WantedBy=sockets.target
