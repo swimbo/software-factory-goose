@@ -8,3 +8,5 @@
 | 2026-10-27 | [os-supervision-boundary](2026-10-27-os-supervision-boundary.md) | OS runtime / privileged supervision | Three-reviewer research; insufficient evidence for selection, comparative spike | evidence-ledger.md; spike-plan.md |
 
 - 2026-10-28: [Bounded task writer](2026-10-28-structured-task-writer/consensus-plan.md) — three-reviewer consensus for task-only structured writes; pre-live integration/crash/evaluation controls required, no shell relaxation or production activation.
+
+- 2026-10-29: [NUC protected root supervisor](2026-10-29-nuc-root-supervisor/consensus-plan.md) — three-reviewer research/canary/one-round guarded implementation consensus; production recovery/integration gates retained.

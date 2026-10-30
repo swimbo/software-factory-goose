@@ -161,3 +161,7 @@ O1 is resolved to hosted open-weights via external Bifrost. O4 is resolved (2026
 ## Scoped structured writer — 2026-10-28
 
 Three-reviewer debate selects a two-file, factory-owned structured MCP writer for the uncapped owned INT-LOOP; shell policy stays unchanged. Distinct fixed executor invocation, strict bytes/identity/fences, partial-write quarantine, exact baseline/generation snapshot and isolated evaluation remain mandatory. No production activation or completed INT-LOOP is claimed. See `decisions/2026-10-28-structured-task-writer/consensus-plan.md` for the decision and discriminating pre-live gates.
+
+## NUC protected deployment — 2026-10-29
+
+A three-reviewer researched debate with actual late-start canary and one concession round selects the guarded root-owned systemd supervisor outside Docker, immutable generation catalogue, durable one-way closure and separate nonroot brake frontend/root stop backend. Existing bo is the human operator relative to five new locked service identities, without MFA or same-UID-compromise resistance claims. Actual identity installation is additive; protected runtime/socket/namespace and complete recovery/integration gates remain open. See `decisions/2026-10-29-nuc-root-supervisor/consensus-plan.md` and `verification/2026-10-29-nuc-identities/README.md`; do not treat the bounded freeze test or provisioned identities as full production containment.

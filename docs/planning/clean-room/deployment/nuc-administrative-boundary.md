@@ -1,4 +1,6 @@
-# NUC administrative boundary — decision required
+# NUC administrative boundary — authorized 2026-10-29
+
+User explicitly authorized scoped NUC host administration through existing Docker permission, continuing from a33c9db. The administrative mechanism decision below is resolved; it does not authorize shared-service restart, host reboot, silent human login-key issuance or candidate promotion. Preserve existing services and data.
 
 ## Observed access
 
@@ -17,8 +19,16 @@ Subject to a reviewed implementation, establish only factory-owned resources:
 
 Installation must first produce an exact file/account/unit inventory and rollback procedure, check name/UID/path collisions and free space, and refuse partial or ambiguous prior installation. Starting the new supervisor must not restart Docker, Bifrost, Hermes or Stapled. Host reboot or shared daemon-failure testing requires a separately reviewed maintenance window or isolated equivalent; it is not implied here.
 
-## Privilege mechanism needing a human decision
+## Privilege mechanism — resolved by user authorization
 
 Preferred: an operator-provided administrative session or narrowly approved installer invocation. The existing `bo` Docker permission is also capable of granting host-root authority, but the fixture's permission to create isolated workers does not by itself approve using that power to modify the host OS. Such use requires an explicit choice before implementation/deployment of this boundary.
 
 This document is a scope proposal, not an executable installer or completed deployment approval. No host-root access, host accounts, units or shared-service configuration were changed in preparing it. No password or private key should be sent in chat.
+
+## 2026-10-29 execution boundary
+
+The first owned root bridge tests verified that host PID namespace plus only SYS_CHROOT/DAC_OVERRIDE, a fixed reviewed inline program, host-root bind, isolated Python and no container network can query the real system manager. A separate PID namespace failed with ENODATA; capability-name normalization was required before any start. Only bridge operations with exact full-ID/config/intents and ownership verification are allowed. No broad privileged container or new host capability is inferred. A narrowly necessary additional capability for a specific install operation must be reviewed and tested before use.
+
+The first frozen late-start canary was retained as unknown, then reconciled using exact-version Moby start/remove locking and successful non-force exact-ID removal, same-inode frozen/empty observation and scoped manager cleanup. This is not production containment or host/daemon-loss certification. See verification/2026-10-29-nuc-late-start-freeze-canary.md.
+
+Existing bo UID1000 may serve as the human operator account after distinct nonroot service/worker/evaluator/journal roles are provisioned. This preserves its existing SSH authentication and grants no new login key, group membership or sudo permission. Its existing host-administrative Docker power remains trusted; no design can claim protection from that administrator. Independent stop availability and protection against a stolen operator bearer are separate requirements.

@@ -106,3 +106,7 @@ The architecture debate (see `consensus-plan.md`, `debate-transcript.md`) valida
 ## Scoped structured writer — 2026-10-28
 
 Three-reviewer debate selects a two-file, factory-owned structured MCP writer for the uncapped owned INT-LOOP; shell policy stays unchanged. Distinct fixed executor invocation, strict bytes/identity/fences, partial-write quarantine, exact baseline/generation snapshot and isolated evaluation remain mandatory. No production activation or completed INT-LOOP is claimed. See `decisions/2026-10-28-structured-task-writer/consensus-plan.md` for the decision and discriminating pre-live gates.
+
+## Scoped NUC administration — 2026-10-29
+
+The user authorized existing Docker permission for scoped host-root deployment. Use reviewed fixed administrative bridges and exact-ID/config/intent checks; never give workers Docker or arbitrary root commands. Five locked role accounts and factory-only root directories are installed, with bo retained as the distinct human operator. No shared restart/reboot or login-key/sudo/group change follows. The three-reviewer NUC supervisor debate is recorded in `decisions/2026-10-29-nuc-root-supervisor/consensus-plan.md`; production admission remains gated on deployed socket/network namespace, supervisor/worker/recovery and complete INT-LOOP evidence. See `verification/2026-10-29-nuc-identities/README.md` for precise paths, permissions and preservation limits.
