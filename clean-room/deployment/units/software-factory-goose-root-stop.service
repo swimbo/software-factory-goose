@@ -1,0 +1,18 @@
+# REVIEW DRAFT: cgroup writes remain privileged; inspect catalogue and peer code.
+[Unit]
+Description=Software Factory root stop-only authority
+Requires=software-factory-goose-root-stop.socket
+After=software-factory-goose-root-stop.socket
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/libexec/software-factory-goose/sfactory_root_stop
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/software-factory-goose/stop /sys/fs/cgroup
+UMask=0077

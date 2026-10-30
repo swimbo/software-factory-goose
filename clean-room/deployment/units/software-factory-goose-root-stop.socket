@@ -1,0 +1,14 @@
+# REVIEW DRAFT: do not install or enable before privileged canaries.
+[Unit]
+Description=Software Factory root stop socket
+[Socket]
+ListenStream=/run/software-factory-goose/root-stop.sock
+SocketUser=root
+SocketGroup=sfgoose-brake
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+Service=software-factory-goose-root-stop.service
+RemoveOnStop=yes
+[Install]
+WantedBy=sockets.target
