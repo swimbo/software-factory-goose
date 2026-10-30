@@ -1,4 +1,21 @@
-use clap::Subcommand;
+use clap::{Subcommand, ValueEnum};
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum IntakeProfile {
+    Fixture,
+    Real,
+    Registry,
+}
+impl IntakeProfile {
+    #[cfg(any(target_os = "linux", test))]
+    fn socket(self) -> &'static str {
+        match self {
+            Self::Fixture => "/run/software-factory-goose/intake.sock",
+            Self::Real => "/run/software-factory-goose/real-intake.sock",
+            Self::Registry => "/run/software-factory-goose/registry-intake.sock",
+        }
+    }
+}
 
 #[derive(Debug, Subcommand)]
 pub enum PrivateCommand {
@@ -7,9 +24,13 @@ pub enum PrivateCommand {
         id: String,
         #[arg(long)]
         request: std::path::PathBuf,
+        #[arg(long, value_enum, default_value = "fixture")]
+        profile: IntakeProfile,
     },
     Inspect {
         id: String,
+        #[arg(long, value_enum, default_value = "fixture")]
+        profile: IntakeProfile,
     },
     Stop {
         target: String,
@@ -70,7 +91,6 @@ mod linux {
         time::Duration,
     };
 
-    const INTAKE: &str = "/run/software-factory-goose/intake.sock";
     const BRAKE: &str = "/run/software-factory-goose/brake.sock";
     const INPUT_LIMIT: usize = 60 * 1024;
     const OUTPUT_LIMIT: usize = 1024 * 1024;
@@ -99,7 +119,7 @@ mod linux {
         }
         let e = std::io::Error::last_os_error();
         match e.raw_os_error() {
-            Some(libc::ENODATA) | Some(libc::EOPNOTSUPP) => Ok(false),
+            Some(libc::ENODATA) => Ok(false),
             _ => Err(anyhow::anyhow!("cannot verify file ACL")),
         }
     }
@@ -117,7 +137,7 @@ mod linux {
             return Ok(true);
         }
         match std::io::Error::last_os_error().raw_os_error() {
-            Some(libc::ENODATA) | Some(libc::EOPNOTSUPP) => Ok(false),
+            Some(libc::ENODATA) => Ok(false),
             _ => Err(anyhow::anyhow!("cannot verify socket ACL")),
         }
     }
@@ -266,22 +286,26 @@ mod linux {
         );
         let (socket, route, body, key): (PathBuf, &str, serde_json::Value, Option<[u8; 32]>) =
             match command {
-                PrivateCommand::Submit { id, request } => {
+                PrivateCommand::Submit {
+                    id,
+                    request,
+                    profile,
+                } => {
                     canonical_id(&id)?;
                     let input = bounded_read(&request)?;
                     let request: serde_json::Value =
                         serde_json::from_slice(&input).context("invalid request JSON")?;
                     (
-                        INTAKE.into(),
+                        profile.socket().into(),
                         "/submit",
                         serde_json::json!({"key":id,"request":request}),
                         None,
                     )
                 }
-                PrivateCommand::Inspect { id } => {
+                PrivateCommand::Inspect { id, profile } => {
                     canonical_id(&id)?;
                     (
-                        INTAKE.into(),
+                        profile.socket().into(),
                         "/inspect",
                         serde_json::json!({"key":id}),
                         None,
@@ -477,5 +501,44 @@ mod tests {
         assert!(!safe_socket(1000, 1000, 0o660, false));
         assert!(!safe_socket(0, 1000, 0o666, false));
         assert!(!safe_socket(0, 1000, 0o660, true));
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::*;
+    use clap::Parser;
+    #[derive(Parser)]
+    struct Args {
+        #[command(subcommand)]
+        command: PrivateCommand,
+    }
+    #[test]
+    fn real_profile_selects_only_the_fixed_private_endpoint() {
+        let args = Args::try_parse_from([
+            "sfctl",
+            "inspect",
+            "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "--profile",
+            "real",
+        ])
+        .unwrap();
+        let PrivateCommand::Inspect { profile, .. } = args.command else {
+            panic!("wrong command")
+        };
+        assert_eq!(
+            profile.socket(),
+            "/run/software-factory-goose/real-intake.sock"
+        );
+        assert!(
+            Args::try_parse_from([
+                "sfctl",
+                "inspect",
+                "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+                "--profile",
+                "/tmp/evil.sock"
+            ])
+            .is_err()
+        );
     }
 }
