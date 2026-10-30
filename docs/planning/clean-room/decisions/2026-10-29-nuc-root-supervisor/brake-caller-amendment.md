@@ -1,0 +1,15 @@
+# Focused amendment: usable independent brake caller
+
+Root review found that the drafted frontend passes bo UID1000 as brake caller while omitting ordinary operator UID1000 from BrakePolicy::new exclusions. This games the documented ordinary-operator exclusion, even though constructors compile. No frontend was installed or activated; current frontend hash/drafts are blocked. Do not silently weaken/relabel existing policy.
+
+Verified controlling facts: O4 selects separate local operator account and action-bound approval, no MFA or resistance-to-same-UID-compromise claim; new control2000/worker2001/eval2002/brake-frontend2003/journal2004 accounts are actually provisioned, bo1000 retains trusted Docker-root authority. R9 requires independent stop credential and availability when operator token/control/database/gateway/Docker are unavailable. Ordinary operation must not require Docker/sudo/new SSH key. Existing BrakePolicy::new documents that brake caller and ordinary operator are distinct; the old frontend violates that contract.
+
+Compare explicitly:
+
+A. A distinct brake caller identity (e.g. newly provisioned locked UID2005) reached by a tiny root-owned native setuid fixed stop/status client executable only by bo-group. It immediately validates real UID, closes inherited FDs, permanently drops supplementary groups/UID/GID, uses a root-protected stop key and fixed socket/opaque target only, never shell/exec selection. Existing policy keeps bo in ordinary exclusions. Requires reviewed setuid surface and another additive identity; this is not already selected.
+
+B. A separate explicitly named production brake policy allowing the existing human bo account for both channels, with independently provisioned stop bearer and isolated stop frontend/root backend. Keep existing stronger BrakePolicy unchanged for its consumers. Explicitly negotiate the policy difference in artifacts; do not claim two factors or full bo compromise resistance. Prove a stolen approval bearer without stop credential/kernel peer cannot operate brake; model/service/evaluator remain excluded. Assess whether this actually meets controlling R9/O4 rather than merely being convenient.
+
+C. A narrowly scoped systemd/polkit template client executing as distinct brake caller, or a dedicated root stop-only broker. Verify StartTransientUnit/SetUnitProperties/verb confinement and actual noninteractive bo usability before preferring it; avoid replacing a small client with broad unit authority. No new human SSH key or shared-service change is implied.
+
+Use primary current code and existing user decisions as evidence. For setuid/polkit behavior consult primary Linux/systemd sources. Separate independence from operator bearer theft, full account compromise and process/service availability. Select the least privileged solution that satisfies the actual plan. New privileged executable/policy is not authorized for installation until reviewed; user host-administration permission already covers necessary scoped implementation. Root backend continues its separate canaries; no production brake acceptance until selected caller is actually proven.
