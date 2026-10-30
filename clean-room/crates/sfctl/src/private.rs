@@ -1,5 +1,78 @@
 use clap::{Subcommand, ValueEnum};
 
+#[cfg(any(target_os = "linux", test))]
+fn finalization_summary(
+    value: &serde_json::Value,
+    generation: &str,
+) -> anyhow::Result<serde_json::Value> {
+    use anyhow::{Context, ensure};
+    ensure!(
+        value.get("generation").and_then(|v| v.as_str()) == Some(generation)
+            && value
+                .get("approval_not_established_by_finalization")
+                .and_then(|v| v.as_bool())
+                == Some(true),
+        "status scope or approval mismatch"
+    );
+    let claim = value
+        .get("legacy_claim")
+        .context("historical status missing")?;
+    let historical = if claim.is_null() {
+        serde_json::Value::Null
+    } else {
+        let fields = claim.as_object().context("invalid historical status")?;
+        ensure!(
+            fields.len() == 3
+                && fields.contains_key("version")
+                && fields.contains_key("stage")
+                && fields.contains_key("attempts")
+                && fields["version"].is_u64()
+                && fields["attempts"].is_u64()
+                && matches!(
+                    fields["stage"].as_str(),
+                    Some("Queued" | "Leased" | "CoolingDown" | "Evaluating" | "Failed")
+                ),
+            "unsafe historical status"
+        );
+        claim.clone()
+    };
+    let finalization = value.get("finalization").context("finalization missing")?;
+    let (outcome, projection) = if finalization.is_null() {
+        ("unfinalized", "unavailable")
+    } else {
+        let outcome = finalization
+            .pointer("/record/evidence/kind")
+            .and_then(|v| v.as_str())
+            .context("outcome missing")?;
+        let projection = finalization
+            .get("export")
+            .and_then(|v| v.as_str())
+            .context("projection missing")?;
+        ensure!(
+            matches!(outcome, "evaluated_pass" | "evaluated_fail" | "unknown")
+                && matches!(projection, "pending" | "current" | "quarantined")
+                && finalization
+                    .pointer("/record/reservation/generation")
+                    .and_then(|v| v.as_str())
+                    == Some(generation),
+            "invalid finalization summary"
+        );
+        (outcome, projection)
+    };
+    Ok(
+        serde_json::json!({"generation":generation,"outcome":outcome,"projection":projection,"actual_spend":"unknown","promotion":"not established","legacy_claim":historical,"legacy_claim_is_historical":value.get("legacy_claim_is_historical").and_then(|v|v.as_bool()).context("historical flag missing")?}),
+    )
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn finalization_socket(generation: &str) -> anyhow::Result<std::path::PathBuf> {
+    anyhow::ensure!(
+        ulid::Ulid::from_string(generation).is_ok_and(|id| id.to_string() == generation),
+        "invalid canonical generation"
+    );
+    Ok(format!("/run/software-factory-goose/root-finalization/{generation}.sock").into())
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum IntakeProfile {
     Fixture,
@@ -32,6 +105,8 @@ pub enum PrivateCommand {
         #[arg(long, value_enum, default_value = "fixture")]
         profile: IntakeProfile,
     },
+    /// Read the authoritative additive outcome; this does not approve promotion.
+    Finalization { generation: String },
     Stop {
         target: String,
         #[arg(long)]
@@ -73,9 +148,14 @@ pub async fn run(command: PrivateCommand, json_output: bool) -> anyhow::Result<(
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use super::{PrivateCommand, operator_identity, safe_key_file, safe_root_parent, safe_socket};
+    use super::{
+        PrivateCommand, finalization_socket, finalization_summary, operator_identity,
+        safe_key_file, safe_root_parent, safe_socket,
+    };
     use anyhow::{Context, ensure};
     use reqwest::header::HeaderValue;
+    use serde::Deserialize;
+    use sha2::{Digest, Sha256};
     use std::{
         ffi::CString,
         fs::{self, File, OpenOptions},
@@ -102,18 +182,254 @@ mod linux {
         );
         Ok(())
     }
+    #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct FinalizationAttestation {
+        schema: u32,
+        generation: String,
+        boot_id: String,
+        service_unit: String,
+        socket_unit: String,
+        main_pid: u32,
+        invocation_id: String,
+        exec_start: String,
+        binary_sha256: String,
+        service_unit_sha256: String,
+        socket_unit_sha256: String,
+        fragment_path: String,
+        drop_in_paths: Vec<String>,
+        private_namespace_dev: u64,
+        private_namespace_ino: u64,
+        anchor_unit: String,
+        anchor_main_pid: u32,
+        anchor_invocation_id: String,
+        socket_dev: u64,
+        socket_ino: u64,
+        bootstrap_sha256: String,
+    }
+    fn protected_public(path: &Path, mode: u32, limit: usize) -> anyhow::Result<Vec<u8>> {
+        let dir = open_directory_path(path.parent().context("protected parent missing")?, false)?;
+        let mut file = open_child(
+            &dir,
+            path.file_name().context("protected filename missing")?,
+            false,
+        )?;
+        let before = file.metadata()?;
+        ensure!(
+            before.is_file()
+                && before.uid() == 0
+                && before.gid() == 0
+                && before.nlink() == 1
+                && before.mode() & 0o7777 == mode
+                && !has_acl(file.as_raw_fd())?
+                && before.len() <= limit as u64,
+            "unsafe protected file"
+        );
+        let mut bytes = Vec::new();
+        (&mut file).take(limit as u64 + 1).read_to_end(&mut bytes)?;
+        let after = file.metadata()?;
+        ensure!(
+            bytes.len() <= limit
+                && bytes.len() as u64 == before.len()
+                && (
+                    before.dev(),
+                    before.ino(),
+                    before.len(),
+                    before.mtime(),
+                    before.mtime_nsec(),
+                    before.ctime(),
+                    before.ctime_nsec()
+                ) == (
+                    after.dev(),
+                    after.ino(),
+                    after.len(),
+                    after.mtime(),
+                    after.mtime_nsec(),
+                    after.ctime(),
+                    after.ctime_nsec()
+                ),
+            "protected file changed"
+        );
+        Ok(bytes)
+    }
+    fn verify_hash(path: &Path, mode: u32, expected: &str, limit: usize) -> anyhow::Result<()> {
+        ensure!(
+            expected.len() == 64
+                && expected
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "invalid attestation digest"
+        );
+        ensure!(
+            format!("{:x}", Sha256::digest(protected_public(path, mode, limit)?)) == expected,
+            "attested file changed"
+        );
+        Ok(())
+    }
+    async fn manager_properties(
+        unit: &str,
+    ) -> anyhow::Result<std::collections::BTreeMap<String, String>> {
+        let binary = Path::new("/usr/bin/systemctl");
+        let _ = protected_public(binary, 0o755, 32 * 1024 * 1024)?;
+        let mut command = tokio::process::Command::new(binary);
+        command.env_clear().env("PATH","/usr/bin:/bin").env("HOME","/nonexistent").env("LC_ALL","C").kill_on_drop(true).args(["show",unit,"--property=LoadState,ActiveState,MainPID,InvocationID,Names,FragmentPath,DropInPaths,ExecStart,User,Group,NoNewPrivileges,CapabilityBoundingSet,PrivateNetwork,BindsTo,JoinsNamespaceOf","--all","--no-pager"]);
+        let output = tokio::time::timeout(Duration::from_secs(5), command.output()).await??;
+        ensure!(
+            output.status.success() && output.stdout.len() <= 32768 && output.stderr.len() <= 4096,
+            "manager unavailable"
+        );
+        let mut props = std::collections::BTreeMap::new();
+        for line in std::str::from_utf8(&output.stdout)?.lines() {
+            let (k, v) = line.split_once('=').context("invalid manager property")?;
+            ensure!(
+                props.insert(k.to_string(), v.to_string()).is_none(),
+                "duplicate manager property"
+            );
+        }
+        Ok(props)
+    }
+    async fn finalization_attestation(
+        generation: &str,
+        socket: &Path,
+    ) -> anyhow::Result<FinalizationAttestation> {
+        canonical_id(generation)?;
+        let manifest = PathBuf::from(format!(
+            "/etc/software-factory-goose/finalization/{generation}.process.json"
+        ));
+        let value: FinalizationAttestation =
+            serde_json::from_slice(&protected_public(&manifest, 0o444, 16384)?)?;
+        let service = format!("software-factory-goose-root-finalization@{generation}.service");
+        let socket_unit = format!("software-factory-goose-root-finalization@{generation}.socket");
+        let fragment = "/etc/systemd/system/software-factory-goose-root-finalization@.service";
+        let binary = "/usr/local/libexec/software-factory-goose/root_finalization_runtime";
+        let anchor = "software-factory-goose-private-net.service";
+        ensure!(
+            value.schema == 1
+                && value.generation == generation
+                && value.service_unit == service
+                && value.socket_unit == socket_unit
+                && value.fragment_path == fragment
+                && value.drop_in_paths.is_empty()
+                && value.anchor_unit == anchor
+                && value.main_pid > 0
+                && value.anchor_main_pid > 0
+                && value.private_namespace_dev > 0
+                && value.private_namespace_ino > 0,
+            "attestation scope mismatch"
+        );
+        ensure!(
+            value.bootstrap_sha256.len() == 64
+                && value
+                    .bootstrap_sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "invalid bootstrap digest"
+        );
+        for id in [&value.invocation_id, &value.anchor_invocation_id] {
+            ensure!(
+                id.len() == 32
+                    && id
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+                "invalid invocation identity"
+            );
+        }
+        ensure!(
+            fs::read_to_string("/proc/sys/kernel/random/boot_id")?.trim() == value.boot_id,
+            "attestation boot changed"
+        );
+        verify_hash(Path::new(binary), 0o755, &value.binary_sha256, 100_000_000)?;
+        verify_hash(
+            Path::new(fragment),
+            0o644,
+            &value.service_unit_sha256,
+            65536,
+        )?;
+        verify_hash(
+            Path::new("/etc/systemd/system/software-factory-goose-root-finalization@.socket"),
+            0o644,
+            &value.socket_unit_sha256,
+            65536,
+        )?;
+        let m = fs::symlink_metadata(socket)?;
+        ensure!(
+            m.file_type().is_socket()
+                && safe_socket(m.uid(), m.gid(), m.mode(), socket_has_acl(socket)?)
+                && m.nlink() == 1
+                && (m.dev(), m.ino()) == (value.socket_dev, value.socket_ino),
+            "attested socket changed"
+        );
+        let p = manager_properties(&service).await?;
+        let a = manager_properties(anchor).await?;
+        let s = manager_properties(&socket_unit).await?;
+        let pid = value.main_pid.to_string();
+        let anchor_pid = value.anchor_main_pid.to_string();
+        for (k, v) in [
+            ("LoadState", "loaded"),
+            ("ActiveState", "active"),
+            ("Names", service.as_str()),
+            ("FragmentPath", fragment),
+            ("DropInPaths", ""),
+            ("User", "root"),
+            ("Group", "root"),
+            ("NoNewPrivileges", "yes"),
+            ("CapabilityBoundingSet", ""),
+            ("PrivateNetwork", "yes"),
+            ("BindsTo", anchor),
+            ("JoinsNamespaceOf", anchor),
+            ("MainPID", pid.as_str()),
+            ("InvocationID", value.invocation_id.as_str()),
+            ("ExecStart", value.exec_start.as_str()),
+        ] {
+            ensure!(
+                p.get(k).map(String::as_str) == Some(v),
+                "service attestation changed: {k}"
+            );
+        }
+        ensure!(
+            value.exec_start.starts_with(&format!(
+                "{{ path={binary} ; argv[]={binary} {generation} ; ignore_errors=no ;"
+            )) && value.exec_start.matches("{ path=").count() == 1,
+            "attested command mismatch"
+        );
+        for (k, v) in [
+            ("LoadState", "loaded"),
+            ("ActiveState", "active"),
+            ("Names", anchor),
+            ("MainPID", anchor_pid.as_str()),
+            ("InvocationID", value.anchor_invocation_id.as_str()),
+        ] {
+            ensure!(
+                a.get(k).map(String::as_str) == Some(v),
+                "anchor identity changed: {k}"
+            );
+        }
+        for (k, v) in [
+            ("LoadState", "loaded"),
+            ("ActiveState", "active"),
+            ("Names", socket_unit.as_str()),
+            (
+                "FragmentPath",
+                "/etc/systemd/system/software-factory-goose-root-finalization@.socket",
+            ),
+            ("DropInPaths", ""),
+        ] {
+            ensure!(
+                s.get(k).map(String::as_str) == Some(v),
+                "socket unit identity changed: {k}"
+            );
+        }
+        Ok(value)
+    }
     fn has_acl(fd: i32) -> anyhow::Result<bool> {
+        has_acl_named(fd, c"system.posix_acl_access")
+    }
+    fn has_acl_named(fd: i32, name: &std::ffi::CStr) -> anyhow::Result<bool> {
         // O_PATH permits traversal of root-owned 0711 parents without read
         // permission; /proc/self/fd resolves this already pinned descriptor.
         let path = CString::new(format!("/proc/self/fd/{fd}"))?;
-        let result = unsafe {
-            libc::getxattr(
-                path.as_ptr(),
-                c"system.posix_acl_access".as_ptr(),
-                std::ptr::null_mut(),
-                0,
-            )
-        };
+        let result =
+            unsafe { libc::getxattr(path.as_ptr(), name.as_ptr(), std::ptr::null_mut(), 0) };
         if result >= 0 {
             return Ok(true);
         }
@@ -159,7 +475,8 @@ mod linux {
         let mut dir = File::open("/")?;
         let root = dir.metadata()?;
         ensure!(
-            safe_root_parent(root.uid(), root.mode(), has_acl(dir.as_raw_fd())?),
+            safe_root_parent(root.uid(), root.mode(), has_acl(dir.as_raw_fd())?)
+                && !has_acl_named(dir.as_raw_fd(), c"system.posix_acl_default")?,
             "unsafe root directory"
         );
         for part in path.components() {
@@ -175,7 +492,12 @@ mod linux {
                     } else {
                         safe_root_parent(meta.uid(), meta.mode(), has_acl(dir.as_raw_fd())?)
                     };
-                    ensure!(meta.is_dir() && valid, "unsafe protected parent directory");
+                    ensure!(
+                        meta.is_dir()
+                            && valid
+                            && !has_acl_named(dir.as_raw_fd(), c"system.posix_acl_default")?,
+                        "unsafe protected parent directory"
+                    );
                 }
                 _ => anyhow::bail!("invalid protected path"),
             }
@@ -284,6 +606,10 @@ mod linux {
             operator_identity(unsafe { libc::getuid() }, unsafe { libc::geteuid() }),
             "private mode requires operator UID 1000"
         );
+        let finalization_generation = match &command {
+            PrivateCommand::Finalization { generation } => Some(generation.clone()),
+            _ => None,
+        };
         let (socket, route, body, key): (PathBuf, &str, serde_json::Value, Option<[u8; 32]>) =
             match command {
                 PrivateCommand::Submit {
@@ -311,6 +637,12 @@ mod linux {
                         None,
                     )
                 }
+                PrivateCommand::Finalization { generation } => (
+                    finalization_socket(&generation)?,
+                    "/status",
+                    serde_json::json!({}),
+                    None,
+                ),
                 PrivateCommand::Stop {
                     target,
                     brake_key_file,
@@ -340,16 +672,25 @@ mod linux {
             serde_json::to_vec(&body)?.len() <= 64 * 1024,
             "request exceeds protocol limit"
         );
+        let attestation = if let Some(generation) = &finalization_generation {
+            Some(finalization_attestation(generation, &socket).await?)
+        } else {
+            None
+        };
         preflight(&socket).await?;
         // Reqwest opens a second connection. This relies on the checked root-owned,
         // non-writable socket directory remaining immutable to non-root principals.
         let client = reqwest::Client::builder()
-            .unix_socket(socket)
+            .unix_socket(socket.clone())
             .timeout(Duration::from_secs(8))
             .redirect(reqwest::redirect::Policy::none())
             .no_proxy()
             .build()?;
-        let mut req = client.post(format!("http://localhost{route}")).json(&body);
+        let mut req = if finalization_generation.is_some() {
+            client.get(format!("http://localhost{route}"))
+        } else {
+            client.post(format!("http://localhost{route}")).json(&body)
+        };
         if let Some(mut key) = key {
             let mut encoded = String::with_capacity(64);
             for b in key {
@@ -385,14 +726,27 @@ mod linux {
             status.is_success(),
             "private request failed with status {status}; outcome may be unknown"
         );
-        let value: serde_json::Value =
+        let mut value: serde_json::Value =
             serde_json::from_slice(&bytes).context("invalid private response")?;
+        if let Some(generation) = finalization_generation {
+            ensure!(
+                Some(finalization_attestation(&generation, &socket).await?) == attestation,
+                "finalization process changed during request"
+            );
+            value = finalization_summary(&value, &generation)?;
+        }
         ensure!(
             value.get("error").is_none(),
             "private service reported an operation error"
         );
         if json_output {
             println!("{}", serde_json::to_string(&value)?);
+        } else if value.get("outcome").is_some() {
+            println!(
+                "{}; projection {}; actual spend unknown; promotion not established",
+                value["outcome"].as_str().unwrap_or("unavailable"),
+                value["projection"].as_str().unwrap_or("unavailable")
+            );
         } else {
             println!("[{status}] {}", serde_json::to_string(&value)?);
         }
@@ -512,6 +866,32 @@ mod profile_tests {
     struct Args {
         #[command(subcommand)]
         command: PrivateCommand,
+    }
+    #[test]
+    fn finalization_output_is_scoped_and_excludes_raw_payloads() {
+        let g = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        let status = serde_json::json!({"generation":g,"task_id":"task","legacy_claim":{"version":1,"stage":"Leased","attempts":1},"legacy_claim_is_historical":true,"approval_not_established_by_finalization":true,"finalization":{"export":"pending","record":{"reservation":{"generation":g,"token":"SECRET"},"evidence":{"kind":"unknown","raw":"SECRET"}}}});
+        let summary = finalization_summary(&status, g).unwrap();
+        assert_eq!(summary["outcome"], "unknown");
+        assert_eq!(summary["promotion"], "not established");
+        assert!(!summary.to_string().contains("SECRET"));
+        assert!(finalization_summary(&status, "01ARZ3NDEKTSV4RRFFQ69G5FAW").is_err());
+        let mut forged = status.clone();
+        forged["legacy_claim"]["token"] = serde_json::json!("SECRET");
+        assert!(finalization_summary(&forged, g).is_err());
+    }
+    #[test]
+    fn finalization_socket_path_is_generation_scoped() {
+        let g = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        assert_eq!(
+            finalization_socket(g).unwrap(),
+            std::path::PathBuf::from(format!(
+                "/run/software-factory-goose/root-finalization/{g}.sock"
+            ))
+        );
+        for invalid in ["../escape", "01arz3ndekt sv4rrffq69g5fav", ""] {
+            assert!(finalization_socket(invalid).is_err());
+        }
     }
     #[test]
     fn real_profile_selects_only_the_fixed_private_endpoint() {

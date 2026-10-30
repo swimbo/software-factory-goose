@@ -16,3 +16,4 @@ reqwest.workspace = true
 chrono.workspace = true
 ulid.workspace = true
 libc = "0.2.190"
+sha2 = "=0.10.9"
