@@ -141,7 +141,7 @@ impl RuntimeIntakeJournal {
     /// Root-owned immutable scopes only; all object identities remain unique across history.
     pub fn new_with_catalogs(catalogs: Vec<Catalog>) -> anyhow::Result<Self> {
         anyhow::ensure!(
-            !catalogs.is_empty() && catalogs.len() <= 3,
+            !catalogs.is_empty() && catalogs.len() <= 16,
             "catalog count invalid"
         );
         let mut ids = std::collections::BTreeSet::new();
@@ -330,6 +330,19 @@ mod tests {
         }
         c.task_id = b.task_id.clone();
         assert!(RuntimeIntakeJournal::new_with_catalogs(vec![a, b, c]).is_err());
+    }
+    #[test]
+    fn registry_capacity_is_bounded_at_sixteen() {
+        let mut all = Vec::new();
+        for i in 0..17_u128 {
+            let mut c = catalog();
+            c.intent_id = ulid::Ulid::from(i * 2 + 100).to_string();
+            c.task_id = ulid::Ulid::from(i * 2 + 101).to_string();
+            c.queue = format!("queue-{i}");
+            all.push(c);
+        }
+        assert!(RuntimeIntakeJournal::new_with_catalogs(all[..16].to_vec()).is_ok());
+        assert!(RuntimeIntakeJournal::new_with_catalogs(all).is_err());
     }
     #[test]
     fn only_exact_catalog_intake_can_create_qualified_schedule() {

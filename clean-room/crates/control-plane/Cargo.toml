@@ -38,6 +38,7 @@ restate = ["dep:restate-sdk"]
 # Compile-time fixed root-grant canary paths; never caller-controlled.
 grant-sidecar = ["restate"]
 real-sidecar = ["grant-sidecar"]
+registry-sidecar = ["real-sidecar"]
 # Opt-in: the AST knowledge graph (memory.rs `parse_rust`). Gated so the core builds without the
 # tree-sitter grammars.
 ast = ["dep:tree-sitter", "dep:tree-sitter-rust"]

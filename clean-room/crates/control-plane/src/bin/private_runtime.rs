@@ -36,8 +36,10 @@ fn bootstrap_ready() -> anyhow::Result<bool> {
     let path = "/etc/software-factory-goose/private-bootstrap-complete";
     #[cfg(all(feature = "grant-sidecar", not(feature = "real-sidecar")))]
     let path = "/etc/software-factory-goose/grant-bootstrap-complete";
-    #[cfg(feature = "real-sidecar")]
+    #[cfg(all(feature = "real-sidecar", not(feature = "registry-sidecar")))]
     let path = "/etc/software-factory-goose/real-bootstrap-complete";
+    #[cfg(feature = "registry-sidecar")]
+    let path = "/etc/software-factory-goose/registry-bootstrap-complete";
     receipt_ready(std::path::Path::new(path), 0)
 }
 
@@ -293,8 +295,25 @@ async fn main() -> anyhow::Result<()> {
     let (config, evidence) = control_plane::private_runtime::load_root_catalog()?;
     #[cfg(all(feature = "grant-sidecar", not(feature = "real-sidecar")))]
     let (config, evidence) = control_plane::private_runtime::load_grant_sidecar_catalog()?;
-    #[cfg(feature = "real-sidecar")]
+    #[cfg(all(feature = "real-sidecar", not(feature = "registry-sidecar")))]
     let (config, evidence) = control_plane::private_runtime::load_real_catalog()?;
+    #[cfg(feature = "registry-sidecar")]
+    let (config, evidence, registry_prior) = {
+        let (registry, mut catalogs) = control_plane::private_runtime::load_catalog_registry()?;
+        let position = catalogs
+            .iter()
+            .position(|(c, _)| c.intent_id == registry.active_intent)
+            .ok_or_else(|| anyhow::anyhow!("active registry catalog missing"))?;
+        anyhow::ensure!(
+            !matches!(
+                registry.entries[position].config.as_str(),
+                "runtime.json" | "grant-runtime.json" | "real-runtime.json"
+            ),
+            "historical catalog cannot become active"
+        );
+        let (cfg, evidence) = catalogs.remove(position);
+        (cfg, evidence, catalogs)
+    };
     anyhow::ensure!(
         std::fs::read_to_string("/proc/sys/kernel/random/boot_id")?.trim() == config.boot_id,
         "boot identity mismatch"
@@ -303,7 +322,7 @@ async fn main() -> anyhow::Result<()> {
     // SAFETY: reading effective UID has no side effect.
     let uid = unsafe { libc::geteuid() };
     config.validate(uid, (current.dev(), current.ino()), &evidence)?;
-    #[cfg(feature = "grant-sidecar")]
+    #[cfg(all(feature = "grant-sidecar", not(feature = "registry-sidecar")))]
     let preserved = {
         let (old, old_evidence) = control_plane::private_runtime::load_preserved_canary_catalog()?;
         old.validate(uid, (current.dev(), current.ino()), &old_evidence)?;
@@ -357,10 +376,15 @@ async fn main() -> anyhow::Result<()> {
         "/run/software-factory-goose/grant-intake.sock",
         "/run/software-factory-goose/grant-worker.sock",
     );
-    #[cfg(feature = "real-sidecar")]
+    #[cfg(all(feature = "real-sidecar", not(feature = "registry-sidecar")))]
     let (intake_path, worker_path) = (
         "/run/software-factory-goose/real-intake.sock",
         "/run/software-factory-goose/real-worker.sock",
+    );
+    #[cfg(feature = "registry-sidecar")]
+    let (intake_path, worker_path) = (
+        "/run/software-factory-goose/registry-intake.sock",
+        "/run/software-factory-goose/registry-worker.sock",
     );
     #[cfg(feature = "grant-sidecar")]
     anyhow::ensure!(
@@ -373,7 +397,9 @@ async fn main() -> anyhow::Result<()> {
         .map(|fd| {
             socket(
                 fd,
-                if cfg!(feature = "real-sidecar") {
+                if cfg!(feature = "registry-sidecar") {
+                    "/run/software-factory-goose/registry-launch-grant.sock"
+                } else if cfg!(feature = "real-sidecar") {
                     "/run/software-factory-goose/real-launch-grant.sock"
                 } else {
                     "/run/software-factory-goose/launch-grant.sock"
@@ -460,7 +486,7 @@ async fn main() -> anyhow::Result<()> {
             RuntimeIntakeJournal::new_with_preserved_catalog(preserved.catalog()?, catalog)?,
         )
     };
-    #[cfg(feature = "real-sidecar")]
+    #[cfg(all(feature = "real-sidecar", not(feature = "registry-sidecar")))]
     let (claim_journal, queue_journal, intake_journal) = {
         let (prior, prior_evidence) =
             control_plane::private_runtime::load_preserved_grant_catalog()?;
@@ -513,6 +539,44 @@ async fn main() -> anyhow::Result<()> {
                 prior.catalog()?,
                 catalog,
             ])?,
+        )
+    };
+    #[cfg(feature = "registry-sidecar")]
+    let (claim_journal, queue_journal, intake_journal) = {
+        anyhow::ensure!(
+            config.sdk_port == 9084 && config.launch_scope.is_some(),
+            "registry front scope invalid"
+        );
+        let mut cats = Vec::new();
+        let mut workers = Vec::new();
+        let mut queues = Vec::new();
+        let mut scopes = Vec::new();
+        for (prior, prior_evidence) in registry_prior {
+            prior.validate(uid, (current.dev(), current.ino()), &prior_evidence)?;
+            anyhow::ensure!(
+                config.registry_compatible(&prior),
+                "registry common binding mismatch"
+            );
+            workers.push((prior.task_id.clone(), prior.worker_id.clone()));
+            queues.push((prior.queue_id.clone(), prior.worker_id.clone()));
+            if let Some(scope) = prior.launch_scope.clone() {
+                scopes.push(scope);
+            }
+            cats.push(prior.catalog()?);
+        }
+        workers.push((config.task_id.clone(), config.worker_id.clone()));
+        queues.push((config.queue_id.clone(), config.worker_id.clone()));
+        scopes.push(
+            config
+                .launch_scope
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("active root scope missing"))?,
+        );
+        cats.push(catalog);
+        (
+            ClaimLeaseJournal::new_with_catalog_scopes(pool, workers, scopes)?,
+            WorkerQueueJournal::new_with_queue_scopes(queues)?,
+            RuntimeIntakeJournal::new_with_catalogs(cats)?,
         )
     };
     #[cfg(not(feature = "grant-sidecar"))]

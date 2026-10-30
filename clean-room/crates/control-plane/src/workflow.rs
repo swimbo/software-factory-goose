@@ -999,7 +999,7 @@ impl ClaimLeaseJournal {
         scopes: Vec<crate::launch_reservation::LaunchScope>,
     ) -> anyhow::Result<Self> {
         anyhow::ensure!(
-            !workers.is_empty() && workers.len() <= 3 && scopes.len() <= workers.len(),
+            !workers.is_empty() && workers.len() <= 16 && scopes.len() <= workers.len(),
             "invalid claim scopes"
         );
         let mut keys = std::collections::BTreeSet::new();
@@ -1010,10 +1010,12 @@ impl ClaimLeaseJournal {
             );
         }
         let mut launches = std::collections::BTreeSet::new();
+        let mut generations = std::collections::BTreeSet::new();
         for scope in &scopes {
             scope.validate()?;
             anyhow::ensure!(
                 launches.insert(&scope.task_id)
+                    && generations.insert(&scope.generation)
                     && workers
                         .iter()
                         .any(|(task, worker)| task == &scope.task_id && worker == &scope.worker_id),

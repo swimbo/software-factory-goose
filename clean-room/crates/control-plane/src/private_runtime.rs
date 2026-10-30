@@ -53,6 +53,25 @@ struct RecipeEvidence {
 }
 
 impl PrivateRuntimeConfig {
+    /// Bind every preserved scope to the same process, operator and private journal.
+    pub fn registry_compatible(&self, other: &Self) -> bool {
+        self.boot_id == other.boot_id
+            && self.service_uid == other.service_uid
+            && self.operator_uid == other.operator_uid
+            && self.worker_uid == other.worker_uid
+            && self.evaluator_uid == other.evaluator_uid
+            && self.journal_uid == other.journal_uid
+            && self.brake_uid == other.brake_uid
+            && self.operator_socket_gid == other.operator_socket_gid
+            && self.worker_socket_gid == other.worker_socket_gid
+            && self.namespace_dev == other.namespace_dev
+            && self.namespace_ino == other.namespace_ino
+            && self.host_namespace_dev == other.host_namespace_dev
+            && self.host_namespace_ino == other.host_namespace_ino
+            && self.principal == other.principal
+            && self.postgres_port == other.postgres_port
+            && self.restate_ingress_port == other.restate_ingress_port
+    }
     pub fn validate(
         &self,
         service_uid: u32,
@@ -200,6 +219,105 @@ pub fn load_preserved_grant_catalog() -> anyhow::Result<(PrivateRuntimeConfig, S
     )
 }
 
+/// Load the fixed root-owned registry and each pinned catalog. No caller provides paths.
+#[cfg(all(target_os = "linux", feature = "registry-sidecar"))]
+pub fn load_catalog_registry() -> anyhow::Result<(
+    crate::catalog_registry::Registry,
+    Vec<(PrivateRuntimeConfig, String)>,
+)> {
+    use std::{
+        ffi::CString,
+        fs::File,
+        io::Read,
+        os::{
+            fd::{AsRawFd, FromRawFd},
+            unix::fs::MetadataExt,
+        },
+    };
+    fn open(parent: i32, name: &str, flags: i32) -> anyhow::Result<File> {
+        let name = CString::new(name)?;
+        // SAFETY: terminated name and newly returned owned descriptor.
+        let fd = unsafe {
+            libc::openat(
+                parent,
+                name.as_ptr(),
+                flags | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        anyhow::ensure!(fd >= 0, "registry path unavailable");
+        // SAFETY: fd was acquired above and has not been transferred.
+        Ok(unsafe { File::from_raw_fd(fd) })
+    }
+    fn directory(f: &File) -> anyhow::Result<()> {
+        let m = f.metadata()?;
+        anyhow::ensure!(
+            m.is_dir() && m.uid() == 0 && m.gid() == 0 && m.mode() & 0o022 == 0,
+            "registry ancestor unsafe"
+        );
+        let path = CString::new(format!("/proc/self/fd/{}", f.as_raw_fd()))?;
+        for name in ["system.posix_acl_access", "system.posix_acl_default"] {
+            let name = CString::new(name)?;
+            // SAFETY: C strings are valid and null buffer requests size only.
+            let result =
+                unsafe { libc::getxattr(path.as_ptr(), name.as_ptr(), std::ptr::null_mut(), 0) };
+            anyhow::ensure!(
+                result < 0 && std::io::Error::last_os_error().raw_os_error() == Some(libc::ENODATA),
+                "registry ancestor ACL unavailable"
+            );
+        }
+        Ok(())
+    }
+    let root = open(libc::AT_FDCWD, "/", libc::O_PATH | libc::O_DIRECTORY)?;
+    directory(&root)?;
+    let etc = open(root.as_raw_fd(), "etc", libc::O_PATH | libc::O_DIRECTORY)?;
+    directory(&etc)?;
+    let dir = open(
+        etc.as_raw_fd(),
+        "software-factory-goose",
+        libc::O_PATH | libc::O_DIRECTORY,
+    )?;
+    directory(&dir)?;
+    let mut f = open(
+        dir.as_raw_fd(),
+        "catalog-registry.json",
+        libc::O_RDONLY | libc::O_NONBLOCK,
+    )?;
+    let m = f.metadata()?;
+    anyhow::ensure!(
+        m.is_file()
+            && m.uid() == 0
+            && m.gid() == 0
+            && m.nlink() == 1
+            && m.mode() & 0o7777 == 0o644
+            && m.len() <= 65536,
+        "registry manifest unsafe"
+    );
+    let attr = CString::new("system.posix_acl_access")?;
+    // SAFETY: fd and C string are valid; null buffer requests size only.
+    let result = unsafe { libc::fgetxattr(f.as_raw_fd(), attr.as_ptr(), std::ptr::null_mut(), 0) };
+    anyhow::ensure!(
+        result < 0 && std::io::Error::last_os_error().raw_os_error() == Some(libc::ENODATA),
+        "registry ACL unavailable"
+    );
+    let mut bytes = Vec::new();
+    f.by_ref().take(65537).read_to_end(&mut bytes)?;
+    anyhow::ensure!(bytes.len() as u64 == m.len(), "registry changed");
+    let registry: crate::catalog_registry::Registry = serde_json::from_slice(&bytes)?;
+    registry.validate()?;
+    let mut catalogs = Vec::new();
+    for entry in &registry.entries {
+        let (cfg, evidence) =
+            load_catalog_named(&entry.config, &entry.evidence, Some(&entry.config_sha256))?;
+        anyhow::ensure!(
+            evidence == entry.evidence_sha256
+                && cfg.catalog()?.fingerprint()? == entry.catalog_sha256,
+            "registry catalog digest mismatch"
+        );
+        catalogs.push((cfg, evidence));
+    }
+    Ok((registry, catalogs))
+}
+
 #[cfg(target_os = "linux")]
 fn load_catalog_named(
     config_name: &str,
@@ -318,6 +436,26 @@ mod tests {
     use super::*;
     fn config() -> PrivateRuntimeConfig {
         serde_json::from_value(serde_json::json!({"service_uid":1001,"operator_uid":1000,"evaluator_uid":1002,"worker_uid":1003,"brake_uid":1004,"journal_uid":1005,"operator_socket_gid":1234,"worker_socket_gid":1235,"boot_id":"12345678-1234-1234-1234-123456789abc","namespace_dev":4,"namespace_ino":5,"host_namespace_dev":4,"host_namespace_ino":7,"sdk_port":9080,"restate_ingress_port":8080,"postgres_port":5432,"principal":"operator","worker_id":"worker","queue_id":"queue","intent_id":"01J00000000000000000000000","task_id":"01J00000000000000000000001","request":{"schema_version":1,"repository":"r","target_ref":"refs/heads/main","base_revision":"a".repeat(40),"intent":"build","acceptance_criteria":["test"]},"facts":{"spec_clarity":1.0,"blast_radius":0.0,"novelty":0.0,"reversibility":0.0,"has_codified_knowledge":true,"fatal":false},"evidence_sha256":"a".repeat(64)})).unwrap()
+    }
+    #[test]
+    fn registry_rejects_changed_roles_namespace_and_journal() {
+        let a = config();
+        let mut b = config();
+        assert!(a.registry_compatible(&b));
+        b.worker_uid += 1;
+        assert!(!a.registry_compatible(&b));
+        b = config();
+        b.namespace_ino += 1;
+        assert!(!a.registry_compatible(&b));
+        b = config();
+        b.host_namespace_ino += 1;
+        assert!(!a.registry_compatible(&b));
+        b = config();
+        b.postgres_port += 1;
+        assert!(!a.registry_compatible(&b));
+        b = config();
+        b.principal = "other".into();
+        assert!(!a.registry_compatible(&b));
     }
     #[test]
     fn refuses_mismatched_identity_namespace_and_evidence() {

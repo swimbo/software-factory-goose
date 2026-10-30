@@ -58,6 +58,9 @@ pub mod worker_adapter;
 #[cfg(feature = "restate")]
 pub mod runtime_intake;
 
+#[cfg(feature = "restate")]
+pub mod catalog_registry;
+
 #[cfg(all(feature = "restate", unix))]
 pub mod private_runtime;
 

@@ -287,7 +287,7 @@ impl WorkerQueueJournal {
     }
     pub fn new_with_queue_scopes(scopes: Vec<(String, String)>) -> anyhow::Result<Self> {
         anyhow::ensure!(
-            !scopes.is_empty() && scopes.len() <= 3,
+            !scopes.is_empty() && scopes.len() <= 16,
             "invalid queue scope count"
         );
         let mut seen = std::collections::BTreeSet::new();
