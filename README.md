@@ -122,7 +122,7 @@ sequenceDiagram
     Memory-->>API: Diagnostic state
     API-->>CLI: Intent details
     CLI-->>User: Display response
-    Note over API,Memory: Restart loses in-memory intents; no worker is launched
+    Note over API,Memory: Restart loses in-memory intents and no worker is launched
 ```
 
 
