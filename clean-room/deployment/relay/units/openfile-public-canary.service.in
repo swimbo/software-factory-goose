@@ -1,0 +1,16 @@
+# REVIEW ONLY: fixed public-only canary; no credential, provider, or worker.
+[Unit]
+Description=Software Factory public OpenFile and host namespace canary
+[Service]
+Type=oneshot
+User=sfgoose-control
+Group=sfgoose-control
+NetworkNamespacePath=/proc/1/ns/net
+OpenFile=/etc/software-factory-goose/openfile-public-canary/public:public:read-only
+OpenFile=/etc/software-factory-goose/openfile-public-canary/expected:expected:read-only
+ExecStart=/usr/bin/python3 -I -B /usr/local/libexec/software-factory-goose/nuc-openfile-public-canary.py
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
