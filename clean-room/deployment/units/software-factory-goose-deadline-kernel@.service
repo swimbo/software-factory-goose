@@ -1,0 +1,20 @@
+# REVIEW ONLY: an installed timer, root catalogue and restart recovery are still required.
+[Unit]
+Description=Software Factory direct kernel deadline for generation %i
+StartLimitIntervalSec=0
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/libexec/software-factory-goose/sfactory_deadline_kernel_stop %i
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/software-factory-goose/stop /sys/fs/cgroup
+UMask=0077
+TimeoutStartSec=12s
+Restart=on-failure
+RestartSec=1s
