@@ -4,6 +4,7 @@
 //! nothing destructive is silent (approve/deny are explicit).
 
 use clap::{Parser, Subcommand};
+mod private;
 use serde_json::json;
 use std::process::ExitCode;
 
@@ -29,6 +30,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Use the separately authenticated local operator sockets.
+    Private {
+        #[command(subcommand)]
+        command: private::PrivateCommand,
+    },
     /// Submit an intent; the qualifier returns a lane.
     Submit {
         #[arg(long)]
@@ -81,12 +87,16 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> anyhow::Result<()> {
     let Cli { url, json, command } = cli;
+    if let Command::Private { command } = command {
+        return private::run(command, json).await;
+    }
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .redirect(reqwest::redirect::Policy::none())
         .no_proxy()
         .build()?;
     match command {
+        Command::Private { .. } => unreachable!("handled above"),
         Command::Submit {
             title,
             description,
