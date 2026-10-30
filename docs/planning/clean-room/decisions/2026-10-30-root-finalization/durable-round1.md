@@ -1,0 +1,21 @@
+# Durable systems response — round 1
+
+I concede the failure-commit point and confirm the proposed projection and eligibility rule. These changes preserve the additive finalization recommendation in [durable-position.md](durable-position.md); they do not relax the permanent reservation fence or resolve the outstanding evidence gates.
+
+## Failure may have no commit
+
+An `evaluated_fail` must bind an exact immutable candidate snapshot, the authenticated independent evaluator's failure receipt and the required verified shutdown/reconciliation evidence. It need not contain a commit. A failing candidate may never have produced a valid commit, and making a successful commit mandatory would prevent truthful recording of a failure. If a commit is present, its identity and relevant blobs must match the exact snapshot the evaluator read. In either case, the result is ineligible for promotion; a worker's self-reported failure or a digest unconnected to the actual evaluation remains insufficient.
+
+I withdraw the earlier statement that both evaluated outcomes require commit identity. `evaluated_pass` still requires a verified commit and equality between its blobs and the independently evaluated immutable snapshot. Authenticated, reservation-bound uncertainty may be recorded as terminal `unknown` with only the observations that were actually established; absent cleanup or evaluation is not represented as a positive boolean. If the peer, binding or immutable observation cannot be authenticated, leave the task unfinalized. A later recovery observation is separately appended and cannot rewrite unknown as pass or release the reservation.
+
+## Pending projection and eligibility
+
+I agree that a pending SQL projection alone need not block eligibility **if the eligibility adapter directly obtains and validates the authoritative immutable pass**. It must compare the exact generation, candidate, baseline and independent evaluation binding, and then apply the separate human action-bound approval gate. Neither a missing nor stale SQL row may authorize or negate a pass. Pending projection is an operational condition shown in status, never promotion approval or full pipeline completion.
+
+A known projection integrity conflict is different: quarantine downstream advancement until the conflict is reconciled. The system cannot safely treat conflicting stored payloads or versions as ordinary delivery lag. The adapter must fail closed if it cannot distinguish pending delivery from a known conflict or cannot read the authoritative record. Explicit reexport uses the original durable payload and stable event identity; it must not generate another model, Git, Docker, or approval effect. The existing [claim projection](../../../../../clean-room/crates/control-plane/src/projection.rs) illustrates conflict detection but does not establish a finalization projection automatically.
+
+## Maintained conditions
+
+Use the same exclusive claim object and a single bounded versioned envelope containing the immutable finalization and its pending outbox event. Compare the stored full reservation and root-derived catalog/recipe binding; an identical replay returns the original value, and changed evidence conflicts. Preserve the permanent reservation and legacy claim state, including after lease expiry. Unknown spend remains explicit rather than becoming a numeric zero. Root-only ingress, serving-process attestation and direct Restate bypass denial remain mandatory. [Restate handler concurrency](https://docs.restate.dev/foundations/handlers), [Linux unix credentials](https://man7.org/linux/man-pages/man7/unix.7.html).
+
+The narrowed decisions are not a proof of the implementation. Disposable pinned Rust SDK 0.12.1/Restate and PostgreSQL tests must establish envelope visibility, lost-ack replay, equal and changed duplicates, conflict quarantine, deleted-projection reexport, continued worker fencing and historical catalog replay. Separate tests must prove actual evaluator, immutable evidence, terminal producers and exact container reconciliation. Restate's [durable-step documentation](https://docs.restate.dev/develop/ts/durable-steps) does not by itself make external effects physically once-only. No high-severity disagreement remains on the moderator's two questions.

@@ -121,3 +121,27 @@ for versioned package/helper updates, callback lifecycle exclusion and actual
 native UID/capability controls. This updates the local NUC implementation boundary;
 its integration gates must pass before admission, and the previous closed task
 and all existing services/data remain preserved.
+
+### Root-attested finalization (2026-10-30)
+
+The [three-reviewer decision](decisions/2026-10-30-root-finalization/consensus-plan.md)
+keeps finalization in the same exclusive claim journal and preserves the permanent
+launch reservation. A versioned immutable outcome and outbox envelope records
+evaluated pass, evaluated fail or authenticated unknown; unknown spend remains
+explicit. PostgreSQL is an idempotent, reconstructible projection. Status,
+reexport and exact-evidence eligibility do not establish human approval.
+
+Private namespace membership alone cannot authorize finalization. Before any
+journal decision, the SDK requires a protected Root-published authorization for
+the exact canonical task, generation and request digest. Root evidence remains
+0600. A per-generation exclusive publisher/shared reader lock and a durable
+pending marker created before publication deny partial or ambiguous publication.
+The marker is removed only after authorization and completion records and their
+directory entries have been synced. Missing, busy, unsafe or mismatching state
+is a terminal denial, not a request that waits for future approval. Root, PID1,
+the protected filesystem and trusted SDK code remain in the trust boundary.
+
+The native synthetic authorization canary passed exact delivery, changed digest,
+missing/unsafe authorization, UID2001 lock denial and publisher death after file
+fsync but before parent fsync. This proves that bounded permission/crash control,
+not production journal integration, pass/fail evaluator provenance or promotion.

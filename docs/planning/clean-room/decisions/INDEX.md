@@ -12,3 +12,5 @@
 - 2026-10-29: [NUC protected root supervisor](2026-10-29-nuc-root-supervisor/consensus-plan.md) — three-reviewer research/canary/one-round guarded implementation consensus; production recovery/integration gates retained.
 
 - 2026-10-30: [Native launch access amendment](2026-10-30-native-launch-read-access/consensus-plan.md) — three-reviewer conditional A: root:2000/0710 callback parent and cap-empty launcher, versioned admission-fenced upgrade, lifecycle exclusion and native UID/capability controls before another claim.
+
+- 2026-10-30: [Root-attested finalization](2026-10-30-root-finalization/consensus-plan.md) — three-reviewer consensus: same exclusive claim journal, immutable outcome with unknown spend, reconstructible SQL projection and separate human approval. Exact Root-published request authorization closes direct private-ingress bypass; retained pending publication denies after a publisher crash. Production integration and full pinned-runtime verification remain required.
