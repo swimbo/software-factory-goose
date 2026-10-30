@@ -1,0 +1,9 @@
+# SDK5 native grant and launch build
+
+The NUC built `sfactory_root_grant_prepare` and `sfactory_root_launch` from the frozen `ec14ce4` clean-room snapshot under `/tmp/sfactory-finalizer-build-p4VGPvGe`, using locked/offline Cargo, two jobs at nice 10, and explicit `--no-default-features --features registry-v5-grant`. This selects SDK5's distinct process attestation, runtime unit and grant socket, while keeping the registry admission guard. The initial build attempt used the wrong offline cache and failed dependency resolution before compilation; the successful command used the existing public fixture cargo cache and isolated OpenSSL sysroot. Log: `/tmp/sfactory-sdk5-launch-build-20261030.log`.
+
+Separate task-owned stripped copies are staged in `/tmp/sfactory-sdk5-launch-stage-gania_9u`, UID1000 directory mode0700, each binary single-link mode0755. Grant SHA-256 is `a0d032e72e958e1d18ff0b7f945faa2748f46db26dc2ca371a98b84fceddb420`, 4,890,816 bytes; launch SHA-256 is `69eb73550285da18c216ab50944f1aca547841098bb6e5628255c3b2cc0be7c6`, 5,023,016 bytes.
+
+The create-only installer candidates use new `registry-v5-grant-prepare` and `root-launch-v5` targets, retaining the existing SDK4 binaries. Three scoped tests cover nonroot refusal before reads, fixed distinct targets, and copy failure retaining the intent without completion. Independent source review found no concrete blocker within the trusted bootstrap boundary. Installation, native grant/launch readiness, SDK5 admission, a real claim and INT-LOOP remain separate gates. Neither staged executable has been invoked by this build procedure.
+
+The exact reviewed create-only installations subsequently passed: grant `/tmp/sfactory-identity-admin-ad206crb`, launch `/tmp/sfactory-identity-admin-rfhpk8rt`. Both report installed with execution and activation false. These receipts do not prove native readiness, issue a grant or launch a worker; SDK4 targets were not replaced.
