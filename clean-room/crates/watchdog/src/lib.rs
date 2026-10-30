@@ -1,7 +1,11 @@
 //! Independent stop-only brake component. No control-plane, journal, gateway or DB dependency.
 //! No production daemon is enabled. The optional binary is a disposable verification fixture.
 //! Only children spawned by this registry can be targeted; no PID registration API exists.
+#[cfg(target_os = "linux")]
+pub mod activated_unix;
 pub mod brake_authority;
+#[cfg(target_os = "linux")]
+pub mod brake_key;
 pub mod broker;
 #[cfg(feature = "fixture")]
 pub mod guarded_admission;
@@ -9,6 +13,8 @@ pub mod guarded_admission;
 pub mod guarded_release;
 #[cfg(feature = "fixture")]
 pub mod recovery_latch;
+pub mod root_cgroup;
+pub mod stop_wire;
 use anyhow::{Context, Result, ensure};
 use axum::{
     Json, Router,
@@ -107,6 +113,51 @@ impl BrakePolicy {
         peer == Some(self.brake_uid) && key_matches
     }
 }
+/// Explicit operator-caller policy: unlike BrakePolicy, the human operator is the
+/// permitted caller. Service and all four non-human identities remain distinct.
+/// This proves neither key custody, human presence nor same-UID compromise resistance.
+#[derive(Clone)]
+pub struct OperatorBrakePolicy {
+    service_uid: u32,
+    operator_uid: u32,
+    secret: Arc<BrakeSecret>,
+}
+impl OperatorBrakePolicy {
+    pub fn new(
+        service_uid: u32,
+        operator_uid: u32,
+        control_uid: u32,
+        worker_uid: u32,
+        evaluator_uid: u32,
+        journal_uid: u32,
+        secret: BrakeSecret,
+    ) -> Result<Self> {
+        let mut ids = BTreeSet::new();
+        for uid in [
+            service_uid,
+            operator_uid,
+            control_uid,
+            worker_uid,
+            evaluator_uid,
+            journal_uid,
+        ] {
+            ensure!(
+                uid > 0 && ids.insert(uid),
+                "operator, brake service and non-human identities must be distinct non-root UIDs"
+            );
+        }
+        Ok(Self {
+            service_uid,
+            operator_uid,
+            secret: Arc::new(secret),
+        })
+    }
+    fn authorized(&self, peer: Option<u32>, credential: Option<&str>) -> bool {
+        let key_matches = self.secret.matches(credential);
+        peer == Some(self.operator_uid) && key_matches
+    }
+}
+
 /// Kernel-issued connection metadata. Never accepted from a request body or header.
 #[derive(Clone, Debug)]
 pub struct BrakePeer {
@@ -120,6 +171,22 @@ impl Connected<IncomingStream<'_, UnixListener>> for BrakePeer {
     }
 }
 async fn authenticate(State(policy): State<BrakePolicy>, request: Request, next: Next) -> Response {
+    let uid = request
+        .extensions()
+        .get::<ConnectInfo<BrakePeer>>()
+        .and_then(|peer| peer.0.uid);
+    let mut credentials = request.headers().get_all("x-brake-key").iter();
+    let credential = credentials.next().and_then(|v| v.to_str().ok());
+    if credentials.next().is_some() || !policy.authorized(uid, credential) {
+        return (StatusCode::FORBIDDEN, "brake authentication failed").into_response();
+    }
+    next.run(request).await
+}
+async fn authenticate_operator(
+    State(policy): State<OperatorBrakePolicy>,
+    request: Request,
+    next: Next,
+) -> Response {
     let uid = request
         .extensions()
         .get::<ConnectInfo<BrakePeer>>()
@@ -906,6 +973,59 @@ mod tests {
         assert!(first.leader_reaped && first.group_absent && first.signal_sent);
         assert_eq!(registry.stop(&target).unwrap(), first);
     }
+    #[test]
+    fn explicit_operator_policy_requires_all_roles_distinct_and_nonroot() {
+        let policy = OperatorBrakePolicy::new(
+            2003,
+            1000,
+            2000,
+            2001,
+            2002,
+            2004,
+            BrakeSecret::new([7; 32]).unwrap(),
+        )
+        .unwrap();
+        let key = "07".repeat(32);
+        assert!(policy.authorized(Some(1000), Some(&key)));
+        for uid in [0, 2000, 2001, 2002, 2003, 2004] {
+            assert!(!policy.authorized(Some(uid), Some(&key)));
+        }
+        assert!(!policy.authorized(Some(1000), Some(&"08".repeat(32))));
+        assert!(
+            OperatorBrakePolicy::new(
+                2003,
+                1000,
+                2000,
+                2001,
+                2002,
+                1000,
+                BrakeSecret::new([7; 32]).unwrap()
+            )
+            .is_err()
+        );
+        assert!(
+            OperatorBrakePolicy::new(
+                2003,
+                1000,
+                2000,
+                2001,
+                0,
+                2004,
+                BrakeSecret::new([7; 32]).unwrap()
+            )
+            .is_err()
+        );
+        assert!(
+            BrakePolicy::new(
+                2003,
+                1000,
+                vec![1000, 2000, 2001, 2002, 2004],
+                BrakeSecret::new([7; 32]).unwrap()
+            )
+            .is_err()
+        );
+    }
+
     #[test]
     fn ordinary_identity_and_wrong_brake_key_cannot_authenticate() {
         let key = BrakeSecret::new([7; 32]).unwrap();
