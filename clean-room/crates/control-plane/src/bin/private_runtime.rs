@@ -38,8 +38,10 @@ fn bootstrap_ready() -> anyhow::Result<bool> {
     let path = "/etc/software-factory-goose/grant-bootstrap-complete";
     #[cfg(all(feature = "real-sidecar", not(feature = "registry-sidecar")))]
     let path = "/etc/software-factory-goose/real-bootstrap-complete";
-    #[cfg(feature = "registry-sidecar")]
+    #[cfg(all(feature = "registry-sidecar", not(feature = "registry-v5")))]
     let path = "/etc/software-factory-goose/registry-bootstrap-complete";
+    #[cfg(feature = "registry-v5")]
+    let path = "/etc/software-factory-goose/registry-v5-bootstrap-complete";
     receipt_ready(std::path::Path::new(path), 0)
 }
 
@@ -381,10 +383,15 @@ async fn main() -> anyhow::Result<()> {
         "/run/software-factory-goose/real-intake.sock",
         "/run/software-factory-goose/real-worker.sock",
     );
-    #[cfg(feature = "registry-sidecar")]
+    #[cfg(all(feature = "registry-sidecar", not(feature = "registry-v5")))]
     let (intake_path, worker_path) = (
         "/run/software-factory-goose/registry-intake.sock",
         "/run/software-factory-goose/registry-worker.sock",
+    );
+    #[cfg(feature = "registry-v5")]
+    let (intake_path, worker_path) = (
+        "/run/software-factory-goose/registry-v5-intake.sock",
+        "/run/software-factory-goose/registry-v5-worker.sock",
     );
     #[cfg(feature = "grant-sidecar")]
     anyhow::ensure!(
@@ -397,7 +404,9 @@ async fn main() -> anyhow::Result<()> {
         .map(|fd| {
             socket(
                 fd,
-                if cfg!(feature = "registry-sidecar") {
+                if cfg!(feature = "registry-v5") {
+                    "/run/software-factory-goose/registry-v5-launch-grant.sock"
+                } else if cfg!(feature = "registry-sidecar") {
                     "/run/software-factory-goose/registry-launch-grant.sock"
                 } else if cfg!(feature = "real-sidecar") {
                     "/run/software-factory-goose/real-launch-grant.sock"
@@ -544,7 +553,13 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "registry-sidecar")]
     let (claim_journal, queue_journal, intake_journal) = {
         anyhow::ensure!(
-            config.sdk_port == 9084 && config.launch_scope.is_some(),
+            config.sdk_port
+                == if cfg!(feature = "registry-v5") {
+                    9085
+                } else {
+                    9084
+                }
+                && config.launch_scope.is_some(),
             "registry front scope invalid"
         );
         let mut cats = Vec::new();

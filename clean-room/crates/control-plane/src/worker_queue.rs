@@ -331,6 +331,9 @@ impl WorkerQueueJournal {
         ctx: ObjectContext<'_>,
         request: Json<ScheduleRequest>,
     ) -> HandlerResult<()> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let mut state = self.load(&ctx).await?;
         if state.check_schedule(&request.0)? {
             return Ok(());
@@ -357,6 +360,9 @@ impl WorkerQueueJournal {
         ctx: ObjectContext<'_>,
         request: Json<PullRequest>,
     ) -> HandlerResult<Json<PullOutcome>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let mut state = self.load(&ctx).await?;
         if let Some(previous) = state.previous_pull(&request.0)? {
             return Ok(Json(previous));
@@ -423,6 +429,9 @@ impl WorkerQueueJournal {
         ctx: ObjectContext<'_>,
         request: Json<QueueCompletion>,
     ) -> HandlerResult<Json<ClaimLeaseState>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let state = self.load(&ctx).await?;
         let task = state.completion_target(&request.0.request_id, &request.0.proof)?;
         // The child atomically checks live expiry, worker, attempt, token and receipt

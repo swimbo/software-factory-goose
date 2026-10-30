@@ -71,6 +71,20 @@ pub mod runtime_loopback_backend;
 pub mod launch_reservation;
 
 #[cfg(feature = "restate")]
+pub mod registry_journal_gate;
+#[cfg(feature = "restate")]
+pub mod root_finalization;
+#[cfg(feature = "restate")]
+pub mod root_finalization_authorization;
+#[cfg(feature = "restate")]
+pub mod root_finalization_projection;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod root_finalization_evidence;
+#[cfg(all(feature = "restate", unix))]
+pub mod root_finalization_ingress;
+
+#[cfg(feature = "restate")]
 pub mod private_database_genesis;
 
 #[cfg(all(feature = "restate", unix))]

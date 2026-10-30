@@ -63,6 +63,9 @@ pub struct BudgetCounter;
 impl BudgetCounter {
     #[handler]
     async fn try_spend(&self, ctx: ObjectContext<'_>, estimate_usd: f64) -> HandlerResult<bool> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let ledger = load_budget_ledger(&ctx).await?;
         let Some(next) = reserved_legacy_usd(&ledger, estimate_usd) else {
             return Ok(false);
@@ -81,6 +84,9 @@ impl BudgetCounter {
         ctx: ObjectContext<'_>,
         estimate_microusd: u64,
     ) -> HandlerResult<bool> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let ledger = load_budget_ledger(&ctx).await?;
         let Some(next) = reserved_microusd(&ledger, estimate_microusd) else {
             return Ok(false);
@@ -811,6 +817,35 @@ pub struct ClaimLeaseState {
     pub active: Option<ActiveLease>,
     pub last_completion: Option<LeaseCompletion>,
 }
+
+/// The historical worker claim is retained alongside the additive root outcome.
+/// Neither this read model nor SQL projection establishes human approval.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RootFinalizationStatus {
+    pub task_id: String,
+    pub generation: String,
+    pub finalization: Option<crate::root_finalization::Envelope>,
+    pub legacy_claim: Option<HistoricalClaimSummary>,
+    pub legacy_claim_is_historical: bool,
+    pub approval_not_established_by_finalization: bool,
+}
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HistoricalClaimSummary {
+    pub version: u64,
+    pub stage: LeaseStage,
+    pub attempts: u32,
+}
+impl From<ClaimLeaseState> for HistoricalClaimSummary {
+    fn from(claim: ClaimLeaseState) -> Self {
+        Self {
+            version: claim.version,
+            stage: claim.stage,
+            attempts: claim.attempts,
+        }
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimRequest {
@@ -1058,6 +1093,9 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
         spec: restate_sdk::serde::Json<LeaseSpec>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimLeaseState>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let _ = self.worker_for(ctx.key())?;
         ensure_launch_unreserved(&ctx).await?;
@@ -1084,6 +1122,9 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
         request: restate_sdk::serde::Json<ClaimRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ActiveLease>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let worker = self.worker_for(ctx.key())?;
         ensure_launch_unreserved(&ctx).await?;
@@ -1103,6 +1144,9 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
         request: restate_sdk::serde::Json<RenewRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ActiveLease>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let worker = self.worker_for(ctx.key())?;
         ensure_launch_unreserved(&ctx).await?;
@@ -1120,6 +1164,9 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
         request: restate_sdk::serde::Json<CompleteLeaseRequest>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimLeaseState>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let worker = self.worker_for(ctx.key())?;
         ensure_launch_unreserved(&ctx).await?;
@@ -1140,6 +1187,9 @@ impl ClaimLeaseJournal {
         ctx: ObjectContext<'_>,
         proof: restate_sdk::serde::Json<LeaseProof>,
     ) -> HandlerResult<restate_sdk::serde::Json<crate::launch_reservation::LaunchReservation>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let _ = self.worker_for(ctx.key())?;
         let scope = self.launch_for(ctx.key())?;
@@ -1168,6 +1218,9 @@ impl ClaimLeaseJournal {
         &self,
         ctx: ObjectContext<'_>,
     ) -> HandlerResult<restate_sdk::serde::Json<crate::launch_reservation::LaunchReservation>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let _ = self.worker_for(ctx.key())?;
         let scope = self.launch_for(ctx.key())?;
@@ -1196,6 +1249,160 @@ impl ClaimLeaseJournal {
         Ok(Json(grant))
     }
 
+    /// Root ingress supplies immutable, independently verified evidence. Private namespace
+    /// isolation and accepted peer authentication must be established before registration.
+    /// This handler only journals a decision; it performs no external effects.
+    #[handler]
+    async fn finalize_root(
+        &self,
+        ctx: ObjectContext<'_>,
+        request: restate_sdk::serde::Json<crate::root_finalization::RootFinalizationRequest>,
+    ) -> HandlerResult<restate_sdk::serde::Json<crate::root_finalization::Envelope>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
+        use crate::root_finalization::{Envelope, decide, validate};
+        use restate_sdk::serde::Json;
+        let scope = self.launch_for(ctx.key())?;
+        let authorization = crate::root_finalization_authorization::Authorization {
+            schema: 1,
+            task_id: scope.task_id.clone(),
+            generation: scope.generation.clone(),
+            request_sha256: crate::root_finalization::record_digest(&request.0)
+                .map_err(|_| lease_error(400, "invalid finalization encoding"))?,
+        };
+        let authorized = ctx
+            .run(move || async move {
+                Ok(
+                    crate::root_finalization_authorization::read_authorization(&authorization)
+                        .is_ok(),
+                )
+            })
+            .await?;
+        if !authorized {
+            return Err(lease_error(403, "root authorization missing or invalid").into());
+        }
+        let stored = ctx
+            .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+            .await?
+            .ok_or_else(|| lease_error(409, "root finalization requires reservation"))?;
+        let claim = load_claim(&ctx).await?;
+        let validated = validate(request.0, &stored.0, &claim, scope)
+            .map_err(|_| lease_error(409, "root finalization binding denied"))?;
+        let existing = ctx.get::<Json<Envelope>>("root_finalization_v1").await?;
+        let envelope = decide(existing.as_ref().map(|v| &v.0), validated)
+            .map_err(|_| lease_error(409, "root finalization conflict"))?;
+        if existing.is_none() {
+            ctx.set("root_finalization_v1", Json(envelope.clone()));
+        }
+        Ok(Json(envelope))
+    }
+
+    #[handler]
+    async fn root_finalization_status(
+        &self,
+        ctx: SharedObjectContext<'_>,
+    ) -> HandlerResult<restate_sdk::serde::Json<RootFinalizationStatus>> {
+        use restate_sdk::serde::Json;
+        let scope = self.launch_for(ctx.key())?;
+        let reserved = ctx
+            .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+            .await?
+            .is_some();
+        Ok(Json(RootFinalizationStatus {
+            task_id: scope.task_id.clone(),
+            generation: scope.generation.clone(),
+            finalization: ctx
+                .get::<Json<crate::root_finalization::Envelope>>("root_finalization_v1")
+                .await?
+                .map(|v| v.0),
+            legacy_claim: ctx
+                .get::<Json<ClaimLeaseState>>("claim")
+                .await?
+                .map(|v| v.0.into()),
+            legacy_claim_is_historical: reserved,
+            approval_not_established_by_finalization: true,
+        }))
+    }
+
+    /// Serialize an eligibility read with projection quarantine updates. Shared status
+    /// is informational; this result still is not human approval or a Git mutation.
+    #[handler]
+    async fn root_finalization_eligibility(
+        &self,
+        ctx: ObjectContext<'_>,
+    ) -> HandlerResult<restate_sdk::serde::Json<crate::root_finalization::Envelope>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
+        use crate::root_finalization::{Envelope, Evidence, ExportState, decide, validate};
+        use restate_sdk::serde::Json;
+        let scope = self.launch_for(ctx.key())?;
+        let envelope = ctx
+            .get::<Json<Envelope>>("root_finalization_v1")
+            .await?
+            .ok_or_else(|| lease_error(409, "root finalization not eligible"))?
+            .0;
+        if envelope.export == ExportState::Quarantined
+            || !matches!(&envelope.record.evidence, Evidence::EvaluatedPass { .. })
+        {
+            return Err(lease_error(409, "root finalization not eligible").into());
+        }
+        let reservation = ctx
+            .get::<Json<crate::launch_reservation::LaunchReservation>>("launch_reservation_v1")
+            .await?
+            .ok_or_else(|| lease_error(409, "root reservation missing"))?;
+        let claim = load_claim(&ctx).await?;
+        let verified = validate(envelope.record.clone(), &reservation.0, &claim, scope)
+            .and_then(|v| decide(Some(&envelope), v))
+            .map_err(|_| lease_error(409, "root finalization integrity denied"))?;
+        Ok(Json(verified))
+    }
+
+    /// Explicit idempotent SQL recovery. Each invocation rechecks the destination even
+    /// after previous delivery; quarantined integrity conflicts cannot be cleared here.
+    #[handler]
+    async fn reexport_root_finalization(
+        &self,
+        ctx: ObjectContext<'_>,
+    ) -> HandlerResult<restate_sdk::serde::Json<crate::root_finalization::Envelope>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
+        use crate::root_finalization::{Envelope, ExportState};
+        use crate::root_finalization_projection::Delivery;
+        use restate_sdk::serde::Json;
+        let _ = self.launch_for(ctx.key())?;
+        let mut envelope = ctx
+            .get::<Json<Envelope>>("root_finalization_v1")
+            .await?
+            .ok_or_else(|| lease_error(404, "root finalization unavailable"))?
+            .0;
+        if envelope.export == ExportState::Quarantined {
+            return Ok(Json(envelope));
+        }
+        let pool = self.projection_pool.clone();
+        let event = envelope.clone();
+        let delivery = ctx
+            .run(move || async move {
+                let result = tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    crate::root_finalization_projection::export(&pool, &event),
+                )
+                .await
+                .unwrap_or(Delivery::Pending);
+                Ok(Json(result))
+            })
+            .await?;
+        envelope.export = match delivery.0 {
+            Delivery::Current => ExportState::Current,
+            Delivery::Pending => ExportState::Pending,
+            Delivery::IntegrityConflict => ExportState::Quarantined,
+        };
+        ctx.set("root_finalization_v1", Json(envelope.clone()));
+        Ok(Json(envelope))
+    }
+
     /// Explicit fresh recovery invocation: completed delivery runs do NOT rerun after SQL
     /// loss. Private ingress only, fixed configured target pool, no caller-selected database.
     /// Recovery does not clear an integrity quarantine or resume paused worker execution.
@@ -1204,6 +1411,9 @@ impl ClaimLeaseJournal {
         &self,
         ctx: ObjectContext<'_>,
     ) -> HandlerResult<restate_sdk::serde::Json<ClaimReexportReport>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         use restate_sdk::serde::Json;
         let _ = self.worker_for(ctx.key())?;
         let state = ctx

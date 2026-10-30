@@ -170,6 +170,9 @@ impl RuntimeIntakeJournal {
         ctx: ObjectContext<'_>,
         request: Json<IntakeRequest>,
     ) -> HandlerResult<Json<QualifiedHandoff>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let catalog = self
             .catalog_for(ctx.key())
             .ok_or_else(|| TerminalError::new_with_code(403, "intake outside catalog"))?;

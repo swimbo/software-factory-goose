@@ -33,6 +33,9 @@ impl IntakeJournal {
         ctx: ObjectContext<'_>,
         request: Json<IntakeRequest>,
     ) -> HandlerResult<Json<StoredIntake>> {
+        let _admission = crate::registry_journal_gate::enter_production().map_err(|_| {
+            TerminalError::new_with_code(503, "registry transition blocks mutations")
+        })?;
         let existing = ctx.get::<Json<StoredIntake>>("intake").await?;
         if let Some(stored) = existing {
             // Do not read time or rewrite state on identical redelivery. This also preserves
