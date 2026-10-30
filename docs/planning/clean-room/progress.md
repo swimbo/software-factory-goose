@@ -410,3 +410,7 @@ Continue from late Phase9 operating boundaries, preserving every unknown attempt
 ## Authorized NUC administration — 2026-10-29
 
 User: "Authorize the scoped NUC host administration using the existing Docker permission. Continue from a33c9db through production integration and verification until finished. Preserve existing services and data." This resolves the previously pending administrative mechanism; no repeat permission request is needed for necessary scoped installation/owned canaries. Shared restart/reboot, new human login keys and action-bound promotion remain outside this authorization. Reconfirmed current kernel/engine/daemon identity and existing active services; previous worker slice empty. Root-bridge and frozen-late-start observations are recorded in the new dated canary evidence. Identity PLAN/APPLY tool and private runtime intake/queue entrypoint are in implementation/review, not deployed or certified. Continue late Phase9, notPhase1.
+
+## Phase 11A added — 2026-10-30
+
+User requires Harness Efficiency and Reliability before Phase 12 delivery. See phase-11a-plan.md. Implementation is candidate-only: existing fixed relay authority is preserved. Report figures are unverified inputs. Baseline/evaluation evidence, production integration and the >=20-task/three-run paired gate remain required; no activation or performance improvement is claimed. Concurrent root-finalization work is excluded from this milestone.

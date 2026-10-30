@@ -5,6 +5,10 @@
 ## Objective
 Final review, user verification, cleanup.
 
+## Prerequisites
+- [ ] Phase 11A safety and paired performance gates pass with recorded independent evidence; baseline retained otherwise.
+- [ ] Existing correctness and runtime integration gaps are closed; optimization does not waive them.
+
 ## Task checklist
 - [ ] User runs the greenfield demo end-to-end themselves (or watches the INT-LOOP run).
 - [ ] User confirms the three gates behave as specified.
