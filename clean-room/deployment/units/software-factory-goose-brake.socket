@@ -1,0 +1,15 @@
+# REVIEW DRAFT: explicit operator-caller policy; activation and key custody unverified.
+# REVIEW DRAFT: do not install or enable before privileged canaries.
+[Unit]
+Description=Software Factory operator brake socket
+[Socket]
+ListenStream=/run/software-factory-goose/brake.sock
+SocketUser=root
+SocketGroup=bo
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+Service=software-factory-goose-brake.service
+RemoveOnStop=yes
+[Install]
+WantedBy=sockets.target
