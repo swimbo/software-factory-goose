@@ -1,4 +1,6 @@
 //! Disposable loopback journal fixture only; contains no provider or worker ingress.
+#[cfg(feature = "registry-sidecar")]
+use control_plane::registry_journal_gate;
 #[cfg(feature = "restate")]
 #[path = "../src/harness_spending.rs"]
 mod harness_spending;

@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 const DAY_MS: u64 = 86_400_000;
 const MAX_TIME_MS: u64 = 253_402_300_799_999;
 const TASK_CAP: u64 = 750_000;
+const DAILY_CAP: u64 = 5_000_000;
 const MAX_RECORDS: usize = 4096;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,6 +141,8 @@ struct State {
     records: Vec<Record>,
     generation_claims: BTreeMap<String, String>,
     claims: BTreeMap<String, GenerationClaim>,
+    #[serde(default)]
+    admitted_scopes: BTreeMap<String, AttemptScope>,
 }
 fn err(code: u16, message: &str) -> TerminalError {
     TerminalError::new_with_code(code, message)
@@ -208,12 +211,12 @@ impl Bootstrap {
             || self.observed_at_ms == 0
             || self.observed_at_ms > MAX_TIME_MS
             || self.daily_cap_microusd == 0
+            || self.approved_daily_cap_microusd > DAILY_CAP
             || self.daily_cap_microusd > self.approved_daily_cap_microusd
             || self.opening_tasks.is_empty()
             || self.opening_tasks.len() > 4096
             || self.opening_days.is_empty()
             || self.opening_days.len() > 3660
-            || self.scopes.is_empty()
             || self.scopes.len() > 1024
         {
             return Err(err(400, "invalid spending bootstrap"));
@@ -260,6 +263,7 @@ impl State {
             records: vec![],
             generation_claims: BTreeMap::new(),
             claims: BTreeMap::new(),
+            admitted_scopes: BTreeMap::new(),
         })
     }
     fn scope(&self, digest: &str) -> Result<&AttemptScope, TerminalError> {
@@ -267,11 +271,32 @@ impl State {
             .scopes
             .iter()
             .find(|s| s.digest().ok().as_deref() == Some(digest))
+            .or_else(|| self.admitted_scopes.get(digest))
             .ok_or_else(|| err(403, "scope unavailable"))
     }
     fn check(&self, owner: &str) -> Result<(), TerminalError> {
         self.bootstrap.validate(owner)?;
+        let mut identities = BTreeSet::new();
+        for s in self
+            .bootstrap
+            .scopes
+            .iter()
+            .chain(self.admitted_scopes.values())
+        {
+            s.bound()?;
+            if !self.bootstrap.opening_tasks.contains_key(&s.task)
+                || !identities.insert((&s.task, s.attempt))
+            {
+                return Err(err(409, "invalid admitted scope"));
+            }
+        }
+        for (digest, scope) in &self.admitted_scopes {
+            if &scope.digest()? != digest || scope.expires_at_ms - scope.issued_at_ms > 300_000 {
+                return Err(err(409, "invalid admitted scope digest"));
+            }
+        }
         if self.schema != 1
+            || identities.len() > 1024
             || self.records.len() > MAX_RECORDS
             || self.day_admissions.len() + self.bootstrap.opening_days.len() > 3660
             || self.generation_claims.len() > MAX_RECORDS * 32
@@ -367,6 +392,50 @@ impl State {
             }
         }
         Ok(())
+    }
+    fn admit_attempt(
+        &mut self,
+        owner: &str,
+        scope: &AttemptScope,
+        now: u64,
+    ) -> Result<String, TerminalError> {
+        self.check(owner)?;
+        scope.bound()?;
+        let digest = scope.digest()?;
+        if let Ok(old) = self.scope(&digest) {
+            return if old == scope {
+                Ok(digest)
+            } else {
+                Err(err(409, "scope identity conflict"))
+            };
+        }
+        if self.bootstrap.scopes.len() + self.admitted_scopes.len() >= 1024
+            || !self.bootstrap.opening_tasks.contains_key(&scope.task)
+            || !scope.live(now)
+            || scope.expires_at_ms - scope.issued_at_ms > 300_000
+        {
+            return Err(err(409, "new attempt unavailable"));
+        }
+        for prior in self
+            .bootstrap
+            .scopes
+            .iter()
+            .chain(self.admitted_scopes.values())
+            .filter(|s| s.task == scope.task)
+        {
+            if scope.attempt <= prior.attempt || !self.revoked.contains(&prior.digest()?) {
+                return Err(err(409, "predecessor attempt not closed"));
+            }
+        }
+        if self
+            .records
+            .iter()
+            .any(|r| r.task == scope.task && matches!(r.stage, Stage::Reserved | Stage::Unknown))
+        {
+            return Err(err(409, "predecessor inference unresolved"));
+        }
+        self.admitted_scopes.insert(digest.clone(), scope.clone());
+        Ok(digest)
     }
     fn validate_call(&self, c: &Call, scope: &AttemptScope) -> Result<(), TerminalError> {
         if !id(&c.call_id)
@@ -629,17 +698,41 @@ async fn load(ctx: &ObjectContext<'_>) -> HandlerResult<State> {
         .ok_or_else(|| err(404, "spending authority unavailable"))?
         .0)
 }
+#[cfg(feature = "registry-sidecar")]
+fn enter_registry() -> Result<Option<crate::registry_journal_gate::JournalAdmission>, TerminalError>
+{
+    crate::registry_journal_gate::enter_production()
+        .map_err(|_| err(503, "registry transition blocks spending mutation"))
+}
+#[cfg(not(feature = "registry-sidecar"))]
+fn enter_registry() -> Result<Option<()>, TerminalError> {
+    Ok(None)
+}
 /// Trusted-adapter-only journal. Not registered in any endpoint. These handlers
 /// provide serialization, not ingress authentication or proof of exclusive ownership.
 pub struct HarnessSpending;
 #[restate_sdk::object]
 impl HarnessSpending {
     #[handler]
+    async fn admit_attempt(
+        &self,
+        ctx: ObjectContext<'_>,
+        scope: Json<AttemptScope>,
+    ) -> HandlerResult<Json<String>> {
+        let _admission = enter_registry()?;
+        let mut s = load(&ctx).await?;
+        let now = ctx.run(now_ms).await?;
+        let digest = s.admit_attempt(ctx.key(), &scope.0, now)?;
+        ctx.set("state", Json(s));
+        Ok(Json(digest))
+    }
+    #[handler]
     async fn initialize(
         &self,
         ctx: ObjectContext<'_>,
         bootstrap: Json<Bootstrap>,
     ) -> HandlerResult<()> {
+        let _admission = enter_registry()?;
         if let Some(old) = ctx.get::<Json<State>>("state").await? {
             old.0.check(ctx.key())?;
             if old.0.bootstrap != bootstrap.0 {
@@ -657,6 +750,7 @@ impl HarnessSpending {
         ctx: ObjectContext<'_>,
         call: Json<Call>,
     ) -> HandlerResult<Json<Stage>> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         let now = ctx.run(now_ms).await?;
         let stage = s.reserve(ctx.key(), &call.0, now)?;
@@ -665,6 +759,7 @@ impl HarnessSpending {
     }
     #[handler]
     async fn begin(&self, ctx: ObjectContext<'_>, call: Json<Call>) -> HandlerResult<Json<bool>> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         let now = ctx.run(now_ms).await?;
         s.begin(ctx.key(), &call.0, now)?;
@@ -677,6 +772,7 @@ impl HarnessSpending {
         ctx: ObjectContext<'_>,
         claim: Json<GenerationClaim>,
     ) -> HandlerResult<()> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         s.claim_receipts(ctx.key(), &claim.0)?;
         ctx.set("state", Json(s));
@@ -688,6 +784,7 @@ impl HarnessSpending {
         ctx: ObjectContext<'_>,
         receipt: Json<CollectorReceipt>,
     ) -> HandlerResult<()> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         s.complete(ctx.key(), &receipt.0)?;
         ctx.set("state", Json(s));
@@ -699,6 +796,7 @@ impl HarnessSpending {
         ctx: ObjectContext<'_>,
         inventory: Json<DayInventory>,
     ) -> HandlerResult<()> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         let now = ctx.run(now_ms).await?;
         s.admit_day(ctx.key(), &inventory.0, now)?;
@@ -707,6 +805,7 @@ impl HarnessSpending {
     }
     #[handler]
     async fn revoke(&self, ctx: ObjectContext<'_>, scope_sha256: String) -> HandlerResult<()> {
+        let _admission = enter_registry()?;
         let mut s = load(&ctx).await?;
         s.revoke(ctx.key(), &scope_sha256)?;
         ctx.set("state", Json(s));
@@ -717,6 +816,82 @@ impl HarnessSpending {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn source_daily_ceiling_cannot_be_raised_by_bootstrap() {
+        let mut b = bootstrap();
+        b.approved_daily_cap_microusd = 5_000_001;
+        b.daily_cap_microusd = 5_000_001;
+        assert!(State::new("factory", b, 100).is_err());
+    }
+    #[test]
+    fn future_attempts_require_closed_predecessors_and_retain_task_spend() {
+        let mut s = State::new("factory", bootstrap(), 100).unwrap();
+        let first = call(&s, "task", 0);
+        s.reserve("factory", &first, 101).unwrap();
+        s.begin("factory", &first, 102).unwrap();
+        let mut next = scope("task");
+        next.attempt = 2;
+        next.issued_at_ms = 200;
+        next.expires_at_ms = 1000;
+        let before = s.clone();
+        assert!(s.admit_attempt("factory", &next, 201).is_err());
+        assert_eq!(s, before);
+        s.revoke("factory", &first.scope_sha256).unwrap();
+        assert!(s.admit_attempt("factory", &next, 201).is_err());
+        let r = receipt(&s, &first);
+        claim(&mut s, &r);
+        s.complete("factory", &r).unwrap();
+        let digest = s.admit_attempt("factory", &next, 201).unwrap();
+        let before = s.clone();
+        assert_eq!(s.admit_attempt("factory", &next, 1001).unwrap(), digest);
+        assert_eq!(s, before);
+        let second = Call {
+            call_id: "task-second".into(),
+            scope_sha256: digest.clone(),
+            ..first.clone()
+        };
+        s.reserve("factory", &second, 202).unwrap();
+        assert_eq!(s.task_totals["task"], 600_000);
+        s.begin("factory", &second, 203).unwrap();
+        let r = receipt(&s, &second);
+        claim(&mut s, &r);
+        s.complete("factory", &r).unwrap();
+        s.revoke("factory", &digest).unwrap();
+        next.attempt = 3;
+        next.issued_at_ms = 300;
+        next.expires_at_ms = 1000;
+        let digest = s.admit_attempt("factory", &next, 301).unwrap();
+        assert_eq!(
+            s.reserve(
+                "factory",
+                &Call {
+                    call_id: "task-third".into(),
+                    scope_sha256: digest,
+                    ..first
+                },
+                302
+            )
+            .unwrap(),
+            Stage::Denied
+        );
+        let decoded: State = serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
+        decoded.check("factory").unwrap();
+        assert_eq!(decoded.task_totals["task"], 600_000);
+    }
+    #[test]
+    fn empty_catalog_accepts_later_root_attempt_without_new_task_inventory() {
+        let mut b = bootstrap();
+        b.scopes.clear();
+        let mut s = State::new("factory", b, 100).unwrap();
+        let mut next = scope("task");
+        next.expires_at_ms = 1000;
+        assert!(s.admit_attempt("factory", &next, 101).is_ok());
+        let mut unknown = next;
+        unknown.task = "not-inventoried".into();
+        let before = s.clone();
+        assert!(s.admit_attempt("factory", &unknown, 101).is_err());
+        assert_eq!(s, before);
+    }
     fn bootstrap() -> Bootstrap {
         Bootstrap {
             owner: "factory".into(),
