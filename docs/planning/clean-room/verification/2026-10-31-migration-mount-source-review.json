@@ -1,0 +1,145 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "The six-file source milestone has no remaining actionable findings. The original executable-mode regression was fixed and independently rejected against current source. This verdict does not establish production custody/launch qualification, provider charge bounds, 120 paired attempts or candidate promotion.",
+  "scope": {
+    "base": "3ce757ab7dcd3d2f68bb01caf322f54b5fb07344",
+    "branch": "codex/phase11a-rated-integration-20261030",
+    "head_sha": "3ce757ab7dcd3d2f68bb01caf322f54b5fb07344",
+    "pr_url": null,
+    "files_changed": 6,
+    "final_source_sha256": {
+      "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs": "60d86174455ef11a9bd9bde9bc44a99794a371ecbbd4cfd257e32dd63a1f7ece",
+      "clean-room/crates/control-plane/src/harness_owner.rs": "add0ba8903f6a752f25320babe6cbce446b0a9b3ed448cd6c1ed223348c6905f",
+      "clean-room/crates/control-plane/src/private_runtime.rs": "63da1b4df6897aac38005e8d2f10d0af3aafef2d5119b4c847237441f4ba4a04",
+      "clean-room/crates/execution/harness/linux_supervisor.py": "cd38c5f1877b7f91902724849efa3b70b4c33ae667b43d12cf6049c6bfbfc9b2",
+      "clean-room/crates/execution/harness/test_linux_supervisor.py": "efb9128bd4316f8dcdf8c020542df1b75ab1a8d9df786308720ad07a77758921",
+      "clean-room/tests/fixtures/harness_mount_source_replay.py": "15c5b75b8a5490321a08b69b859634d0022f93ee476bb1d2488719c1ddbd522d"
+    }
+  },
+  "intent": "Fix optional owner migration while preserving historical pinned catalogs, select the unique active Root catalog, and replace Docker-unsupported final procfd bind sources with bounded hash-verified snapshots and inode-pinned socket links. This is a source/native-component milestone only: no production admission or benchmark pass; $5 UTC-day and $0.75 permanent-task caps across all six attempts, no-refund/unknown-retry rules and candidate disabled remain binding.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "reliability",
+    "testing",
+    "api-contract",
+    "maintainability",
+    "performance",
+    "project-standards",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Complete installed Root catalog/owner/lease/cgroup custody and full supervisor/watchdog/daemon-loss qualification remain outside this native staging component milestone. Live admission remains denied."
+  ],
+  "testing_gaps": [
+    "The native fixture exercises the production staging helper plus actual named Docker file/socket binds; it does not qualify the complete installed RootSupervisor start/inspect/watchdog/daemon-loss chain."
+  ],
+  "resolved_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/execution/harness/linux_supervisor.py:402 -- os.fchmod(output, 0o444)",
+        "clean-room/crates/execution/harness/linux_supervisor.py:1061-1062 stages (\"goose\", self.cfg[\"goose\"]) through the same helper, and MOUNT_TARGETS maps goose to /goose.",
+        "clean-room/crates/execution/harness/linux_worker.py:247-249 -- process = subprocess.Popen( [ \"/goose\", ...); the binary is executed directly, not read by an interpreter.",
+        "clean-room/crates/execution/harness/linux_supervisor.py:277-278 -- \"--user\", uid + \":\" + uid configures the container worker UID; execute permission is required for the mounted binary."
+      ],
+      "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "first_evidence": "clean-room/crates/execution/harness/linux_supervisor.py:402 -- os.fchmod(output, 0o444)",
+      "independent_reviewers": [
+        "reliability",
+        "api-contract"
+      ],
+      "line": 402,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "reliability",
+        "api-contract"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Add an explicit executable flag to stage_launch_source, pass it only for the goose source, and fchmod that snapshot to 0555 after verifying its digest; retain 0444 for data and the Python worker loaded by the interpreter. Verify that an unprivileged worker can execute the staged Goose path in the native mount fixture.",
+      "title": "Preserve executable mode on the Goose snapshot",
+      "why_it_matters": "Every staged Goose binary becomes mode 0444, so the worker cannot execute /goose and its subprocess.Popen fails with PermissionError before any task runs. The source file previously retained its executable mode through the bind. Give the Goose snapshot an explicitly approved executable mode while keeping data snapshots read-only.",
+      "source_detail_keys": [
+        "reliability|clean-room/crates/execution/harness/linux_supervisor.py|402|preserve execute permission on the goose snapshot",
+        "api-contract|clean-room/crates/execution/harness/linux_supervisor.py|402|preserve executable mode on the goose snapshot"
+      ],
+      "validation_status": "rejected",
+      "validation_reason": "Resolved in the current reviewed source: the original 0444 helper did remove the execute permission required by linux_worker.py:247-249, but linux_supervisor.py:402 now uses os.fchmod(output, 0o444 | (info.st_mode & 0o111)), preserving verified source execute bits while clearing write/setid bits; the current fixture at harness_mount_source_replay.py:69-79 stages a 0755 executable and the native receipt records the unprivileged worker executing it as pinned-executable, so the old failure precondition is no longer present (the original defect and RED reproduction remain historical evidence).",
+      "protected_subject": "authorization-authentication",
+      "disposition": "Resolved by caller during review; original defect and RED reproduction retained as historical evidence."
+    }
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Original full.diff and source-hashes.json preserve pre-fix snapshot; parent fixed executable-mode P1 during review and strengthened cleanup/native fixture; final.diff/final-source-hashes.json record current source. Adversarial pass read the final execute-preserving helper. No full fresh nine-persona claim for the tiny delta.",
+      "Caller reports actual native RED PermissionError for UID2001 executing0444 snapshot, followed by GREEN executing source-execute-bit-preserving snapshot; independent source check verifies 0444|(info.st_mode&0111) clears write/setid and preserves execute bits.",
+      "Caller declines module extraction as style/scope widening: no demonstrated behavior defect and it expands profile-pin surfaces. Keep this caller disposition separate from independent finding validation.",
+      "No docs/plans match; legacy Phase11A context informs source milestone only, not full phase completeness.",
+      "AGENTS.md instruction fallback governs all six changed files. No CODING_STANDARDS.md, REVIEW.md, CE config, packs or matching solutions corpus found.",
+      "Cross-model pass not run: caller explicitly prohibits external paid/code-egress review; actual fresh local adversarial lens ran. No cross-model independence claimed.",
+      "Source/native-component review grants no production activation, spending, benchmark or candidate promotion authority. Caps $5 UTCday/$0.75 permanent task acrosssix, no refunds/unknownretry remain binding.",
+      "All five simplification lenses completed; mapping reuse applied, no other worthwhile changes.",
+      "Two independently emitted same-model executable-mode findings merged by identical defect/fix path into primary #1. No cross-model promotion applied.",
+      "Single-source structural extraction candidate rejected after consequence review: module growth alone supplies no demonstrated regression here; extraction moves the same Root staging concepts and adds a separately hashed/imported module boundary. The caller also declines it as scope widening. It is not recycled into residual risk.",
+      "Initial first_evidence_backfilled=3 preserved across normalization; no missing-evidence demotions, malformed inputs or confidence suppressions.",
+      "Cleanup coverage gap from the pre-fix review has been addressed in current test_linux_supervisor.py:243-289 with successful/repeated removal and unknown-outcome retention; no remaining cleanup-coverage claim is asserted for this narrow source change.",
+      "No triage groups: only one primary finding. No settled-decision suppression evaluated because no plan was discovered.",
+      "Independent validator rejected primary #1 against current source after confirming the refuting execute-preserving line and the discriminating fixture/receipt; no protection was removed and no unresolved gate remains in this source milestone.",
+      "Current named-source hashes were rechecked at report time. The original snapshot, final diff and per-persona artifacts remain separately available."
+    ],
+    "validation": {
+      "batch_count": 1,
+      "selected": 1,
+      "confirmed": 0,
+      "rejected": 1,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "bound_exceeded": false,
+      "protected_subjects": {
+        "1": "authorization-authentication"
+      },
+      "protected_subject_reclassifications": []
+    },
+    "first_evidence_backfilled": 3,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "suppressed_by_confidence": {},
+    "rejected_structural_candidates": 1,
+    "semantic_duplicates_merged": 1,
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "failed_reviewers": [],
+    "timed_out_reviewers": [],
+    "settlement_suppression": "Not evaluated; no plan discovered.",
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "apply_local": false,
+    "source_mutations_by_review": false
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: caller explicitly prohibits external paid/code-egress review; actual fresh local adversarial lens ran. No cross-model independence claimed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261031-migration-mount",
+  "run_id": "20261031-migration-mount"
+}
