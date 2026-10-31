@@ -89,3 +89,10 @@ pub mod private_database_genesis;
 
 #[cfg(all(feature = "restate", unix))]
 pub mod root_launch_grant;
+
+#[cfg(feature = "restate")]
+pub mod harness_spending;
+#[cfg(all(feature = "restate", unix))]
+pub mod harness_spending_ingress;
+#[cfg(feature = "restate")]
+pub mod harness_charge_bounds;

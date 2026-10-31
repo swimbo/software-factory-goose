@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "admission": "denied",
+  "candidate_enabled": false,
+  "completed_live_runs": 0,
+  "required_live_runs": 120,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "attempts_per_permanent_task": 6,
+  "performance_cost_basis": "audited_usage_rated",
+  "charge_reservations_refunded": false,
+  "production_configuration_changed": false,
+  "paid_inference_calls": 0,
+  "price_observation": "2026-10-31-provider-price-observation.json",
+  "public_price_sources": [
+    "https://ollama.com/pricing",
+    "https://ollama.com/library/deepseek-v4.1-flash",
+    "https://ollama.com/library/deepseek-v4-pro"
+  ],
+  "illustrative_input_only_reservations": {
+    "qualification": "Arithmetic scenarios using advertised headline peak input rates and exactly 1000000 input tokens; not attested deployed input maxima or complete call bounds. Excludes output, preparation, retries and fees.",
+    "flash_one_call_microusd": 300000,
+    "flash_six_attempts_one_call_each_microusd": 1800000,
+    "pro_one_call_microusd": 1320000,
+    "task_average_remaining_before_opening_spend_per_attempt_microusd": 125000
+  },
+  "unresolved": [
+    "provider-supported hard maxima for all billable input including injected context and all output including hidden reasoning",
+    "all hosted provider attempts, tier and cache or non-token fees covered by frozen reviewed route",
+    "authenticated production physical registry binding and same-owner durable permit acknowledgement",
+    "complete production streaming and error usage qualification",
+    "production sole-owner registration and generic protected Linux Runner/root recipe admission"
+  ],
+  "source_verification": {
+    "rust_library_tests_passed": 273,
+    "rust_library_tests_ignored": 1,
+    "new_charge_tests_passed": 5,
+    "ignored_qualification": "Existing atomic-peer-gate test requires a separately owned disposable Restate fixture."
+  },
+  "boundary": "Source implementations and public metadata do not authorize deployment, open registry admission, reset budget inventories or count as paired live attempts.",
+  "source_sha256": {
+    "clean-room/crates/control-plane/src/harness_charge_bounds.rs": "620e6508235528bd3f65e7cc7b0808b46fd1257a564eeb7e787ab740ef339c3b",
+    "clean-room/crates/control-plane/src/lib.rs": "0b3060ee78f489abfe223ccced9855580c64591d64d171b4eb6d86a90463c48a"
+  },
+  "source_review": {
+    "status": "complete",
+    "run_id": "20261031-rust-physical-bounds",
+    "receipt": "2026-10-31-charge-bounds-source-review.json",
+    "receipt_sha256": "34c4997a5978b997685f7177a6f7882903a13c3e6207d89457c6f1de0787b53c",
+    "scope": "Two Rust source files only. No production or live benchmark pass."
+  }
+}

@@ -1,0 +1,401 @@
+{
+  "schema": 1,
+  "observed_date": "2026-10-31",
+  "source_url": "https://ai-gateway.vercel.sh/v1/models",
+  "source_sha256": "067057ed1319cbc8be19270b8e7fb87aad0c35fc043a9407bda92eb6ff33f64c",
+  "qualification": "Unauthenticated public catalog GET only. Not a frozen performance tariff, deployed route identity, provider contract, invoice or launch authority. Zero maxima mean unknown, never a safe zero charge.",
+  "models": [
+    {
+      "id": "openai/gpt-6-luna",
+      "object": "model",
+      "created": 1755815280,
+      "released": 1790035200,
+      "owned_by": "openai",
+      "name": "GPT-6 Luna",
+      "description": "GPT-6 Luna is OpenAI's efficient reasoning model for focused, high-volume tasks. It accepts text and images, generates text, and supports a 1,050,000-token context window with up to 128,000 output tokens. Configurable reasoning effort, structured outputs, prompt caching, and Responses API tools support cost-sensitive applications, coding tasks, and automated workflows.",
+      "context_window": 1050000,
+      "max_tokens": 128000,
+      "type": "language",
+      "zdr": "some",
+      "no_training": "all",
+      "tags": [
+        "explicit-caching",
+        "file-input",
+        "implicit-caching",
+        "reasoning",
+        "structured-output",
+        "tool-use",
+        "vision",
+        "web-search",
+        "fast"
+      ],
+      "regions": [
+        "eu",
+        "us"
+      ],
+      "supported_specifications": [
+        "v2",
+        "v3",
+        "v4"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "pdf"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "supported_parameters": [
+        "max_tokens",
+        "temperature",
+        "stop",
+        "tools",
+        "tool_choice",
+        "reasoning",
+        "include_reasoning",
+        "response_format",
+        "structured_outputs"
+      ],
+      "temperature": true,
+      "reasoning_options": [
+        {
+          "type": "toggle"
+        },
+        {
+          "type": "effort",
+          "values": [
+            "none",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        }
+      ],
+      "knowledge": "2026-05-18",
+      "pricing": {
+        "input": "0.0000001",
+        "input_tiers": [
+          {
+            "cost": "0.0000001",
+            "min": 0,
+            "max": 272001
+          },
+          {
+            "cost": "0.0000002",
+            "min": 272001
+          }
+        ],
+        "output": "0.0000005",
+        "output_tiers": [
+          {
+            "cost": "0.0000005",
+            "min": 0,
+            "max": 272001
+          },
+          {
+            "cost": "0.00000075",
+            "min": 272001
+          }
+        ],
+        "input_cache_read": "0.00000001",
+        "input_cache_read_tiers": [
+          {
+            "cost": "0.00000001",
+            "min": 0,
+            "max": 272001
+          },
+          {
+            "cost": "0.00000002",
+            "min": 272001
+          }
+        ],
+        "input_cache_write": "0.000000125",
+        "input_cache_write_tiers": [
+          {
+            "cost": "0.000000125",
+            "min": 0,
+            "max": 272001
+          },
+          {
+            "cost": "0.00000025",
+            "min": 272001
+          }
+        ],
+        "web_search": "10",
+        "service_tiers": {
+          "flex": {
+            "input": "0.00000005",
+            "output": "0.00000025",
+            "input_cache_read": "0.000000005",
+            "long_context": {
+              "threshold": 272001,
+              "input": "0.0000001",
+              "output": "0.000000375",
+              "input_cache_read": "0.00000001"
+            }
+          },
+          "priority": {
+            "input": "0.0000002",
+            "output": "0.000001",
+            "input_cache_read": "0.00000002",
+            "long_context": {
+              "threshold": 272001,
+              "input": "0.0000004",
+              "output": "0.0000015",
+              "input_cache_read": "0.00000004"
+            }
+          }
+        },
+        "fast": {
+          "input": "0.0000002",
+          "input_tiers": [
+            {
+              "cost": "0.0000002",
+              "min": 0,
+              "max": 272001
+            },
+            {
+              "cost": "0.0000004",
+              "min": 272001
+            }
+          ],
+          "output": "0.000001",
+          "output_tiers": [
+            {
+              "cost": "0.000001",
+              "min": 0,
+              "max": 272001
+            },
+            {
+              "cost": "0.0000015",
+              "min": 272001
+            }
+          ],
+          "input_cache_read": "0.00000002",
+          "input_cache_read_tiers": [
+            {
+              "cost": "0.00000002",
+              "min": 0,
+              "max": 272001
+            },
+            {
+              "cost": "0.00000004",
+              "min": 272001
+            }
+          ],
+          "input_cache_write": "0.00000025",
+          "input_cache_write_tiers": [
+            {
+              "cost": "0.00000025",
+              "min": 0,
+              "max": 272001
+            },
+            {
+              "cost": "0.0000005",
+              "min": 272001
+            }
+          ]
+        },
+        "regional": {
+          "eu": {
+            "input": "0.00000011",
+            "input_tiers": [
+              {
+                "cost": "0.00000011",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.00000022",
+                "min": 272001
+              }
+            ],
+            "output": "0.00000055",
+            "output_tiers": [
+              {
+                "cost": "0.00000055",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000825",
+                "min": 272001
+              }
+            ],
+            "input_cache_read": "0.000000011",
+            "input_cache_read_tiers": [
+              {
+                "cost": "0.000000011",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000022",
+                "min": 272001
+              }
+            ],
+            "input_cache_write": "0.0000001375",
+            "input_cache_write_tiers": [
+              {
+                "cost": "0.0000001375",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000275",
+                "min": 272001
+              }
+            ]
+          },
+          "us": {
+            "input": "0.00000011",
+            "input_tiers": [
+              {
+                "cost": "0.00000011",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.00000022",
+                "min": 272001
+              }
+            ],
+            "output": "0.00000055",
+            "output_tiers": [
+              {
+                "cost": "0.00000055",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000825",
+                "min": 272001
+              }
+            ],
+            "input_cache_read": "0.000000011",
+            "input_cache_read_tiers": [
+              {
+                "cost": "0.000000011",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000022",
+                "min": 272001
+              }
+            ],
+            "input_cache_write": "0.0000001375",
+            "input_cache_write_tiers": [
+              {
+                "cost": "0.0000001375",
+                "min": 0,
+                "max": 272001
+              },
+              {
+                "cost": "0.000000275",
+                "min": 272001
+              }
+            ],
+            "fast": {
+              "input": "0.00000022",
+              "input_tiers": [
+                {
+                  "cost": "0.00000022",
+                  "min": 0,
+                  "max": 272001
+                },
+                {
+                  "cost": "0.00000044",
+                  "min": 272001
+                }
+              ],
+              "output": "0.0000011",
+              "output_tiers": [
+                {
+                  "cost": "0.0000011",
+                  "min": 0,
+                  "max": 272001
+                },
+                {
+                  "cost": "0.00000165",
+                  "min": 272001
+                }
+              ],
+              "input_cache_read": "0.000000022",
+              "input_cache_read_tiers": [
+                {
+                  "cost": "0.000000022",
+                  "min": 0,
+                  "max": 272001
+                },
+                {
+                  "cost": "0.000000044",
+                  "min": 272001
+                }
+              ],
+              "input_cache_write": "0.000000275",
+              "input_cache_write_tiers": [
+                {
+                  "cost": "0.000000275",
+                  "min": 0,
+                  "max": 272001
+                },
+                {
+                  "cost": "0.00000055",
+                  "min": 272001
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "openai/text-embedding-3-small",
+      "object": "model",
+      "created": 1755815280,
+      "released": 1706140800,
+      "owned_by": "openai",
+      "name": "text-embedding-3-small",
+      "description": "OpenAI's improved, more performant version of their ada embedding model.",
+      "context_window": 0,
+      "max_tokens": 0,
+      "type": "embedding",
+      "zdr": "some",
+      "no_training": "all",
+      "regions": [
+        "eu",
+        "us"
+      ],
+      "supported_specifications": [
+        "v2",
+        "v3",
+        "v4"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "pricing": {
+        "input": "0.00000002",
+        "regional": {
+          "eu": {
+            "input": "0.00000002"
+          },
+          "us": {
+            "input": "0.00000002"
+          }
+        }
+      }
+    }
+  ]
+}

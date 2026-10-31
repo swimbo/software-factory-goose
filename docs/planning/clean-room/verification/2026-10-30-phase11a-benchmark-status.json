@@ -23,5 +23,7 @@
     "production_registry_transition_and_generic_protected_linux_launch",
     "120_real_paired_attempts_and_safety_acceptance_cost_time_gate"
   ],
-  "note": "User-approved cost metric amendment implemented. No live inference, candidate activation, route change or production ledger reset."
+  "note": "User-approved cost metric amendment implemented. No live inference, candidate activation, route change or production ledger reset.",
+  "latest_evidence": "2026-10-31-harness-charge-preflight.json",
+  "last_review_date": "2026-10-31"
 }
