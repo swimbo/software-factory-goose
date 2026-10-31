@@ -24,6 +24,7 @@
     "120_real_paired_attempts_and_safety_acceptance_cost_time_gate"
   ],
   "note": "User-approved cost metric amendment implemented. No live inference, candidate activation, route change or production ledger reset.",
-  "latest_evidence": "2026-10-31-harness-charge-preflight.json",
-  "last_review_date": "2026-10-31"
+  "latest_evidence": "2026-10-31-gateway-physical-capture.json",
+  "last_review_date": "2026-10-31",
+  "gateway_source_revision": "28d60eeeeb1870379d2a6b7fd77b2b1be1db52c2"
 }

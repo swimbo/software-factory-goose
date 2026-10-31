@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "status": "source_verified_live_admission_blocked",
+  "phase11a_complete": false,
+  "candidate_enabled": false,
+  "completed_live_runs": 0,
+  "required_live_runs": 120,
+  "paid_inference_calls": 0,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "metric": "audited_usage_rated",
+  "charge_source_revision": "dcef77a39ab51108fe1e6d5ba4ae0878a57f2b49",
+  "gateway_source": {
+    "repository": "https://github.com/swimbo/bifrost-local",
+    "branch": "codex/phase11a-physical-capture-20261031",
+    "revision": "28d60eeeeb1870379d2a6b7fd77b2b1be1db52c2",
+    "qualification_path": "engine/transport/factory-physical-source-qualification.json",
+    "source_only": true,
+    "deployed": false,
+    "qualification_sha256": "1e117a41f893ae4f5dd394003fb0ca913a6a5b97e6fe3fcd9e9cc7185af5d694",
+    "source_review_path": "engine/transport/factory-physical-source-review.json",
+    "source_review_sha256": "86ca983d0fae496ab986154420849d1d7569025ca4d397d5c48edc25a4ede0de"
+  },
+  "verification": {
+    "rust_library_passed": 273,
+    "rust_library_ignored": 1,
+    "new_gateway_top_level_tests_race_passed": 26,
+    "actual_provider_decoder": "Pinned OllamaProvider streaming against a local fake upstream, no provider credentials or inference",
+    "upstream_regressions": "Pinned schemas/utils complete short race suites passed in correct same-tag public module layout",
+    "installer": "Exact pinned source replay; mismatch/reapply zero-write refusal",
+    "source_review": {
+      "status": "complete",
+      "run_id": "20261031-go-physical-capture",
+      "scope": "Eleven source files; eight local independent reviewer contexts. Source publication only, no production or performance verdict."
+    }
+  },
+  "remaining": [
+    "provider-supported affordable hard billable maxima for all input including injection and output including hidden reasoning, tier/cache/fixed/hosted-retry charges",
+    "join capture derivative to qualified governance/native gateway release and verify authenticated production ingress context binding on every path",
+    "same-owner durable physical permit service and complete provider-schema-to-UsageEvidence normalization",
+    "production owner registration with opening inventory/predecessor fence and generic protected Linux root recipe/Runner admission",
+    "frozen 120 real attempts and independent safety/acceptance/cost/time gate"
+  ],
+  "cancellation_qualification": "Already-started terminal close drain can wait for the same max1s/root socket deadline. Immediate cancellation interruption is not claimed.",
+  "provider_preflight": "2026-10-31-harness-charge-preflight.json",
+  "financial_boundary": "No cap reset, refund, route change, production registry mutation, worker activation or candidate promotion."
+}
