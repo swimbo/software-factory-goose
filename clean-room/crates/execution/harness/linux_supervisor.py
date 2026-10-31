@@ -40,6 +40,14 @@ from protected_spending_control import _decode, _no_acl
 from factory_harness import canonical
 
 WORKER_IMAGE = "sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a"
+MOUNT_TARGETS = {
+    "goose": "/goose",
+    "worker": "/factory/linux_worker.py",
+    "profile": "/factory/profile.json",
+    "goose_profile": "/run/software-factory-goose/profile.json",
+    "prompt": "/factory/prompt.txt",
+    "relay": "/gate/relay.sock",
+}
 
 
 class SupervisorRefused(LinuxRunnerRefused):
@@ -293,17 +301,20 @@ def docker_arguments(grant, *, goose, worker, profile, goose_profile, prompt, re
         "--entrypoint",
         "/usr/local/bin/python3",
     ]
-    for source, target in (
-        (goose, "/goose"),
-        (worker, "/factory/linux_worker.py"),
-        (profile, "/factory/profile.json"),
-        (goose_profile, "/run/software-factory-goose/profile.json"),
-        (prompt, "/factory/prompt.txt"),
-        (relay, "/gate/relay.sock"),
+    for name, source in (
+        ("goose", goose),
+        ("worker", worker),
+        ("profile", profile),
+        ("goose_profile", goose_profile),
+        ("prompt", prompt),
+        ("relay", relay),
     ):
+        target = MOUNT_TARGETS[name]
         require(
             isinstance(source, str)
-            and source.startswith("/proc/")
+            and source.startswith("/var/lib/sfactory-harness/")
+            and source.endswith("/" + grant["attempt_id"] + "/mounts/" + name)
+            and ".." not in Path(source).parts
             and "," not in source
             and "\n" not in source,
             "root_mount_changed",
@@ -318,6 +329,94 @@ def docker_arguments(grant, *, goose, worker, profile, goose_profile, prompt, re
         "-B",
         "/factory/linux_worker.py",
     ]
+
+
+MAX_LAUNCH_FILE_BYTES = 256 * 1024 * 1024
+
+
+def stage_launch_source(fd, source, destination, expected_sha256=None):
+    """Snapshot a held regular inode, or link its socket, into Root's private case.
+
+    Docker/runc cannot bind a final /proc/PID/fd magic link on the qualified host.
+    Root's exclusive destination stays named until the owned container is removed.
+    """
+    destination = Path(destination)
+    parent = destination.parent.stat(follow_symlinks=False)
+    require(
+        os.geteuid() == 0
+        and parent.st_uid == 0
+        and stat.S_ISDIR(parent.st_mode)
+        and stat.S_IMODE(parent.st_mode) == 0o700,
+        "root_mount_staging_changed",
+    )
+    _no_acl(destination.parent)
+    info = os.fstat(fd)
+    created = False
+    try:
+        if stat.S_ISSOCK(info.st_mode):
+            require(expected_sha256 is None, "root_mount_staging_changed")
+            os.link(source, destination, follow_symlinks=False)
+            created = True
+            linked = destination.lstat()
+            require(
+                (linked.st_dev, linked.st_ino) == (info.st_dev, info.st_ino),
+                "root_relay_changed",
+            )
+        else:
+            require(
+                stat.S_ISREG(info.st_mode)
+                and info.st_uid == 0
+                and info.st_mode & 0o022 == 0
+                and _digest(expected_sha256)
+                and 0 < info.st_size <= MAX_LAUNCH_FILE_BYTES,
+                "root_mount_source_changed",
+            )
+            readable = os.open("/proc/self/fd/" + str(fd), os.O_RDONLY | os.O_CLOEXEC)
+            try:
+                opened = os.fstat(readable)
+                require(
+                    (opened.st_dev, opened.st_ino) == (info.st_dev, info.st_ino),
+                    "root_mount_source_changed",
+                )
+                output = os.open(
+                    destination,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    0o400,
+                )
+                created = True
+                try:
+                    digest, size = hashlib.sha256(), 0
+                    while chunk := os.read(readable, 65536):
+                        size += len(chunk)
+                        require(size <= info.st_size, "root_mount_source_changed")
+                        digest.update(chunk)
+                        view = memoryview(chunk)
+                        while view:
+                            written = os.write(output, view)
+                            require(written > 0, "root_mount_storage_failed")
+                            view = view[written:]
+                    require(
+                        size == info.st_size and digest.hexdigest() == expected_sha256,
+                        "root_mount_source_changed",
+                    )
+                    os.fchmod(output, 0o444 | (info.st_mode & 0o111))
+                    os.fsync(output)
+                finally:
+                    os.close(output)
+            finally:
+                os.close(readable)
+        directory = os.open(
+            destination.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        )
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+        return str(destination)
+    except BaseException:
+        if created:
+            destination.unlink()
+        raise
 
 
 def protected(path, mode, *, maximum=131072, expected=None):
@@ -655,13 +754,15 @@ class RootSupervisor:
             and set(host["Tmpfs"]) == {"/work"}
             and len([m for m in item["Mounts"] if m["Type"] == "bind"]) == 6
             and {m["Destination"] for m in item["Mounts"] if m["Type"] == "bind"}
+            == set(MOUNT_TARGETS.values())
+            and {
+                m["Destination"]: m["Source"]
+                for m in item["Mounts"]
+                if m["Type"] == "bind"
+            }
             == {
-                "/goose",
-                "/factory/linux_worker.py",
-                "/factory/profile.json",
-                "/run/software-factory-goose/profile.json",
-                "/factory/prompt.txt",
-                "/gate/relay.sock",
+                target: str(self._case(grant["attempt_id"]) / "mounts" / name)
+                for name, target in MOUNT_TARGETS.items()
             }
             and all(
                 (m["Type"] == "bind" and m["RW"] is False)
@@ -943,6 +1044,17 @@ class RootSupervisor:
                 start_new_session=True,
             )
             store(case / "watchdog.json", dict(pid=watchdog.pid))
+            mounts = case / "mounts"
+            os.mkdir(mounts, 0o700)
+            expected = dict(
+                goose=self.recipe["goose_sha256"],
+                worker=self.cfg["worker_program_sha256"],
+                profile=hashlib.sha256(canonical(profile).encode()).hexdigest(),
+                goose_profile=hashlib.sha256(
+                    canonical(goose_profile).encode()
+                ).hexdigest(),
+                prompt=contract["prompt_sha256"],
+            )
             descriptors = []
             try:
                 paths = {}
@@ -973,25 +1085,9 @@ class RootSupervisor:
                         ),
                         "root_launch_source_changed",
                     )
-                    if name == "goose":
-                        readable = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-                        try:
-                            candidate = os.fstat(readable)
-                            require(
-                                (candidate.st_dev, candidate.st_ino)
-                                == (info.st_dev, info.st_ino),
-                                "root_goose_changed",
-                            )
-                            digest = hashlib.sha256()
-                            while raw := os.read(readable, 65536):
-                                digest.update(raw)
-                            require(
-                                digest.hexdigest() == self.recipe["goose_sha256"],
-                                "root_goose_changed",
-                            )
-                        finally:
-                            os.close(readable)
-                    paths[name] = "/proc/" + str(os.getpid()) + "/fd/" + str(fd)
+                    paths[name] = stage_launch_source(
+                        fd, path, mounts / name, expected.get(name)
+                    )
                 require(
                     self._docker("info", "--format", "{{.CgroupDriver}}")
                     .decode()
@@ -1057,6 +1153,15 @@ class RootSupervisor:
             _decode(protected(case / "cleanup.json", 0o600)) == receipt,
             "root_cleanup_receipt_changed",
         )
+        mounts = case / "mounts"
+        if mounts.exists():
+            for name in MOUNT_TARGETS:
+                path = mounts / name
+                path.unlink(missing_ok=True)
+            try:
+                mounts.rmdir()
+            except FileNotFoundError:
+                pass
 
     def observe(self, body):
         require(set(body) == {"grant", "worker"}, "root_observe_changed")

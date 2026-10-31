@@ -134,12 +134,24 @@ class SupervisorContractTests(unittest.TestCase):
         }
         args = docker_arguments(
             grant,
-            goose="/proc/123/fd/10",
-            worker="/proc/123/fd/11",
-            profile="/proc/123/fd/12",
-            goose_profile="/proc/123/fd/15",
-            prompt="/proc/123/fd/13",
-            relay="/proc/123/fd/14",
+            goose="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/goose",
+            worker="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/worker",
+            profile="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/profile",
+            goose_profile="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/goose_profile",
+            prompt="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/prompt",
+            relay="/var/lib/sfactory-harness/state/"
+            + self.attempt["attempt_id"]
+            + "/mounts/relay",
         )
         self.assertEqual(
             args[-4:],
@@ -236,12 +248,24 @@ class CleanupOutcomeTests(unittest.TestCase):
             root, case, grant = self.make(d)
             (case / "start-intent.json").write_text("{}")
             (case / "container.json").write_text("{}")
+            mounts = case / "mounts"
+            mounts.mkdir()
+            for name in (
+                "goose",
+                "worker",
+                "profile",
+                "goose_profile",
+                "prompt",
+                "relay",
+            ):
+                (mounts / name).write_text("owned fixture")
             with patch(
                 "linux_supervisor.protected",
                 side_effect=lambda p, *a, **k: p.read_bytes(),
             ):
                 root._cleanup(grant)
                 root._cleanup(grant)
+            self.assertFalse(mounts.exists())
             self.assertEqual(root._docker.call_count, 2)
             self.assertTrue(
                 all(call.args[0] == "container" for call in root._docker.call_args_list)
@@ -254,11 +278,15 @@ class CleanupOutcomeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root, case, grant = self.make(d)
             (case / "start-intent.json").write_text("{}")
+            mounts = case / "mounts"
+            mounts.mkdir()
+            (mounts / "goose").write_text("retain on unknown")
             with self.assertRaisesRegex(
                 SupervisorRefused, "root_create_requires_reconciliation"
             ):
                 root._cleanup(grant)
             self.assertFalse((case / "cleanup.json").exists())
+            self.assertEqual((mounts / "goose").read_text(), "retain on unknown")
 
     def test_daemon_failure_is_not_absence(self):
         import tempfile
