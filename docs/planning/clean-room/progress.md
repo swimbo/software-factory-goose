@@ -519,3 +519,15 @@ evidence passed native Root capability-empty/NNP readiness, without publishing
 authorization or calling the journal. SDK5's separate process probe is installed
 but unrun; SDK5 remains inactive. No production registry transition, new real
 claim, connected INT-LOOP, promotion or later-phase completion is claimed.
+
+### Late Phase 9 — protected ingress and recoverability checkpoint
+
+The approved three-reviewer ingress debate reached conditional consensus. The retained synthetic HTTP/2 fixture subsequently completed old-SDK retirement, connection denial, cached-output recovery and exact owned shutdown; its initial 9082 registration remains unknown and was not retried. The separate 9086 continuation succeeded with data retained. See `verification/2026-10-30-h2-retained-recovery.md`. This does not establish production admission.
+
+SDK5 inherited-descriptor enforcement passed native positive and connected-extra-FD negative controls. A production-only guarded binary was installed inactive, with the old binary preserved; see `verification/2026-10-30-sdk5-inherited-fd-guard.md`. Expanded restore-history probe v2 was installed create-only and remains unexecuted. A separate native streaming check verified the 248 MB pinned Restate executable without exceeding the restricted bridge memory limit.
+
+The recovery preflight caught an incorrect mode assumption before any production mutation: the real Restate base is UID/GID2004 mode0755 beneath its protected mode0700 journal parent. Validation now binds those exact modes; existing permissions were not changed. Production SDK retirement, offline backup/restore, Unix-admin cutover, SDK5 registration, admission publication and the connected real INT-LOOP remain pending. The transition marker must remain until prospective admission is independently published and revalidated; the finisher now enforces that ordering.
+
+The first isolated discovery attempt failed at its positive probe and discarded the error output. A distinct diagnostic attempt retained bounded Root-owned output before also failing; neither has a success receipt and neither changed production. Original attempts and records are retained. Later verification phases remain open.
+
+The distinct discovery diagnostic subsequently passed with explicit `stdin=DEVNULL`. Native FD0 metadata explained the earlier failure without relaxing the probe: inherited stdin had a different filesystem inode despite the same device number. Diagnostic3 passed actual HTTP/2 discovery, connected-extra-FD denial and exact synthetic shutdown. Runtime activation now binds that distinct success and the FD0 observation, preserving both failed attempts. See `verification/2026-10-30-sdk5-discovery-native.md`. Current deployment verification: 419 tests passed in `/tmp/sfactory-deployment-20261030-transition-current2.log`. Per-stage Root bridge bindings and recovery readiness still precede production retirement.
