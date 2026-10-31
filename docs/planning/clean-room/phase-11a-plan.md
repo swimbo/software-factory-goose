@@ -24,4 +24,6 @@ Background: user-supplied `droid_1_0_architecture_harness_optimization_report.md
 - Keep baseline active and this phase incomplete until actual independent paired evidence passes. No performance result is claimed from synthetic fixtures.
 
 ## Integration prerequisite
-Current fixed relay accepts only an exact two-turn write-files exchange. General script traffic requires a separately reviewed authority/continuation contract and protected launcher integration; do not widen it or bypass fencing to run a benchmark. Existing runtime gaps must close first.
+The protected adapter now supports the general Goose tool conversation through the owner journal in disposable rehearsals. The 120-attempt runner and independent acceptance contracts are implemented. Native Linux Unix-socket roles, permanent caps and restart behavior are verified separately in an isolated fixture. These checks do not register or activate the production entrypoints.
+
+Live admission still requires production transition/launch attestation, reviewed enforceable bounds for every classifier/embedding/fallback/answer/retry path, and complete correlated provider-billed receipts. Ollama account usage/balance aggregates and unverified Vercel embedding receipts do not meet that contract. Keep the candidate disabled and Phase 12 blocked while the live paired gate is incomplete. See verification/2026-10-30-harness-runtime-runner.md.

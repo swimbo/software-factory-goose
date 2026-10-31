@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "phase": "11A",
+  "status": "incomplete",
+  "candidate_enabled": false,
+  "required_live_runs": 120,
+  "completed_live_runs": 0,
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "checks": {
+    "python_tests": 99,
+    "rust_runtime_tests": 15,
+    "strict_clippy": true,
+    "ruff": true,
+    "duplicate_json_mutant_killed": true,
+    "isolated_publication_snapshot_python_tests": 99,
+    "isolated_publication_snapshot_rust_tests": 15,
+    "registry_sidecar_examples_compile": true
+  },
+  "synthetic_goose_rehearsal": {
+    "synthetic": true,
+    "candidate_enabled": false,
+    "completed_live_runs": 0,
+    "root": "/private/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-paired-goose-i4eskejs",
+    "results": [
+      {
+        "status": "completed",
+        "candidate_enabled": false,
+        "attempt_id": "run_253f55bd5574915dcf33395a4d0210c147bca883861ef61ccabb64d949ae8607"
+      },
+      {
+        "status": "completed",
+        "candidate_enabled": false,
+        "attempt_id": "run_dd351e6f74f931a100f597255bde3b7c639003e127619352888e7552a0c5027e"
+      }
+    ],
+    "status": {
+      "completed_runs": 2,
+      "completed_live_runs": 0,
+      "required_runs": 120,
+      "candidate_enabled": false,
+      "performance_gate": {
+        "version": 1,
+        "passed": false,
+        "reason": "synthetic_evidence",
+        "candidate_enabled": false
+      }
+    },
+    "journal_backed_provider_calls": 6,
+    "independently_accepted_rehearsals": 2,
+    "generation_outcomes": [
+      "completed",
+      "completed"
+    ]
+  },
+  "attempt_observations": [
+    {
+      "variant": "baseline",
+      "generation": {
+        "artifact_sha256": "b4db68c9643926a1bee5b10d726444d96e087350a6f0a36c425fac83d36bfe96",
+        "attempt_id": "run_253f55bd5574915dcf33395a4d0210c147bca883861ef61ccabb64d949ae8607",
+        "call_ids": [
+          "call_098fa71a1a5b54ad08bc7337f33b1df8f36394dfe173307f894cdd92bec8c792",
+          "call_0638895c254cdd05dd99553c714312b40fde20a10dd67491e8186a112cbbd7ad",
+          "call_4d4bbe7c6fe0bfbdf575dd681a27bbb467dfda51f66fc39113ff76a756f76856",
+          "call_950f0675e3ea6396ddeb6879593a59b8918f8fb007f910e6a8fc638bb847b67c"
+        ],
+        "dispatch_manifest_sha256": "99e59d02509724e10da6490c7a8ff82a5b7add3daa9781f1ca2f43984b6fb569",
+        "elapsed_ms": 1384,
+        "generation_receipt_sha256": "729995381bc91384e13a4f8c020f3e78121aa926d05577d4559f0a0f417250ae",
+        "goose_build": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+        "live": false,
+        "model": "auto",
+        "outcome": "completed",
+        "profile": "a886daf0f5c2c300b4e0a6f7c9a9be0e1c820f8aec3e39c6e594eb54a3ea26c7",
+        "route": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "metrics": {
+        "attempt_id": "run_253f55bd5574915dcf33395a4d0210c147bca883861ef61ccabb64d949ae8607",
+        "calls": [
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 152,
+            "model_round_trips": 1,
+            "prompt_bytes": 3953,
+            "prompt_tokens": 10,
+            "request_sha256": "9e0886b0a1708f01d4d42d840966db830c3f768274115f9e6c6cb64be937ee60",
+            "tool_result_bytes": 0
+          },
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 148,
+            "model_round_trips": 1,
+            "prompt_bytes": 4328,
+            "prompt_tokens": 10,
+            "request_sha256": "816de265f4a0f061b9eed4677bc8e243b6a7f5ce5b3728730cd757fd3961bdf3",
+            "tool_result_bytes": 46
+          },
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 160,
+            "model_round_trips": 1,
+            "prompt_bytes": 4813,
+            "prompt_tokens": 10,
+            "request_sha256": "86a18a02fd8b6db483fc849c6f9ce52284bb4b08d9b22ce79dbbd9535141f660",
+            "tool_result_bytes": 92
+          },
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 136,
+            "model_round_trips": 1,
+            "prompt_bytes": 5879,
+            "prompt_tokens": 10,
+            "request_sha256": "37807682aaabbac2c26a6be770aec76a6551805637f1bb91c01f1fa5dd989f9b",
+            "tool_result_bytes": 138
+          }
+        ],
+        "goose_build": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+        "model": "auto",
+        "profile": "a886daf0f5c2c300b4e0a6f7c9a9be0e1c820f8aec3e39c6e594eb54a3ea26c7",
+        "route": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    {
+      "variant": "candidate",
+      "generation": {
+        "artifact_sha256": "b4db68c9643926a1bee5b10d726444d96e087350a6f0a36c425fac83d36bfe96",
+        "attempt_id": "run_dd351e6f74f931a100f597255bde3b7c639003e127619352888e7552a0c5027e",
+        "call_ids": [
+          "call_dc30b191db4bcb72428764508537958fb96d6201e39c01f346de810f3bd865a3",
+          "call_a0a2d16133f3b9eff0fd64137e894df37223122e6d020aa3e0214e546de2d83f"
+        ],
+        "dispatch_manifest_sha256": "5209dfe8983b8dd1ecced6cfa3de215ef01b0effc991de1f4ae3d7ccb28edafe",
+        "elapsed_ms": 1104,
+        "generation_receipt_sha256": "6e2a6bc2bcda312a595dced948df086297e8e7c4ad42a1146aa9c53cf94bd11a",
+        "goose_build": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+        "live": false,
+        "model": "auto",
+        "outcome": "completed",
+        "profile": "3c0f628b10cb39e3deaab9e5980af500b42b414617e4f3228343c58821105f7d",
+        "route": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "metrics": {
+        "attempt_id": "run_dd351e6f74f931a100f597255bde3b7c639003e127619352888e7552a0c5027e",
+        "calls": [
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 154,
+            "model_round_trips": 1,
+            "prompt_bytes": 3531,
+            "prompt_tokens": 10,
+            "request_sha256": "1fb461f512b15444c2808735adf19eb103e1c25444e2d65e7a99f583faec46dc",
+            "tool_result_bytes": 0
+          },
+          {
+            "billed_microusd": 2,
+            "cached_tokens": null,
+            "completion_tokens": 4,
+            "elapsed_ms": 137,
+            "model_round_trips": 1,
+            "prompt_bytes": 5357,
+            "prompt_tokens": 10,
+            "request_sha256": "3f42b97c5fd3fe1b1caaf3db95aabd47abe686567d6f8bfab79c3050b75ded81",
+            "tool_result_bytes": 130
+          }
+        ],
+        "goose_build": "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb",
+        "model": "auto",
+        "profile": "3c0f628b10cb39e3deaab9e5980af500b42b414617e4f3228343c58821105f7d",
+        "route": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    }
+  ],
+  "source_sha256": {
+    "paired_runner.py": "ce874837b68bb5c0ec1205899c859f68cd670b29e6e2a8d7e9fd9671a1b3ef5c",
+    "benchmark_acceptance.py": "c198c2b81ba4f2732efecfbf9d89a10d04ee4fd0b3213e3570ed0b357845dd35",
+    "billing_capabilities.py": "d0c9dfe6abdfaa09afbb1c4f5cdbe1f6e2415a19c70c5cb08f318e3de7a78c4e",
+    "protected_spending_control.py": "533f113813d24fc0d39cf5caad391a6903f7acfac130613fdec773f0b13a94bb",
+    "protected_goose_runtime.py": "fcfc4303b98946841d5c3591dd2eced59a79c4619534ddb52846c44277f2be04",
+    "protected_mcp.py": "5cbd36646fbc5117e09a8efb60b13853425817ae70321d96d1a8b153400baf15",
+    "container_evaluator.py": "50640b0387ec71dd39e8f5ec8e9431b97b3d7a1ad8277b25609a2b2ed848bf4f",
+    "container_eval_host.py": "9f18f50a99452863f1b1e9d173ad8c1ca0ba330de7fb1560888576907f6bc46c"
+  },
+  "route_observation": {
+    "partial_metadata_fingerprint_sha256": "9628538c9559fe59b23534a31613fef26e651ba89583cc2b48c0469128289529",
+    "complete_route_attestation": false,
+    "source": "read-only governance metadata; no credential values selected"
+  },
+  "billing_review": {
+    "schema": 1,
+    "reviewed_on": "2026-10-30",
+    "route_sha256": "9628538c9559fe59b23534a31613fef26e651ba89583cc2b48c0469128289529",
+    "documented_per_request_coverage": false,
+    "allows_live_inference": false,
+    "paths": [
+      {
+        "id": "semantic-embedding",
+        "documented_per_request_receipt": false,
+        "receipt_endpoint": null
+      },
+      {
+        "id": "llm-classifier",
+        "documented_per_request_receipt": true,
+        "receipt_endpoint": "https://ai-gateway.vercel.sh/v1/generation"
+      },
+      {
+        "id": "answer-flash",
+        "documented_per_request_receipt": false,
+        "receipt_endpoint": null
+      },
+      {
+        "id": "answer-pro",
+        "documented_per_request_receipt": false,
+        "receipt_endpoint": null
+      }
+    ],
+    "blockers": [
+      {
+        "id": "semantic-embedding",
+        "reason": "embedding_receipt_contract_unverified"
+      },
+      {
+        "id": "answer-flash",
+        "reason": "aggregate_not_per_request_billing"
+      },
+      {
+        "id": "answer-pro",
+        "reason": "aggregate_not_per_request_billing"
+      }
+    ],
+    "required_actual_evidence": [
+      "authenticated_complete_dispatch_manifest",
+      "correlated_provider_recorded_receipts",
+      "reviewed_enforceable_all_path_charge_bounds"
+    ],
+    "evidence": {
+      "ollama": {
+        "source": "https://raw.githubusercontent.com/ollama/ollama/main/docs/openapi.yaml",
+        "reviewed_schema_sha256": "d8e08be41dd858c933c32bef5ee8d0c5faf7d7462069a49b368731cfbceaab03",
+        "documented_metadata_paths": [
+          "/api/usage",
+          "/api/balance"
+        ],
+        "usage_filters": [
+          "range",
+          "scope",
+          "group_by=model"
+        ],
+        "billing_attribution": "account_or_team_time_buckets",
+        "request_billing_filter": null,
+        "key_billing_filter": null,
+        "documented_settlement_watermark": null,
+        "new_key_is_account_isolation": false
+      },
+      "vercel": {
+        "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api",
+        "chat_receipt": "GET https://ai-gateway.vercel.sh/v1/generation?id=gen_<ulid>",
+        "paid_amount": "non-BYOK total_cost/gateway_cost/usage balance debit",
+        "embedding_generation_receipt_verified": false
+      }
+    }
+  },
+  "remaining_gates": [
+    "production_registry_transition_and_launch_attestation",
+    "enforceable_all_path_charge_bounds",
+    "complete_correlated_provider_billed_receipts",
+    "120_live_attempt_paired_performance_gate"
+  ],
+  "review": {
+    "id": "phase11a-runtime-1793411376",
+    "original_confirmed_findings": 3,
+    "resolved_findings": 3,
+    "unresolved_findings": 0,
+    "lenses": [
+      "correctness",
+      "security",
+      "reliability",
+      "testing",
+      "adversarial",
+      "project-standards",
+      "maintainability",
+      "api-contract",
+      "agent-native"
+    ],
+    "final_focused_receipt_sha256": {
+      "final-correctness.json": "dd8a4cd39380b1e86d866cda600af593aba01c87841f4a69bbde1a5610801471",
+      "final-security.json": "ea63f0c5dfe07482bd5541bdd945a8b69a01ea17fef3d25a4d26d607b7854b89",
+      "validator-verdicts.json": "315aa966c651c6f67a8fe1662cf11cce82d4bc46b8bb4c47e17bce7ce75b2ea7"
+    },
+    "terminal_report_sha256": "cf8c1a375914d8c68308b49da490b154549717e4ddcfa702fbda248c44e16d52",
+    "terminal_status": "complete"
+  }
+}

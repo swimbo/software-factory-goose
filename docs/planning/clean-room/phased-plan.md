@@ -87,8 +87,8 @@ Customized from the 14-phase pattern. Conditional phases (UI, browser E2E) are s
 | 9 | Implementation | ✅ | build the factory, subagents for independent crates |
 | 10 | E2E Test Generation | ⚠️ partial (integration tests) | Rust integration tests for the factory loop, not browser Playwright |
 | 11 | Testing & Verification | ✅ | run the loop end-to-end, verify gates |
-| 11A | Harness Efficiency and Reliability | ✅ | required before Delivery; see phase-11a-plan.md; candidate stays disabled until paired evaluation passes |
-| 12 | Delivery | ✅ | user verification |
+| 11A | Harness Efficiency and Reliability | ✅ | required before Delivery; implementation incomplete, live paired runs 0/120; see phase-11a-plan.md; candidate disabled |
+| 12 | Delivery | ✅ | user verification; blocked until Phase 11A live paired acceptance passes |
 | 13 | Plan Gap Audit | ✅ | diff implementation vs plan |
 | 14 | Fix All Gaps | ✅ | close gaps in severity order |
 

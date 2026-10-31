@@ -499,3 +499,9 @@ Verified source milestones are committed and pushed in separate commits through
 approved a new three-reviewer admin-ingress/old-SDK retirement debate after the
 direct admin bypass was identified. That debate and its bounded disposable proof
 must precede the real registry transition and connected INT-LOOP.
+
+### Phase 11A protected runtime and runner checkpoint — 2026-10-30
+
+Protected spending ingress, incremental lease-bound attempts, the resumable 120-attempt driver and independent public-task acceptance are implemented. An isolated native Linux fixture verifies kernel UID roles, private journal transport, persistent caps and restart behavior. Actual pinned Goose completed both variants through the same spending journal and bounded independent evaluator in a synthetic rehearsal; no rehearsal counts toward the live benchmark. See verification/2026-10-30-harness-runtime-runner.md and verification/2026-10-30-harness-linux-private-runtime.md.
+
+Live runs remain 0/120. The approved $5 UTC-day/$0.75 permanent-task ceilings remain binding. Production transition/launch binding, enforceable all-path charge bounds and correlated provider-billed classifier/embedding/answer receipts remain prerequisites. No candidate activation, route change or delivery occurred. Phase 11A remains incomplete and required before Phase 12.

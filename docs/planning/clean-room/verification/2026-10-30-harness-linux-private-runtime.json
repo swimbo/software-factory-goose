@@ -1,0 +1,91 @@
+{
+  "container": "sfactory-harness-linux-private-3h2f7ha6",
+  "root": "/var/tmp/sfactory-harness-linux-private-3h2f7ha6",
+  "binary_sha256": "c10fa610f1a4fac491340ed46e65489ac218b25656a01c9bfe20ccb6481da2e8",
+  "purpose": "phase11a-linux-private-v1",
+  "native_arch": "x86_64",
+  "synthetic": true,
+  "candidate_enabled": false,
+  "completed_live_runs": 0,
+  "source_sha256": {
+    "crates/control-plane/src/harness_spending.rs": "408dbf18d758b0a739d79e4e077a8ad581e58d889826e969fe884c4b86970931",
+    "crates/control-plane/src/harness_spending_ingress.rs": "57b293de35b0b1c6b3a54a60301236863919dfa344e79a89be65e0f4a6644e26"
+  },
+  "broker_client_source_sha256": {
+    "protected_spending_control.py": "e6047d2fba8072919368163ee00974c510b2e96131efb9ca894f7daf8be4b297",
+    "billing_capabilities.py": "d0c9dfe6abdfaa09afbb1c4f5cdbe1f6e2415a19c70c5cb08f318e3de7a78c4e",
+    "billing_receipts.py": "73c911a9537ec42e90db3791297586dcbd7bcb4c6e403255e06ab8f54c969bf9",
+    "factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81"
+  },
+  "checks": {
+    "kernel_uid_roles": true,
+    "protected_python_broker_client": true,
+    "worker_backend_filesystem_denied": true,
+    "broker_backend_filesystem_denied": true,
+    "worker_sdk_tcp_denied": true,
+    "worker_journal_tcp_denied": true,
+    "backend_socket_replacement_fenced": true,
+    "unknown_survived_sigkill": true,
+    "daily_denial_survived_sigkill": true,
+    "receipt_claim_survived_sigkill": true,
+    "task_cap_preserved_across_attempts": true,
+    "actual_cost_did_not_refund_reservation": true,
+    "day_cap_preserved_after_settlement": true,
+    "opening_budget_reset_refused": true
+  },
+  "phase": "11A",
+  "production_registered": false,
+  "provider_calls": 0,
+  "containers_removed_verified": true,
+  "build": {
+    "fixture_features": [
+      "restate"
+    ],
+    "production_registry_feature_tested": false,
+    "builder_image_id": "sha256:3218c38b2401ec207861f6534dfd21f58a8b0f1f2c25df52feae22a6dfcd1b3f",
+    "cargo_manifest_sha256": "8e146c3feb92d412ded8ff8ef030b7a42f9f59b12c29d175ac4f6c20928d55aa",
+    "cargo_lock_sha256": "81d5dd42e5b9a2899b92511a940e2654c16a76a0d0dd18674dd344c9b2d90835",
+    "build_network": "none",
+    "build_registry": "existing public cache mounted readonly",
+    "cpu_limit": 2,
+    "memory_limit_bytes": 3221225472,
+    "timeout_seconds": 500
+  },
+  "runtime_limits": {
+    "service_cpu_limit": 2,
+    "service_memory_limit_bytes": 1073741824,
+    "service_pids_limit": 512,
+    "role_client_pids_limit": 16,
+    "role_client_network": "separate network=none namespaces",
+    "service_network": "network=none; loopback SDK/Restate not shared with role clients",
+    "frontend_directory_mode": "0750 service-owned group3000",
+    "frontend_socket_mode": "0660 service-owned group3000",
+    "backend_directory_mode": "0700 service-owned",
+    "backend_socket_mode": "0600 service-owned",
+    "worker_and_fixed_http_client_roots": "read-only",
+    "python_broker_chroot_root": "owned read-write bind for trusted chroot bootstrap; RPC process drops to UID2000 without retained capabilities"
+  },
+  "limits": [
+    "Disposable fresh synthetic owner only; no production predecessor inventory or fencing attested.",
+    "No native Goose/evaluator execution in this fixture; no provider billing evidence or benchmark performance result.",
+    "Default restate feature only; production registry-sidecar gate remains separately required."
+  ],
+  "fixture_sha256": "c2219582b06e0bee35ffab233a01a15ad1a7593eb21aedddcbf3946132897ccf",
+  "source_equivalence_supplement": {
+    "scope": "PrivateSpendingClient and every other top-level AST node except JournaledControl; imported local modules byte-identical",
+    "comparison": "Python ast.dump(include_attributes=False); original staged source SHA verified against original receipt",
+    "tested_full_module_sha256": "e6047d2fba8072919368163ee00974c510b2e96131efb9ca894f7daf8be4b297",
+    "current_full_module_sha256": "533f113813d24fc0d39cf5caad391a6903f7acfac130613fdec773f0b13a94bb",
+    "all_non_journaled_control_ast_sha256": "e1af0da3191dd386f94c5e7976a7b3d2aa0e1fe7b2854a191174f5d7c356c335",
+    "private_client_ast_equal": true,
+    "imports_constants_helpers_ast_equal": true,
+    "local_dependency_sha256": {
+      "billing_capabilities.py": "d0c9dfe6abdfaa09afbb1c4f5cdbe1f6e2415a19c70c5cb08f318e3de7a78c4e",
+      "billing_receipts.py": "73c911a9537ec42e90db3791297586dcbd7bcb4c6e403255e06ab8f54c969bf9",
+      "factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81"
+    },
+    "only_semantic_change": "JournaledControl.exchange result additionally returns already-validated receipt billed_microusd",
+    "native_rerun": false,
+    "limits": "Equivalence extends the native client boundary evidence only; changed JournaledControl.exchange behavior was not executed by this native fixture."
+  }
+}

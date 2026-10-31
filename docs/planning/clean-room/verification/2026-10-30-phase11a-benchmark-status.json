@@ -1,29 +1,27 @@
 {
-  "schema": 1,
+  "schema": 2,
   "phase": "11A",
   "status": "blocked",
   "candidate_enabled": false,
   "required_live_runs": 120,
   "completed_live_runs": 0,
-  "synthetic_canary_provider_calls": 12,
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
   "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
   "performance_gate": {
-    "version": 1,
     "passed": false,
-    "reason": "incomplete_pairs",
-    "candidate_enabled": false
+    "reason": "incomplete_live_pairs"
   },
+  "latest_synthetic_rehearsals": 2,
+  "latest_synthetic_closed_calls": 6,
+  "evidence": "2026-10-30-harness-runtime-runner.json",
   "blockers": [
-    "General script conversation not admitted through the sole authenticated task/daily spending authority.",
-    "No reviewed aggregate price/token bound covering every auto classifier/fallback/answer path.",
-    "No correlated complete trusted billed-cost receipts for classifier plus answer calls."
+    "production_registry_transition_and_launch_attestation",
+    "enforceable_all_path_charge_bounds",
+    "complete_correlated_provider_billed_receipts",
+    "120_live_attempt_paired_performance_gate"
   ],
-  "observations": {
-    "factory_key_active": true,
-    "attached_key_budget_rows": 0,
-    "exact_local_deepseek_price_rows": 0,
-    "historical_factory_chat_costs_partial": true,
-    "historical_classifier_cost_missing": true
-  },
-  "note": "Missing exact price rows/key budget alone do not establish the full admission decision. No live call, waiver, key change, or ledger reset occurred."
+  "note": "Synthetic fixtures and estimated costs cannot satisfy live acceptance. Existing journals/routes remain unchanged."
 }
