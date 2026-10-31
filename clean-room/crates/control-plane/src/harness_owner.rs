@@ -155,6 +155,32 @@ pub fn bind_owner(
     }
 }
 
+/// Select the registry's unique active scope, preserving historical catalog bytes.
+/// The caller loads the fixed Root-owned registry; this does not authenticate input.
+pub fn active_owner_catalog<'a>(
+    active_intent: &str,
+    catalogs: &'a [(PrivateRuntimeConfig, String)],
+) -> anyhow::Result<(&'a PrivateRuntimeConfig, &'a str)> {
+    let mut matching = catalogs
+        .iter()
+        .filter(|(c, _)| c.intent_id == active_intent);
+    let (config, evidence) = matching
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("active owner catalog unavailable"))?;
+    anyhow::ensure!(matching.next().is_none(), "active owner catalog ambiguous");
+    anyhow::ensure!(
+        config.harness_owner.is_some(),
+        "active harness owner not configured"
+    );
+    anyhow::ensure!(
+        catalogs
+            .iter()
+            .all(|(prior, _)| config.registry_compatible(prior)),
+        "inconsistent owner catalogs"
+    );
+    Ok((config, evidence))
+}
+
 /// Namespace-local durable backend, fixed to the root catalog's sole owner.
 /// No request supplies a URL, object key, service, credentials or alternate ledger.
 pub struct HarnessJournalBackend {
@@ -277,15 +303,38 @@ mod tests {
         assert!(binding().validate(&catalog()).is_ok());
     }
     #[test]
-    fn preserved_registry_scopes_must_share_exact_owner_configuration() {
+    fn active_owner_can_preserve_unbound_history_but_cannot_remove_or_change_owner() {
         let mut a = catalog();
         let mut b = catalog();
         a.harness_owner = Some(binding());
-        assert!(!a.registry_compatible(&b));
+        assert!(a.registry_compatible(&b));
+        assert!(!b.registry_compatible(&a));
         b.harness_owner = Some(binding());
         assert!(a.registry_compatible(&b));
         b.harness_owner.as_mut().unwrap().tariff_sha256 = "e".repeat(64);
         assert!(!a.registry_compatible(&b));
+    }
+    #[test]
+    fn frontend_selects_unique_active_owner_instead_of_historical_first() {
+        let active_id = "01J00000000000000000000009";
+        let make_active = || {
+            let mut active = catalog();
+            active.intent_id = active_id.into();
+            active.harness_owner = Some(binding());
+            active
+        };
+        let mut entries = vec![(catalog(), "old".into()), (make_active(), "current".into())];
+        let (selected, evidence) = active_owner_catalog(active_id, &entries).unwrap();
+        assert_eq!(selected.harness_owner, Some(binding()));
+        assert_eq!(evidence, "current");
+        assert!(active_owner_catalog("01J00000000000000000000008", &entries).is_err());
+        assert!(active_owner_catalog(&entries[0].0.intent_id, &entries).is_err());
+        entries.push((make_active(), "duplicate".into()));
+        assert!(active_owner_catalog(active_id, &entries).is_err());
+        entries.pop();
+        entries[0].0.harness_owner = Some(binding());
+        entries[0].0.harness_owner.as_mut().unwrap().tariff_sha256 = "e".repeat(64);
+        assert!(active_owner_catalog(active_id, &entries).is_err());
     }
     #[test]
     fn owner_names_and_reviews_are_not_worker_selected_paths_or_zero_defaults() {

@@ -56,9 +56,10 @@ struct RecipeEvidence {
 }
 
 impl PrivateRuntimeConfig {
-    /// Bind every preserved scope to the same process, operator and private journal.
+    /// Active configuration preserves each historical scope's process and journal.
+    /// Introducing an owner may retain unbound history; removal or replacement cannot.
     pub fn registry_compatible(&self, other: &Self) -> bool {
-        self.harness_owner == other.harness_owner
+        (other.harness_owner.is_none() || self.harness_owner == other.harness_owner)
             && self.boot_id == other.boot_id
             && self.service_uid == other.service_uid
             && self.operator_uid == other.operator_uid

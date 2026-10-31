@@ -3,7 +3,8 @@
 #[cfg(all(target_os = "linux", feature = "registry-sidecar"))]
 async fn run() -> anyhow::Result<()> {
     use control_plane::{
-        harness_owner::HarnessJournalBackend, harness_spending_ingress, private_runtime,
+        harness_owner::{HarnessJournalBackend, active_owner_catalog},
+        harness_spending_ingress, private_runtime,
     };
     use std::{
         ffi::CString,
@@ -26,21 +27,13 @@ async fn run() -> anyhow::Result<()> {
                 .all(|b| b.is_ascii_alphanumeric() || b"_-".contains(&b)),
         "fixed root owner required"
     );
-    let (_, catalogs) = private_runtime::load_catalog_registry()?;
-    let (config, evidence) = catalogs
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("catalog unavailable"))?;
+    let (registry, catalogs) = private_runtime::load_catalog_registry()?;
+    let (config, evidence) = active_owner_catalog(&registry.active_intent, &catalogs)?;
     let binding = config
         .harness_owner
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("harness owner not configured"))?;
-    anyhow::ensure!(
-        binding.owner == args[1]
-            && catalogs
-                .iter()
-                .all(|(other, _)| config.registry_compatible(other)),
-        "inconsistent owner catalogs"
-    );
+    anyhow::ensure!(binding.owner == args[1], "inconsistent owner catalogs");
     anyhow::ensure!(
         unsafe { libc::geteuid() } == config.journal_uid
             && unsafe { libc::getegid() } == config.journal_uid,
