@@ -1,10 +1,12 @@
 {
-  "schema": 2,
+  "schema": 3,
   "phase": "11A",
   "status": "blocked",
   "candidate_enabled": false,
   "required_live_runs": 120,
   "completed_live_runs": 0,
+  "performance_cost_basis": "audited_usage_rated",
+  "tariff_profile": "constant_peak",
   "approved_caps_microusd": {
     "utc_day": 5000000,
     "permanent_task": 750000
@@ -14,14 +16,12 @@
     "passed": false,
     "reason": "incomplete_live_pairs"
   },
-  "latest_synthetic_rehearsals": 2,
-  "latest_synthetic_closed_calls": 6,
-  "evidence": "2026-10-30-harness-runtime-runner.json",
+  "evidence": "2026-10-30-harness-usage-rated.json",
   "blockers": [
-    "production_registry_transition_and_launch_attestation",
-    "enforceable_all_path_charge_bounds",
-    "complete_correlated_provider_billed_receipts",
-    "120_live_attempt_paired_performance_gate"
+    "authenticated_complete_all_path_physical_usage_capture",
+    "reviewed_enforceable_provider_and_route_charge_bounds",
+    "production_registry_transition_and_generic_protected_linux_launch",
+    "120_real_paired_attempts_and_safety_acceptance_cost_time_gate"
   ],
-  "note": "Synthetic fixtures and estimated costs cannot satisfy live acceptance. Existing journals/routes remain unchanged."
+  "note": "User-approved cost metric amendment implemented. No live inference, candidate activation, route change or production ledger reset."
 }

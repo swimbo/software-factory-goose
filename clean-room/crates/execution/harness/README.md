@@ -115,3 +115,11 @@ The 120-run benchmark remains at zero live attempts: the existing task/daily
 atomic authority is not connected to general script traffic, and complete
 classifier-plus-answer billed-cost receipts are unavailable. No old monetary
 waiver is carried forward and no synthetic result is relabeled as live evidence.
+
+### Audited usage-rated performance receipts
+
+The user-approved Phase 11A cost basis is `audited_usage_rated`. New runner configurations freeze both `cost_basis` and `tariff_sha256`; these enter attempt identities and durable configuration binding. `usage_rating.py` collects authenticated complete physical-call usage against a versioned constant-peak tariff. Cache categories are disjoint within total input, and total output includes reasoning. Missing cost inputs, partial usage, unknown models, incomplete physical manifests and changed tariffs refuse scoring. Exact Decimal costs are aggregated before ceiling to microUSD. This metric is never labeled a provider-confirmed billed debit.
+
+`usage_spending.py` claims stable `usage_<digest>` evidence IDs and closes the same owner journal under a tariff-bound root scope. Rated receipts omit `billed_microusd` and carry `usage_rating`; legacy provider-billed scopes and serialized digests retain their original behavior. Tiny rated costs never release conservative reservations. Root launch/route attestation, complete capture and reviewed enforceable all-path charge bounds remain prerequisites; source publication and a passing offline gate do not enable the candidate.
+
+The native Linux Unix relay and actual typed/QuickJS Goose rehearsal are component evidence. The current production root launcher still pins its fixed worker recipe and has no general frozen-suite admission. See `docs/planning/clean-room/verification/2026-10-30-harness-linux-goose-runtime.md`.

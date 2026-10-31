@@ -124,6 +124,9 @@ def observation(
     route,
     tool_result_bytes=None,
     billed_microusd=None,
+    usage_rated_microusd=None,
+    cost_basis=None,
+    tariff_sha256=None,
     elapsed_ms=None,
     accepted=None,
 ):
@@ -157,6 +160,15 @@ def observation(
         "tool_result_bytes": count(tool_result_bytes),
         "model_round_trips": 1,
         "billed_microusd": count(billed_microusd),
+        "usage_rated_microusd": count(usage_rated_microusd),
+        "cost_basis": cost_basis
+        if cost_basis in ("audited_usage_rated", "provider_billed")
+        else None,
+        "tariff_sha256": tariff_sha256
+        if isinstance(tariff_sha256, str)
+        and len(tariff_sha256) == 64
+        and all(c in "0123456789abcdef" for c in tariff_sha256)
+        else None,
         "elapsed_ms": count(elapsed_ms),
         "accepted": accepted if type(accepted) is bool else None,
     }
@@ -179,6 +191,26 @@ def evaluate(suite, rows):
             return failed("invalid_suite")
         if not isinstance(rows, list) or len(rows) != len(suite["tasks"]) * 6:
             return failed("incomplete_pairs")
+        basis = (
+            rows[0].get("cost_basis", "provider_billed")
+            if isinstance(rows[0], dict)
+            else None
+        )
+        if basis not in ("provider_billed", "audited_usage_rated"):
+            return failed("invalid_cost_basis")
+        rated = basis == "audited_usage_rated"
+        cost_key = "usage_rated_microusd" if rated else "billed_microusd"
+        tariff = rows[0].get("tariff_sha256") if rated else None
+
+        def digest(value):
+            return (
+                isinstance(value, str)
+                and len(value) == 64
+                and all(c in "0123456789abcdef" for c in value)
+            )
+
+        if rated and not digest(tariff):
+            return failed("unknown_tariff")
         by_key = {}
         task_ids = {t["id"] for t in suite["tasks"]}
         identities = {"baseline": set(), "candidate": set()}
@@ -195,13 +227,23 @@ def evaluate(suite, rows):
             key = row["task_id"], row["repeat"], row["variant"]
             if key in by_key:
                 return failed("duplicate_receipt")
-            for field in ("billed_microusd", "elapsed_ms", "budget"):
+            if row.get("cost_basis", "provider_billed") != basis:
+                return failed("unpaired_cost_basis")
+            if rated and (
+                row.get("tariff_sha256") != tariff
+                or not digest(row.get("audit_sha256"))
+                or "billed_microusd" in row
+            ):
+                return failed("invalid_cost_evidence")
+            if not rated and "usage_rated_microusd" in row:
+                return failed("invalid_cost_evidence")
+            for field in (cost_key, "elapsed_ms", "budget"):
                 if type(row.get(field)) is not int or row[field] < 0:
                     return failed("unknown_measurement")
             if (
                 row["elapsed_ms"] == 0
                 or row["budget"] == 0
-                or row["billed_microusd"] > row["budget"]
+                or row[cost_key] > row["budget"]
             ):
                 return failed("invalid_measurement")
             if (
@@ -241,7 +283,7 @@ def evaluate(suite, rows):
                 accepted = sum(r["accepted"] for r in rs)
                 if not accepted:
                     return failed("unaccepted_task")
-                task_costs.append(sum(r["billed_microusd"] for r in rs) / accepted)
+                task_costs.append(sum(r[cost_key] for r in rs) / accepted)
                 task_times.append(sum(r["elapsed_ms"] for r in rs) / accepted)
             costs[variant] = statistics.median(task_costs)
             times[variant] = statistics.median(task_times)
@@ -251,10 +293,12 @@ def evaluate(suite, rows):
             and times["candidate"] <= times["baseline"] * 1.10
         )
         return {
-            "version": 1,
+            "version": 2 if rated else 1,
             "passed": passed,
             "reason": "passed" if passed else "performance_gate",
             "suite_sha256": suite["sha256"],
+            "cost_basis": basis,
+            "tariff_sha256": tariff,
             "accepted": counts,
             "median_cost_per_accepted_task_microusd": costs,
             "median_time_per_accepted_task_ms": times,

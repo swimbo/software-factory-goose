@@ -30,6 +30,10 @@ pub struct ChargeBound {
 pub struct RouteBound {
     pub route_sha256: String,
     pub review_sha256: String,
+    /// Root-reviewed tariff for AUDITED USAGE-RATED COSTS, a performance metric.
+    /// Absent means provider-billed evidence; existing scope digests remain stable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_tariff_sha256: Option<String>,
     pub valid_from_ms: u64,
     pub valid_until_ms: u64,
     pub max_request_bytes: u64,
@@ -97,7 +101,9 @@ pub struct GenerationClaim {
     pub request_sha256: String,
     pub scope_sha256: String,
     pub manifest_sha256: String,
-    /// Namespaced provider generation IDs, from the authenticated collector manifest.
+    /// Authenticated collector evidence IDs. Rated scopes require usage_<64 hex>
+    /// derived from stable protected physical dispatch IDs, never provider IDs.
+    /// Provider-billed scopes reserve that namespace and use provider evidence IDs.
     pub generation_ids: BTreeSet<String>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,7 +123,19 @@ pub struct CollectorReceipt {
     /// a zero-cost disposition. The protected collector must verify that distinction.
     pub components: BTreeMap<String, String>,
     pub generation_ids: BTreeSet<String>,
-    pub billed_microusd: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub billed_microusd: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage_rating: Option<UsageRatingEvidence>,
+}
+/// Collector-authenticated audited usage rating; hashes bind, never authenticate,
+/// model data. This metric never refunds a conservative spending reservation.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UsageRatingEvidence {
+    pub tariff_sha256: String,
+    pub audit_sha256: String,
+    pub usage_rated_microusd: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -177,6 +195,7 @@ impl AttemptScope {
             || !interval(r.valid_from_ms, r.valid_until_ms)
             || !hex(&r.route_sha256)
             || !hex(&r.review_sha256)
+            || r.usage_tariff_sha256.as_ref().is_some_and(|v| !hex(v))
             || !(1..=1_048_576).contains(&r.max_request_bytes)
             || !(1..=1_000_000).contains(&r.max_output_tokens)
             || r.components.is_empty()
@@ -536,13 +555,25 @@ impl State {
             .iter()
             .find(|r| r.call.call_id == claim.call_id)
             .ok_or_else(|| err(404, "dispatched call unavailable"))?;
+        let rated = self
+            .scope(&r.call.scope_sha256)?
+            .route
+            .usage_tariff_sha256
+            .is_some();
         if !matches!(r.stage, Stage::Unknown | Stage::Complete)
             || r.call.request_sha256 != claim.request_sha256
             || r.call.scope_sha256 != claim.scope_sha256
             || !hex(&claim.manifest_sha256)
             || claim.generation_ids.is_empty()
             || claim.generation_ids.len() > 32
-            || claim.generation_ids.iter().any(|v| !id(v))
+            || claim.generation_ids.iter().any(|v| {
+                !id(v)
+                    || if rated {
+                        !v.strip_prefix("usage_").is_some_and(hex)
+                    } else {
+                        v.starts_with("usage_")
+                    }
+            })
         {
             return Err(err(403, "invalid generation claim"));
         }
@@ -603,6 +634,21 @@ impl State {
             manifest_sha256: receipt.manifest_sha256.clone(),
             generation_ids: receipt.generation_ids.clone(),
         };
+        let amount = match (
+            &scope.route.usage_tariff_sha256,
+            receipt.billed_microusd,
+            &receipt.usage_rating,
+        ) {
+            (None, Some(billed), None) => billed,
+            (Some(tariff), None, Some(rating))
+                if &rating.tariff_sha256 == tariff
+                    && hex(&rating.tariff_sha256)
+                    && hex(&rating.audit_sha256) =>
+            {
+                rating.usage_rated_microusd
+            }
+            _ => return Err(err(403, "receipt evidence mode or tariff mismatch")),
+        };
         if receipt.call_id != r.call.call_id
             || receipt.request_sha256 != r.call.request_sha256
             || receipt.scope_sha256 != r.call.scope_sha256
@@ -610,7 +656,7 @@ impl State {
             || !hex(&receipt.manifest_sha256)
             || expected != actual
             || receipt.components.values().any(|v| !hex(v))
-            || receipt.billed_microusd > r.reserved_microusd
+            || amount > r.reserved_microusd
         {
             return Err(err(403, "incomplete or conflicting billing receipt"));
         }
@@ -918,6 +964,7 @@ mod tests {
             route: RouteBound {
                 route_sha256: "e".repeat(64),
                 review_sha256: "f".repeat(64),
+                usage_tariff_sha256: None,
                 valid_from_ms: 100,
                 valid_until_ms: DAY_MS * 2,
                 max_request_bytes: 65536,
@@ -960,7 +1007,8 @@ mod tests {
                 ("answer".into(), "4".repeat(64)),
             ]
             .into(),
-            billed_microusd: record.reserved_microusd - 1,
+            billed_microusd: Some(record.reserved_microusd - 1),
+            usage_rating: None,
         }
     }
     fn claim(s: &mut State, r: &CollectorReceipt) {
@@ -1143,5 +1191,195 @@ mod tests {
         let mut corrupt = s;
         corrupt.task_totals.insert("task".into(), 1);
         assert!(corrupt.check("factory").is_err());
+    }
+    #[test]
+    fn usage_rated_wire_is_accepted() {
+        let mut wire = serde_json::to_value(scope("task")).unwrap();
+        wire["route"]["usage_tariff_sha256"] = serde_json::json!("a".repeat(64));
+        let scope: AttemptScope = serde_json::from_value(wire).expect("reviewed usage tariff");
+        scope.bound().unwrap();
+    }
+
+    fn rated_state() -> State {
+        let mut b = bootstrap();
+        for scope in &mut b.scopes {
+            scope.route.usage_tariff_sha256 = Some("a".repeat(64));
+        }
+        State::new("factory", b, 100).unwrap()
+    }
+    fn rated_receipt(s: &State, c: &Call) -> CollectorReceipt {
+        let mut r = receipt(s, c);
+        r.billed_microusd = None;
+        r.usage_rating = Some(UsageRatingEvidence {
+            tariff_sha256: "a".repeat(64),
+            audit_sha256: "b".repeat(64),
+            usage_rated_microusd: 1,
+        });
+        r.generation_ids = [format!(
+            "usage_{}",
+            if c.call_id.starts_with("task") {
+                "c"
+            } else {
+                "d"
+            }
+            .repeat(64)
+        )]
+        .into();
+        r
+    }
+    fn receipt_claim(r: &CollectorReceipt) -> GenerationClaim {
+        GenerationClaim {
+            call_id: r.call_id.clone(),
+            request_sha256: r.request_sha256.clone(),
+            scope_sha256: r.scope_sha256.clone(),
+            manifest_sha256: r.manifest_sha256.clone(),
+            generation_ids: r.generation_ids.clone(),
+        }
+    }
+    #[test]
+    fn legacy_wire_scope_digest_and_completed_state_stay_identical() {
+        let scope = scope("task");
+        assert_eq!(
+            scope.digest().unwrap(),
+            "fbba1cce5b33e3a6fbe52dffd6b04f1b586ba9c9f183d9e04bd8ab93ce8229a7"
+        );
+        let raw = serde_json::to_vec(&scope).unwrap();
+        let decoded: AttemptScope = serde_json::from_slice(&raw).unwrap();
+        assert_eq!(serde_json::to_vec(&decoded).unwrap(), raw);
+        assert!(!String::from_utf8(raw).unwrap().contains("usage_tariff"));
+        let mut s = State::new("factory", bootstrap(), 100).unwrap();
+        let c = call(&s, "task", 0);
+        s.reserve("factory", &c, 101).unwrap();
+        s.begin("factory", &c, 102).unwrap();
+        let r = receipt(&s, &c);
+        assert_eq!(
+            serde_json::to_value(&r).unwrap()["billed_microusd"],
+            299_999
+        );
+        claim(&mut s, &r);
+        s.complete("factory", &r).unwrap();
+        let raw = serde_json::to_vec(&s).unwrap();
+        assert!(!String::from_utf8(raw.clone())
+            .unwrap()
+            .contains("usage_rating"));
+        let mut restored: State = serde_json::from_slice(&raw).unwrap();
+        restored.check("factory").unwrap();
+        restored.complete("factory", &r).unwrap();
+        assert_eq!(serde_json::to_vec(&restored).unwrap(), raw);
+        let mut rerated = r;
+        rerated.billed_microusd = None;
+        rerated.usage_rating = rated_receipt(&restored, &c).usage_rating;
+        assert!(restored.complete("factory", &rerated).is_err());
+    }
+    #[test]
+    fn rated_evidence_is_strict_and_never_refunds_or_resets_reservations() {
+        let mut s = rated_state();
+        let c = call(&s, "task", 0);
+        s.reserve("factory", &c, 101).unwrap();
+        s.begin("factory", &c, 102).unwrap();
+        let r = rated_receipt(&s, &c);
+        claim(&mut s, &r);
+        for change in 0..7 {
+            let mut bad = r.clone();
+            match change {
+                0 => bad.usage_rating.as_mut().unwrap().tariff_sha256 = "f".repeat(64),
+                1 => bad.billed_microusd = Some(0),
+                2 => bad.usage_rating.as_mut().unwrap().audit_sha256.clear(),
+                3 => bad.usage_rating.as_mut().unwrap().usage_rated_microusd = 300_001,
+                4 => bad.usage_rating = None,
+                5 => {
+                    bad.billed_microusd = Some(1);
+                    bad.usage_rating = None;
+                }
+                _ => bad.usage_rating.as_mut().unwrap().audit_sha256 = "G".repeat(64),
+            }
+            let before = s.clone();
+            assert!(s.complete("factory", &bad).is_err(), "case {change}");
+            assert_eq!(s, before);
+        }
+        s.complete("factory", &r).unwrap();
+        let raw = serde_json::to_vec(&s).unwrap();
+        let mut restored: State = serde_json::from_slice(&raw).unwrap();
+        restored.check("factory").unwrap();
+        claim(&mut restored, &r);
+        restored.complete("factory", &r).unwrap();
+        assert_eq!(serde_json::to_vec(&restored).unwrap(), raw);
+        let mut changed = r.clone();
+        changed.usage_rating.as_mut().unwrap().usage_rated_microusd = 2;
+        assert!(restored.complete("factory", &changed).is_err());
+        assert_eq!(restored.task_totals["task"], 300_000);
+        assert_eq!(restored.day_totals[&0], 300_000);
+        let next = call(&restored, "task", 1);
+        restored.reserve("factory", &next, 103).unwrap();
+        restored.begin("factory", &next, 104).unwrap();
+        let mut r2 = rated_receipt(&restored, &next);
+        let before = restored.clone();
+        assert!(restored
+            .claim_receipts("factory", &receipt_claim(&r2))
+            .is_err());
+        assert_eq!(restored, before); // Stable physical evidence cannot be claimed twice.
+        r2.generation_ids = [format!("usage_{}", "e".repeat(64))].into();
+        claim(&mut restored, &r2);
+        restored.complete("factory", &r2).unwrap();
+        assert_eq!(
+            restored
+                .reserve("factory", &call(&restored, "task", 2), 105)
+                .unwrap(),
+            Stage::Denied
+        );
+        assert_eq!(restored.task_totals["task"], 600_000);
+        assert_eq!(restored.day_totals[&0], 600_000);
+        assert!(restored
+            .reserve("factory", &call(&restored, "other", 0), DAY_MS + 1)
+            .is_err());
+    }
+    #[test]
+    fn evidence_namespace_and_root_tariff_are_enforced_before_claim_mutation() {
+        let mut invalid = scope("task");
+        invalid.route.usage_tariff_sha256 = Some("not-a-hash".into());
+        assert!(invalid.bound().is_err());
+        for rated in [false, true] {
+            let mut s = if rated {
+                rated_state()
+            } else {
+                State::new("factory", bootstrap(), 100).unwrap()
+            };
+            let c = call(&s, "task", 0);
+            s.reserve("factory", &c, 101).unwrap();
+            s.begin("factory", &c, 102).unwrap();
+            let r = if rated {
+                rated_receipt(&s, &c)
+            } else {
+                receipt(&s, &c)
+            };
+            let mut bad = receipt_claim(&r);
+            for name in if rated {
+                vec![
+                    "provider/id".to_string(),
+                    "usage_short".into(),
+                    format!("usage_{}", "G".repeat(64)),
+                ]
+            } else {
+                vec![format!("usage_{}", "c".repeat(64)), "usage_short".into()]
+            } {
+                bad.generation_ids = [name].into();
+                let before = s.clone();
+                assert!(s.claim_receipts("factory", &bad).is_err());
+                assert_eq!(s, before);
+            }
+            let raw = serde_json::to_vec(&s).unwrap();
+            let mut restored: State = serde_json::from_slice(&raw).unwrap();
+            assert!(restored.begin("factory", &c, 103).is_err());
+            assert!(restored
+                .reserve("factory", &call(&restored, "task", 1), 103)
+                .is_err());
+            claim(&mut restored, &r);
+            let raw = serde_json::to_vec(&restored).unwrap();
+            let mut restored: State = serde_json::from_slice(&raw).unwrap();
+            let mut conflict = receipt_claim(&r);
+            conflict.manifest_sha256 = "9".repeat(64);
+            assert!(restored.claim_receipts("factory", &conflict).is_err());
+            assert_eq!(serde_json::to_vec(&restored).unwrap(), raw);
+        }
     }
 }

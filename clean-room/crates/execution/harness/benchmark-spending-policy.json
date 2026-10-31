@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "benchmark": "phase11a-paired-20261030",
   "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
   "approved_daily_cap_microusd": 5000000,
@@ -15,6 +15,11 @@
   "refund_reservations": false,
   "retry_unknown_inference": false,
   "require_all_path_reviewed_charge_bounds": true,
-  "require_complete_provider_billed_receipts": true,
-  "note": "Reviewed source policy only. The protected supervisor must bind this digest to the actual owner, reconciled inventory, live launch grants and route contract before journal bootstrap. It is not activation evidence."
+  "require_complete_provider_billed_receipts": false,
+  "note": "Reviewed source policy only. Audited usage-rated costs are a separately labeled performance metric, not provider-confirmed debits. The protected supervisor must bind an exact frozen tariff, complete authenticated usage, conservative all-path charge bounds, owner/inventory/fences and live launch grants before dispatch. Reservations are never refunded. This file does not activate production.",
+  "performance_cost_basis": "audited_usage_rated",
+  "performance_tariff_profile": "constant_peak",
+  "performance_metric_approval_source": "User explicitly accepted audited usage-rated costs for the performance gate in this chat on 2026-10-30",
+  "require_complete_authenticated_usage": true,
+  "require_frozen_tariff": true
 }

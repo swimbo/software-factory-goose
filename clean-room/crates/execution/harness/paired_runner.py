@@ -100,6 +100,11 @@ def _configuration(suite, config):
             raise RunnerRefused("invalid_suite")
     except (KeyError, TypeError, ValueError):
         raise RunnerRefused("invalid_suite") from None
+    extra = (
+        {"cost_basis", "tariff_sha256"}
+        if isinstance(config, dict) and ({"cost_basis", "tariff_sha256"} & set(config))
+        else set()
+    )
     if not _keys(
         config,
         {
@@ -112,9 +117,15 @@ def _configuration(suite, config):
             "budget",
             "daily_cap",
             "budget_owner",
-        },
+        }
+        | extra,
     ):
         raise RunnerRefused("invalid_configuration")
+    if extra and not (
+        config["cost_basis"] == "audited_usage_rated"
+        and _digest(config["tariff_sha256"])
+    ):
+        raise RunnerRefused("invalid_cost_configuration")
     if not (
         _identifier(config["benchmark_id"])
         and _identifier(config["budget_owner"])
@@ -156,6 +167,11 @@ def schedule(suite, config):
                     "repeat": repeat,
                     "variant": variant,
                 }
+                if "cost_basis" in config:
+                    identity.update(
+                        cost_basis=config["cost_basis"],
+                        tariff_sha256=config["tariff_sha256"],
+                    )
                 result.append(
                     {
                         "attempt_id": "run_" + _hash(identity),
@@ -173,6 +189,11 @@ def schedule(suite, config):
                         "budget_owner": config["budget_owner"],
                         "mode": config["mode"],
                     }
+                    | (
+                        {k: config[k] for k in ("cost_basis", "tariff_sha256")}
+                        if "cost_basis" in config
+                        else {}
+                    )
                 )
     return result
 
@@ -258,27 +279,40 @@ def _evaluation(value, attempt, generation):
 
 
 def _billing(value, attempt, generation):
+    rated = attempt.get("cost_basis") == "audited_usage_rated"
+    cost_key = "usage_rated_microusd" if rated else "billed_microusd"
+    fields = {
+        "attempt_id",
+        "dispatch_manifest_sha256",
+        "call_ids",
+        cost_key,
+        "receipt_sha256",
+        "source",
+        "all_calls_complete",
+    }
+    if rated:
+        fields |= {"tariff_sha256", "audit_sha256"}
+    source = (
+        ("audited_usage_rated" if rated else "provider_billed")
+        if attempt["mode"] == "live"
+        else "synthetic"
+    )
     if not (
-        _keys(
-            value,
-            (
-                "attempt_id",
-                "dispatch_manifest_sha256",
-                "call_ids",
-                "billed_microusd",
-                "receipt_sha256",
-                "source",
-                "all_calls_complete",
-            ),
-        )
+        _keys(value, fields)
         and value["attempt_id"] == attempt["attempt_id"]
         and value["dispatch_manifest_sha256"] == generation["dispatch_manifest_sha256"]
         and value["call_ids"] == generation["call_ids"]
-        and _integer(value["billed_microusd"], 0, attempt["budget"])
+        and _integer(value[cost_key], 0, attempt["budget"])
         and _digest(value["receipt_sha256"])
-        and value["source"]
-        == ("provider_billed" if attempt["mode"] == "live" else "synthetic")
+        and value["source"] == source
         and value["all_calls_complete"] is True
+        and (
+            not rated
+            or (
+                value["tariff_sha256"] == attempt["tariff_sha256"]
+                and _digest(value["audit_sha256"])
+            )
+        )
     ):
         raise RunnerRefused("invalid_billing_receipt")
 
@@ -491,30 +525,47 @@ class Runner:
         self.state = candidate
 
     def _row(self, attempt, record):
-        return {
-            k: attempt[k]
-            for k in (
-                "task_id",
-                "repeat",
-                "variant",
-                "suite_sha256",
-                "model",
-                "route",
-                "goose_build",
-                "profile",
-                "budget",
-            )
-        } | {
-            "billed_microusd": record["billing"]["billed_microusd"],
-            "elapsed_ms": record["generation"]["elapsed_ms"],
-            "accepted": record["evaluation"]["accepted"],
-            "independent": record["evaluation"]["independent"],
-            "safety_passed": record["evaluation"]["safety_passed"],
-            "billing_receipt_sha256": record["billing"]["receipt_sha256"],
-            "evaluation_receipt_sha256": record["evaluation"][
-                "evaluation_receipt_sha256"
-            ],
-        }
+        rated = attempt.get("cost_basis") == "audited_usage_rated"
+        evidence = (
+            {
+                "cost_basis": "audited_usage_rated",
+                "tariff_sha256": attempt["tariff_sha256"],
+                "audit_sha256": record["billing"]["audit_sha256"],
+                "usage_rated_microusd": record["billing"]["usage_rated_microusd"],
+                "usage_receipt_sha256": record["billing"]["receipt_sha256"],
+            }
+            if rated
+            else {
+                "billed_microusd": record["billing"]["billed_microusd"],
+                "billing_receipt_sha256": record["billing"]["receipt_sha256"],
+            }
+        )
+        return (
+            {
+                k: attempt[k]
+                for k in (
+                    "task_id",
+                    "repeat",
+                    "variant",
+                    "suite_sha256",
+                    "model",
+                    "route",
+                    "goose_build",
+                    "profile",
+                    "budget",
+                )
+            }
+            | {
+                "elapsed_ms": record["generation"]["elapsed_ms"],
+                "accepted": record["evaluation"]["accepted"],
+                "independent": record["evaluation"]["independent"],
+                "safety_passed": record["evaluation"]["safety_passed"],
+                "evaluation_receipt_sha256": record["evaluation"][
+                    "evaluation_receipt_sha256"
+                ],
+            }
+            | evidence
+        )
 
     def status(self):
         self._validate(self.state)
@@ -531,6 +582,10 @@ class Runner:
                 "reason": "synthetic_evidence",
                 "candidate_enabled": False,
             }
+        gate = gate | {
+            "cost_basis": self.config.get("cost_basis", "provider_billed"),
+            "tariff_sha256": self.config.get("tariff_sha256"),
+        }
         return {
             "completed_runs": len(completed),
             "completed_live_runs": len(completed)

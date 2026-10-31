@@ -38,7 +38,16 @@ def sha(value):
     return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
-def profile_fingerprints(goose, host, normalizer, *, model, route):
+def profile_fingerprints(
+    goose,
+    host,
+    normalizer,
+    *,
+    model,
+    route,
+    max_request_bytes=65536,
+    max_output_tokens=16384,
+):
     from benchmark_acceptance import INTERFACES
 
     names = (
@@ -49,6 +58,9 @@ def profile_fingerprints(goose, host, normalizer, *, model, route):
         "protected_spending_control.py",
         "billing_receipts.py",
         "billing_spending.py",
+        "billing_capabilities.py",
+        "usage_rating.py",
+        "usage_spending.py",
         "factory_harness.py",
         "harness_mcp.py",
         "harness_session.py",
@@ -60,6 +72,8 @@ def profile_fingerprints(goose, host, normalizer, *, model, route):
         "version": 1,
         "model": model,
         "route": route,
+        "max_request_bytes": max_request_bytes,
+        "max_output_tokens": max_output_tokens,
         "public_interoperability_contract_sha256": sha(INTERFACES),
         "code": {
             name: hashlib.sha256(
@@ -882,6 +896,9 @@ class ModelRelay:
                         if m.get("role") == "tool"
                     ),
                     billed_microusd=response.get("billed_microusd"),
+                    usage_rated_microusd=response.get("usage_rated_microusd"),
+                    cost_basis=response.get("cost_basis"),
+                    tariff_sha256=response.get("tariff_sha256"),
                     elapsed_ms=max(1, int((time.monotonic() - call_start) * 1000)),
                 )
                 self.metrics.append(
@@ -1042,6 +1059,8 @@ class ProtectedGooseAdapter:
             self.normalizer,
             model=control.config["model"],
             route=control.config["route_sha256"],
+            max_request_bytes=control.config.get("max_request_bytes", 65536),
+            max_output_tokens=control.config.get("max_output_tokens", 16384),
         )
 
     def admit(self, attempt):
@@ -1212,7 +1231,9 @@ class ProtectedGooseAdapter:
             "GOOSE_PATH_ROOT": str(runtime),
             "GOOSE_PROVIDER": "openai",
             "GOOSE_MODEL": "auto",
-            "GOOSE_MAX_TOKENS": "16384",
+            "GOOSE_MAX_TOKENS": str(
+                self.control.config.get("max_output_tokens", 16384)
+            ),
             "OPENAI_HOST": f"http://127.0.0.1:{server.server_port}",
             "OPENAI_BASE_PATH": "v1/chat/completions",
             "OPENAI_API_KEY": token,

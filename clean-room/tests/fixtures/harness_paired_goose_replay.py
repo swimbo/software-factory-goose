@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 #!/usr/bin/env python3
 """Actual pinned Goose + resumable runner + disposable journal/evaluator rehearsal.
 
@@ -23,6 +24,17 @@ sys.path.insert(0, str(ROOT / "crates/execution/harness"))
 from billing_receipts import PhysicalCall, freeze_manifest  # noqa: E402
 from billing_spending import collect_for_spending  # noqa: E402
 from paired_runner import Runner  # noqa: E402
+from usage_rating import (
+    TariffCard,
+    TariffRate,
+    UsageRatedCollector,
+    UsageEvidence,
+    Manifest as RatedManifest,
+    PhysicalCall as RatedCall,
+)  # noqa: E402
+from usage_spending import collect_usage_for_spending  # noqa: E402
+
+
 from protected_goose_runtime import (
     GOOSE_SHA256,
     ProtectedGooseAdapter,
@@ -36,6 +48,30 @@ spec = importlib.util.spec_from_file_location(
 )
 fixture = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixture)
+
+
+def synthetic_tariff():
+    return TariffCard(
+        "synthetic-1",
+        "constant_peak",
+        "https://example.invalid/synthetic-pricing",
+        "a" * 64,
+        0,
+        0,
+        253402300799999,
+        (
+            TariffRate(
+                "openai",
+                "fixture",
+                "0.0000001",
+                "0.00000001",
+                "0.0000001",
+                "0.0000004",
+                "0",
+            ),
+        ),
+    )
+
 
 PROGRAM = """import hashlib,json,os,pathlib,sys,tempfile
 def update(path,replacement):
@@ -71,9 +107,10 @@ def ulid(value):
 
 
 class RehearsalControl:
-    def __init__(self, base, suite):
+    def __init__(self, base, suite, tariff=None):
         self.base, self.scopes, self.receipts, self.serial = base, {}, {}, 0
         self.owner = "paired-fixture"
+        self.tariff = tariff
         self.task_attempts = {}
         self.by_scope, self.manifests = {}, {}
         self.policy_sha = hashlib.sha256(
@@ -133,6 +170,8 @@ class RehearsalControl:
                 ],
             },
         }
+        if self.tariff:
+            scope["route"]["usage_tariff_sha256"] = self.tariff.sha256()
         digest = self.rpc("admit_attempt", scope)
         self.scopes[attempt["attempt_id"]] = digest
         self.by_scope[digest] = attempt.copy()
@@ -147,7 +186,11 @@ class RehearsalControl:
             "owner": self.owner,
             "route_sha256": attempt["route"],
             "expires_at_ms": scope["expires_at_ms"],
-        }
+        } | (
+            {"cost_basis": "audited_usage_rated", "tariff_sha256": self.tariff.sha256()}
+            if self.tariff
+            else {}
+        )
 
     def authorize_tool(self, attempt, scope, name, arguments_sha256):
         if self.scopes.get(attempt["attempt_id"]) != scope or name not in (
@@ -248,6 +291,27 @@ class RehearsalControl:
             expected_call_ids=("classifier", "answer"),
             calls=calls,
         )
+        if self.tariff:
+            rated_calls = tuple(
+                RatedCall(
+                    call["call_id"] + "_" + role,
+                    i,
+                    role,
+                    "openai",
+                    "fixture",
+                    sha({"request": call["request_sha256"], "component": role}),
+                    time.time_ns() // 1000000,
+                )
+                for i, role in enumerate(("classifier", "answer"))
+            )
+            manifest = RatedManifest(
+                attempt["attempt_id"],
+                "parent-" + str(self.serial),
+                attempt["route"],
+                call["request_sha256"],
+                tuple(c.call_id for c in rated_calls),
+                rated_calls,
+            )
         self.manifests[call["call_id"]] = manifest
         return {
             "sse": (
@@ -263,6 +327,57 @@ class RehearsalControl:
     def settle(self, attempt, call, response):
         manifest = self.manifests[call["call_id"]]
         assert response["physical_manifest_sha256"] == manifest.sha256()
+
+        if self.tariff:
+
+            def usage(physical):
+                return UsageEvidence(
+                    physical.call_id,
+                    physical.provider,
+                    physical.model,
+                    physical.request_sha256,
+                    10,
+                    0,
+                    0,
+                    4,
+                    0,
+                    sha(
+                        {
+                            "physical": physical.call_id,
+                            "synthetic_usage": [10, 0, 0, 4, 0],
+                        }
+                    ),
+                    "complete",
+                )
+
+            collector = UsageRatedCollector(self.tariff, self.tariff.sha256(), usage)
+            report = collect_usage_for_spending(
+                manifest,
+                collector=collector,
+                authority=self.rpc,
+                call_id=call["call_id"],
+                scope_sha256=call["scope_sha256"],
+                route_sha256=attempt["route"],
+                request_sha256=call["request_sha256"],
+                expected_components=("classifier", "answer"),
+                component_calls={c.role: (c.call_id,) for c in manifest.calls},
+                absent_components={},
+            )
+            self.receipts[call["call_id"]] = report
+            return {
+                "call_id": call["call_id"],
+                "request_sha256": call["request_sha256"],
+                "scope_sha256": call["scope_sha256"],
+                "route_sha256": attempt["route"],
+                "physical_manifest_sha256": manifest.sha256(),
+                "billing_receipt_sha256": sha(report),
+                "usage_rated_microusd": report["usage_rated_microusd"],
+                "usage_rated_usd": report["usage_rated_usd"],
+                "tariff_sha256": report["tariff_sha256"],
+                "audit_sha256": report["audit_sha256"],
+                "source": "synthetic",
+                "all_calls_complete": True,
+            }
 
         class SyntheticClient:
             def lookup(self, generation):
@@ -333,7 +448,7 @@ def run(args):
         try:
             sdk = subprocess.Popen(
                 [
-                    str(ROOT / "target/debug/examples/harness_runtime_fixture"),
+                    str(args.sdk),
                     "sdk",
                     f"127.0.0.1:{port}",
                 ],
@@ -404,8 +519,13 @@ def run(args):
                 "daily_cap": 5000000,
                 "budget_owner": "paired-fixture",
             }
+            tariff = synthetic_tariff() if args.audited_usage else None
+            if tariff:
+                config.update(
+                    cost_basis="audited_usage_rated", tariff_sha256=tariff.sha256()
+                )
             services = RehearsalControl(
-                f"http://127.0.0.1:{ports['http-ingress-server']}", suite
+                f"http://127.0.0.1:{ports['http-ingress-server']}", suite, tariff
             )
             control = JournaledControl(
                 services,
@@ -423,7 +543,15 @@ def run(args):
                     "max_request_bytes": 65536,
                     "max_output_tokens": 16384,
                     "tools": ("read_file", "write_file", "list_files"),
-                },
+                }
+                | (
+                    {
+                        "cost_basis": "audited_usage_rated",
+                        "tariff_sha256": tariff.sha256(),
+                    }
+                    if tariff
+                    else {}
+                ),
             )
             adapter = ProtectedGooseAdapter(
                 root / "attempts",
@@ -466,6 +594,10 @@ def run(args):
                 (root / "status.json").write_text(json.dumps(status, indent=2))
                 summary = {
                     "synthetic": True,
+                    "cost_basis": "audited_usage_rated"
+                    if tariff
+                    else "provider_billed",
+                    "tariff_sha256": tariff.sha256() if tariff else None,
                     "candidate_enabled": False,
                     "completed_live_runs": 0,
                     "root": str(root),
@@ -495,4 +627,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("goose", "host", "normalizer", "summary"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument(
+        "--sdk",
+        type=Path,
+        default=ROOT / "target/debug/examples/harness_runtime_fixture",
+    )
+    parser.add_argument("--audited-usage", action="store_true")
     run(parser.parse_args())

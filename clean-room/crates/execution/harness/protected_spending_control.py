@@ -5,12 +5,13 @@ admits root-issued scopes; the collector runs under its separate authenticated
 identity and settles the SAME owner journal. Dictionary hashes bind their private
 service receipts, never authenticate model claims. No ledger is created here.
 
-Current factory-route billing evidence is incomplete. Live admission stays denied
-before launch or inference, with no flag or catalog-price override. Rehearsal
-services must identify their receipts as synthetic.
+Audited usage-rated costs are accepted as a separately labeled performance metric.
+Complete production usage capture and Linux launch admission remain unverified,
+so live admission stays denied. Rehearsal services identify receipts as synthetic.
 """
 
 import copy
+from decimal import Decimal, InvalidOperation, ROUND_CEILING, localcontext
 import ctypes
 import errno
 import http.client
@@ -121,6 +122,30 @@ def _ext4(fd):
     function.restype = ctypes.c_int
     if function(fd, ctypes.byref(buffer)) != 0 or buffer[0] != 0xEF53:
         raise ControlRefused("private_spending_filesystem_unverified")
+
+
+def _rated_usd(value):
+    if not isinstance(value, str) or len(value) > 64 or value.startswith("-"):
+        raise ControlRefused("invalid_usage_rating")
+    try:
+        amount = Decimal(value)
+    except InvalidOperation:
+        raise ControlRefused("invalid_usage_rating") from None
+    if (
+        not amount.is_finite()
+        or not 0 <= amount <= Decimal("0.75")
+        or amount.as_tuple().exponent < -18
+        or len(amount.as_tuple().digits) > 24
+        or format(amount, "f") != value
+    ):
+        raise ControlRefused("invalid_usage_rating")
+    return amount
+
+
+def _micros(amount):
+    with localcontext() as context:
+        context.prec = 80
+        return int((amount * 1000000).to_integral_value(rounding=ROUND_CEILING))
 
 
 class PrivateSpendingClient:
@@ -299,8 +324,8 @@ class JournaledControl:
 
     provider_transport.exchange returns bounded SSE plus an immutable CLOSED
     physical manifest reference. collector_service.settle fetches and authenticates
-    that complete manifest, obtains every provider-recorded debit, claims generation
-    IDs and completes this same call under its collector UID before acknowledging.
+    that complete manifest, obtains the selected provider-billed or audited usage
+    evidence, claims its evidence IDs and completes this same call under its collector UID before acknowledging.
     These must be authenticated private services, not worker-supplied callbacks.
 
     This controller owns no persistent allowance. After a crash, the runner's
@@ -329,8 +354,16 @@ class JournaledControl:
             "max_output_tokens",
             "tools",
         }
+        rated = (
+            isinstance(config, dict)
+            and config.get("cost_basis") == "audited_usage_rated"
+        )
+        if rated:
+            fields |= {"cost_basis", "tariff_sha256"}
         if (
             not _keys(config, fields)
+            or rated
+            and not _digest(config["tariff_sha256"])
             or config["mode"] not in ("live", "rehearsal")
             or not isinstance(config["owner"], str)
             or NAME.fullmatch(config["owner"]) is None
@@ -348,6 +381,8 @@ class JournaledControl:
         ):
             raise ControlRefused("invalid_protected_configuration")
         self.config = config
+        self.rated = rated
+        self.cost_key = "usage_rated_microusd" if rated else "billed_microusd"
         self.launch, self.rpc, self.provider, self.collector = (
             launch_service,
             broker_rpc,
@@ -363,6 +398,17 @@ class JournaledControl:
             type(attempt) is not dict
             or not isinstance(attempt.get("attempt_id"), str)
             or ATTEMPT.fullmatch(attempt["attempt_id"]) is None
+            or (
+                self.rated
+                and (
+                    attempt.get("cost_basis") != "audited_usage_rated"
+                    or attempt.get("tariff_sha256") != c["tariff_sha256"]
+                )
+            )
+            or (
+                not self.rated
+                and ("cost_basis" in attempt or "tariff_sha256" in attempt)
+            )
             or attempt.get("mode") != c["mode"]
             or attempt.get("model") != c["model"]
             or attempt.get("route") != c["route_sha256"]
@@ -396,6 +442,12 @@ class JournaledControl:
                 review = assess_receipt_sources(
                     self.config["route_sha256"], factory_paths()
                 )
+                if self.rated:
+                    review = {
+                        "cost_basis": "audited_usage_rated",
+                        "tariff_sha256": self.config["tariff_sha256"],
+                        "reason": "production_launch_and_complete_usage_capture_unverified",
+                    }
                 # Documentation coverage is not authentication or live admission.
                 # No currently reviewed complete factory contract exists.
                 return {
@@ -439,7 +491,13 @@ class JournaledControl:
                             "route_sha256",
                             "expires_at_ms",
                             "authority_receipt_sha256",
-                        ),
+                        )
+                        + (("cost_basis", "tariff_sha256") if self.rated else ()),
+                    )
+                    or self.rated
+                    and (
+                        grant.get("cost_basis") != "audited_usage_rated"
+                        or grant.get("tariff_sha256") != self.config["tariff_sha256"]
                     )
                     or grant["attempt_sha256"] != binding_digest(attempt)
                     or grant["policy_sha256"] != self.config["policy_sha256"]
@@ -611,8 +669,16 @@ class JournaledControl:
                 receipt = self.collector.settle(
                     copy.deepcopy(attempt), copy.deepcopy(call), copy.deepcopy(response)
                 )
+                fields = SETTLEMENT_FIELDS
+                if self.rated:
+                    fields = fields - {"billed_microusd"} | {
+                        "usage_rated_microusd",
+                        "usage_rated_usd",
+                        "tariff_sha256",
+                        "audit_sha256",
+                    }
                 if (
-                    not _keys(receipt, SETTLEMENT_FIELDS)
+                    not _keys(receipt, fields)
                     or any(
                         receipt[k] != call[k]
                         for k in ("call_id", "request_sha256", "scope_sha256")
@@ -621,16 +687,25 @@ class JournaledControl:
                     or receipt["physical_manifest_sha256"]
                     != response["physical_manifest_sha256"]
                     or not _digest(receipt["billing_receipt_sha256"])
-                    or not _integer(receipt["billed_microusd"], 0, 750000)
+                    or not _integer(receipt[self.cost_key], 0, 750000)
+                    or self.rated
+                    and (
+                        receipt["tariff_sha256"] != self.config["tariff_sha256"]
+                        or not _digest(receipt["audit_sha256"])
+                        or _micros(_rated_usd(receipt["usage_rated_usd"]))
+                        != receipt["usage_rated_microusd"]
+                    )
                     or receipt["source"]
                     != (
                         "synthetic"
                         if self.config["mode"] == "rehearsal"
-                        else "provider_billed"
+                        else (
+                            "audited_usage_rated" if self.rated else "provider_billed"
+                        )
                     )
                     or receipt["all_calls_complete"] is not True
-                    or sum(r["billed_microusd"] for r in state["receipts"])
-                    + receipt["billed_microusd"]
+                    or sum(r[self.cost_key] for r in state["receipts"])
+                    + receipt[self.cost_key]
                     > 750000
                 ):
                     raise ControlRefused("invalid_billing_receipt")
@@ -642,8 +717,16 @@ class JournaledControl:
                     "call_id": call["call_id"],
                     "physical_manifest_sha256": response["physical_manifest_sha256"],
                     "billing_receipt_sha256": receipt["billing_receipt_sha256"],
-                    "billed_microusd": receipt["billed_microusd"],
-                }
+                    self.cost_key: receipt[self.cost_key],
+                } | (
+                    {
+                        "cost_basis": "audited_usage_rated",
+                        "tariff_sha256": receipt["tariff_sha256"],
+                        "audit_sha256": receipt["audit_sha256"],
+                    }
+                    if self.rated
+                    else {}
+                )
             except ControlRefused:
                 raise
             except Exception:
@@ -692,13 +775,31 @@ class JournaledControl:
                 "attempt_id": attempt["attempt_id"],
                 "dispatch_manifest_sha256": generation["dispatch_manifest_sha256"],
                 "call_ids": [r["call_id"] for r in receipts],
-                "billed_microusd": sum(r["billed_microusd"] for r in receipts),
+                self.cost_key: _micros(
+                    sum(
+                        (_rated_usd(r["usage_rated_usd"]) for r in receipts), Decimal(0)
+                    )
+                )
+                if self.rated
+                else sum(r["billed_microusd"] for r in receipts),
                 "receipt_sha256": binding_digest(receipts),
                 "source": "synthetic"
                 if self.config["mode"] == "rehearsal"
-                else "provider_billed",
+                else ("audited_usage_rated" if self.rated else "provider_billed"),
                 "all_calls_complete": True,
-            }
+            } | (
+                {
+                    "tariff_sha256": self.config["tariff_sha256"],
+                    "audit_sha256": binding_digest(
+                        {
+                            "tariff_sha256": self.config["tariff_sha256"],
+                            "receipts": receipts,
+                        }
+                    ),
+                }
+                if self.rated
+                else {}
+            )
 
     def reconcile(self, attempt, persisted_record):
         self._validate_attempt(attempt)
