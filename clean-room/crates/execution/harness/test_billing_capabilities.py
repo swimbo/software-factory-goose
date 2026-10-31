@@ -14,14 +14,28 @@ class BillingCapabilities(unittest.TestCase):
         self.assertEqual(
             reasons,
             {
-                "aggregate_not_per_request_billing",
-                "embedding_receipt_contract_unverified",
+                "request_billing_correlation_unverified",
+                "embedding_generation_capture_unverified",
             },
         )
         self.assertEqual(result["route_sha256"], "a" * 64)
         self.assertIn(
             "/api/balance", result["evidence"]["ollama"]["documented_metadata_paths"]
         )
+
+    def test_observed_provider_cost_records_do_not_establish_factory_correlation(self):
+        result = assess_receipt_sources("a" * 64, factory_paths())
+        evidence = result["evidence"]
+        self.assertTrue(evidence["ollama"]["account_request_costs_observed"])
+        self.assertFalse(evidence["ollama"]["response_to_billing_id_verified"])
+        self.assertTrue(evidence["vercel"]["embedding_generation_receipt_verified"])
+        embedding = next(p for p in result["paths"] if p["id"] == "semantic-embedding")
+        self.assertEqual(
+            embedding["receipt_endpoint"], "https://ai-gateway.vercel.sh/v1/generation"
+        )
+        self.assertFalse(evidence["vercel"]["embedding_dispatch_id_capture_verified"])
+        self.assertFalse(result["allows_live_inference"])
+        self.assertFalse(result["documented_per_request_coverage"])
 
     def test_documented_vercel_chat_lookup_is_not_a_live_admission(self):
         result = assess_receipt_sources(
@@ -79,7 +93,8 @@ class BillingCapabilities(unittest.TestCase):
                 "a" * 64, (BillablePath("answer", "ollama-cloud", model, "chat"),)
             )
             self.assertEqual(
-                result["blockers"][0]["reason"], "aggregate_not_per_request_billing"
+                result["blockers"][0]["reason"],
+                "request_billing_correlation_unverified",
             )
             self.assertIsNone(result["paths"][0]["receipt_endpoint"])
 

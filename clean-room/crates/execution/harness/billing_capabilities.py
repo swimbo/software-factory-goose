@@ -1,6 +1,6 @@
 """Read-only reviewed billing-source coverage; this is not inference authority.
 
-This public-document review records what a collector can establish, rather than
+This document and live-observation review records what a collector can establish, rather than
 inventing a billing endpoint or treating an account balance as a request receipt.
 The protected supervisor must separately bind actual route/configuration, closed
 dispatch manifests, credential ownership and enforceable all-path price bounds.
@@ -46,7 +46,10 @@ def _evidence():
             "reviewed_schema_sha256": "d8e08be41dd858c933c32bef5ee8d0c5faf7d7462069a49b368731cfbceaab03",
             "documented_metadata_paths": ["/api/usage", "/api/balance"],
             "usage_filters": ["range", "scope", "group_by=model"],
-            "billing_attribution": "account_or_team_time_buckets",
+            "public_api_attribution": "account_or_team_time_buckets",
+            "account_request_costs_observed": True,
+            "response_to_billing_id_verified": False,
+            "account_cost_source": "https://ollama.com/blog/transparent-pricing",
             "request_billing_filter": None,
             "key_billing_filter": None,
             "documented_settlement_watermark": None,
@@ -56,13 +59,15 @@ def _evidence():
             "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api",
             "chat_receipt": "GET https://ai-gateway.vercel.sh/v1/generation?id=gen_<ulid>",
             "paid_amount": "non-BYOK total_cost/gateway_cost/usage balance debit",
-            "embedding_generation_receipt_verified": False,
+            "embedding_generation_receipt_verified": True,
+            "embedding_dispatch_id_capture_verified": False,
+            "embedding_lookup_evidence": "2026-10-30-harness-live-admission-audit.json",
         },
     }
 
 
 def assess_receipt_sources(route_sha256, paths):
-    """Check documented source coverage only, never authorize a live invocation.
+    """Check reviewed source coverage only, never authorize a live invocation.
 
     The caller supplies immutable trusted eligible paths from its exact route
     snapshot, including hidden classifier/fallback/retry outcomes. A complete
@@ -102,9 +107,10 @@ def assess_receipt_sources(route_sha256, paths):
         if not all(isinstance(v, str) for v in binding) or binding not in reviewed:
             reason = "unreviewed_model_binding"
         elif path.provider == "ollama-cloud":
-            reason = "aggregate_not_per_request_billing"
+            reason = "request_billing_correlation_unverified"
         elif path.operation == "embedding":
-            reason = "embedding_receipt_contract_unverified"
+            endpoint = "https://ai-gateway.vercel.sh/v1/generation"
+            reason = "embedding_generation_capture_unverified"
         else:
             endpoint = "https://ai-gateway.vercel.sh/v1/generation"
         result["paths"].append(
