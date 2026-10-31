@@ -28,7 +28,7 @@ const BODY_LIMIT: usize = 1_048_576;
 #[derive(Debug)]
 pub struct Refused(u16, &'static str);
 impl Refused {
-    fn new(code: u16, message: &'static str) -> Self {
+    pub(crate) fn new(code: u16, message: &'static str) -> Self {
         Self(code, message)
     }
 }

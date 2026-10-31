@@ -246,7 +246,11 @@ class PrivateSpendingClient:
             or not _integer(body["output_tokens"], 1, 16384)
         ):
             raise ControlRefused("invalid_spending_request")
-        raw = canonical(body).encode()
+        return self._send(method, canonical(body).encode())
+
+    def _send(self, method, raw, prefix="/spending/"):
+        # Callers validate role-specific bodies first. Kernel ingress roles remain
+        # the authority; sharing transport never grants another role's handlers.
         if len(raw) > 65536 or self._check_path() != self.identity:
             raise ControlRefused("private_spending_socket_changed")
         connection = None
@@ -280,7 +284,7 @@ class PrivateSpendingClient:
             connection.sock = client
             connection.request(
                 "POST",
-                "/spending/" + method,
+                prefix + method,
                 body=raw,
                 headers={"Content-Type": "application/json", "Connection": "close"},
             )

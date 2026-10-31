@@ -61,6 +61,7 @@ def profile_fingerprints(
         "billing_capabilities.py",
         "usage_rating.py",
         "usage_spending.py",
+        "physical_usage.py",
         "factory_harness.py",
         "harness_mcp.py",
         "harness_session.py",

@@ -96,3 +96,6 @@ pub mod harness_spending;
 pub mod harness_spending_ingress;
 #[cfg(feature = "restate")]
 pub mod harness_charge_bounds;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod harness_owner;

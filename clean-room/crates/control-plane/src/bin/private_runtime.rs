@@ -617,8 +617,9 @@ async fn main() -> anyhow::Result<()> {
         )?)
         .bind(claim_journal)
         .bind(queue_journal)
-        .bind(intake_journal)
-        .build();
+        .bind(intake_journal);
+    let endpoint =
+        control_plane::harness_owner::bind_owner(endpoint, config.harness_owner.as_ref())?.build();
     let address: std::net::SocketAddr = format!("127.0.0.1:{}", config.sdk_port).parse()?;
     let sdk = tokio::spawn(async move {
         HttpServer::new(endpoint).listen_and_serve(address).await;

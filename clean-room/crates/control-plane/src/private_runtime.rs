@@ -33,6 +33,9 @@ pub struct PrivateRuntimeConfig {
     /// Root-provisioned fixed generation; absent means launch grants are disabled.
     #[serde(default)]
     pub launch_scope: Option<crate::launch_reservation::LaunchScope>,
+    /// Absent preserves the existing SDK service set and grants no harness authority.
+    #[serde(default)]
+    pub harness_owner: Option<crate::harness_owner::HarnessOwnerBinding>,
 }
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,7 +58,8 @@ struct RecipeEvidence {
 impl PrivateRuntimeConfig {
     /// Bind every preserved scope to the same process, operator and private journal.
     pub fn registry_compatible(&self, other: &Self) -> bool {
-        self.boot_id == other.boot_id
+        self.harness_owner == other.harness_owner
+            && self.boot_id == other.boot_id
             && self.service_uid == other.service_uid
             && self.operator_uid == other.operator_uid
             && self.worker_uid == other.worker_uid
@@ -137,6 +141,9 @@ impl PrivateRuntimeConfig {
             "catalog evidence mismatch"
         );
         self.catalog()?;
+        if let Some(binding) = &self.harness_owner {
+            binding.validate(self)?;
+        }
         if let Some(scope) = &self.launch_scope {
             scope.validate()?;
             anyhow::ensure!(

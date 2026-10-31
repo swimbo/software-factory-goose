@@ -157,3 +157,47 @@ class UsageRatingTests(unittest.TestCase):
         ):
             with self.subTest(field=field), self.assertRaises(UsageRatingRefused):
                 self.collect(replace(self.e, **{field: None}))
+
+    def test_unknown_cache_partition_preserved_only_for_invariant_tariff(self):
+        card = replace(
+            self.card,
+            rates=(
+                replace(
+                    self.rate, cache_write_usd_per_token=self.rate.input_usd_per_token
+                ),
+            ),
+        )
+        evidence = replace(self.e, cache_write_tokens=None)
+        report = self.collect(evidence, card=card)
+        self.assertEqual(report["usage_rated_usd"], "0.00000244")
+        self.assertIsNone(report["receipts"][0]["usage"]["cache_write_tokens"])
+        card = replace(
+            card,
+            rates=(
+                replace(
+                    card.rates[0],
+                    cache_read_usd_per_token=self.rate.input_usd_per_token,
+                ),
+            ),
+        )
+        report = self.collect(replace(evidence, cache_read_tokens=None), card=card)
+        self.assertEqual(report["usage_rated_usd"], "0.0000026")
+        self.assertIsNone(report["receipts"][0]["usage"]["cache_read_tokens"])
+        with self.assertRaises(UsageRatingRefused):
+            self.collect(evidence)
+
+    def test_unknown_cache_partition_cannot_hide_impossible_known_counts(self):
+        card = replace(
+            self.card,
+            rates=(
+                replace(
+                    self.rate, cache_write_usd_per_token=self.rate.input_usd_per_token
+                ),
+            ),
+        )
+        for evidence in (
+            replace(self.e, cache_read_tokens=11, cache_write_tokens=None),
+            replace(self.e, cache_read_tokens=True, cache_write_tokens=None),
+        ):
+            with self.assertRaises(UsageRatingRefused):
+                self.collect(evidence, card=card)

@@ -8,7 +8,8 @@ An unavailable reasoning detail stays None and is never added to output again. T
 exclusive ownership conventions follow AI SDK total/inputTokenDetails semantics:
 https://github.com/vercel/ai/blob/main/content/docs/07-reference/01-ai-sdk-core/01-generate-text.mdx
 All integer timestamps are UTC epoch milliseconds.
-No prices or provider usage normalization are inferred here.
+Unknown cache subdivisions remain None; they are rateable only when their
+partition cannot change the exact tariff amount. No provider facts are inferred.
 """
 
 from dataclasses import asdict, dataclass
@@ -118,8 +119,8 @@ class UsageEvidence:
     model: str
     request_sha256: str
     input_tokens: int
-    cache_read_tokens: int
-    cache_write_tokens: int
+    cache_read_tokens: Optional[int]
+    cache_write_tokens: Optional[int]
     output_tokens: int
     reasoning_tokens: Optional[int]
     trace_sha256: str
@@ -236,32 +237,46 @@ class UsageRatedCollector:
                     and _digest(u.trace_sha256),
                     "usage_binding_mismatch",
                 )
-                counts = (
-                    u.input_tokens,
-                    u.cache_read_tokens,
-                    u.cache_write_tokens,
-                    u.output_tokens,
-                )
                 _require(
-                    all(type(n) is int and 0 <= n <= 2**63 - 1 for n in counts),
+                    all(
+                        type(n) is int and 0 <= n <= 2**63 - 1
+                        for n in (u.input_tokens, u.output_tokens)
+                    )
+                    and all(
+                        n is None or type(n) is int and 0 <= n <= 2**63 - 1
+                        for n in (u.cache_read_tokens, u.cache_write_tokens)
+                    ),
                     "invalid_usage_tokens",
                 )
+                known_read = (
+                    u.cache_read_tokens if u.cache_read_tokens is not None else 0
+                )
+                known_write = (
+                    u.cache_write_tokens if u.cache_write_tokens is not None else 0
+                )
+                remaining = u.input_tokens - known_read - known_write
                 _require(
-                    u.cache_read_tokens + u.cache_write_tokens <= u.input_tokens
+                    remaining >= 0
                     and (
                         u.reasoning_tokens is None
-                        or (
-                            type(u.reasoning_tokens) is int
-                            and 0 <= u.reasoning_tokens <= u.output_tokens
-                        )
+                        or type(u.reasoning_tokens) is int
+                        and 0 <= u.reasoning_tokens <= u.output_tokens
                     ),
                     "unknown_usage_composition",
                 )
                 a, b, d, e, f = self.rates[(c.provider, c.model)]
+                # Unknown partitions stay null in evidence. Their cost is known only
+                # when every feasible assignment gives exactly this same amount.
+                _require(
+                    remaining == 0
+                    or (u.cache_read_tokens is not None or b == a)
+                    and (u.cache_write_tokens is not None or d == a),
+                    "unknown_usage_composition",
+                )
                 amount = (
-                    (u.input_tokens - u.cache_read_tokens - u.cache_write_tokens) * a
-                    + u.cache_read_tokens * b
-                    + u.cache_write_tokens * d
+                    u.input_tokens * a
+                    + known_read * (b - a)
+                    + known_write * (d - a)
                     + u.output_tokens * e
                     + f
                 )
