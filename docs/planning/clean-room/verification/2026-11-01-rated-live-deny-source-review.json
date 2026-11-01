@@ -1,0 +1,69 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No actionable defects found in the rated live-denial test. Production admission and spending enforcement remain outside this test-only review.",
+  "scope": {
+    "base": "20bca98",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "20bca9839e678f9576572fe713b08622c07239ac",
+    "pr_url": null,
+    "files_changed": 1,
+    "files": [
+      "clean-room/crates/execution/harness/test_protected_spending_control.py"
+    ],
+    "source_sha256": {
+      "clean-room/crates/execution/harness/test_protected_spending_control.py": "085284043a0ce4f79e4c3ab3793e1fcaec70d99135196c06959eb4c36e163663"
+    }
+  },
+  "intent": "Exercise real JournaledControl rated live admission to confirm it denies before launch, journal, provider or collector side effects even with permissive metadata. Collaborators are synthetic.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "testing",
+    "security",
+    "adversarial",
+    "project-standards"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Mocked authority, provider and collector boundaries do not establish native spending enforcement, provider charge bounds, or production admission."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "The full factory, provider charge bounds, native wallet and production admission are outside this test-only review.",
+      "Parent reports 13 focused tests and mutation control; reviewers inspected the mutation log but did not rerun tests.",
+      "Correctness, testing, security, adversarial and project-standards reviewers completed.",
+      "External model egress prohibited by caller; an independent in-process adversarial reviewer completed.",
+      "Settlement suppression was not evaluated because no plan was selected."
+    ],
+    "validation": {
+      "outcome": "empty-batch",
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "failed_reviewers": [],
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "External model egress prohibited by caller; an independent in-process adversarial reviewer completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/rated-live-deny-so516n_f",
+  "run_id": "rated-live-deny-so516n_f"
+}

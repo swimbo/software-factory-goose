@@ -667,3 +667,7 @@ Bifrost `d7cf775` adds the pinned disposable-stage exchange installer; seven loc
 ### Phase 11A gateway governance visibility — 2026-11-01
 
 Bifrost test `6b07584` characterizes a public context-only virtual key through actual mandatory governance and transport hooks. The missing key is specifically denied with 401/`virtual_key_required` before the local provider; each tested hook can read the context key even though fixture headers/provider headers/observed logger did not expose it. Fixture owner, authorizer, plugins and logger are synthetic. Source review identified and prompted a stronger denial assertion; final isolated Linux test passes. See verification/2026-11-01-gateway-vk-visibility.md. Production plugin/log/credential custody and startup/warmup ownership remain open, as do provider bounds, launch gates and all 120 attempts; candidate disabled and caps unchanged.
+
+### Phase 11A rated live-denial coverage — 2026-11-01
+
+Factory test `54095b9` covers the separately approved audited usage-rated live branch: permissive metadata and a valid rated receipt still deny before launch, journal, provider or collector. The 13-test module, guard-removal negative control and independent source review pass. See verification/2026-11-01-rated-live-deny.md for the missing protected startup and final-wire authority map. This is synthetic coverage, not production admission. Live 0/120; candidate disabled; caps unchanged.
