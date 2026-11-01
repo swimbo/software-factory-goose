@@ -1,0 +1,147 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "Original pre-fix snapshot has one independently confirmed P1; later caller changes are outside this receipt.",
+  "scope": {
+    "base": "6b075844b1d7da7aa1e4b262515a67fcf7f377d",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "6b075844b1d7da7aa1e4b262515a67fcf7f377d",
+    "pr_url": null,
+    "files_changed": 9,
+    "original_staged_snapshot": true,
+    "source_sha256": {
+      "engine/transport/factory_gateway_actual_handler_native_test.go": "c2eafade1696150924cd7ca1f884502bb530bda3722469d25f9199a58f05b98a",
+      "engine/transport/factory_gateway_exchange.go": "4f792d6c8242546939359ffbcd854b8f4fcc46ea458266ccb582c3f74ffc83d9",
+      "engine/transport/factory_gateway_exchange_native_test.go": "c2c54a2548c3ae80e8409918a24e49cdd331db831913a389f5d6f29f892d064b",
+      "engine/transport/factory_gateway_exchange_test.go": "fbe62a551ddadc686d14a093ab02c9d6b111a8b501183595327f7d11a5b0df47",
+      "engine/transport/factory_owner_root.go": "a31ed417b5f17ae687c214dd7c93eccfc58026e49c1cdba33068158958331c02",
+      "engine/transport/factory_owner_scope_v2.go": "96923290d79c2a2d97cce8701afdc0f1bad3167874a8cfd18f3d20dcfc057370",
+      "engine/transport/factory_owner_scope_v2_test.go": "12f2fd5233dea2f821c516bee92774ec2a3372c4acfd543d9bcd91b65c76d920",
+      "engine/transport/patch_factory_gateway_exchange.py": "6ae99bbca71fa73bd336ff57ebf8d475ed8d6eff5d287e6a25a8fed11bb2a524",
+      "engine/transport/patch_factory_physical.py": "6d04ef9cc233725c095f4abe1e2adf8ee4505d7531488439498e5d4be76d2800"
+    }
+  },
+  "intent": "Authenticate immutable v2 scope and route on protected owner acquisition, retain legacy explicit mode, one-use broker and existing physical safety boundaries; production admission and final-wire authorization remain separate.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "security",
+    "correctness"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_owner_root.go:238 -- scope, err := factoryOwnerAckV2(response, binding, review[0])",
+        "engine/transport/factory_owner_root.go:209 -- root := &FactoryOwnerRoot{binding: binding, acquiredCtx: ctx, rootSHA: rootSHA, capture: capture, limits: map[string]FactoryOwnerComponent{}, counts: map[string]int{}, components: map[string]string{}}",
+        "engine/transport/factory_owner_root.go:252 -- if root.closing || root.acquiredCtx.Err() != nil {",
+        "Synthetic isolated Linux overlay scope-deadline-probe.log: physical admission accepted after verified scope expiry and after verified route expiry while outer context remained live."
+      ],
+      "file": "engine/transport/factory_owner_root.go",
+      "first_evidence": "engine/transport/factory_owner_root.go:238 -- scope, err := factoryOwnerAckV2(response, binding, review[0])",
+      "independent_reviewers": [
+        "security"
+      ],
+      "line": 238,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "security"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Reject ACKs already past scope or route expiry and clamp the acquired context to the earliest authenticated expiry and outer deadline. Independently bind the separate Root lease deadline; it is not in the v2 ACK. Add discriminating late-ACK and later-call tests.",
+      "title": "Enforce authenticated scope and route expiration during owner authority",
+      "why_it_matters": "The v2 ACK validates the scope but the acquired authority remains bound only to the outer context. After the wallet begin succeeds, an ACK or later physical operation can cross scope or route expiry while outer authority remains live. Both expiration paths were reproduced through in-memory BeginFactoryPhysical in a synthetic Linux overlay.",
+      "validation_status": "confirmed",
+      "validation_reason": "The saved v2 source creates acquiredCtx from the outer context at factory_owner_root.go:209, stores the verified scope without clamping at :238-247, and checks only acquiredCtx.Err at :252; factory_owner_scope_v2.go:51-55,183-187 validates timestamp ordering and digest but not current time, while harness_spending.rs:535-539 checks liveness at begin only and gateway_transport.py:173-176 derives the outer deadline independently of scope/route expiry, so a later authorized physical call can cross either bound when the outer context survives; this source-level precondition is reachable but production incidence was not measured and the reported remote synthetic log was not independently inspected.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_owner_root.go:238 -- scope, err := factoryOwnerAckV2(response, binding, review[0])",
+        "engine/transport/factory_owner_root.go:209 -- root := &FactoryOwnerRoot{binding: binding, acquiredCtx: ctx, rootSHA: rootSHA, capture: capture, limits: map[string]FactoryOwnerComponent{}, counts: map[string]int{}, components: map[string]string{}}",
+        "engine/transport/factory_owner_root.go:252 -- if root.closing || root.acquiredCtx.Err() != nil {",
+        "Synthetic isolated Linux overlay scope-deadline-probe.log: physical admission accepted after verified scope expiry and after verified route expiry while outer context remained live."
+      ],
+      "file": "engine/transport/factory_owner_root.go",
+      "first_evidence": "engine/transport/factory_owner_root.go:238 -- scope, err := factoryOwnerAckV2(response, binding, review[0])",
+      "independent_reviewers": [
+        "security"
+      ],
+      "line": 238,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "security"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Reject ACKs already past scope or route expiry and clamp the acquired context to the earliest authenticated expiry and outer deadline. Independently bind the separate Root lease deadline; it is not in the v2 ACK. Add discriminating late-ACK and later-call tests.",
+      "title": "Enforce authenticated scope and route expiration during owner authority",
+      "why_it_matters": "The v2 ACK validates the scope but the acquired authority remains bound only to the outer context. After the wallet begin succeeds, an ACK or later physical operation can cross scope or route expiry while outer authority remains live. Both expiration paths were reproduced through in-memory BeginFactoryPhysical in a synthetic Linux overlay.",
+      "validation_status": "confirmed",
+      "validation_reason": "The saved v2 source creates acquiredCtx from the outer context at factory_owner_root.go:209, stores the verified scope without clamping at :238-247, and checks only acquiredCtx.Err at :252; factory_owner_scope_v2.go:51-55,183-187 validates timestamp ordering and digest but not current time, while harness_spending.rs:535-539 checks liveness at begin only and gateway_transport.py:173-176 derives the outer deadline independently of scope/route expiry, so a later authorized physical call can cross either bound when the outer context survives; this source-level precondition is reachable but production incidence was not measured and the reported remote synthetic log was not independently inspected.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Final-wire provider and price enforcement remains a separate production gate.",
+    "Separate Root lease expiry is not included in the v2 ACK and needs independent binding."
+  ],
+  "testing_gaps": [
+    "Original positive fixture timestamps are expired; update to live windows and cover expiry crossings."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Original staged diff and source hashes saved before parent resumed edits; review findings concern that snapshot only.",
+      "Two independent reviewers covered security/adversarial and correctness/testing/API lenses; no separate remaining persona passes claimed.",
+      "Orchestrator independently reproduced both crossing-after-begin defects via synthetic Go overlay on task-owned Linux; log /home/bo/sfactory-v2-installer-RuRBQ7Dt/scope-deadline-probe.log is on remote host and not locally accessible.",
+      "No paid/provider calls or activation. Separate Root lease, final-wire price/input authorization and full production admission remain unqualified.",
+      "Stage logging began retrospectively; review timing is not established.",
+      "Cross-model pass not run: parent prohibited external code egress and hosted calls; local security/adversarial reviewer covered the lens.",
+      "Project standards: AGENTS.md fallback; no separate project-standards reviewer was dispatched.",
+      "Settlement suppression not evaluated: no plan selected.",
+      "Original index blob for owner root matched recorded snapshot SHA256; saved under snapshot/ for validator.",
+      "One P1 selected for independent validation; zero cross-model shortcut skips.",
+      "Evidence line corrected during merge from 249 to 238 after checking exact staged snapshot; first evidence backfilled once."
+    ],
+    "validation": {
+      "selected": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "bound_exceeded": false
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 1,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0,
+    "failed_reviewers": [],
+    "apply_local": false,
+    "source_mutations_by_review": false,
+    "limits": "Source review covers pre-fix snapshot only; no claim of current-tree resolution, production qualification, candidate promotion, or benchmark completion."
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: parent prohibited external code egress and hosted calls; local security/adversarial reviewer covered the lens."
+  },
+  "artifact_path": "/tmp/scope-v2-go-review-luvxxrcr",
+  "run_id": "scope-v2-go-review-luvxxrcr"
+}

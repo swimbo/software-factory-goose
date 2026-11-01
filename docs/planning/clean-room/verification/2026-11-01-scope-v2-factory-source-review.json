@@ -1,0 +1,125 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "scope": {
+    "base": "54a952f",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "54a952fe65df2ecb6b566066bd7e722d0b6789e6",
+    "pr_url": null,
+    "files_changed": 6
+  },
+  "intent": "Bind one-use gateway acquire_v2 to Root-authenticated scope preimage while preserving v1 rehearsal, no retry or refund, and disabled production.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness-reviewer",
+    "project-standards-reviewer",
+    "testing-reviewer",
+    "agent-native-reviewer",
+    "security-reviewer",
+    "api-contract-reviewer",
+    "reliability-reviewer",
+    "adversarial-reviewer"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/execution/harness/test_gateway_scope_v2.py:101 --             scope | {\"route\": scope[\"route\"] | {\"route_sha256\": \"0\" * 64}},",
+        "clean-room/crates/execution/harness/test_gateway_scope_v2.py:102 --             scope | {\"route\": scope[\"route\"] | {\"usage_tariff_sha256\": \"0\" * 64}},",
+        "clean-room/crates/execution/harness/gateway_custody.py:121 --                 and factory_scope_digest(scope) == binding[\"scope_sha256\"]",
+        "clean-room/crates/execution/harness/gateway_custody.py:122 --                 and scope[\"route\"][\"route_sha256\"] == binding[\"route_sha256\"]"
+      ],
+      "file": "clean-room/crates/execution/harness/test_gateway_scope_v2.py",
+      "first_evidence": "clean-room/crates/execution/harness/test_gateway_scope_v2.py:101 --             scope | {\"route\": scope[\"route\"] | {\"route_sha256\": \"0\" * 64}},",
+      "independent_reviewers": [
+        "testing-reviewer"
+      ],
+      "line": 101,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing-reviewer"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Add independent route and tariff mismatch cases with a recomputed scope digest in both root and call, and assert refusal with no begin or capture calls.",
+      "title": "Exercise route and tariff checks after a valid scope digest",
+      "why_it_matters": "A regression removing the broker's route or tariff binding checks would still pass the tests named for those checks. Both altered scopes retain the original root digest, so the digest comparison rejects them before either binding check runs. Recompute the scope digest and update both root and call for each altered scope while retaining the mismatched binding route or tariff, then assert refusal before begin."
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/execution/harness/test_gateway_scope_v2.py:101 --             scope | {\"route\": scope[\"route\"] | {\"route_sha256\": \"0\" * 64}},",
+        "clean-room/crates/execution/harness/test_gateway_scope_v2.py:102 --             scope | {\"route\": scope[\"route\"] | {\"usage_tariff_sha256\": \"0\" * 64}},",
+        "clean-room/crates/execution/harness/gateway_custody.py:121 --                 and factory_scope_digest(scope) == binding[\"scope_sha256\"]",
+        "clean-room/crates/execution/harness/gateway_custody.py:122 --                 and scope[\"route\"][\"route_sha256\"] == binding[\"route_sha256\"]"
+      ],
+      "file": "clean-room/crates/execution/harness/test_gateway_scope_v2.py",
+      "first_evidence": "clean-room/crates/execution/harness/test_gateway_scope_v2.py:101 --             scope | {\"route\": scope[\"route\"] | {\"route_sha256\": \"0\" * 64}},",
+      "independent_reviewers": [
+        "testing-reviewer"
+      ],
+      "line": 101,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing-reviewer"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Add independent route and tariff mismatch cases with a recomputed scope digest in both root and call, and assert refusal with no begin or capture calls.",
+      "title": "Exercise route and tariff checks after a valid scope digest",
+      "why_it_matters": "A regression removing the broker's route or tariff binding checks would still pass the tests named for those checks. Both altered scopes retain the original root digest, so the digest comparison rejects them before either binding check runs. Recompute the scope digest and update both root and call for each altered scope while retaining the mismatched binding route or tariff, then assert refusal before begin."
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [],
+  "testing_gaps": [
+    "The v2 transport fixture mocks the Root client and gateway, so it does not establish native process and Unix-socket custody or timeout behavior."
+  ],
+  "coverage": {
+    "first_evidence_backfilled": 0,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "rejected_claims": 0,
+    "semantic_duplicates_merged": 0,
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "suppressed_by_confidence": {},
+    "failed_reviewers": [],
+    "shortcut_skipped": 0,
+    "depth": "full",
+    "validation": {
+      "confirmed": 1,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "notes": [
+      "Project standards applied AGENTS.md as the instruction-file fallback.",
+      "Reviewers ran in bounded serial batches due to active agent capacity.",
+      "The staged snapshot was captured before subsequent concurrent edits.",
+      "Independent cross-model review was not run because external egress was prohibited; the in-process adversarial reviewer ran.",
+      "No plan was discovered; settlement suppression was not evaluated."
+    ]
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Independent cross-model review was not run because external egress was prohibited; the in-process adversarial reviewer ran."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/scope-v2-fresh-bmtthtvs",
+  "run_id": "scope-v2-fresh-bmtthtvs"
+}
