@@ -37,6 +37,10 @@
     {
       "url": "https://vercel.com/kb/guide/cost-aware-model-routing-with-ai-gateway",
       "finding": "Soft budgets can be exceeded by in-flight calls"
+    },
+    {
+      "url": "https://ollama.com/pricing",
+      "finding": "Enterprise lists cost budgets for users and API keys. The public page does not specify hard in-flight enforcement, reset intervals, per-task aggregation, availability on this account, or pricing; this is a possible contract to investigate, not proof of the required charge bounds."
     }
   ],
   "exact_cloud_metadata": [
