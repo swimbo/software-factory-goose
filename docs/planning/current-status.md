@@ -1,6 +1,6 @@
 # Current status
 
-Updated: 2026-11-01 (America/New_York). **Paused at the user's request.**
+Updated: 2026-11-01 (America/New_York). **Active; resumed at the user's request.**
 
 ## Objective and gates
 
@@ -49,11 +49,11 @@ Current protocol SHA256 values:
 
 Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated Linux source/toolchain/cache stage: `/home/bo/sfactory-gateway-composed-20261101-tlgy0o91` on `hermes-control`. All current parser tests are copied there and verified. The parser source manifest contains1,894 files; its SHA256 is `e771666daf592836b7e03e7507be4096ba62360ffec6e42f652e187033356a34`. The older1,891-file manifest remains the pre-parser checkpoint. Subsequent retained decoder characterization and adapter sources change the stage; see [decoder evidence](clean-room/verification/2026-11-01-gateway-chat-decoder.md) and note that its 1,895-file manifest predates the three new adapter source/test files. Revalidate source identities and make a fresh manifest before reuse. No task-owned local build/test/SSH process was observed running during this pause handoff.
 
-## Paused gateway completion checkpoint
+## Gateway completion checkpoint
 
 Bifrost source checkpoint `be86704` adds a Linux-targeted completion witness and an installer for the actual middleware and streaming handler. It is a source-only work-in-progress, not a private listener or production admission. Fresh isolated Linux tests passed for the witness and actual middleware/stream scenarios, including a race-enabled run; unpatched controls failed the relevant protected cases. Installer replay refused to alter an already patched source, and a fresh reconstruction reproduced the tested files. Test logs and stage metadata are retained under `/tmp/sfactory-witness-*` and the isolated Linux stages referenced by those metadata files; these temporary paths may not survive cleanup.
 
-The independent review was stopped for this pause and has **no completed review receipt**. Before relying on this checkpoint, finish review and address its identified gaps: test cancellation of the original owner independently of child cancellation, and verify installer composition/order with `patch_native_ingress.py`, which also changes `middlewares.go`. The witness does not by itself prove authenticated private ingress, physical-call closure, arbitrary plugin descendant cleanup, route custody or production launch. Do not infer success solely from stream EOF or `[DONE]`.
+The resumed independent review confirmed and the source fix `cde48ea` addressed two protected stream false-success paths involving hook and serialization errors. Original-owner cancellation and composed native-ingress compatibility have focused tests; see [completion evidence](clean-room/verification/2026-11-01-gateway-completion.md). The witness does not by itself prove authenticated private ingress, physical-call closure, arbitrary plugin descendant cleanup, route custody or production launch. Do not infer success solely from stream EOF or `[DONE]`.
 
 The public Ollama Enterprise pricing page mentions user and API-key cost budgets, but does not establish the required hard in-flight, per-task and fee bounds. Account availability and contract details remain unverified; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
 
@@ -65,4 +65,4 @@ The public Ollama Enterprise pricing page mentions user and API-key cost budgets
 4. Freeze the representative 20-task suite and both variants against identical models, route configuration, budgets, tariff and independent acceptance checks. Run three repeats per task/variant: **120 total attempts**. Respect the aggregate daily cap across days.
 5. Require every safety regression to pass, no decline in accepted-task count, at least **10% lower median audited usage-rated cost per accepted task**, and no more than **10% higher median completion time**. Missing evidence or a failed gate leaves Phase 11A incomplete and the baseline retained. Keep the candidate disabled until the complete gate passes.
 
-The work is paused. Preserve all ledgers, failed-attempt evidence and isolated stages. Paid calls and activation remain subject to the unresolved bounds and launch gates above.
+Work has resumed. Preserve all ledgers, failed-attempt evidence and isolated stages. Paid calls and activation remain subject to the unresolved bounds and launch gates above.

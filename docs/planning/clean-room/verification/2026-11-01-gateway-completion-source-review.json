@@ -1,0 +1,228 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "Two independently validated P1 false-success paths require correction before the reviewed source checkpoint can be relied upon. This source-only verdict does not authorize production launch or a benchmark.",
+  "scope": {
+    "base": "6d35c77",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "be8670455e9a84424a6eccc352a412ff89ff8562",
+    "pr_url": null,
+    "files_changed": 4,
+    "snapshot": "/tmp/compound-engineering-501/ce-code-review/witness-resume-2b0b39de/full.diff"
+  },
+  "intent": "A Linux-only completion witness preserves protected owner context through actual HTTP hooks, waits for producer and trace completion, and fails closed on owner cancellation or hook failure. This is source-only and adds no listener, spending authority, or production admission.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "testing",
+    "reliability",
+    "adversarial",
+    "maintainability"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/patch_factory_gateway_completion.py:123 --             if gatewayCompletion != nil { _ = gatewayCompletion.HooksFinished(err) }",
+        "The actual patched handler at /home/bo/sfactory-witness-integration-mzybdfbh/green/source/transports/bifrost-http/handlers/inference.go:2211-2237 logs and continues when InterceptChunk returns a non-nil chunk with an error; no witness method receives this error.",
+        "The actual plugin interceptor at /home/bo/sfactory-witness-integration-mzybdfbh/green/source/transports/bifrost-http/lib/config.go:5965-5977 returns immediately on the first hook error, skipping any remaining chunk hooks.",
+        "engine/transport/factory_gateway_completion.go:153 -- \tif ctx.Err() != nil || w.ownerCtx.Err() != nil || w.failed || !w.hooksFinished || !w.producerFinished {",
+        "Retained patched handlers/inference.go:2129-2130 calls postHookCompleter() and passes only its error into HooksFinished; handlers/inference.go:2207-2234 calls interceptor.InterceptChunk and handles its error by sending an error, canceling the stream child, draining, and returning without recording failure.",
+        "Retained patched handlers/inference.go:2168 invokes runCompleter(false) on early return, then :2179 calls ProducerFinished after trace completion. With successful post hooks, the resulting HooksFinished(nil) and ProducerFinished allow Wait(owner) to succeed.",
+        "engine/transport/factory_gateway_completion_test.go:119-136 explicitly permits successful completion after cancellation of the stream child, so child cancel() does not compensate for the missing chunk-error latch."
+      ],
+      "file": "engine/transport/patch_factory_gateway_completion.py",
+      "first_evidence": "engine/transport/patch_factory_gateway_completion.py:123 --             if gatewayCompletion != nil { _ = gatewayCompletion.HooksFinished(err) }",
+      "independent_reviewers": [
+        "correctness",
+        "reliability"
+      ],
+      "line": 123,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "reliability"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Add a sticky failure method to the witness, invoke it when the protected stream chunk interceptor returns any error, and stop sending the protected chunk; add real-handler regressions for both nil and non-nil error results and a later skipped hook.",
+      "title": "Fail the witness on stream chunk hook errors",
+      "why_it_matters": "A stream hook can return a non-nil chunk and an error. Bifrost stops executing the remaining chunk hooks but logs the error and continues sending that chunk; the witness later records successful post-hooks and producer completion, so its Wait can succeed despite the failed and skipped stream hooks. A downstream user of this witness could incorrectly accept an incomplete policy or transformation pipeline. Signal a sticky witness failure on every chunk interceptor error and abort protected stream output so failed hooks cannot be reported as complete.",
+      "source_detail_keys": [
+        "correctness|patch_factory_gateway_completion.py|123|fail the witness on stream chunk hook errors",
+        "reliability|patch_factory_gateway_completion.py|123|latch stream chunk hook errors in completion witness"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "On the hash-matched reviewed Linux stage, lib/config.go:5965-5969 returns the first plugin error while inference.go:2211-2237 continues when its returned chunk is non-nil; the added witness receives only the post-hook error and can succeed after later hooks were skipped, with production incidence not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/patch_factory_gateway_completion.py:130 --             if gatewayCompletion != nil { _ = gatewayCompletion.ProducerFinished() }",
+        "Composed handlers/inference.go:2246-2250 calls sonic.Marshal(chunk), logs a non-nil error, and continues without signaling the witness.",
+        "Composed handlers/inference.go:2291-2300 runs the post-hook completer and sends [DONE] when no error chunk was transmitted; an omitted unserializable chunk sets no error marker.",
+        "Composed core/schemas/bifrost.go:1827 exposes RawResponse as interface{}, and the chat chunk MarshalJSON delegates to MarshalSorted for the chat response at lines 1961-1962."
+      ],
+      "file": "engine/transport/patch_factory_gateway_completion.py",
+      "first_evidence": "engine/transport/patch_factory_gateway_completion.py:130 --             if gatewayCompletion != nil { _ = gatewayCompletion.ProducerFinished() }",
+      "independent_reviewers": [
+        "adversarial"
+      ],
+      "line": 130,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "adversarial"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Instrument the protected streaming handler's chunk serialization error branch to latch a sanitized completion failure and stop or drain the protected stream; add a real-handler regression whose chunk contains a non-serializable value and verify that neither a normal terminal result nor successful witness is possible.",
+      "title": "Dropped malformed stream chunk still earns completion",
+      "why_it_matters": "A protected stream can lose a response chunk while its client receives the normal terminal marker and the completion witness reports success. The inherited handler logs and skips a chunk that cannot be marshaled, then completes the post-hook and signals producer completion without reporting that loss. For example, a transport plugin can return a chat chunk whose RawResponse contains a non-JSON value without returning a hook error; the marker and witness cannot distinguish the resulting partial output. Latch serialization errors into the witness and fail the protected stream so incomplete output cannot be accepted as complete.",
+      "source_detail_keys": [
+        "adversarial|patch_factory_gateway_completion.py|130|dropped malformed stream chunk still earns completion"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "On the hash-matched reviewed Linux stage, inference.go:2246-2250 logs and skips a marshal error, then :2291-2300 can send [DONE] and the added ProducerFinished permits Wait success; a chat chunk may contain a non-JSON RawResponse value via chatcompletions.go:48 and bifrost.go:1827, though production incidence was not measured.",
+      "protected_subject": "data-loss"
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/patch_factory_gateway_completion.py:123 --             if gatewayCompletion != nil { _ = gatewayCompletion.HooksFinished(err) }",
+        "The actual patched handler at /home/bo/sfactory-witness-integration-mzybdfbh/green/source/transports/bifrost-http/handlers/inference.go:2211-2237 logs and continues when InterceptChunk returns a non-nil chunk with an error; no witness method receives this error.",
+        "The actual plugin interceptor at /home/bo/sfactory-witness-integration-mzybdfbh/green/source/transports/bifrost-http/lib/config.go:5965-5977 returns immediately on the first hook error, skipping any remaining chunk hooks.",
+        "engine/transport/factory_gateway_completion.go:153 -- \tif ctx.Err() != nil || w.ownerCtx.Err() != nil || w.failed || !w.hooksFinished || !w.producerFinished {",
+        "Retained patched handlers/inference.go:2129-2130 calls postHookCompleter() and passes only its error into HooksFinished; handlers/inference.go:2207-2234 calls interceptor.InterceptChunk and handles its error by sending an error, canceling the stream child, draining, and returning without recording failure.",
+        "Retained patched handlers/inference.go:2168 invokes runCompleter(false) on early return, then :2179 calls ProducerFinished after trace completion. With successful post hooks, the resulting HooksFinished(nil) and ProducerFinished allow Wait(owner) to succeed.",
+        "engine/transport/factory_gateway_completion_test.go:119-136 explicitly permits successful completion after cancellation of the stream child, so child cancel() does not compensate for the missing chunk-error latch."
+      ],
+      "file": "engine/transport/patch_factory_gateway_completion.py",
+      "first_evidence": "engine/transport/patch_factory_gateway_completion.py:123 --             if gatewayCompletion != nil { _ = gatewayCompletion.HooksFinished(err) }",
+      "independent_reviewers": [
+        "correctness",
+        "reliability"
+      ],
+      "line": 123,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "reliability"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Add a sticky failure method to the witness, invoke it when the protected stream chunk interceptor returns any error, and stop sending the protected chunk; add real-handler regressions for both nil and non-nil error results and a later skipped hook.",
+      "title": "Fail the witness on stream chunk hook errors",
+      "why_it_matters": "A stream hook can return a non-nil chunk and an error. Bifrost stops executing the remaining chunk hooks but logs the error and continues sending that chunk; the witness later records successful post-hooks and producer completion, so its Wait can succeed despite the failed and skipped stream hooks. A downstream user of this witness could incorrectly accept an incomplete policy or transformation pipeline. Signal a sticky witness failure on every chunk interceptor error and abort protected stream output so failed hooks cannot be reported as complete.",
+      "source_detail_keys": [
+        "correctness|patch_factory_gateway_completion.py|123|fail the witness on stream chunk hook errors",
+        "reliability|patch_factory_gateway_completion.py|123|latch stream chunk hook errors in completion witness"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "On the hash-matched reviewed Linux stage, lib/config.go:5965-5969 returns the first plugin error while inference.go:2211-2237 continues when its returned chunk is non-nil; the added witness receives only the post-hook error and can succeed after later hooks were skipped, with production incidence not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/patch_factory_gateway_completion.py:130 --             if gatewayCompletion != nil { _ = gatewayCompletion.ProducerFinished() }",
+        "Composed handlers/inference.go:2246-2250 calls sonic.Marshal(chunk), logs a non-nil error, and continues without signaling the witness.",
+        "Composed handlers/inference.go:2291-2300 runs the post-hook completer and sends [DONE] when no error chunk was transmitted; an omitted unserializable chunk sets no error marker.",
+        "Composed core/schemas/bifrost.go:1827 exposes RawResponse as interface{}, and the chat chunk MarshalJSON delegates to MarshalSorted for the chat response at lines 1961-1962."
+      ],
+      "file": "engine/transport/patch_factory_gateway_completion.py",
+      "first_evidence": "engine/transport/patch_factory_gateway_completion.py:130 --             if gatewayCompletion != nil { _ = gatewayCompletion.ProducerFinished() }",
+      "independent_reviewers": [
+        "adversarial"
+      ],
+      "line": 130,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "adversarial"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Instrument the protected streaming handler's chunk serialization error branch to latch a sanitized completion failure and stop or drain the protected stream; add a real-handler regression whose chunk contains a non-serializable value and verify that neither a normal terminal result nor successful witness is possible.",
+      "title": "Dropped malformed stream chunk still earns completion",
+      "why_it_matters": "A protected stream can lose a response chunk while its client receives the normal terminal marker and the completion witness reports success. The inherited handler logs and skips a chunk that cannot be marshaled, then completes the post-hook and signals producer completion without reporting that loss. For example, a transport plugin can return a chat chunk whose RawResponse contains a non-JSON value without returning a hook error; the marker and witness cannot distinguish the resulting partial output. Latch serialization errors into the witness and fail the protected stream so incomplete output cannot be accepted as complete.",
+      "source_detail_keys": [
+        "adversarial|patch_factory_gateway_completion.py|130|dropped malformed stream chunk still earns completion"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "On the hash-matched reviewed Linux stage, inference.go:2246-2250 logs and skips a marshal error, then :2291-2300 can send [DONE] and the added ProducerFinished permits Wait success; a chat chunk may contain a non-JSON RawResponse value via chatcompletions.go:48 and bifrost.go:1827, though production incidence was not measured.",
+      "protected_subject": "data-loss"
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "The test root is deliberately synthetic; this review does not establish peer authentication, production owner acquisition, or physical-call capture closure.",
+    "Static review only: this reviewer did not execute the Linux-only copied-package transport tests or mutate an isolated source stage."
+  ],
+  "testing_gaps": [
+    "The actual-handler tests cancel owners only before middleware entry; the witness unit cancellation test cancels before acknowledgments. Add a channel-coordinated real-handler case that cancels the original owner while a post-hook or trace callback is blocked, then releases it and asserts Wait cannot succeed. This covers cancellation after successful admission, which the stated owner-lifetime contract also requires."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Review is of saved full.diff and source-hashes.txt; caller may now edit shared tree, so validate against the saved diff and retained Linux source stage, not subsequent working-tree changes.",
+      "Original-owner cancellation and native ingress composed tests passed per caller; review itself did not execute them.",
+      "Review does not establish private ingress, production admission or physical capture closure.",
+      "Correctness and reliability described the same chunk-hook error defect and were merged without confidence promotion. The serialization failure is a distinct failure path.",
+      "No cross-model validation shortcut; both findings selected for one independent validator batch.",
+      "Project standards: not run; successful search found no applicable standards files.",
+      "Settlement suppression not evaluated; no plan was discovered.",
+      "Cross-model review not run because caller prohibited code egress; in-process adversarial review completed."
+    ],
+    "first_evidence_backfilled": 0,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "rejected_claims": 0,
+    "semantic_duplicates_merged": 1,
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "suppressed_by_confidence": {},
+    "failed_reviewers": [],
+    "shortcut_skipped": 0,
+    "validation": {
+      "selected": 2,
+      "confirmed": 2,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    }
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model review not run because caller prohibited code egress; in-process adversarial review completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/witness-resume-2b0b39de",
+  "run_id": "witness-resume-2b0b39de"
+}
