@@ -1,0 +1,27 @@
+[Unit]
+Description=Software factory fixed evaluator broker
+Requires=software-factory-goose-eval-broker.socket
+After=software-factory-goose-eval-broker.socket
+ConditionPathExists=/etc/software-factory-goose/evaluator-bootstrap-complete
+
+[Service]
+Type=exec
+User=root
+Group=root
+Slice=system.slice
+Sockets=software-factory-goose-eval-broker.socket
+ExecStart=/usr/bin/python3 -I -B /usr/local/libexec/software-factory-goose/evaluator/nuc_registry_eval_runtime.py
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/software-factory-goose/evaluator /var/lib/software-factory-goose/stop /sys/fs/cgroup
+MemoryMax=256M
+TasksMax=32
+CPUQuota=100%
+LimitCORE=0
+Restart=no
+UMask=0077

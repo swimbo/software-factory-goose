@@ -5,7 +5,7 @@ No generic command/code argument. Source is the adjacent installer, pinned by di
 Exact failed/unknown bridge identity is retained. This is a deployment tool, never a
 worker or production ingress. No credentials are accepted or printed.
 """
-import hashlib,json,pathlib,subprocess,sys
+import ast,hashlib,json,pathlib,subprocess,sys
 
 REMOTE=r'''import base64,hashlib,json,os,pathlib,subprocess,sys,tempfile,uuid,zlib
 SOURCE=__SOURCE__;OP=__OP__;PLAN=__PLAN__
@@ -492,12 +492,15 @@ def apply(host,reviewed):
 """
 
 GRANT_JOURNAL_CANARY_ADAPTER = r"""
+import json as _plan_json
 _canary_apply=apply
 class Host:
  def __init__(self,source_digest=None):self.source_digest=source_digest
 
 def make_plan(host):
- return {'component':'grant-journal-canary','source_sha256':host.source_digest,'spec':plan()}
+ spec=plan()
+ if _plan_json.loads(_plan_json.dumps(spec,allow_nan=False))!=spec:raise RuntimeError('plan must preserve its types through JSON')
+ return {'component':'grant-journal-canary','source_sha256':host.source_digest,'spec':spec}
 
 def apply(host,reviewed):
  if reviewed!=make_plan(host):raise RuntimeError('reviewed grant journal canary changed')
@@ -517,17 +520,99 @@ def apply(host,reviewed):
  return _install_cli(reviewed['spec'])
 """
 
+def canary_adapter_count(source):
+ return sum(isinstance(node,ast.Assign) and any(isinstance(target,ast.Name) and target.id=='_canary_apply' for target in node.targets) for node in ast.parse(source).body)
+
+def require_single_canary_adapter(source):
+ if canary_adapter_count(source)>1:raise ValueError('duplicate canary adapters; no remote operation permitted')
+
 def cli():
  args=sys.argv[1:];component='identity'
- if args and args[0] in ('--writer-full-init','--writer-package-verify','--writer-package-upgrade','--writer-cap0-diagnostic-v2','--registry-failed-launch-reconcile','--writer-cap0-diagnostic','--registry-intloop-failure-inventory','--registry-intloop-driver','--registry-intloop-reconcile','--callback-listener-canary','--native-cap0-install','--callback-upgrade-verify','--callback-package-upgrade','--callback-access-canary','--operator-brake-start','--registry-native-readiness','--registry-grant-install','--real-no-dispatch','--root-launch-install','--root-stop','--root-stop-canary','--root-stop-canary-v2','--root-stop-v2-receipts','--root-stop-cleanup','--pg-stage','--root-stop-v2','--brake-frontend','--brake-recover','--pg-harden','--operator-brake-canary','--private-runtime','--operator-brake-receipts','--private-inventory','--operator-peer-probe','--private-resources','--private-recover','--private-recovery-inventory','--private-resume2','--private-restart','--deadline-install','--deadline-canary','--docker-deadline-canary','--deadline-inventory','--grant-sidecar','--deadline-reconcile','--grant-inventory','--grant-admin-inspect','--grant-resume','--grant-journal-canary','--grant-expiry-canary','--real-repo','--real-sidecar','--real-activate','--real-attestation','--real-attestor-probe','--real-launch-prepare','--registry-sidecar','--registry-activate','--registry-attestation','--registry-attestor-probe','--registry-launch-prepare','--real-preclaim-readiness','--real-intloop-driver','--real-launch-access-probe','--real-failure-inventory','--real-static-diagnostic','--sfctl-registry','--relay-package','--worker-images','--openfile-canary'):component=args[0][2:];args=args[1:]
+ extras={'eval-canary4-recovery-observe':'nuc_eval_canary4_recovery_observe.py','eval-canary4-reconcile':'nuc_eval_canary4_reconcile.py','eval-canary4-failure-inventory':'nuc_eval_canary4_failure_inventory.py','eval-canary4-provision':'nuc_eval_canary4_provision.py','eval-canary4-service':'nuc_eval_canary4_service_install.py','eval-canary4-activate':'nuc_eval_canary4_activate.py','eval-canary4-attest':'nuc_eval_canary4_attest.py','eval-canary4-native-run':'nuc_eval_canary4_native_run.py','eval-canary3-native-kill-canary':'nuc_eval_native_pidfd_kill_canary.py','eval-canary3-pidfd-diagnostic':'nuc_eval_pidfd_diagnostic.py','eval-canary3-reconcile':'nuc_eval_canary3_reconcile.py','eval-canary3-failure-inventory':'nuc_eval_canary3_failure_inventory.py','eval-canary3-provision':'nuc_eval_canary3_provision.py','eval-canary3-service':'nuc_eval_canary3_service_install.py','eval-canary3-activate':'nuc_eval_canary3_activate.py','eval-canary3-attest':'nuc_eval_canary3_attest.py','eval-canary3-owner-loss':'nuc_eval_canary3_owner_loss.py','registry-gate-install':'nuc_registry_gate_install.py','evidence-reader-install':'nuc_evidence_reader_install.py','evidence-reader-canary':'nuc_evidence_reader_canary.py'}
+ extras.update({'authorization-canary-install':'nuc_root_authorization_canary_install.py','authorization-canary':'nuc_root_authorization_canary.py'})
+ extras.update({'registry-retired-listener-install':'nuc_registry_retired_listener_install.py','registry-retirement':'nuc_registry_retirement_coordinator.py','restate-source-metadata':'nuc_restate_source_metadata.py','restate-source-metadata-v2':'nuc_restate_source_metadata_v2.py','restate-tree-metadata':'nuc_restate_tree_metadata.py','registry-admission-package-v2-install':'nuc_registry_admission_package_v2_install.py','registry-pinned-binary-canary':'nuc_registry_pinned_binary_canary.py','registry-recovery-readiness':'nuc_registry_recovery_readiness.py','registry-restore-history-install':'nuc_registry_restore_history_install.py','registry-restore-history-v2-install':'nuc_registry_restore_history_v2_install.py','registry-admission-probe-install':'nuc_registry_admission_probe_install.py','registry-admission-package-install':'nuc_registry_admission_package_install.py'})
+ extras.update({'registry-admission-package-v2-verify':'nuc_registry_admission_package_v2_verify.py','registry-history-capture':'nuc_registry_restore_history.py','registry-offline-backup':'nuc_registry_offline_backup.py','registry-restore-prepare':'nuc_registry_restore_prepare.py','registry-restore-verify':'nuc_registry_restore_verify.py','registry-unix-restate-provision':'nuc_registry_unix_restate_provision.py','registry-unix-restate-activate':'nuc_registry_unix_restate_activate.py','registry-v5-transition-plan':'nuc_registry_v5_transition_plan.py','registry-v5-unix-unit-upgrade':'nuc_registry_v5_unix_unit_upgrade.py','registry-v5-catalog-publish':'nuc_registry_v5_catalog_publish.py','registry-v5-runtime-activate':'nuc_registry_v5_runtime_activate.py','registry-v5-unix-attestation':'nuc_registry_v5_unix_attestation_stage.py','registry-v5-unix-registration':'nuc_registry_v5_unix_registration.py','registry-v5-replay-finish':'nuc_registry_v5_replay_finish.py','registry-v5-pending-admission':'nuc_registry_v5_admission_producer_v2.py','registry-v5-finish-transition':'nuc_registry_v5_finish_transition.py'})
+ extras.update({'registry-v5-guarded-install':'nuc_registry_v5_guarded_install.py'})
+ extras.update({'registry-v5-install':'nuc_registry_v5_install.py'})
+ extras.update({'registry-gate-access-canary':'nuc_registry_gate_access_canary.py'})
+ extras.update({'registry-drain-schema':'nuc_registry_drain_schema_probe.py'})
+ extras.update({'unix-admin-canary-install':'nuc_unix_admin_canary_install.py'})
+ extras.update({'unix-admin-canary-resume':'nuc_unix_admin_canary_resume.py'})
+ extras.update({'unix-admin-canary-activate':'nuc_unix_admin_canary_activate.py'})
+ extras.update({'unix-admin-canary-inventory':'nuc_unix_admin_canary_inventory.py'})
+ extras.update({'unix-admin-sdk-install':'nuc_unix_admin_canary_sdk_install.py','unix-admin-sdk-preflight':'nuc_unix_admin_canary_sdk_preflight.py','unix-admin-sdk-preflight-inventory':'nuc_unix_admin_sdk_preflight_inventory.py','unix-admin-sdk-fd-diagnostic':'nuc_unix_admin_sdk_fd_diagnostic.py'})
+ extras.update({'unix-admin-sdk-v4-install':'nuc_unix_admin_canary_sdk_v4_install.py','unix-admin-sdk-v4-preflight':'nuc_unix_admin_canary_sdk_v4_preflight.py'})
+ extras.update({'unix-admin-canary-orchestrator':'nuc_unix_admin_canary_orchestrator.py'})
+ extras.update({'unix-admin-failure-inventory':'nuc_unix_admin_canary_failure_inventory.py','unix-admin-failure-snapshot':'nuc_unix_admin_canary_failure_snapshot.py','unix-admin-failure-summary':'nuc_unix_admin_canary_failure_summary.py','unix-admin-h2-contrast':'nuc_unix_admin_canary_h2_contrast.py','unix-admin-failure-quiesce':'nuc_unix_admin_canary_failure_quiesce.py'})
+ extras.update({'unixdiag-peer-canary':'nuc_unixdiag_peer_canary.py'})
+ extras.update({'backup-copy-cap-canary':'nuc_backup_copy_cap_canary.py'})
+ extras.update({'sdk5-fd-guard-canary':'nuc_sdk5_fd_guard_canary.py','sdk5-fd-guard-recovery':'nuc_sdk5_fd_guard_recovery.py'})
+ extras.update({'registry-eval-package-v2-install':'nuc_registry_eval_package_v2_install.py','registry-eval-package-v2-verify':'nuc_registry_eval_package_v2_verify.py'})
+ extras.update({'registry-eval-package-install':'nuc_registry_eval_package_install.py','registry-eval-package-verify':'nuc_registry_eval_package_verify.py','registry-eval-package-diagnostic':'nuc_registry_eval_package_diagnostic.py','registry-eval-listdir-diagnostic':'nuc_registry_eval_listdir_diagnostic.py'})
+ extras.update({'unix-admin-h2-sdk-install':'nuc_unix_admin_h2_sdk_install.py','unix-admin-h2-helpers-install':'nuc_unix_admin_h2_helpers_install.py'})
+ extras.update({'unix-admin-h2-expiry-inventory':'nuc_unix_admin_h2_expiry_inventory.py','unix-admin-h2-epoch3-inventory':'nuc_unix_admin_h2_epoch3_inventory.py','unix-admin-h2-new-uri-diagnostic':'nuc_unix_admin_h2_new_uri_diagnostic.py','unix-admin-h2-baseline-diagnostic':'nuc_unix_admin_h2_baseline_diagnostic.py','unix-admin-h2-afterrestart-diagnostic':'nuc_unix_admin_h2_afterrestart_diagnostic.py','unix-admin-h2-history-diagnostic':'nuc_unix_admin_h2_history_diagnostic.py','unix-admin-h2-probe-terminal-diagnostic':'nuc_unix_admin_h2_probe_terminal_diagnostic.py','unix-admin-h2-probe-journal-diagnostic':'nuc_unix_admin_h2_probe_journal_diagnostic.py','unix-admin-h2-classification-continuation':'nuc_unix_admin_h2_classification_continuation.py','unix-admin-h2-postretire-continuation':'nuc_unix_admin_h2_postretire_continuation.py','unix-admin-h2-no-listener':'nuc_unix_admin_h2_no_listener.py','unix-admin-h2-continuation':'nuc_unix_admin_h2_continuation.py','unix-admin-h2-epoch2-orchestrator':'nuc_unix_admin_h2_epoch2_orchestrator.py'})
+ extras.update({'unix-admin-h2-9086-install':'nuc_unix_admin_h2_9086_install.py','unix-admin-h2-9086-helpers-install':'nuc_unix_admin_h2_9086_helpers_install.py'})
+ extras.update({'unix-admin-h2-9086-orchestrator':'nuc_unix_admin_h2_9086_orchestrator.py','unix-admin-h2-9086-final-continuation':'nuc_unix_admin_h2_9086_final_continuation.py'})
+ extras.update({'unix-admin-h2-orchestrator':'nuc_unix_admin_h2_orchestrator.py'})
+ extras.update({'unix-admin-h2-install':'nuc_unix_admin_h2_install.py','unix-admin-h2-activate':'nuc_unix_admin_h2_activate.py'})
+ extras.update({'h2-keeper-install':'nuc_h2_keeper_fixture_install.py','h2-keeper-activate':'nuc_h2_keeper_fixture_activate.py','h2-keeper-control':'nuc_h2_keeper_control.py','h2-keeper-reconcile':'nuc_h2_keeper_reconcile.py'})
+ extras.update({'unix-admin-epoch-inventory':'nuc_unix_admin_canary_epoch_inventory.py'})
+ extras.update({'unix-admin-v4-start-old':'nuc_unix_admin_canary_start_v4_old.py','unix-admin-v4-register-old':'nuc_unix_admin_canary_registration_v4.py'})
+ extras.update({'unix-admin-register-old':'nuc_unix_admin_canary_registration.py'})
+ extras.update({'root-finalization-prepare':'nuc_root_finalization_prepare.py'})
+ extras.update({'root-finalization-install':'nuc_root_finalization_install.py'})
+ extras.update({'root-finalization-readiness-install':'nuc_root_finalization_readiness_install.py','root-finalization-readiness':'nuc_root_finalization_readiness.py'})
+ extras.update({'registry-v5-grant-install':'nuc_registry_v5_grant_install.py','registry-v5-launch-install':'nuc_registry_v5_launch_install.py'})
+ extras.update({'sdk5-discovery-diagnostic3':'nuc_sdk5_discovery_native_diagnostic3.py'})
+ extras.update({'sdk5-stdio-shape':'nuc_sdk5_stdio_shape_canary.py'})
+ extras.update({'sdk5-discovery-diagnostic2-inventory':'nuc_sdk5_discovery_diagnostic2_inventory.py'})
+ extras.update({'sdk5-discovery-diagnostic2':'nuc_sdk5_discovery_native_diagnostic2.py'})
+ extras.update({'sdk5-discovery-failure-inventory':'nuc_sdk5_discovery_failure_inventory.py'})
+ extras.update({'sdk5-discovery-native-canary':'nuc_sdk5_discovery_native_canary.py'})
+ extras.update({'registry-v5-probe-install':'nuc_registry_v5_probe_install.py'})
+ extras.update({'journal-fixture-install':'nuc_finalization_journal_install.py'})
+ extras.update({'journal-fixture-resume-start':'nuc_finalization_journal_recover.py'})
+ extras.update({'journal-fixture-'+phase:'nuc_finalization_journal_fixture.py' for phase in ('start','publish','restart','stop','stop-restarted')})
+ if args and args[0] in tuple('--'+x for x in extras):component=args[0][2:];args=args[1:]
+ if args and args[0] in ('--eval-canary2-service','--eval-canary2-activate','--eval-canary2-attest','--eval-canary2-run','--eval-canary2-provision','--eval-sequence4-reconcile','--eval-sequence4-diagnostic','--eval-sequence4-inventory','--eval-canary-run-v2','--eval-coordinator-v2-install','--eval-client-diagnostic-v3','--eval-client-diagnostic-v2','--eval-client-diagnostic','--eval-canary-inventory','--eval-canary-run','--eval-isolation-canary','--eval-canary-activate','--eval-canary-attest','--eval-canary-runtime-upgrade','--eval-canary-backend-upgrade','--eval-canary-service','--eval-canary-provision','--writer-full-init','--writer-package-verify','--writer-package-upgrade','--writer-cap0-diagnostic-v2','--registry-failed-launch-reconcile','--writer-cap0-diagnostic','--registry-intloop-failure-inventory','--registry-intloop-driver','--registry-intloop-reconcile','--callback-listener-canary','--native-cap0-install','--callback-upgrade-verify','--callback-package-upgrade','--callback-access-canary','--operator-brake-start','--registry-native-readiness','--registry-grant-install','--real-no-dispatch','--root-launch-install','--root-stop','--root-stop-canary','--root-stop-canary-v2','--root-stop-v2-receipts','--root-stop-cleanup','--pg-stage','--root-stop-v2','--brake-frontend','--brake-recover','--pg-harden','--operator-brake-canary','--private-runtime','--operator-brake-receipts','--private-inventory','--operator-peer-probe','--private-resources','--private-recover','--private-recovery-inventory','--private-resume2','--private-restart','--deadline-install','--deadline-canary','--docker-deadline-canary','--deadline-inventory','--grant-sidecar','--deadline-reconcile','--grant-inventory','--grant-admin-inspect','--grant-resume','--grant-journal-canary','--grant-expiry-canary','--real-repo','--real-sidecar','--real-activate','--real-attestation','--real-attestor-probe','--real-launch-prepare','--registry-sidecar','--registry-activate','--registry-attestation','--registry-attestor-probe','--registry-launch-prepare','--real-preclaim-readiness','--real-intloop-driver','--real-launch-access-probe','--real-failure-inventory','--real-static-diagnostic','--sfctl-registry','--relay-package','--worker-images','--openfile-canary'):component=args[0][2:];args=args[1:]
  if len(args) not in (1,2) or args[0] not in ('capability-canary','plan','apply'):raise SystemExit('usage: nuc_identity_bridge.py [--root-stop] capability-canary|plan|apply PLAN_JSON')
  operation=args[0]
  if (operation=='apply')!=(len(args)==2):raise SystemExit('apply requires the reviewed plan JSON')
- filename={'writer-full-init':'nuc_writer_full_init_host.py','writer-package-verify':'nuc_writer_package_verify.py','writer-package-upgrade':'nuc_writer_package_upgrade.py','writer-cap0-diagnostic-v2':'nuc_writer_cap0_diagnostic_v2.py','registry-failed-launch-reconcile':'nuc_registry_failed_launch_reconcile.py','writer-cap0-diagnostic':'nuc_writer_cap0_diagnostic.py','registry-intloop-failure-inventory':'nuc_registry_intloop_failure_inventory.py','registry-intloop-driver':'nuc_registry_intloop_driver.py','registry-intloop-reconcile':'nuc_registry_intloop_reconcile.py','callback-listener-canary':'nuc_callback_listener_canary.py','native-cap0-install':'nuc_native_cap0_install.py','callback-upgrade-verify':'nuc_callback_upgrade_verify.py','callback-package-upgrade':'nuc_callback_package_upgrade.py','callback-access-canary':'nuc_callback_access_canary.py','operator-brake-start':'nuc_operator_brake_start.py','registry-native-readiness':'nuc_registry_native_readiness_canary.py','registry-grant-install':'nuc_registry_grant_install.py','identity':'nuc_identity_install.py','real-no-dispatch':'nuc_real_no_dispatch_reconcile.py','root-launch-install':'nuc_root_launch_install.py','root-stop':'nuc_root_stop_install.py','root-stop-canary':'nuc_root_stop_canary.py','root-stop-canary-v2':'nuc_root_stop_canary_v2.py','root-stop-v2-receipts':'nuc_root_stop_v2_receipts.py','root-stop-cleanup':'nuc_root_stop_cleanup.py','pg-stage':'nuc_pg_stage_install.py','root-stop-v2':'nuc_root_stop_upgrade_v2.py','brake-frontend':'nuc_brake_frontend_install.py','brake-recover':'nuc_brake_frontend_recover.py','pg-harden':'nuc_pg_tree_harden.py','operator-brake-canary':'nuc_operator_brake_canary.py','private-runtime':'nuc_private_runtime_install.py','operator-brake-receipts':'nuc_operator_brake_receipts.py','private-inventory':'nuc_private_bootstrap_inventory.py','operator-peer-probe':'nuc_operator_peer_probe.py','private-resources':'nuc_private_resource_limits.py','private-recover':'nuc_private_bootstrap_recover.py','private-recovery-inventory':'nuc_private_recovery_inventory.py','private-resume2':'nuc_private_bootstrap_resume2.py','private-restart':'nuc_private_runtime_restart.py','deadline-install':'nuc_root_deadline_install.py','deadline-canary':'nuc_root_deadline_canary.py','docker-deadline-canary':'nuc_root_docker_deadline_canary.py','deadline-inventory':'nuc_root_deadline_inventory.py','grant-sidecar':'nuc_grant_sidecar_install.py','deadline-reconcile':'nuc_root_deadline_reconcile.py','grant-inventory':'nuc_grant_failed_inventory.py','grant-admin-inspect':'nuc_grant_admin_inspection.py','grant-resume':'nuc_grant_sidecar_resume.py','sfctl-registry':'nuc_sfctl_registry_install.py','relay-package':'nuc_relay_package_install.py','worker-images':'nuc_worker_images_install.py','openfile-canary':'nuc_openfile_canary.py','grant-journal-canary':'nuc_grant_journal_canary.py','grant-expiry-canary':'nuc_grant_expiry_canary.py','real-repo':'nuc_real_repo_install.py','real-sidecar':'nuc_real_sidecar_install.py','real-activate':'nuc_real_sidecar_activate.py','real-attestation':'nuc_real_process_attestation.py','real-attestor-probe':'nuc_real_attestor_probe.py','real-launch-prepare':'nuc_real_launch_prepare.py','registry-sidecar':'nuc_registry_sidecar_install.py','registry-activate':'nuc_registry_sidecar_activate.py','registry-attestation':'nuc_registry_process_attestation.py','registry-attestor-probe':'nuc_registry_attestor_probe.py','registry-launch-prepare':'nuc_registry_launch_prepare.py','real-preclaim-readiness':'nuc_real_preclaim_readiness.py','real-intloop-driver':'nuc_real_intloop_driver.py','real-launch-access-probe':'nuc_real_launch_access_probe.py','real-failure-inventory':'nuc_real_intloop_failure_inventory.py','real-static-diagnostic':'nuc_real_intloop_static_diagnostic.py'}[component]
+ filename=extras.get(component) or {'eval-canary2-service':'nuc_eval_canary2_service_install.py','eval-canary2-activate':'nuc_eval_canary2_activate.py','eval-canary2-attest':'nuc_eval_canary2_attest.py','eval-canary2-run':'nuc_eval_canary2_run.py','eval-canary2-provision':'nuc_eval_canary2_provision.py','eval-sequence4-reconcile':'nuc_eval_sequence4_reconcile.py','eval-sequence4-diagnostic':'nuc_eval_sequence4_diagnostic.py','eval-sequence4-inventory':'nuc_eval_sequence4_inventory.py','eval-canary-run-v2':'nuc_eval_canary_run_v2.py','eval-coordinator-v2-install':'nuc_eval_canary_coordinator_v2_install.py','eval-client-diagnostic-v3':'nuc_eval_client_diagnostic_v3.py','eval-client-diagnostic-v2':'nuc_eval_client_diagnostic_v2.py','eval-client-diagnostic':'nuc_eval_client_diagnostic.py','eval-canary-inventory':'nuc_eval_canary_inventory.py','eval-canary-run':'nuc_eval_canary_run.py','eval-isolation-canary':'nuc_eval_isolation_canary.py','eval-canary-activate':'nuc_eval_canary_activate.py','eval-canary-attest':'nuc_eval_canary_attest.py','eval-canary-runtime-upgrade':'nuc_eval_canary_runtime_upgrade.py','eval-canary-backend-upgrade':'nuc_eval_canary_backend_upgrade.py','eval-canary-service':'nuc_eval_canary_service_install.py','eval-canary-provision':'nuc_eval_canary_provision.py','writer-full-init':'nuc_writer_full_init_host.py','writer-package-verify':'nuc_writer_package_verify.py','writer-package-upgrade':'nuc_writer_package_upgrade.py','writer-cap0-diagnostic-v2':'nuc_writer_cap0_diagnostic_v2.py','registry-failed-launch-reconcile':'nuc_registry_failed_launch_reconcile.py','writer-cap0-diagnostic':'nuc_writer_cap0_diagnostic.py','registry-intloop-failure-inventory':'nuc_registry_intloop_failure_inventory.py','registry-intloop-driver':'nuc_registry_intloop_driver.py','registry-intloop-reconcile':'nuc_registry_intloop_reconcile.py','callback-listener-canary':'nuc_callback_listener_canary.py','native-cap0-install':'nuc_native_cap0_install.py','callback-upgrade-verify':'nuc_callback_upgrade_verify.py','callback-package-upgrade':'nuc_callback_package_upgrade.py','callback-access-canary':'nuc_callback_access_canary.py','operator-brake-start':'nuc_operator_brake_start.py','registry-native-readiness':'nuc_registry_native_readiness_canary.py','registry-grant-install':'nuc_registry_grant_install.py','identity':'nuc_identity_install.py','real-no-dispatch':'nuc_real_no_dispatch_reconcile.py','root-launch-install':'nuc_root_launch_install.py','root-stop':'nuc_root_stop_install.py','root-stop-canary':'nuc_root_stop_canary.py','root-stop-canary-v2':'nuc_root_stop_canary_v2.py','root-stop-v2-receipts':'nuc_root_stop_v2_receipts.py','root-stop-cleanup':'nuc_root_stop_cleanup.py','pg-stage':'nuc_pg_stage_install.py','root-stop-v2':'nuc_root_stop_upgrade_v2.py','brake-frontend':'nuc_brake_frontend_install.py','brake-recover':'nuc_brake_frontend_recover.py','pg-harden':'nuc_pg_tree_harden.py','operator-brake-canary':'nuc_operator_brake_canary.py','private-runtime':'nuc_private_runtime_install.py','operator-brake-receipts':'nuc_operator_brake_receipts.py','private-inventory':'nuc_private_bootstrap_inventory.py','operator-peer-probe':'nuc_operator_peer_probe.py','private-resources':'nuc_private_resource_limits.py','private-recover':'nuc_private_bootstrap_recover.py','private-recovery-inventory':'nuc_private_recovery_inventory.py','private-resume2':'nuc_private_bootstrap_resume2.py','private-restart':'nuc_private_runtime_restart.py','deadline-install':'nuc_root_deadline_install.py','deadline-canary':'nuc_root_deadline_canary.py','docker-deadline-canary':'nuc_root_docker_deadline_canary.py','deadline-inventory':'nuc_root_deadline_inventory.py','grant-sidecar':'nuc_grant_sidecar_install.py','deadline-reconcile':'nuc_root_deadline_reconcile.py','grant-inventory':'nuc_grant_failed_inventory.py','grant-admin-inspect':'nuc_grant_admin_inspection.py','grant-resume':'nuc_grant_sidecar_resume.py','sfctl-registry':'nuc_sfctl_registry_install.py','relay-package':'nuc_relay_package_install.py','worker-images':'nuc_worker_images_install.py','openfile-canary':'nuc_openfile_canary.py','grant-journal-canary':'nuc_grant_journal_canary.py','grant-expiry-canary':'nuc_grant_expiry_canary.py','real-repo':'nuc_real_repo_install.py','real-sidecar':'nuc_real_sidecar_install.py','real-activate':'nuc_real_sidecar_activate.py','real-attestation':'nuc_real_process_attestation.py','real-attestor-probe':'nuc_real_attestor_probe.py','real-launch-prepare':'nuc_real_launch_prepare.py','registry-sidecar':'nuc_registry_sidecar_install.py','registry-activate':'nuc_registry_sidecar_activate.py','registry-attestation':'nuc_registry_process_attestation.py','registry-attestor-probe':'nuc_registry_attestor_probe.py','registry-launch-prepare':'nuc_registry_launch_prepare.py','real-preclaim-readiness':'nuc_real_preclaim_readiness.py','real-intloop-driver':'nuc_real_intloop_driver.py','real-launch-access-probe':'nuc_real_launch_access_probe.py','real-failure-inventory':'nuc_real_intloop_failure_inventory.py','real-static-diagnostic':'nuc_real_intloop_static_diagnostic.py'}[component]
  source=pathlib.Path(__file__).with_name(filename).read_text()
- if component in ('writer-package-upgrade','writer-cap0-diagnostic-v2','writer-cap0-diagnostic','registry-intloop-failure-inventory','registry-intloop-driver','callback-listener-canary','native-cap0-install','callback-upgrade-verify','callback-package-upgrade','callback-access-canary','operator-brake-start','registry-attestor-probe','registry-native-readiness','registry-grant-install','real-preclaim-readiness','real-failure-inventory','real-static-diagnostic'):
+ if component=='root-finalization-readiness':
+  dependencies='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_root_finalization_prepare','nuc_root_finalization_readiness_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   dependencies+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-"+module+">','exec'),_m.__dict__)\n"
+  source=dependencies+source
+ if component.startswith('journal-fixture-'):
+  dependencies='import types,sys\n'
+  modules=['nuc_evidence_reader_canary','nuc_root_authorization_canary','nuc_finalization_journal_fixture']
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   dependencies+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-"+module+">','exec'),_m.__dict__)\n"
+  if component not in ('journal-fixture-install','journal-fixture-resume-start'):
+   phase=component.removeprefix('journal-fixture-')
+   source='def plan():return sys.modules["nuc_finalization_journal_fixture"].phase_plan('+repr(phase)+')\ndef apply(reviewed):return sys.modules["nuc_finalization_journal_fixture"].phase_apply('+repr(phase)+',reviewed)\n'
+  source=dependencies+source
+ if component=='root-finalization-prepare':
+  dependency=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  source="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(dependency)+",'<reviewed-grant-tools>','exec'),_m.__dict__)\n"+source
+ if component in ('eval-canary2-service','eval-canary2-activate','eval-canary2-attest','eval-canary2-run','eval-canary2-provision','eval-sequence4-reconcile','eval-sequence4-diagnostic','eval-sequence4-inventory','eval-canary-run-v2','eval-coordinator-v2-install','eval-client-diagnostic-v3','eval-client-diagnostic-v2','eval-client-diagnostic','eval-canary-inventory','eval-canary-run','eval-isolation-canary','eval-canary-activate','eval-canary-attest','eval-canary-runtime-upgrade','eval-canary-backend-upgrade','eval-canary-service','eval-canary-provision','writer-package-upgrade','writer-cap0-diagnostic-v2','writer-cap0-diagnostic','registry-intloop-failure-inventory','registry-intloop-driver','callback-listener-canary','native-cap0-install','callback-upgrade-verify','callback-package-upgrade','callback-access-canary','operator-brake-start','registry-attestor-probe','registry-native-readiness','registry-grant-install','real-preclaim-readiness','real-failure-inventory','real-static-diagnostic'):
   module='nuc_grant_sidecar_install';body=pathlib.Path(__file__).with_name(module+'.py').read_text()
   source="import types,sys\n_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-"+module+">','exec'),_m.__dict__)\n"+source
+ if component.startswith(('eval-canary3-','eval-canary4-')):
+  module='nuc_grant_sidecar_install';body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+  deps="import types,sys\n_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-"+module+">','exec'),_m.__dict__)\n"
+  if component=='eval-canary4-recovery-observe':
+   body2=pathlib.Path(__file__).with_name('nuc_eval_canary4_reconcile.py').read_text()
+   deps+="_m=types.ModuleType('nuc_eval_canary4_reconcile');sys.modules[_m.__name__]=_m;exec(compile("+repr(body2)+",'<reviewed-recovery>','exec'),_m.__dict__)\n"
+  if component=='eval-canary4-native-run':
+   driver=pathlib.Path(__file__).with_name('nuc_eval_canary4_owner_loss.py').read_text()
+   deps+="_m=types.ModuleType('nuc_eval_canary4_owner_loss');sys.modules[_m.__name__]=_m;exec(compile("+repr(driver)+",'<reviewed-ownerloss>','exec'),_m.__dict__)\n"
+   source=source+'\nDEPENDENCY_SOURCE='+repr(body)+'\nDRIVER_SOURCE='+repr(driver)
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
  if component=='sfctl-registry':
   dependency=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
   source="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(dependency)+",'<reviewed-grant-tools>','exec'),_m.__dict__)\n"+source+SFCTL_REGISTRY_ADAPTER
@@ -567,7 +652,30 @@ def cli():
    for module in ('nuc_registry_launch_prepare','nuc_writer_full_init_canary'):
     body=pathlib.Path(__file__).with_name(module+'.py').read_text()
     dependencies+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-writer-canary>','exec'),_m.__dict__)\n"
+  if component=='registry-launch-prepare':
+   for module in ('nuc_registry_attestation_profiles','nuc_registry_transition_gate'):
+    body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+    dependencies+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-"+module+">','exec'),_m.__dict__)\n"
   source=dependencies+source+'\n'+(GRANT_RESUME_ADAPTER if component=='grant-resume' else GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component))
+ if component=='eval-canary-run-v2':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-run-v2')
+ if component=='eval-coordinator-v2-install':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-coordinator-v2-install')
+ if component in ('eval-canary2-service','eval-canary2-activate','eval-canary2-attest','eval-canary2-run'):source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component=='eval-canary2-provision':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary2-provision')
+ if component=='eval-sequence4-reconcile':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-sequence4-reconcile')
+ if component=='eval-sequence4-diagnostic':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-sequence4-diagnostic')
+ if component=='eval-sequence4-inventory':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-sequence4-inventory')
+ if component=='eval-client-diagnostic-v3':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-client-diagnostic-v3')
+ if component=='eval-client-diagnostic-v2':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-client-diagnostic-v2')
+ if component=='eval-client-diagnostic':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-client-diagnostic')
+ if component=='eval-canary-inventory':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-inventory')
+ if component=='eval-canary-run':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-run')
+ if component=='eval-isolation-canary':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-isolation-canary')
+ if component=='eval-canary-activate':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-activate')
+ if component=='eval-canary-attest':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-attest')
+ if component=='eval-canary-runtime-upgrade':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-runtime-upgrade')
+ if component=='eval-canary-backend-upgrade':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-backend-upgrade')
+ if component=='eval-canary-service':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-service')
+ if component=='eval-canary-provision':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','eval-canary-provision')
  if component=='writer-cap0-diagnostic-v2':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','writer-cap0-diagnostic-v2')
  if component=='writer-cap0-diagnostic':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','writer-cap0-diagnostic')
  if component=='callback-listener-canary':source+='\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','callback-listener-canary')
@@ -597,6 +705,255 @@ def cli():
    deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
   writer=pathlib.Path(__file__).parent.joinpath('relay/nuc_root_writer_service.py').read_bytes()
   source=deps+source+'\nSOURCE='+repr(writer)+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','writer-package-upgrade')
+ if component in ('unix-admin-canary-resume','unix-admin-canary-activate','unix-admin-canary-inventory','unix-admin-sdk-install'):
+  deps='import types,sys\n'
+  modules=('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate') if component in ('unix-admin-canary-inventory','unix-admin-sdk-install') else ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  if component=='unix-admin-sdk-install':source+='\nOPS_SOURCE='+repr(pathlib.Path(__file__).with_name('nuc_unix_admin_canary_fixed_ops.py').read_bytes())+'\n'
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component=='unix-admin-register-old':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+'\nROLE="old"\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component in ('unix-admin-v4-start-old','unix-admin-v4-register-old'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install']
+  if component=='unix-admin-v4-start-old':modules.append('nuc_unix_admin_canary_sdk_v4_preflight')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+('\nROLE="old"\n' if component=='unix-admin-v4-register-old' else '')
+ if component=='unix-admin-epoch-inventory':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('unix-admin-failure-inventory','unix-admin-failure-snapshot','unix-admin-failure-summary','unix-admin-h2-contrast'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_canary_probe_start']
+  if component=='unix-admin-failure-snapshot':modules+=['nuc_unix_admin_canary_sdk_v4_preflight','nuc_unix_admin_canary_start_v4_old','nuc_unix_admin_canary_snapshot_install','nuc_unix_admin_canary_snapshot_supervisor']
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component=='unix-admin-failure-quiesce':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_canary_sdk_v4_preflight','nuc_unix_admin_canary_start_v4_old','nuc_unix_admin_canary_probe_v2_install','nuc_unix_admin_canary_retire_old'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('sdk5-fd-guard-canary','sdk5-fd-guard-recovery'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install','nuc_unix_admin_h2_install']
+  if component=='sdk5-fd-guard-recovery':modules.append('nuc_sdk5_fd_guard_canary')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  wrapper=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/('nuc_sdk5_guard_extra_fd_v2.py' if component=='sdk5-fd-guard-recovery' else 'nuc_sdk5_guard_extra_fd.py')).read_bytes()
+  source=deps+source+'\nSOURCE='+repr(wrapper)+'\n'
+ if component in ('h2-keeper-install','h2-keeper-activate'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install']
+  if component=='h2-keeper-activate':modules.append('nuc_h2_keeper_fixture_install')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('h2-keeper-control','h2-keeper-reconcile'):
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_h2_keeper_fixture_install','nuc_h2_keeper_fixture_activate'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  if component=='h2-keeper-reconcile':
+   module='nuc_h2_keeper_control';body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  control=pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/'nuc_ingress_h2_native_control.py'
+  source=deps+source+('\nSOURCE='+repr(control.read_bytes())+'\n' if component=='h2-keeper-control' else '')
+ if component in ('unix-admin-h2-install','unix-admin-h2-activate','unix-admin-h2-no-listener','unix-admin-h2-baseline-diagnostic','unix-admin-h2-afterrestart-diagnostic','unix-admin-h2-history-diagnostic','unix-admin-h2-probe-terminal-diagnostic','unix-admin-h2-probe-journal-diagnostic'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install']
+  if component in ('unix-admin-h2-activate','unix-admin-h2-no-listener','unix-admin-h2-baseline-diagnostic','unix-admin-h2-afterrestart-diagnostic','unix-admin-h2-history-diagnostic','unix-admin-h2-probe-terminal-diagnostic','unix-admin-h2-probe-journal-diagnostic'):modules.append('nuc_unix_admin_h2_install')
+  if component=='unix-admin-h2-no-listener':modules.append('nuc_unix_admin_h2_activate')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('unix-admin-h2-sdk-install','unix-admin-h2-helpers-install'):
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+  if component=='unix-admin-h2-helpers-install':
+   for var,module in (('OPS_SOURCE','nuc_unix_admin_h2_snapshot_ops'),('LOST_SOURCE','nuc_unix_admin_h2_lost_ops'),('ADMIN_SOURCE','nuc_unix_admin_h2_fixed_ops')):
+    source+='\n'+var+'='+repr(pathlib.Path(__file__).with_name(module+'.py').read_bytes())+'\n'
+ if component=='registry-eval-package-install':
+  tree=ast.parse(source);pins=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='PINS' for t in n.targets))
+  body=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  deps="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(body)+",'<reviewed-nuc_grant_sidecar_install>','exec'),_m.__dict__)\n"
+  source=deps+source+'\nSOURCES='+repr({name:pathlib.Path(__file__).with_name(name).read_bytes() for name in pins})+'\n'
+ if component in ('registry-eval-package-verify','registry-eval-package-diagnostic','registry-eval-listdir-diagnostic'):
+  deps='import types,sys\n'
+  modules=['nuc_grant_sidecar_install','nuc_registry_eval_package_install']
+  if component in ('registry-eval-package-diagnostic','registry-eval-listdir-diagnostic'):modules.append('nuc_registry_eval_package_verify')
+  if component=='registry-eval-listdir-diagnostic':modules.append('nuc_registry_eval_package_diagnostic')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('unix-admin-h2-orchestrator','unix-admin-h2-continuation','unix-admin-h2-epoch2-orchestrator','unix-admin-h2-classification-continuation','unix-admin-h2-postretire-continuation'):
+  deps='import types,sys\n';hashes={}
+  modules=('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_h2_install','nuc_unix_admin_h2_activate','nuc_unix_admin_h2_sdk_install','nuc_unix_admin_h2_helpers_install','nuc_unix_admin_h2_probe_install','nuc_unix_admin_h2_sdk_start','nuc_unix_admin_h2_snapshot_supervisor','nuc_unix_admin_h2_registration','nuc_unix_admin_h2_probe_start','nuc_unix_admin_h2_probe_after','nuc_ingress_fence_assertions','nuc_unix_admin_h2_classify','nuc_unix_admin_h2_retire_old','nuc_unix_admin_h2_register_lost','nuc_unix_admin_h2_restate_restart','nuc_unix_admin_h2_classify_after_restart','nuc_unix_admin_h2_quiesce')
+  if component in ('unix-admin-h2-epoch2-orchestrator','unix-admin-h2-classification-continuation','unix-admin-h2-postretire-continuation'):modules=modules[:7]+('nuc_unix_admin_h2_epoch2',)+modules[7:]
+  if component in ('unix-admin-h2-classification-continuation','unix-admin-h2-postretire-continuation'):modules=modules+('nuc_unix_admin_h2_history_output',)
+  if component=='unix-admin-h2-postretire-continuation':modules=modules+('nuc_unix_admin_h2_probe_journal_diagnostic','nuc_unix_admin_h2_probe_terminal_diagnostic','nuc_unix_admin_h2_probe_after_recovery')
+  for module in modules:
+   path=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/(module+'.py')) if module=='nuc_ingress_fence_assertions' else pathlib.Path(__file__).with_name(module+'.py')
+   body=path.read_bytes();hashes[module]=hashlib.sha256(body).hexdigest()
+   if component in ('unix-admin-h2-epoch2-orchestrator','unix-admin-h2-classification-continuation','unix-admin-h2-postretire-continuation') and module not in ('nuc_unix_admin_h2_epoch2',):
+    body=body.replace(b'unix-admin-h2-canary-activation-complete.json',b'unix-admin-h2-canary-epoch2-complete.json');hashes[module+'_effective']=hashlib.sha256(body).hexdigest()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  probe=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/'nuc_ingress_fence_probe_h2.py').read_bytes();hashes['probe_source']=hashlib.sha256(probe).hexdigest();hashes['orchestrator']=hashlib.sha256(source.encode()).hexdigest()
+  if component=='unix-admin-h2-classification-continuation':
+   history=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/'nuc_ingress_history_output.py').read_bytes();hashes['history_source']=hashlib.sha256(history).hexdigest();source=source+'\nHISTORY_SOURCE='+repr(history)+'\n'
+  source=deps+source+'\nSOURCE_HASHES='+repr(hashes)+'\nPROBE_SOURCE='+repr(probe)+'\n'
+ if component in ('registry-eval-package-v2-install','registry-eval-package-v2-verify'):
+  deps='import types,sys\n';modules=['nuc_grant_sidecar_install']
+  if component=='registry-eval-package-v2-verify':modules.append('nuc_registry_eval_package_v2_install')
+  for module in modules:
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  if component=='registry-eval-package-v2-install':
+   tree=ast.parse(source);pins=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='PINS' for t in n.targets))
+   source=source+'\nSOURCES='+repr({name:(pathlib.Path(__file__).parent/'evaluator_production_v2'/name).read_bytes() for name in pins})+'\n'
+  source=deps+source
+ if component=='unix-admin-h2-expiry-inventory':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_h2_install','nuc_unix_admin_h2_activate','nuc_unix_admin_h2_sdk_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component=='backup-copy-cap-canary':
+  body=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  deps="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(body)+",'<reviewed-grant-install>','exec'),_m.__dict__)\n"
+  source=deps+source+'\nSOURCE='+repr(pathlib.Path(__file__).with_name('nuc_restate_backup_tree.py').read_bytes())+'\n'
+ if component=='unixdiag-peer-canary':
+  body=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  deps="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(body)+",'<reviewed-grant-install>','exec'),_m.__dict__)\n"
+  source=deps+source+'\nSOURCE='+repr((pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/'nuc_unixdiag_peer_spike.py').read_bytes())+'\n'
+ if component=='unix-admin-h2-new-uri-diagnostic':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_h2_install','nuc_unix_admin_h2_activate','nuc_unix_admin_h2_sdk_install','nuc_unix_admin_h2_helpers_install','nuc_unix_admin_h2_sdk_start'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   if module=='nuc_unix_admin_h2_activate':body=body.replace('unix-admin-h2-canary-activation-complete.json','unix-admin-h2-canary-epoch2-complete.json')
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('unix-admin-h2-9086-install','unix-admin-h2-9086-helpers-install'):
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_h2_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  if component=='unix-admin-h2-9086-helpers-install':
+   source+='\nQUERY_SOURCE='+repr(pathlib.Path(__file__).with_name('nuc_unix_admin_h2_9086_snapshot_ops.py').read_bytes())+'\nLOST_SOURCE='+repr(pathlib.Path(__file__).with_name('nuc_unix_admin_h2_recovery_lost_ops.py').read_bytes())+'\n'
+  source=deps+source
+ if component=='unix-admin-h2-epoch3-inventory':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_h2_install','nuc_unix_admin_h2_activate','nuc_unix_admin_h2_sdk_install','nuc_unix_admin_h2_9086_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component in ('unix-admin-h2-9086-orchestrator','unix-admin-h2-9086-final-continuation'):
+  deps='import types,sys\n';hashes={}
+  modules=('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_h2_install','nuc_unix_admin_h2_activate','nuc_unix_admin_h2_sdk_install','nuc_unix_admin_h2_sdk_start','nuc_unix_admin_h2_helpers_install','nuc_unix_admin_h2_9086_install','nuc_unix_admin_h2_9086_helpers_install','nuc_unix_admin_h2_epoch3','nuc_unix_admin_h2_epoch3_binding','nuc_unix_admin_h2_9086_stage','nuc_unix_admin_h2_9086_restart','nuc_unix_admin_h2_9086_snapshot_supervisor','nuc_unix_admin_h2_9086_history_output','nuc_ingress_fence_assertions','nuc_unix_admin_h2_9086_classify','nuc_unix_admin_h2_9086_quiesce')
+  for module in modules:
+   path=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/(module+'.py')) if module=='nuc_ingress_fence_assertions' else pathlib.Path(__file__).with_name(module+'.py')
+   body=path.read_bytes();hashes[module]=hashlib.sha256(body).hexdigest()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  hashes['orchestrator']=hashlib.sha256(source.encode()).hexdigest();source=deps+source+'\nSOURCE_HASHES='+repr(hashes)+'\n'
+ if component in ('sdk5-discovery-diagnostic3','sdk5-stdio-shape','sdk5-discovery-diagnostic2-inventory','sdk5-discovery-diagnostic2','sdk5-discovery-failure-inventory','sdk5-discovery-native-canary','registry-retired-listener-install','registry-restore-history-install','registry-admission-probe-install','registry-admission-package-install','registry-retirement','registry-restore-history-v2-install','registry-pinned-binary-canary','registry-recovery-readiness','restate-source-metadata','restate-source-metadata-v2','restate-tree-metadata','registry-admission-package-v2-install','registry-admission-package-v2-verify','registry-history-capture','registry-offline-backup','registry-restore-prepare','registry-restore-verify','registry-unix-restate-provision','registry-unix-restate-activate','registry-v5-transition-plan','registry-v5-unix-unit-upgrade','registry-v5-catalog-publish','registry-v5-runtime-activate','registry-v5-unix-attestation','registry-v5-unix-registration','registry-v5-replay-finish','registry-v5-pending-admission','registry-v5-finish-transition'):
+  deps='import types,sys\n';visited=set();visiting=set();ordered=[]
+  def visit(module):
+   if module in visited:return
+   if module in visiting:raise RuntimeError('dependency cycle')
+   visiting.add(module);body=pathlib.Path(__file__).with_name(module+'.py').read_text();tree=ast.parse(body)
+   names={a.name for n in ast.walk(tree) if isinstance(n,ast.Import) for a in n.names if a.name.startswith('nuc_')} | {n.module for n in ast.walk(tree) if isinstance(n,ast.ImportFrom) and n.module and n.module.startswith('nuc_')}
+   for name in sorted(names):visit(name)
+   visiting.remove(module);visited.add(module);ordered.append((module,body))
+  tree=ast.parse(source)
+  names={a.name for n in ast.walk(tree) if isinstance(n,ast.Import) for a in n.names if a.name.startswith('nuc_')} | {n.module for n in ast.walk(tree) if isinstance(n,ast.ImportFrom) and n.module and n.module.startswith('nuc_')}
+  for module in sorted(names):visit(module)
+  if component=='registry-v5-finish-transition':visit('nuc_registry_pending_admission')
+  for module,body in ordered:deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  if component=='registry-retired-listener-install':source+='\nSOURCE='+repr(pathlib.Path(__file__).with_name('nuc_registry_retired_listener_probe.py').read_bytes())+'\n'
+  if component=='registry-restore-history-v2-install':source+='\nSOURCE='+repr(pathlib.Path(__file__).with_name('nuc_registry_restore_history_probe_v2.py').read_bytes())+'\n'
+  if component=='registry-restore-history-install':source+='\nSOURCE='+repr(pathlib.Path(__file__).with_name('nuc_registry_restore_history_probe.py').read_bytes())+'\n'
+  if component=='registry-admission-probe-install':source+='\nSOURCES='+repr({'registry-admin-deny-probe.py':pathlib.Path(__file__).with_name('nuc_registry_admin_deny_probe.py').read_bytes(),'registry-admission-journal-probe.py':pathlib.Path(__file__).with_name('nuc_registry_admission_journal_probe.py').read_bytes()})+'\n'
+  if component in ('registry-admission-package-install','registry-admission-package-v2-install'):
+   tree=ast.parse(source);pins=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='PINS' for t in n.targets))
+   source+='\nSOURCES='+repr({name:pathlib.Path(__file__).with_name(name).read_bytes() for name in pins})+'\n'
+  injections={'registry-unix-restate-provision':{'PROBE_SOURCE':'nuc_registry_unix_restate_probe.py'},'registry-v5-transition-plan':{'PROBE_SOURCE':'nuc_registry_old_deployment_probe.py'},'registry-v5-unix-registration':{'SOURCE':'nuc_sdk5_unix_admin_fixed.py'},'registry-v5-replay-finish':{'LIVE_SOURCE':'nuc_registry_live_history_probe.py','HANDLER_SOURCE':'nuc_registry_v5_handler_replay_probe.py'}}
+  for variable,filename in injections.get(component,{}).items():source+='\n'+variable+'='+repr(pathlib.Path(__file__).with_name(filename).read_bytes())+'\n'
+  source=deps+source
+ if component=='unix-admin-canary-orchestrator':
+  deps='import types,sys\n';hashes={}
+  modules=('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install','nuc_unix_admin_canary_sdk_v4_install','nuc_unix_admin_canary_epoch_inventory','nuc_unix_admin_canary_epoch_restart','nuc_unix_admin_canary_sdk_v4_preflight','nuc_unix_admin_canary_start_v4_old','nuc_unix_admin_canary_snapshot_install','nuc_unix_admin_canary_registration_v4','nuc_unix_admin_canary_probe_v2_install','nuc_unix_admin_canary_probe_start','nuc_unix_admin_canary_snapshot_supervisor','nuc_ingress_fence_assertions','nuc_unix_admin_canary_classify','nuc_unix_admin_canary_retire_old','nuc_unix_admin_canary_probe_after','nuc_unix_admin_canary_start_v4_new','nuc_unix_admin_canary_register_lost','nuc_unix_admin_canary_restate_restart','nuc_unix_admin_canary_classify_after_restart','nuc_unix_admin_canary_quiesce')
+  for module in modules:
+   path=pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/(module+'.py') if module=='nuc_ingress_fence_assertions' else pathlib.Path(__file__).with_name(module+'.py')
+   body=path.read_text();hashes[module]=hashlib.sha256(body.encode()).hexdigest()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  blobs={key:pathlib.Path(__file__).with_name(name).read_bytes() for key,name in (('SNAPSHOT_SOURCE','nuc_unix_admin_canary_snapshot_ops.py'),('LOST_SOURCE','nuc_unix_admin_canary_lost_ops.py'),('ADMIN_SOURCE','nuc_unix_admin_canary_fixed_ops_v2.py'))}
+  blobs['PROBE_SOURCE']=(pathlib.Path(__file__).parent.parent/'tests'/'fixtures'/'nuc_ingress_fence_probe.py').read_bytes()
+  hashes.update({key:hashlib.sha256(value).hexdigest() for key,value in blobs.items()});hashes['orchestrator']=hashlib.sha256(source.encode()).hexdigest()
+  source=deps+source+'\nSOURCE_HASHES='+repr(hashes)+'\n'+''.join(key+'='+repr(value)+'\n' for key,value in blobs.items())
+ if component=='unix-admin-sdk-v4-install':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source
+ if component=='unix-admin-sdk-preflight-inventory':
+  body=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  source="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules[_m.__name__]=_m;exec(compile("+repr(body)+",'<reviewed-support>','exec'),_m.__dict__)\n"+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component=='unix-admin-sdk-v4-preflight':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_v4_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component in ('unix-admin-sdk-preflight','unix-admin-sdk-fd-diagnostic'):
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_unix_admin_canary_install','nuc_unix_admin_canary_activate','nuc_unix_admin_canary_sdk_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component in ('registry-gate-access-canary','registry-drain-schema','unix-admin-canary-install'):
+  body=pathlib.Path(__file__).with_name('nuc_grant_sidecar_install.py').read_text()
+  deps="import types,sys\n_m=types.ModuleType('nuc_grant_sidecar_install');sys.modules['nuc_grant_sidecar_install']=_m;exec(compile("+repr(body)+",'<reviewed-grant-tools>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component=='registry-v5-guarded-install':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_grant_failed_inventory','nuc_grant_admin_inspection','nuc_grant_sidecar_resume','nuc_real_repo_install','nuc_real_catalog','nuc_real_sidecar_install','nuc_real_sidecar_activate','nuc_registry_sidecar_install','nuc_registry_sidecar_activate','nuc_registry_v5_install'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]= _m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ if component=='registry-v5-install':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_grant_failed_inventory','nuc_grant_admin_inspection','nuc_grant_sidecar_resume','nuc_real_repo_install','nuc_real_catalog','nuc_real_sidecar_install','nuc_real_sidecar_activate','nuc_registry_sidecar_install','nuc_registry_sidecar_activate'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','registry-v5-install')
+ if component=='registry-gate-install':
+  deps='import types,sys\n'
+  for module in ('nuc_grant_sidecar_install','nuc_registry_attestation_profiles','nuc_registry_transition_gate','nuc_registry_replay_coordinator'):
+   body=pathlib.Path(__file__).with_name(module+'.py').read_text()
+   deps+="_m=types.ModuleType("+repr(module)+");sys.modules["+repr(module)+"]=_m;exec(compile("+repr(body)+",'<reviewed-'+"+repr(module)+"+'>','exec'),_m.__dict__)\n"
+  probe=pathlib.Path(__file__).with_name('nuc_registry_replay_probe.py').read_bytes()
+  source=deps+source+'\nPROBE_SOURCE='+repr(probe)+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','registry-gate-install')
  if component=='operator-brake-start':
   body=pathlib.Path(__file__).with_name('nuc_operator_brake_canary.py').read_text()
   source="import types,sys\n_m=types.ModuleType('nuc_operator_brake_canary');sys.modules['nuc_operator_brake_canary']=_m;exec(compile("+repr(body)+",'<reviewed-brake-canary>','exec'),_m.__dict__)\n"+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary','operator-brake-start')
@@ -629,6 +986,19 @@ def cli():
  if component=='docker-deadline-canary':source+='\nARM_SOURCE='+repr(pathlib.Path(__file__).with_name('nuc_root_deadline_arm.py').read_text())+'\nNATIVE_SOURCE='+repr(pathlib.Path(__file__).with_name('nuc_root_deadline_canary.py').read_text())+'\n'+DOCKER_DEADLINE_CANARY_ADAPTER
  if component=='private-recover':source+='\n'+PRIVATE_RECOVERY_ADAPTER
  if component=='private-resume2':source+='\n'+PRIVATE_RECOVERY_ADAPTER.replace("'private-recover'","'private-resume2'")
+ if component in extras and canary_adapter_count(source)==0:
+  deps='import types,sys\n'
+  if component in ('evidence-reader-install','authorization-canary-install','authorization-canary','root-finalization-install','root-finalization-readiness-install','root-finalization-readiness','registry-v5-probe-install','registry-v5-grant-install','registry-v5-launch-install'):
+   body=pathlib.Path(__file__).with_name('nuc_evidence_reader_canary.py').read_text()
+   deps+="_m=types.ModuleType('nuc_evidence_reader_canary');sys.modules['nuc_evidence_reader_canary']=_m;exec(compile("+repr(body)+",'<reviewed-reader-canary>','exec'),_m.__dict__)\n"
+  if component in ('authorization-canary-install','root-finalization-install','root-finalization-readiness-install','root-finalization-readiness','registry-v5-probe-install','registry-v5-grant-install','registry-v5-launch-install'):
+   body=pathlib.Path(__file__).with_name('nuc_root_authorization_canary.py').read_text()
+   deps+="_m=types.ModuleType('nuc_root_authorization_canary');sys.modules['nuc_root_authorization_canary']=_m;exec(compile("+repr(body)+",'<reviewed-authorization-canary>','exec'),_m.__dict__)\n"
+  if component=='registry-v5-probe-install':
+   body=pathlib.Path(__file__).with_name('nuc_registry_attestation_profiles.py').read_text()
+   deps+="_m=types.ModuleType('nuc_registry_attestation_profiles');sys.modules['nuc_registry_attestation_profiles']=_m;exec(compile("+repr(body)+",'<reviewed-attestation-profiles>','exec'),_m.__dict__)\n"
+  source=deps+source+'\n'+GRANT_JOURNAL_CANARY_ADAPTER.replace('grant-journal-canary',component)
+ require_single_canary_adapter(source)
  compile(source,'<reviewed-'+component+'>','exec')
  plan=json.loads(pathlib.Path(args[1]).read_text()) if operation=='apply' else None
  if operation=='apply' and (not isinstance(plan,dict) or plan.get('source_sha256')!=hashlib.sha256(source.encode()).hexdigest()):raise SystemExit('plan differs from reviewed source')

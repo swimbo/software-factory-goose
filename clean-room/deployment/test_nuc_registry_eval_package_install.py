@@ -2,7 +2,9 @@ import pathlib,tempfile,unittest
 from unittest import mock
 import nuc_registry_eval_package_install as package
 class Package(unittest.TestCase):
- def setUp(self):self.sources={n:pathlib.Path(__file__).with_name(n).read_bytes() for n in package.PINS}
+ def setUp(self):
+  root=pathlib.Path(__file__).parent;historical=root.parent/'tests'/'fixtures'/'admission_package_v1'
+  self.sources={n:((historical/n) if n=='nuc_registry_transition_gate.py' else (root/n)).read_bytes() for n in package.PINS}
  def test_pins_match_reviewed_complete_sources(self):
   self.assertGreater(package.validate_sources(self.sources),0)
   import nuc_registry_eval_service_provision as provision

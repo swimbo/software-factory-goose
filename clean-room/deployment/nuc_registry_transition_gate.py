@@ -188,6 +188,9 @@ def finish_transition(directory,intent):
  require(_digest(_protected_read(profile['probe'],0o755,10_000_000))==profile['probe_sha256'],'attestor changed')
  p=subprocess.run([str(profile['probe'])],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=50,check=False,env={'PATH':'/usr/bin:/bin','HOME':'/nonexistent','LANG':'C','SYSTEMD_IN_CHROOT':'0'})
  require(p.returncode==0 and len(p.stdout)<=8192 and len(p.stderr)<=8192 and _json(p.stdout)=={'service_attested':True,'grant_requested':False},'registry process attestation unavailable')
+ if profile['profile']=='sdk5':
+  pending_admission=__import__('nuc_registry_pending_admission')
+  pending_admission.verify(__import__(__name__),intent,replay,attj,boot)
  result={'schema':1,'transition_id':name,'boot_id':boot,'manifest_sha256':intent['new_manifest_sha256'],'attestation_sha256':_digest(att),'replay_sha256':_digest(replay_raw),'intent_sha256':_digest(marker)}
  raw=json.dumps(result,sort_keys=True,separators=(',',':')).encode()+b'\n'
  _store_history(hist,name+'.intent.json',marker);_store_history(hist,name+'.complete.json',raw)

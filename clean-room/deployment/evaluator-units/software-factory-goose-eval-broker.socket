@@ -1,0 +1,13 @@
+[Unit]
+Description=Software factory evaluator broker socket
+ConditionPathExists=/etc/software-factory-goose/evaluator-bootstrap-complete
+
+[Socket]
+ListenStream=/run/software-factory-goose/evaluator/broker.sock
+SocketUser=root
+SocketGroup=sfgoose-eval
+SocketMode=0660
+FileDescriptorName=evaluator
+Accept=no
+RemoveOnStop=yes
+Service=software-factory-goose-eval-broker.service

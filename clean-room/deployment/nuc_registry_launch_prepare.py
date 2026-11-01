@@ -7,6 +7,7 @@ import errno,hashlib,json,os,pathlib,re,sqlite3,stat,subprocess
 import nuc_grant_sidecar_install as old
 import nuc_real_sidecar_activate as real
 import nuc_registry_sidecar_activate as registry
+import nuc_registry_transition_gate as registry_gate
 G='01M65RMR3F04YB1B016EBBSXGG';TASK='01M65RMR3FE6FQTFRBHERRHXRG';LOW=G.lower()
 ROOT=old.ETC;RUN=old.RUN;STATE=pathlib.Path('/var/lib/software-factory-goose');SYSTEM=old.UNIT
 INTENT=ROOT/(G+'.launch-prepare-started.json');DONE=ROOT/(G+'.launch-prepare-complete.json')
@@ -105,7 +106,7 @@ def plan():
  hashes={'prompt':digest(parts[0]),'profile':digest(parts[1]),'template':digest(parts[2]),'provider':digest(parts[3]),'recipe':digest(canonical(parts[4]))}
  return {'generation':G,'task':TASK,'catalog_sha256':cfg['launch_scope']['catalog_sha256'],'baseline':cfg['request']['base_revision'],'provider':bind,'artifacts':hashes,'units':{k:digest(v) for k,v in unitfiles.items()},'old_snapshot':old.old_snapshot(),'prior_sidecar':old.sidecar_running(),'real_sidecar':status['sidecar'],'registry_sidecar':registry_status['sidecar'],'scope':'preclaim only; no provider request, key read, claim or container'}
 
-def apply(approved):
+def _apply_under_admission(approved):
  require(plan()==approved,'preparation plan changed');old.store(INTENT,canonical(approved)+b'\n',0o600)
  for path,uid,gid,mode in [(ROOT/'launch-catalog',0,0,0o700),(ROOT/'relay-catalog',0,0,0o700),(STATE/'relay',0,0,0o711),(STATE/'handoff',0,0,0o700),(RUN/'writer',0,2000,0o710),(RUN/'relay',0,0,0o755),(RUN/'docker-empty-config',0,0,0o700)]:directory(path,uid,gid,mode,True)
  require(not os.listdir(RUN/'docker-empty-config'),'Docker config directory not empty')
@@ -142,3 +143,8 @@ def apply(approved):
  require(old.old_snapshot()==approved['old_snapshot'] and old.sidecar_running()==approved['prior_sidecar'] and real.service_running()==approved['real_sidecar'] and registry.service_running()==approved['registry_sidecar'],'preserved runtime changed')
  result={'generation':G,'cgroup_dev':st.st_dev,'cgroup_ino':st.st_ino,'catalog_sha256':digest(canonical(launch)),'recipe_sha256':digest(canonical(recipe)),'callback_started':True,'task_claimed':False,'provider_called':False,'container_started':False}
  old.store(DONE,canonical(result)+b'\n',0o600);return result
+
+
+def apply(approved):
+ with registry_gate.admission():
+  return _apply_under_admission(approved)
