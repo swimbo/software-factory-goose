@@ -1198,6 +1198,10 @@ mod tests {
         wire["route"]["usage_tariff_sha256"] = serde_json::json!("a".repeat(64));
         let scope: AttemptScope = serde_json::from_value(wire).expect("reviewed usage tariff");
         scope.bound().unwrap();
+        assert_eq!(
+            scope.digest().unwrap(),
+            "a90e0900014ee1acd203ffc03f142cc4043005045b39a7f813f3b5f5ec017b54"
+        );
     }
 
     fn rated_state() -> State {

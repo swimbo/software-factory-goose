@@ -306,6 +306,7 @@ class PrivateRootSupervisorClient(PrivateSpendingClient):
             method
             in (
                 "admit",
+                "scope_preimage_v2",
                 "authorize_tool",
                 "close",
                 "prepare",

@@ -62,6 +62,102 @@ def require(value, reason):
         raise SupervisorRefused(reason)
 
 
+def factory_scope_digest(scope):
+    """Reproduce the wallet's ordered Rust scope encoding; grants no authority."""
+    fields = (
+        "task",
+        "attempt",
+        "generation",
+        "worker",
+        "lease_sha256",
+        "issued_at_ms",
+        "expires_at_ms",
+        "route",
+    )
+    route_fields = (
+        "route_sha256",
+        "review_sha256",
+        "valid_from_ms",
+        "valid_until_ms",
+        "max_request_bytes",
+        "max_output_tokens",
+        "components",
+    )
+    require(
+        type(scope) is dict and set(scope) == set(fields), "root_scope_preimage_invalid"
+    )
+    route = scope["route"]
+    require(
+        type(route) is dict
+        and set(route)
+        in (set(route_fields), set(route_fields) | {"usage_tariff_sha256"}),
+        "root_scope_preimage_invalid",
+    )
+
+    def valid_id(value):
+        return (
+            isinstance(value, str)
+            and re.fullmatch(r"[A-Za-z0-9_\-.:/]{1,256}", value) is not None
+        )
+
+    def number(value, maximum):
+        return type(value) is int and 1 <= value <= maximum
+
+    require(
+        all(valid_id(scope[k]) for k in ("task", "generation", "worker"))
+        and number(scope["attempt"], 2**32 - 1)
+        and _digest(scope["lease_sha256"])
+        and number(scope["issued_at_ms"], 253402300799999)
+        and number(scope["expires_at_ms"], 253402300799999)
+        and scope["issued_at_ms"] < scope["expires_at_ms"]
+        and _digest(route["route_sha256"])
+        and _digest(route["review_sha256"])
+        and (
+            route.get("usage_tariff_sha256") is None
+            or _digest(route["usage_tariff_sha256"])
+        )
+        and number(route["valid_from_ms"], 253402300799999)
+        and number(route["valid_until_ms"], 253402300799999)
+        and route["valid_from_ms"] < route["valid_until_ms"]
+        and number(route["max_request_bytes"], 1048576)
+        and number(route["max_output_tokens"], 1000000)
+        and type(route["components"]) is list
+        and 1 <= len(route["components"]) <= 32,
+        "root_scope_preimage_invalid",
+    )
+    components = []
+    seen, total = set(), 0
+    for item in route["components"]:
+        require(
+            type(item) is dict
+            and set(item) == {"id", "max_charge_microusd"}
+            and valid_id(item["id"])
+            and item["id"] not in seen
+            and number(item["max_charge_microusd"], 2**64 - 1),
+            "root_scope_preimage_invalid",
+        )
+        seen.add(item["id"])
+        total += item["max_charge_microusd"]
+        require(total <= 2**64 - 1, "root_scope_preimage_invalid")
+        components.append(
+            {"id": item["id"], "max_charge_microusd": item["max_charge_microusd"]}
+        )
+    ordered_route = {
+        "route_sha256": route["route_sha256"],
+        "review_sha256": route["review_sha256"],
+    }
+    if route.get("usage_tariff_sha256") is not None:
+        ordered_route["usage_tariff_sha256"] = route["usage_tariff_sha256"]
+    ordered_route.update({k: route[k] for k in route_fields[2:-1]})
+    ordered_route["components"] = components
+    ordered_scope = {k: scope[k] for k in fields[:-1]}
+    ordered_scope["route"] = ordered_route
+    raw = json.dumps(
+        ordered_scope, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    ).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
 def validate_catalog(entry, lease, attempt, admission, launch_recipe, *, now_ms):
     require(
         type(entry) is dict
@@ -820,6 +916,41 @@ class RootSupervisor:
             )
             return copy.deepcopy(control)
 
+    def scope_preimage_v2(self, body):
+        """Return a checked preimage, never a liveness or spending grant."""
+        require(
+            type(body) is dict
+            and set(body) == {"attempt", "scope_sha256"}
+            and type(body["attempt"]) is dict
+            and _digest(body["scope_sha256"]),
+            "root_scope_preimage_invalid",
+        )
+        attempt = body["attempt"]
+        with self.gate.admission(), self.guard:
+            case = self._case(attempt["attempt_id"])
+            intent = _decode(protected(case / "prepare-intent.json", 0o600))
+            require(intent["attempt"] == attempt, "root_scope_preimage_changed")
+            grant = _decode(protected(case / "grant.json", 0o600))
+            self._current(grant)
+            entry, _ = self._catalog(attempt, intent["admission"])
+            expected = body["scope_sha256"]
+            route = entry["scope"]["route"]
+            now = time.time_ns() // 1000000
+            require(
+                not os.path.lexists(case / "owner-revoked.json")
+                and not os.path.lexists(case / "finished.json")
+                and route["valid_from_ms"] <= now < route["valid_until_ms"]
+                and self._saved_scope(grant) == expected
+                and entry["scope_sha256"] == expected
+                and factory_scope_digest(entry["scope"]) == expected,
+                "root_scope_preimage_changed",
+            )
+            return {
+                "schema": 2,
+                "scope_sha256": expected,
+                "scope": copy.deepcopy(entry["scope"]),
+            }
+
     def authorize_tool(self, body):
         require(
             set(body) == {"attempt", "scope_sha256", "name", "arguments_sha256"}
@@ -1416,6 +1547,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 and method
                 in (
                     "admit",
+                    "scope_preimage_v2",
                     "authorize_tool",
                     "close",
                     "prepare",
