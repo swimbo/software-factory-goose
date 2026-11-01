@@ -1,0 +1,7 @@
+# Root deadline during gateway stream
+
+Bifrost source commit `273c303` uses the Root-bound owner context when reading the gateway response stream and waiting for completion. The owner close validates that context before acknowledging capture; its intentional cancellation on close is not interpreted as failure afterward. The outer request deadline remains binding.
+
+A network-isolated, distinct-UID synthetic native fixture reproduced the old failure: a stalled stream remained open until the outer timeout. The fixed installer-produced source refused the exchange around the shorter Root deadline, poisoned the gateway, and made no capture call. The strengthened fixture also proves that stream reading started. Separate synthetic native v1 and v2 success fixtures passed. Gateway and handler tests passed with the race detector, and all seven installer tests passed. The installer was replayed after verifying its exact pre-exchange tree digest. A complete source review found two issues in the initial fix; both were corrected, then independently rechecked and tested.
+
+These fixtures use synthetic broker, capture, route and authorizer services. They do not qualify production custody or provider charge bounds. A synchronously blocked router or stream close still requires independent process watchdog and descendant-cleanup qualification. No provider inference, live benchmark or candidate activation occurred.
