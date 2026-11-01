@@ -1,0 +1,40 @@
+{
+  "status": "complete",
+  "invocation": "ce-simplify-code mode:pipeline",
+  "mode": "pipeline",
+  "read_only": true,
+  "base": "c1e8d3f",
+  "passes": [
+    "reuse",
+    "quality",
+    "efficiency",
+    "test_value",
+    "comments"
+  ],
+  "source_sha256": {
+    "clean-room/crates/execution/harness/linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+    "clean-room/crates/execution/harness/linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d",
+    "clean-room/crates/execution/harness/linux_runner.py": "313b12ba5ad7e3fc88f7e348705556b27fcb164753d83784e494d3a90b19d861",
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": "f25f141488f3fbb7be195814ebcb419d9c384898d5740bf7e255f96c9a71ae69",
+    "clean-room/crates/execution/harness/test_service_guard.py": "c4eba042988bfe3ea6c5da7a7a5e0e6d12e3727e63392451f0274ccb3e759e2f",
+    "clean-room/crates/execution/harness/test_linux_image_binding.py": "b436f8004d3fa64685ba71a92a4df69b90acdded8c183078b6dfb2d8e7416a25",
+    "clean-room/crates/execution/harness/test_linux_relay_path.py": "4db19a20a0d84b50f188f8b769167d490a39080d570f80d7b4c6d8c0b0306a63",
+    "clean-room/tests/fixtures/harness_pid1_guard_replay.py": "41dc5b99140b71b76a3bec1bf460ee152a53c41b0cf93643913405b62a8b92ae",
+    "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py": "11c1b122afdeb2d2635031073718c17f866c537634f2f4dd04a8603c102417bb"
+  },
+  "proof_paths": [
+    "clean-room/crates/execution/harness/test_service_guard.py",
+    "clean-room/crates/execution/harness/test_linux_image_binding.py",
+    "clean-room/crates/execution/harness/test_linux_relay_path.py",
+    "clean-room/tests/fixtures/harness_pid1_guard_replay.py",
+    "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py"
+  ],
+  "source_edits": 0,
+  "checks": {
+    "scoped_ruff": "passed for all nine files",
+    "parent_owns_project_suite_and_native_replays": true
+  },
+  "cross_model_egress": false,
+  "artifact_path": "/tmp/compound-engineering-501/ce-simplify-code/20261101-pid1-guard",
+  "recorded_at": "2026-11-01T14:53:07.511337+00:00"
+}

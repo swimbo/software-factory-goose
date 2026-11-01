@@ -16,7 +16,11 @@ class LinuxImageBindingTests(unittest.TestCase):
             options = dict(model="auto", route="a" * 64)
             original = linux_profiles(binary, binary, binary, **options)
             read = Path.read_bytes
-            for name in ("linux_worker_image.py", "linux-worker.Dockerfile"):
+            for name in (
+                "linux_worker_image.py",
+                "linux-worker.Dockerfile",
+                "linux_service_guard.py",
+            ):
 
                 def changed(path):
                     if path.name == name:

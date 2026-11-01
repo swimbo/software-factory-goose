@@ -1,0 +1,154 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No retained source-review findings in the ten-file scope. This verdict covers source integration only; it grants no deployment, worker activation, candidate promotion, production admission, or Phase11A completion authority.",
+  "scope": {
+    "base": "c1e8d3f",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "c1e8d3faf442bcdc9699d3731bab4bceba491d46",
+    "pr_url": null,
+    "files_changed": 10,
+    "mode": "standalone",
+    "reviewed_tree": "working tree",
+    "excluded_scope": [
+      "Generated verification documents"
+    ]
+  },
+  "intent": "Replace the supervisor-child watchdog with a one-use, bounded PID1-owned service that survives the whole supervisor cgroup, proves frozen input/readiness/identity before Docker mutation, and performs exact cleanup/scope revocation after guard failure. Preserve no-rearm, evaluator isolation, spending caps and disabled candidate. Bind deep Linux relay paths through a held directory without weakening ownership/inode/no-overwrite checks. This is a source/component qualification milestone, not production admission or Phase11A completion.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "project-standards",
+    "testing",
+    "maintainability",
+    "security",
+    "reliability",
+    "api-contract",
+    "performance",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Native PID1/Docker/cgroup, root-only installation custody, and exact-source receipts were not executed or established by this read-only source review; source qualification does not establish production admission.",
+    "Cleanup retries are bounded to approximately 30 seconds with a 35-second ExecStopPost limit. Persistent Docker or owner-service failure can leave reconciliation outstanding; execution fencing and a successful cleanup receipt are separate boundaries.",
+    "Source qualification only. No privileged host, PID1, Docker, wallet, external provider, activation, or production admission operations were performed. Native negative-case evidence remains the parent's responsibility.",
+    "Inspected fixture teardown at harness_pid1_guard_replay.py:451-479 and RootSupervisor cleanup/revocation at linux_supervisor.py:1168-1218,1280-1333. No grant means no retirement call; constructor/revoke failure or any acknowledgement other than the exact grant hash plus stopped state leaves StopUnit uncalled. Root revoke returns stopped only after cleanup and spending revocation succeed. A queued unacknowledged create without container.json raises root_create_requires_reconciliation before cleanup acknowledgement, preserving the frozen scope and retained records. This conclusion relies on these source contracts, not a native failure replay."
+  ],
+  "testing_gaps": [
+    "run_guard's new runtime source/config drift path and bounded revoke retry path have no direct fault case: native replay covers owner loss and guard-main crash, while contract tests do not execute run_guard. A deterministic state test should change _binding after readiness, fail revoke transiently, and verify cleanup retries without restoring launch authority.",
+    "The new native replay covers supervisor-group loss and guard-main crash with an available synthetic owner. It does not cover grant expiry while the supervisor remains alive or transient Docker/owner outages followed by recovery near the cleanup deadline; those scenarios would exercise RuntimeMaxUSec/TimeoutStopUSec and retry interactions rather than just the policy values.",
+    "The native PID1 replay faults only after RootSupervisor.start returns, while the lost-create/start-ack replay explicitly replaces start_guard/check_guard. An integrated fault during an unacknowledged Docker create/start would qualify the real PID1 guard's interaction with queued mutations, persistent cgroup freezing, and scope revocation; current receipts establish those boundaries separately."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Applicable standards use root AGENTS.md fallback; no CODING_STANDARDS.md or REVIEW.md applies. No Compound Packs or matching learnings corpus.",
+      "Nine independent local persona contexts collected; model tiers recorded in roster.json. No external peer job was started.",
+      "Native component proofs are parent-owned and separate from source review; synthetic catalog/registry/owner evidence does not establish production admission. Production custody, provider bounds and the120livepairedattempts are not completed by this source milestone.",
+      "Cross-model pass not run: parent workflow constrained this review to native local review with no external model/provider egress. The local adversarial persona covered the lens; no cross-model corroboration is claimed.",
+      "Settlement suppression was not evaluated because no plan was discovered.",
+      "Confidence suppression: 0; malformed findings: 0; malformed returns: 0; quote-gate demotions: 0; first_evidence_backfilled: 0; mode-aware demotions: 0.",
+      "Validator shortcut-skipped: 0; same-model persona agreement provides no cross-model shortcut.",
+      "Validator batch completed: confirmed 0, rejected 1, unresolved 0, malformed 0, failed 0, shortcut-skipped 0. Finding #1 rejected on discriminating component tests and independently omitted-check mutants; the report leaf checked the cited current source and assertions.",
+      "Stage 5c skipped: agent report-only, apply_local=false. No source, index, or host mutations.",
+      "Receipt covers exactly the ten source/test/fixture hashes below. Generated verification documents are outside this review; native proofs remain parent-owned.",
+      "Historical teardown refresh at fixture83cb fixed unconditional slice retirement after unknown revoke; independent reliability review and component verification passed. That receipt is superseded by the current observer refresh. Retirement helper and f476 tests are unchanged.",
+      "Final observer refresh: fixture6f8 native checkpoints preceded a one-line fixed-deadline correction to final6ebf. Controller retries missing/partial marker reads only, never launch/inference. Dispatcher observed late-valid marker acceptance in previous exception-only deadline loop, then verified actual final observer AST in memory: late valid rejected before reading, partial/missing then valid accepted within deadline, missing through deadline and null both bounded. observer-verification.json carries exact6ebf hash and four cases. These are source/component observations, not an exact-final-fixture native claim; native results remain separately labelled parent checkpoints. Production hashes unchanged. Superseded83cb receipt is review.pre-observer.json."
+    ],
+    "validator": {
+      "confirmed": 0,
+      "rejected": 1,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "rejections": [
+        {
+          "#": 1,
+          "status": "rejected",
+          "protected_subject": "concurrency",
+          "reason": "Current c1e8d3f working tree (linux_supervisor.py SHA256 44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d; test_service_guard.py SHA256 c3941b0b035f6cfa13a6772b3a2a4f2a887fee0d0ddfd27793669e907f2bba6d) now contains discriminating GuardMutationGateTests at lines 185-290: independently run under CPython 3.11.6/macOS arm64 with successful mocked start_guard, explicit source-staging/Docker seams and check_guard refusal at gate 1 or gate 2, both pass and assert respectively no create/start and container retained without start/worker; in-memory removal of line 1093 makes the first test fail at line 281 because container.json wrongly exists, while removal of line 1101 makes the second fail with unexpected Docker mutation: start, directly refuting the claim that removing either readiness recheck leaves the tests passing (component state proof only, no native PID1 guarantee).",
+          "refresh_note": "Historical rejection names the prior test hash; both unchanged GuardMutationGateTests reran successfully on current f476 source in teardown-verification.json. No new mutant result claimed."
+        }
+      ]
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "refresh": {
+      "reason": "Parent found unconditional fixture StopUnit could remove the persistent freeze after unknown revoke; old receipt superseded.",
+      "superseded_receipt": "review.pre-teardown.json",
+      "independent_review": "reliability-refresh.json",
+      "independent_verification": "teardown-verification.json",
+      "result": "No retained findings. Inspected helper lines 469-479 and tests 337-386: revoke exception or partial/wrong grant acknowledgement prevents StopUnit; only exact grant-bound stopped acknowledgement retires slice.",
+      "tests": "CPython 3.11.6/macOS arm64: 3 tests passed, including 4 retirement subcases and both GuardMutationGateTests. No mutation negative control rerun in this refresh. Earlier independent omitted-check mutants remain historical evidence; current gate tests reran successfully.",
+      "scope": "Historical bounded teardown fixture/test refresh at 83cb after original nine-persona full review. Superseded by observer refresh at 6ebf; teardown helper and tests unchanged. No host or native guarantee inferred."
+    },
+    "observer_refresh": {
+      "provenance": "review.pre-observer.json preserves prior 83cb source receipt; observer-verification.json covers final 6ebf observer AST.",
+      "reason": "Previous exception-only deadline accepted a valid marker arriving after deadline. Final loop checks monotonic deadline unconditionally before any read.",
+      "inspection": "harness_pid1_guard_replay.py:363-380: deadline assertion precedes service-error and started-marker reads; only missing/partial JSON reads sleep and retry.",
+      "cases": {
+        "late_valid": {
+          "outcome": "deadline",
+          "reads": 0,
+          "sleeps": 0,
+          "marker_parsed": false
+        },
+        "partial_then_valid": {
+          "outcome": "parsed",
+          "reads": 3,
+          "sleeps": 2,
+          "marker_parsed": true
+        },
+        "missing_until_deadline": {
+          "outcome": "deadline",
+          "reads": 2,
+          "sleeps": 2,
+          "marker_parsed": false
+        },
+        "null_does_not_spin": {
+          "outcome": "deadline",
+          "reads": 1,
+          "sleeps": 0,
+          "marker_parsed": false
+        }
+      },
+      "launch_or_inference_operations": 0,
+      "limits": "Source/component verification in memory only. Parent native owner/crash checkpoints used fixture6f8 before this deadline correction and do not qualify exact-final fixture6ebf. Generated documents and native receipts remain outside the ten-source scope and parent-audited separately."
+    }
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: parent workflow constrained this review to native local review with no external model/provider egress. The local adversarial persona covered the lens; no cross-model corroboration is claimed."
+  },
+  "source_sha256": {
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": "f25f141488f3fbb7be195814ebcb419d9c384898d5740bf7e255f96c9a71ae69",
+    "clean-room/crates/execution/harness/linux_runner.py": "313b12ba5ad7e3fc88f7e348705556b27fcb164753d83784e494d3a90b19d861",
+    "clean-room/crates/execution/harness/linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+    "clean-room/crates/execution/harness/linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d",
+    "clean-room/crates/execution/harness/test_linux_goose_runtime.py": "7247376879d6e5cb0e22249aa374cb5ef9fa185afbe15fc8c748afa9d38984e9",
+    "clean-room/crates/execution/harness/test_linux_image_binding.py": "b436f8004d3fa64685ba71a92a4df69b90acdded8c183078b6dfb2d8e7416a25",
+    "clean-room/crates/execution/harness/test_linux_relay_path.py": "55aa40d099b63faf3c4fd5832fa6dd9fb51688cc06ad697962909563fd188dab",
+    "clean-room/crates/execution/harness/test_service_guard.py": "f476a4db30aeac21cc5f3d4b8213e68b06f87e0fa67803a76910260c1426ded3",
+    "clean-room/tests/fixtures/harness_pid1_guard_replay.py": "6ebf43ed04c979f13a0c80ed9bc5d38049c9457eead7ba468000db2870014d62",
+    "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py": "11c1b122afdeb2d2635031073718c17f866c537634f2f4dd04a8603c102417bb"
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-pid1-guard",
+  "run_id": "20261101-pid1-guard"
+}

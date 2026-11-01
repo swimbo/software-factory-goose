@@ -41,6 +41,7 @@ from protected_spending_control import _decode, _no_acl
 from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
+from linux_service_guard import start_guard, check_guard
 
 MOUNT_TARGETS = {
     "goose": "/goose",
@@ -569,8 +570,14 @@ class RootSupervisor:
                 "docker",
                 "docker_sha256",
                 "empty_docker_config",
+                "guard_program",
+                "guard_program_sha256",
+                "supervisor_program",
+                "supervisor_program_sha256",
+                "systemd_library",
+                "systemd_library_sha256",
             }
-            and self.cfg["schema"] == 1
+            and self.cfg["schema"] == 2
             and self.cfg["worker_image"] == WORKER_IMAGE,
             "root_configuration_changed",
         )
@@ -1029,26 +1036,7 @@ class RootSupervisor:
                 worker_uid=grant["worker_uid"],
             )
             store(case / "goose-profile.json", canonical(goose_profile).encode(), 0o444)
-            # Independent process survives supervisor loss. It can remove only the exact labeled job.
-            watchdog = subprocess.Popen(
-                [
-                    self.cfg["python"],
-                    "-I",
-                    "-B",
-                    str(Path(__file__).resolve()),
-                    "watchdog",
-                    str(self.configuration),
-                    grant["attempt_id"],
-                    str(os.getpid()),
-                    str(_ticks(os.getpid())),
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-                start_new_session=True,
-            )
-            store(case / "watchdog.json", dict(pid=watchdog.pid))
+            start_guard(self, grant)
             mounts = case / "mounts"
             os.mkdir(mounts, 0o700)
             expected = dict(
@@ -1102,6 +1090,7 @@ class RootSupervisor:
                 )
                 image = json.loads(self._docker("image", "inspect", WORKER_IMAGE))[0]
                 require(not image["Config"].get("Volumes"), "root_image_volume_changed")
+                check_guard(self, grant)
                 identity = (
                     self._docker(*docker_arguments(grant, **paths)).decode().strip()
                 )
@@ -1109,6 +1098,7 @@ class RootSupervisor:
                 store(case / "container.json", dict(id=identity))
                 self._inspect(grant)
                 self._current(grant)
+                check_guard(self, grant)
                 self._docker("start", identity)
                 observed = self._worker(grant, self._inspect(grant))
                 store(case / "worker.json", observed)

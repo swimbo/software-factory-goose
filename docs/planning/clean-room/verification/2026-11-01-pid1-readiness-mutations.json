@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "in_memory_only": true,
+  "disk_source_sha256": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d",
+  "test_sha256": "f476a4db30aeac21cc5f3d4b8213e68b06f87e0fa67803a76910260c1426ded3",
+  "mutations": [
+    {
+      "removed_gate": "before_create",
+      "test": "test_guard_loss_before_create_prevents_both_mutations",
+      "mutation_rejected": true,
+      "tests_run": 1,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "removed_gate": "before_start",
+      "test": "test_guard_loss_after_create_retains_container_but_prevents_start",
+      "mutation_rejected": true,
+      "tests_run": 1,
+      "failures": 1,
+      "errors": 0
+    }
+  ]
+}

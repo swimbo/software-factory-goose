@@ -1,0 +1,267 @@
+{
+  "namespace_count": 15,
+  "grant_count": 15,
+  "owned_worker_containers_absent": true,
+  "retained_scopes": [
+    {
+      "grant_sha256": "3d1829f0e0c0c363ac9e101ac0ff301c89b78b999691c423eb7046fcc241b12e",
+      "frozen_empty": true,
+      "original_inode_preserved": true
+    }
+  ],
+  "other_owned_worker_slices_absent": true,
+  "owned_supervisor_and_guard_services_terminal": true,
+  "service_count": 26,
+  "services": [
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard10adb6c9f2c4c8bb2eeb4b24635c40e349f25425b787ee8d43f2dda667c401bf.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard16c934d770c89ca0ca8e92f98b427da99830a15b245ee08fdba2803ee1104d0d.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard198ce17b631ef70919ca38ae62f29ab4d32d38db561f22f5a75c178a9031e328.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard2f4bc868eb45263d75c92de9d0ce8f49d629966148d9fe5d3b1cd70cb15820b5.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard30fdc9a8210e552b0abbe8e16bc9f3d43f482b8a8979ec237b70fe9632574c72.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard3a199e647d80c51b10dd8902748c4075afe9c1bc228df0b42aa1fbd611db42ee.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard3d1829f0e0c0c363ac9e101ac0ff301c89b78b999691c423eb7046fcc241b12e.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard657819bbef51699260931c60e8e55403f213be8afbfc4cd5f3a0177f6d26ffe5.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard67d280dc8e967aa38acc0255179a352855b3f8c32aa4696d77cc9037735addfc.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard67f560798ab749d021c43c12a5105b2c01d35d07f3b305f06b205ee781385f5a.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard74a452756e830fe1394c2e6364e2e1e59b474b4b1e984e8c9264fee3cfdf680d.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard8b18bb09e700c0c9b76dc088b0a868da0ee80904269c42a29ad0d4effb7bede8.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard94b76addf07fa257df861c1ab3b756db52f64b66bc8ee07ec34efcfecd2265db.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguard9c83f7a95f8e8f09787cc0ecfff71af7e476d14aa683634546c332dab6e1fc14.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardbdcdaed65145b1ed06f60349b354138d9500e26451b1e62a97be052f45e614d8.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardc11fd10943512cbd1c45201f9346ee058b13b111be1d295d06bf689c777d4871.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardc5032863b2968b9f8b6e3bb103b525662ee7973598f420eacf5e2aedfc075ed7.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardca60b464a94bd4b2b54ac602c50298d3ec65ff8b08e17532946ccdb8b1354ee9.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardda41d640502f7b9bae128a5f5bd8e2704905af92ea9503d634663efa79be1c14.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguarde432ec82bf4dbf91cbbdd4e431cebca67612a30e22de388835f6ca4e94ceb251.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguarde6acfc6328d902acc65890a9bba7e9440c3882ab1cb1663211029fd3bef697b3.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardefe32d410f16624e065ec067b0f3dca636e2835f743526e5175a89e35846f5a6.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardf3dddbd81b7a6e4601d371e9cb09ec6df0c1a86d7313b24ef04ab0da31da3323.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardf5391b84c56523434a6bfecedb5ae70e89f2b21f2091d83329846a33c2cf8a82.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardfa76e221662a50cbd9cf88d0b0a3b197164d57ab251d80f5f69e86083a372a55.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    },
+    {
+      "MainPID": "0",
+      "ControlPID": "0",
+      "ControlGroup": "",
+      "Id": "sfactoryguardfdf95f5ffc618d5d7c897c3691878d6f9f8ec61a15e7f955c1c3f10fb4327e04.service",
+      "LoadState": "loaded",
+      "ActiveState": "failed",
+      "SubState": "failed"
+    }
+  ],
+  "owned_named_controllers_absent": true,
+  "named_controllers_checked": 15,
+  "verification_date": "2026-11-01",
+  "reconciliation": {
+    "only_owned_unstarted_containers_retired": [
+      {
+        "container_id": "bff7e394e37529ea4c2243284733f33bfee742feeb38a47142572ceec72bc2dc",
+        "grant_sha256": "3a199e647d80c51b10dd8902748c4075afe9c1bc228df0b42aa1fbd611db42ee",
+        "observed_not_running": true,
+        "observed_pid": 0,
+        "strict_image_labels_containment_mounts_verified": true,
+        "retained_state": "/var/lib/sfactory-harness/qualification-67ecaa1c68834e25a3b4456f30818ecd/case/state/run_59749660cf804816b2071e1a5cb17c0e67be2e3ae7644caa81521130c5902e59"
+      }
+    ],
+    "runtime_state_preserved": true
+  }
+}

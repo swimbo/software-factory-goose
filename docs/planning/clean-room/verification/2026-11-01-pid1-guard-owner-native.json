@@ -1,0 +1,34 @@
+{
+  "actual_pid1_guard": true,
+  "actual_root_constructor_prepare_start": true,
+  "candidate_enabled": false,
+  "component_only": true,
+  "entire_supervisor_group_killed": true,
+  "exact_worker_fenced_and_removed": true,
+  "fault": "owner-loss",
+  "guard_alive_after_supervisor_group_loss": true,
+  "guard_cgroup_limits": {
+    "cpu.max": "100000 100000",
+    "memory.max": "268435456",
+    "pids.max": "32"
+  },
+  "guard_exec_stop_post_cleanup": false,
+  "guard_unit": "sfactoryguardda41d640502f7b9bae128a5f5bd8e2704905af92ea9503d634663efa79be1c14.service",
+  "live_attempts": 0,
+  "native_long_relay_path_tests": 2,
+  "owned_worker_slice": "sfactoryharnessf57bce5493154597b5cf7acc837d4208c42f56edda5d4bfd849d996c05b467a4.slice",
+  "paid_calls": 0,
+  "production_admission": false,
+  "schema": 1,
+  "source_sha256": {
+    "harness_pid1_guard_replay.py": "6f8db54a66debd05fbea5c0855826feab9d5c40603ab4d6bd063c30707fdfdf3",
+    "linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+    "linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d"
+  },
+  "supervisor_unit": "sfactoryguarde432ec82bf4dbf91cbbdd4e431cebca67612a30e22de388835f6ca4e94ceb251.service",
+  "synthetic_catalog_registry_owner": true,
+  "synthetic_owner_revocation_acknowledged": true,
+  "verification_date": "2026-11-01",
+  "final_fixture_sha256": "6ebf43ed04c979f13a0c80ed9bc5d38049c9457eead7ba468000db2870014d62",
+  "post_native_fixture_change": "Move the observer deadline assertion to every iteration; production guard and supervisor sources unchanged."
+}

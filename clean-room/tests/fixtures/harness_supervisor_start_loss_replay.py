@@ -4,8 +4,8 @@
 Requires a preprovisioned empty Root-only /var/lib/sfactory-harness/qualification-
 <32hex> host directory, identically visible to this controller and Docker. Never
 creates the production namespace or installs a service. Root/catalog initialization
-and the registry gate are explicit fixtures; the watchdog uses the same fixture
-initializer. Pinned Goose is mounted but never invoked by the public idle worker.
+and the registry gate are explicit fixtures. Guard startup/readiness are explicit
+seams here; the separate PID1 replay qualifies the real guard path. Pinned Goose is mounted but never invoked by the public idle worker.
 No wallet, provider, production admission or whole-service-group proof is claimed.
 """
 
@@ -21,6 +21,7 @@ import socket
 import subprocess
 import sys
 import time
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import harness_supervisor_loss_replay as prior
@@ -81,10 +82,14 @@ def run(base, goose):
     assert sys.platform == "linux" and os.geteuid() == 0
     require_fixture_root(base)
     with goose.open("rb") as stream:
-        assert hashlib.file_digest(stream, "sha256").hexdigest() == prior.LINUX_GOOSE_SHA256
+        assert (
+            hashlib.file_digest(stream, "sha256").hexdigest()
+            == prior.LINUX_GOOSE_SHA256
+        )
     # The actual launch path requires Root-owned sources. Preserve the public
     # input and stage only this fixture's fresh private copy with bounded memory.
     import shutil
+
     pinned_goose = base / "goose-source"
     shutil.copyfile(goose, pinned_goose)
     os.chmod(pinned_goose, 0o555)
@@ -112,21 +117,7 @@ def _replay(base, goose, configuration, grant, case, mounts, group):
     source = base / "idle-worker.py"
     worker = b"import subprocess,time\nsubprocess.Popen(['/usr/local/bin/python3','-I','-B','-c','import time;time.sleep(60)'])\ntime.sleep(60)\n"
     product.store(source, worker, 0o444)
-    launcher = base / "fixture-watchdog"
-    launcher_source = (
-        "#!"
-        + sys.executable
-        + "\nimport sys\nsys.path.insert(0,"
-        + repr(str(Path(__file__).parent))
-        + ")\n"
-        "import harness_supervisor_start_loss_replay as f\n"
-        "assert len(sys.argv)==9 and sys.argv[1:3]==['-I','-B'] and sys.argv[4]=='watchdog'\n"
-        "f.product.RootSupervisor=f.StartFixtureSupervisor\n"
-        "f.product.watchdog(sys.argv[5],sys.argv[6],int(sys.argv[7]),int(sys.argv[8]))\n"
-    ).encode()
-    product.store(launcher, launcher_source, 0o555)
     config.update(
-        python=str(launcher),
         worker_program=str(source),
         worker_program_sha256=hashlib.sha256(worker).hexdigest(),
     )
@@ -156,7 +147,11 @@ def _replay(base, goose, configuration, grant, case, mounts, group):
     tracked = {}
     try:
         try:
-            supervisor.start(body)
+            with (
+                patch.object(product, "start_guard"),
+                patch.object(product, "check_guard"),
+            ):
+                supervisor.start(body)
         except subprocess.TimeoutExpired:
             pass
         else:
@@ -232,7 +227,7 @@ def _replay(base, goose, configuration, grant, case, mounts, group):
             ).hexdigest(),
             production_constructor=False,
             fixture_registry_gate=True,
-            fixture_watchdog_initializer=True,
+            synthetic_guard_start_and_readiness=True,
             whole_service_group_loss_qualified=False,
             production_admission=False,
             paid_calls=0,
