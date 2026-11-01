@@ -178,6 +178,14 @@ class GatewayTransportTests(unittest.TestCase):
         client.owner, client.broker_uid, client.service_uid = "owner", 2005, 2007
         options = dict(route_sha256="a" * 64, tariff_sha256="b" * 64, mode="rehearsal")
         ProtectedGatewayTransport(journal, authority, client, **options)
+        with self.assertRaises(ControlRefused):
+            ProtectedGatewayTransport(
+                journal, authority, client, **(options | {"mode": "live"})
+            )
+        with self.assertRaises(ControlRefused):
+            ProtectedGatewayTransport(
+                journal, authority, client, **options, scope_client=object()
+            )
         other = object.__new__(PrivateSpendingClient)
         other.__dict__.update(journal.__dict__)
         with self.assertRaises(ControlRefused):

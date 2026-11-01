@@ -82,8 +82,18 @@ class PrivateGatewayClient(PrivateSpendingClient):
 
 class ProtectedGatewayTransport:
     def __init__(
-        self, journal, acquisition, client, *, route_sha256, tariff_sha256, mode
+        self,
+        journal,
+        acquisition,
+        client,
+        *,
+        route_sha256,
+        tariff_sha256,
+        mode,
+        scope_client=None,
     ):
+        from linux_runner import PrivateRootSupervisorClient
+
         require(
             type(journal) is PrivateSpendingClient
             and type(acquisition) is ProtectedGatewayAcquisitionAuthority
@@ -95,10 +105,18 @@ class ProtectedGatewayTransport:
             and _digest(route_sha256)
             and _digest(tariff_sha256)
             and mode in ("live", "rehearsal")
+            and (mode != "live" or scope_client is not None)
+            and (
+                scope_client is None
+                or type(scope_client) is PrivateRootSupervisorClient
+                and scope_client.broker_uid == journal.broker_uid
+                and scope_client.service_uid == 0
+            )
             and os.geteuid() == journal.broker_uid,
             "gateway_private_services_invalid",
         )
         self.journal, self.acquisition, self.client = journal, acquisition, client
+        self._scope_client = scope_client
         self.owner, self.route, self.tariff, self.mode = (
             journal.owner,
             route_sha256,
@@ -170,7 +188,26 @@ class ProtectedGatewayTransport:
                 tariff_sha256=self.tariff,
             )
         )
-        self.acquisition.arm(root, copy.deepcopy(call))
+        scope_client = getattr(self, "_scope_client", None)
+        require(
+            self.mode != "live" or scope_client is not None, "gateway_scope_required"
+        )
+        if scope_client is None:
+            self.acquisition.arm(root, copy.deepcopy(call))
+        else:
+            preimage = scope_client(
+                "scope_preimage_v2",
+                {"attempt": attempt, "scope_sha256": call["scope_sha256"]},
+            )
+            require(
+                _keys(preimage, ("schema", "scope_sha256", "scope"))
+                and preimage["schema"] == 2
+                and type(preimage["schema"]) is int
+                and preimage["scope_sha256"] == call["scope_sha256"]
+                and type(preimage["scope"]) is dict,
+                "gateway_scope_changed",
+            )
+            self.acquisition.arm_v2(root, copy.deepcopy(call), preimage["scope"])
         return self.client.exchange(
             root, copy.deepcopy(call), copy.deepcopy(request), expiry
         )

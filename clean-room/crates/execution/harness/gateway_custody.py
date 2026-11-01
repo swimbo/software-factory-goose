@@ -110,7 +110,34 @@ class GatewayAcquisitionAuthority:
             )
             self.roots[key] = [copy.deepcopy(root), copy.deepcopy(call), "armed"]
 
+    def arm_v2(self, binding, call, scope):
+        # The broker supplies a Root-authenticated preimage. This check adds no
+        # spending authority; the gateway independently verifies the same hash.
+        from linux_supervisor import factory_scope_digest
+
+        try:
+            require(
+                type(scope) is dict
+                and factory_scope_digest(scope) == binding["scope_sha256"]
+                and scope["route"]["route_sha256"] == binding["route_sha256"]
+                and scope["route"].get("usage_tariff_sha256")
+                == binding["tariff_sha256"]
+                and len(encoded(scope).encode()) <= LIMIT,
+                "gateway_scope_changed",
+            )
+        except Exception:
+            raise ControlRefused("gateway_scope_changed") from None
+        with self.lock:
+            self.arm(binding, call)
+            self.roots[payload_sha256(binding)].append(copy.deepcopy(scope))
+
     def acquire(self, uid, body):
+        return self._acquire(uid, body, version=1)
+
+    def acquire_v2(self, uid, body):
+        return self._acquire(uid, body, version=2)
+
+    def _acquire(self, uid, body, *, version):
         require(
             uid == self.uid and _keys(body, ("binding", "call")), "gateway_role_denied"
         )
@@ -125,7 +152,8 @@ class GatewayAcquisitionAuthority:
                 state is not None
                 and state[0] == body["binding"]
                 and state[1] == body["call"]
-                and state[2] == "armed",
+                and state[2] == "armed"
+                and len(state) == (3 if version == 1 else 4),
                 "gateway_root_unavailable",
             )
             state[2] = "unknown"
@@ -143,11 +171,18 @@ class GatewayAcquisitionAuthority:
             except Exception:
                 raise ControlRefused("gateway_acquisition_unknown") from None
             state[2] = "acquired"
-            return {"root_sha256": key, "acquired": True}
+            result = {"root_sha256": key, "acquired": True}
+            if version == 2:
+                result.update(schema=2, scope=copy.deepcopy(state[3]))
+            return result
 
     def dispatch(self, uid, method, body):
-        require(method == "acquire", "gateway_method_denied")
-        return self.acquire(uid, body)
+        require(method in ("acquire", "acquire_v2"), "gateway_method_denied")
+        return (
+            self.acquire_v2(uid, body)
+            if method == "acquire_v2"
+            else self.acquire(uid, body)
+        )
 
 
 class CaptureStore:
@@ -575,7 +610,16 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
             method = self.path.removeprefix(self.server.prefix)
             require(
                 self.path == self.server.prefix + method
-                and method in ("open", "close", "closed", "audit", "acquire", "settle"),
+                and method
+                in (
+                    "open",
+                    "close",
+                    "closed",
+                    "audit",
+                    "acquire",
+                    "acquire_v2",
+                    "settle",
+                ),
                 "custody_method_denied",
             )
             lengths = self.headers.get_all("Content-Length", [])
