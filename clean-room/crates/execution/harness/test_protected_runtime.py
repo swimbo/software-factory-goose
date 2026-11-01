@@ -116,6 +116,44 @@ class ProtectedRuntime(unittest.TestCase):
         )
         with self.subTest("metadata normalization"):
             self.assertNotIn(b"secret", safe)
+            self.assertIn(b'"content":"done"', safe)
+            self.assertIn(b"MASKED", safe)
+        with self.subTest("CRLF framing"):
+            crlf, _, _ = parse_completion(
+                encode([first]).replace(b"\n", b"\r\n"),
+                lambda s: s.replace("secret", "MASKED"),
+                {"auto"},
+                set(),
+            )
+            self.assertEqual(crlf, safe)
+        with self.subTest("Bifrost bare heartbeat"):
+            heartbeat, _, _ = parse_completion(
+                b": heartbeat\n" + encode([first]),
+                lambda s: s.replace("secret", "MASKED"),
+                {"auto"},
+                set(),
+            )
+            self.assertEqual(heartbeat, safe)
+            trailing, _, _ = parse_completion(
+                encode([first]) + b": heartbeat\n",
+                lambda s: s.replace("secret", "MASKED"),
+                {"auto"},
+                set(),
+            )
+            self.assertEqual(trailing, safe)
+            interleaved, _, _ = parse_completion(
+                encode([first]).replace(b"\n\n", b"\n: heartbeat\n\n", 1),
+                lambda s: s.replace("secret", "MASKED"),
+                {"auto"},
+                set(),
+            )
+            self.assertEqual(interleaved, safe)
+        for name, malformed in (
+            ("missing event separator", encode([first]).replace(b"\n\n", b"\n", 1)),
+            ("unterminated done", encode([first])[:-1]),
+        ):
+            with self.subTest(name), self.assertRaises(Denied):
+                parse_completion(malformed, lambda s: s, {"auto"}, set())
         late = {
             "id": "secret",
             "model": "auto",

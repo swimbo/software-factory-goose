@@ -513,16 +513,29 @@ def parse_completion(raw, normalize, models, tool_names):
     if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_BYTES:
         raise Denied("response_overflow")
     try:
-        text = raw.decode("utf-8", "strict")
+        text = raw.decode("utf-8", "strict").replace("\r\n", "\n")
+        if "\r" in text or not text.endswith("\n"):
+            raise Denied("invalid_stream")
+        frames, pending = [], None
+        for line in text.split("\n")[:-1]:
+            if line.startswith(":"):
+                continue
+            if not line:
+                if pending is not None:
+                    frames.append(pending)
+                    pending = None
+                continue
+            if not line.startswith("data: ") or pending is not None:
+                raise Denied("invalid_stream")
+            pending = line[6:]
+        if pending is not None:
+            raise Denied("invalid_stream")
         events, done = [], False
         assistant, calls = {"role": "assistant", "content": ""}, {}
         finish = None
-        for line in text.splitlines():
-            if not line:
-                continue
-            if not line.startswith("data: ") or done:
+        for data in frames:
+            if done:
                 raise Denied("invalid_stream")
-            data = line[6:]
             if data == "[DONE]":
                 done = True
                 continue
