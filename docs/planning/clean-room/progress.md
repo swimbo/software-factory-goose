@@ -627,3 +627,7 @@ Fresh exact-pin source reconstruction now composes all existing physical capture
 ### Phase 11A gateway protocol qualification — 2026-11-01
 
 Resumed from the published parser checkpoint. Seven parser tests and four existing governed-call/native-HTTP groups now pass on the composed Linux source. A surviving digest-check mutant exposed a masked negative case; the added same-size content substitution rejects it. Three isolated call-binding mismatch cases close the review's remaining test gap. Ten overlay guard mutations are behaviorally rejected; production parser source is unchanged. Seven-lens dedicated source review completed without retained findings. See verification/2026-11-01-gateway-protocol.md and adjacent receipts. The parser remains unwired: private exchange/bootstrap/current-route custody, provider bounds, remaining launch/loss gates and120actual attempts remain required. Live0/120, candidate disabled and caps unchanged.
+
+### Phase 11A actual chat decoder characterization — 2026-11-01
+
+The isolated composed Linux transport's actual chat decoder accepts the public auto-route fixture, retains provider resolution for routing plugins, and maps max_tokens128 to MaxCompletionTokens128. See verification/2026-11-01-gateway-chat-decoder.md. This source-only test does not implement private ingress, establish provider bounds or admit production. Live0/120, candidate off and caps unchanged.

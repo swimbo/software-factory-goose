@@ -47,7 +47,7 @@ Current protocol SHA256 values:
 - Parser: `adc8f44509f21723cdc02cc3e5251f78152c22ff3593507ece00eda938111ded`
 - Tests: `7d5c51d34aaf1a350f4ae8791a8af7339c899a5d38b7915fd7647c259d009449`
 
-Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated Linux source/toolchain/cache stage: `/home/bo/sfactory-gateway-composed-20261101-tlgy0o91` on `hermes-control`. All current parser tests are copied there and verified. The new parser source manifest contains1,894 files; its SHA256 is `e771666daf592836b7e03e7507be4096ba62360ffec6e42f652e187033356a34`. The older1,891-file manifest remains the pre-parser checkpoint. No task-owned local build/test/SSH process was observed running during this pause handoff.
+Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated Linux source/toolchain/cache stage: `/home/bo/sfactory-gateway-composed-20261101-tlgy0o91` on `hermes-control`. All current parser tests are copied there and verified. The parser source manifest contains1,894 files; its SHA256 is `e771666daf592836b7e03e7507be4096ba62360ffec6e42f652e187033356a34`. The older1,891-file manifest remains the pre-parser checkpoint. A subsequent retained decoder characterization test changes the stage; see [decoder evidence](clean-room/verification/2026-11-01-gateway-chat-decoder.md) and its new manifest before reuse. No task-owned local build/test/SSH process was observed running during this pause handoff.
 
 ## Remaining work, in order
 

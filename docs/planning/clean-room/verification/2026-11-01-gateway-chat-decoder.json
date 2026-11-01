@@ -1,0 +1,13 @@
+{
+  "files": 1895,
+  "manifest_sha256": "6807e9e8cf438bab6ac1c6542230058c4fa271ed7cd9ad88160fdc2c21b5c713",
+  "test_sha256": "1a22e14ba1b0f0b4974a528ff9435f4e5a4136a441943e5afa36f26b273c5b37",
+  "schema": 1,
+  "source_only": true,
+  "hosted_provider_calls": 0,
+  "production_admission": false,
+  "candidate_enabled": false,
+  "live_attempts": 0,
+  "remote_stage": "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91",
+  "test_log": "{\"command\": [\"nice\", \"-n\", \"10\", \"/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin/go\", \"test\", \"-mod=readonly\", \"-p\", \"2\", \"-v\", \"-run\", \"^TestFactoryActualChatDecoderCharacterization$\", \"-count=1\", \"-timeout=45s\", \"./bifrost-http/handlers\"], \"exit_code\": 0, \"elapsed_seconds\": 15.56290506478399, \"source_only\": true, \"hosted_provider_calls\": 0, \"production_admission\": false}\n=== RUN   TestFactoryActualChatDecoderCharacterization\n--- PASS: TestFactoryActualChatDecoderCharacterization (0.03s)\nPASS\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/handlers\t0.060s\n\n"
+}

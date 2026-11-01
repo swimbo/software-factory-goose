@@ -1,0 +1,5 @@
+# Existing Bifrost chat decoder characterization
+
+In the isolated composed Linux source stage, a public fixture exercised the actual transport `prepareChatCompletionRequest` entry point. The request model `auto` produced an empty provider and model `auto`, leaving routing to the existing plugins. The legacy `max_tokens: 128` became `MaxCompletionTokens: 128`, and the message survived conversion. The test passed with Go1.27.2; no hosted inference or production admission occurred. This identifies the conversion that the private ingress must reuse, not a completed ingress or routing qualification.
+
+The new characterization test is retained in the task-owned source stage; the adjacent receipt binds its hash and a new source manifest. The earlier 1,894-file parser manifest remains historical and no longer describes the stage after this test was added. The parser has not been wired into the transport; peer authentication, owner acquisition, stream closure and warmup ownership remain required. Live0/120; candidate disabled; caps unchanged.
