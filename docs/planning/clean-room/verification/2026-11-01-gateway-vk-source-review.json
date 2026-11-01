@@ -1,0 +1,158 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "The reviewed original fixture permits an unrelated 4xx/5xx to masquerade as mandatory-governance denial. The parent subsequently strengthened the assertion; this receipt evaluates the preserved original snapshot, not that later edit.",
+  "scope": {
+    "base": "d7cf775",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "d7cf775254edfd690edd738023d96fece5bb330c",
+    "pr_url": null,
+    "files_changed": 1,
+    "files": [
+      "engine/transport/factory_gateway_vk_visibility_test.go"
+    ],
+    "source_sha256": {
+      "engine/transport/factory_gateway_vk_visibility_test.go": "152f8bddcfa83817446b28e3ec01f4ca022f3ebd8c300fd6a3b6be7de9391919"
+    }
+  },
+  "intent": "Characterize a public virtual key in a synthetic owner-bound request through actual mandatory governance and transport hooks, observing fixture headers, provider headers and a fixture logger. No production credential confidentiality, wallet custody or launch qualification is claimed.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "testing",
+    "adversarial",
+    "maintainability"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_vk_visibility_test.go:214 -- status, _ := send(\"\")",
+        "engine/transport/factory_gateway_vk_visibility_test.go:215 -- if status < 400 || calls.Load() != 0 {",
+        "governance/main.go:712-719 -- mandatory missing-key branch returns type virtual_key_required and status 401"
+      ],
+      "file": "engine/transport/factory_gateway_vk_visibility_test.go",
+      "first_evidence": "engine/transport/factory_gateway_vk_visibility_test.go:214 -- status, _ := send(\"\")",
+      "independent_reviewers": [
+        "correctness",
+        "testing",
+        "adversarial"
+      ],
+      "line": 214,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "testing",
+        "adversarial"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Assert the expected governance denial status and error type while retaining the zero-provider-call check, or add a mandatory-governance-off negative control.",
+      "title": "Assert the missing-key denial comes from governance",
+      "why_it_matters": "The fixture attributes a missing-key refusal to mandatory governance, but any unrelated error before provider dispatch can satisfy the observed status and call-count checks. This can make a source-only authorization proof report a false positive.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_vk_visibility_test.go|214|assert the missing-key denial comes from governance",
+        "testing|engine/transport/factory_gateway_vk_visibility_test.go|214|verify missing-key refusal is from governance",
+        "adversarial|engine/transport/factory_gateway_vk_visibility_test.go|214|unrelated failure can mimic mandatory-governance denial"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original diff discards the denial body and accepts any status >=400 with zero provider calls, so unrelated pre-provider failures can satisfy the claimed mandatory-governance check; the pinned governance source identifies its missing-key denial as status 401 and type virtual_key_required, and the later working-tree test now checks both plus zero calls.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_vk_visibility_test.go:214 -- status, _ := send(\"\")",
+        "engine/transport/factory_gateway_vk_visibility_test.go:215 -- if status < 400 || calls.Load() != 0 {",
+        "governance/main.go:712-719 -- mandatory missing-key branch returns type virtual_key_required and status 401"
+      ],
+      "file": "engine/transport/factory_gateway_vk_visibility_test.go",
+      "first_evidence": "engine/transport/factory_gateway_vk_visibility_test.go:214 -- status, _ := send(\"\")",
+      "independent_reviewers": [
+        "correctness",
+        "testing",
+        "adversarial"
+      ],
+      "line": 214,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "testing",
+        "adversarial"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Assert the expected governance denial status and error type while retaining the zero-provider-call check, or add a mandatory-governance-off negative control.",
+      "title": "Assert the missing-key denial comes from governance",
+      "why_it_matters": "The fixture attributes a missing-key refusal to mandatory governance, but any unrelated error before provider dispatch can satisfy the observed status and call-count checks. This can make a source-only authorization proof report a false positive.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_vk_visibility_test.go|214|assert the missing-key denial comes from governance",
+        "testing|engine/transport/factory_gateway_vk_visibility_test.go|214|verify missing-key refusal is from governance",
+        "adversarial|engine/transport/factory_gateway_vk_visibility_test.go|214|unrelated failure can mimic mandatory-governance denial"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original diff discards the denial body and accepts any status >=400 with zero provider calls, so unrelated pre-provider failures can satisfy the claimed mandatory-governance check; the pinned governance source identifies its missing-key denial as status 401 and type virtual_key_required, and the later working-tree test now checks both plus zero calls.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Fixture owner root, authorizer, provider, transport plugins and logger are synthetic. Transport plugins can read the key from context; production plugin, tracing, log-sink and wallet custody remain unqualified."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Original diff and source hashes are preserved in the run directory; parent may strengthen the test after the independent reviewer wave.",
+      "The staged fixture is synthetic and its scope does not establish production credential or logger confidentiality.",
+      "Parent reports isolated Linux v3 test PASS; reviewers did not rerun it.",
+      "The four hook types have separate assertions in the original staged snapshot.",
+      "Three independent same-model reviewers described the same missing-key false-positive; they are merged as one finding.",
+      "The validator confirmed the original-snapshot P2 and noted the later working-tree assertion; subsequent source verification is outside this receipt.",
+      "External model egress prohibited by caller; an independent in-process adversarial reviewer completed.",
+      "Settlement suppression not evaluated because no plan was selected.",
+      "Successful criteria search found no governing tracked standards."
+    ],
+    "validation": {
+      "outcome": "verdicts",
+      "selected": 1,
+      "confirmed": 1,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "protected_subject_reclassifications": []
+    },
+    "first_evidence_backfilled": 0,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "suppressed_by_confidence": {},
+    "failed_reviewers": []
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "user",
+    "outcome": "in-process-fallback",
+    "artifact": null,
+    "coverage": "External model egress prohibited by caller; an independent in-process adversarial reviewer completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/vk-proof-1dc5qm5n",
+  "run_id": "vk-proof-1dc5qm5n"
+}
