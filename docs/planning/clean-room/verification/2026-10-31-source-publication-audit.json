@@ -2104,5 +2104,25 @@
       "sha256": "32a8dee6062719e2d63b8ce341c3206b94228b826271325c413f676f77a09a01",
       "already_published_mirror": true
     }
-  ]
+  ],
+  "publication": {
+    "factory": {
+      "branch": "codex/late-phase9-verification",
+      "commits": [
+        "8e57156",
+        "ea4fc5d",
+        "80fc5a4"
+      ],
+      "remote_verified": true
+    },
+    "gateway": {
+      "branch": "codex/remaining-source-audit-20261031",
+      "commits": [
+        "095cf23e7a420a12c7423bb62f9bd854e4d3347f",
+        "28305356916d634089b171e8b5b6fe5c683487b0"
+      ],
+      "remote_verified": true,
+      "original_upstream_push": "Rejected non-fast-forward; no force push. Existing local and remote histories have no merge base and remote has sanitization edits across 211 paths. Published only the audited source delta on a fresh branch based on canonical remote 7d54a56. Preserved all remote sanitization. Replaced the personal name only in the two new historical availability-hold additions with a generic shared-user reference. Original local history remains intact."
+    }
+  }
 }
