@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "status": "native_start_replay_not_admitted",
+  "reason": "Pinned worker image sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a unavailable on current host; controller failed before start. No replacement image or production pin substituted.",
+  "local_actual_entrypoint_state_tests": 2,
+  "native_actual_start_passed": false,
+  "fixture_source_sha256": "3494aa0ab3059e9e04380b93a1db8222096109f9cef8abd42fe84a9546e78af0",
+  "cleanup": {
+    "owned_empty_child_removed": true,
+    "owned_empty_parent_removed": true,
+    "no_container_started": true,
+    "reason": "Pinned worker image unavailable; no substituted image or source repin"
+  },
+  "production_admission": false,
+  "paid_calls": 0,
+  "candidate_enabled": false
+}

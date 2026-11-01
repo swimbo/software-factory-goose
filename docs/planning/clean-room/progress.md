@@ -585,3 +585,7 @@ Nine actual Linux protected-state/alias/ACL/backend refusal controls pass, toget
 ### Phase 11A real-wallet custody join — 2026-11-01
 
 Actual durable Rust wallet, protected gateway acquisition/capture and independent collector now pass one joined native component replay: kernel roles, one-use begin, discarded acquire acknowledgement, exact audit settlement, restart persistence, no reservation refund and opening-inventory reset refusal. Fresh current-source runtime provenance and completed review retained in verification/2026-11-01-wallet-custody.md. Full harness167 run:163 pass/four skip. Root bootstrap/bounds and physical closure remain synthetic; actual Bifrost/production admission is not established. Live0/120, candidate off, caps unchanged.
+
+### Phase 11A actual start-intent state — 2026-11-01
+
+Two actual-entrypoint tests verify durable start-intent/no-rearm/unknown reconciliation, including a retained cleanup receipt. Native replay source is reviewed, but execution is blocked by the missing pinned worker image; no image substitution was made and the exact empty test namespace was inode-checked and removed. See verification/2026-11-01-supervisor-start-state.md. Actual native start and full group/daemon/host-loss gates remain open, alongside provider bounds and production Bifrost/bootstrap integration. Phase11A incomplete, live0/120, candidate disabled and caps unchanged.

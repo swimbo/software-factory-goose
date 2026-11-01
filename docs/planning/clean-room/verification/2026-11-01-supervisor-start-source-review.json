@@ -1,0 +1,96 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "735f19e",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "735f19ed7ead12be3f84f32c3ba7c580b1016870",
+    "pr_url": null,
+    "files_changed": 2,
+    "files": [
+      "clean-room/crates/execution/harness/test_supervisor_start_loss.py",
+      "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py"
+    ],
+    "source_sha256": {
+      "clean-room/crates/execution/harness/test_supervisor_start_loss.py": "bd24d67c48284fcf138a4b9659fa55ad5d38130f5efd1c5d8506e4d309d72b53",
+      "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py": "3494aa0ab3059e9e04380b93a1db8222096109f9cef8abd42fe84a9546e78af0"
+    },
+    "explicit_untracked_sources_reviewed": true
+  },
+  "intent": "Qualify durable start-intent/no-rearm and retained unknown outcomes through actual RootSupervisor.start, with a separate explicitly disposable native replay of lost Docker start acknowledgement and exact cleanup. This source review does not qualify production bootstrap or full Phase11A.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": {
+    "plan": "docs/planning/clean-room/phase-11a-plan.md",
+    "plan_source": "explicit",
+    "scope": "Parent-bounded actual-start loss qualification unit only",
+    "completed": [
+      "Two actual-entrypoint durable-intent/reconstructed-supervisor state tests pass.",
+      "Cleanup receipt cannot rearm a retained start intent.",
+      "New replay explicitly labels fixture-only constructor, registry gate and watchdog initialization.",
+      "Final destructive Docker cleanup requires strict image/label/containment inspection and exact ID; no name-only fallback remains."
+    ],
+    "not_proven": [
+      "Native replay execution and descendant/cleanup assertions remain unrun.",
+      "Production bootstrap, full watchdog service-group loss, shared daemon restart and host-loss admission remain outside this source-only proof."
+    ]
+  },
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Ready to merge applies only to source and local state tests; do not report native qualification or enable paid/candidate paths from this receipt.",
+    "Native replay requires a fresh Root-owned protected host namespace and pinned Goose asset; existing deployment namespace must not be synthesized or weakened to make it run.",
+    "Failures before the main replay try/finally can leave exact disposable fixture setup artifacts; controller must retain/report those as unknown and independently reconcile owned resources."
+  ],
+  "testing_gaps": [
+    "No native execution performed by reviewer. Parent must establish real lost-ack/rearm/fence/cleanup and owned-resource absence evidence before claiming that gate."
+  ],
+  "coverage": {
+    "depth": "lite",
+    "criteria_files": [
+      "AGENTS.md"
+    ],
+    "instruction_file_fallback": true,
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "untracked_scope": "Deterministic helper sees no tracked delta; parent explicitly supplied these two untracked test sources. Both read in full; other untracked wallet fixture excluded.",
+    "no_nested_reviewers": "Test-only loud/local qualification source was reviewed inline under parent no-dispatch constraint; no production runtime was altered.",
+    "not_assessed": [
+      "learnings",
+      "agent-native gaps",
+      "deployment notes",
+      "independent cross-model review"
+    ],
+    "verification": [
+      "python3 -m unittest discover -s clean-room/crates/execution/harness -p test_supervisor_start_loss.py: 2 passed",
+      "ruff check both owned paths: passed",
+      "Both sources AST parsed"
+    ],
+    "simplification": "Five loaded rubrics reviewed inline; no proof/source edits recommended. Safety fix is correctness, not simplification."
+  },
+  "resolved_findings": [
+    {
+      "severity": "P2",
+      "title": "Name-only Docker cleanup could remove a colliding pre-existing container",
+      "resolution": "Parent replaced unconditional name removal with unchanged production strict _inspect(grant), validated exact hex ID and removal by that ID only. Missing/unknown daemon listing never authorizes name deletion. Final delta inspected; lint and two state tests pass."
+    }
+  ],
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-start-loss",
+  "run_id": "20261101-start-loss"
+}
