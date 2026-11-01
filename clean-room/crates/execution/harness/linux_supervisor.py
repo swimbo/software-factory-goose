@@ -1112,8 +1112,67 @@ class RootSupervisor:
                 for fd in descriptors:
                     os.close(fd)
 
+    def _fence_execution(self, grant):
+        # The daemon may be unavailable or holding a queued start. Keep the exact
+        # dedicated parent frozen, including future arrivals, before querying it.
+        self._saved(grant)
+        require(
+            Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+            == grant["boot_id"],
+            "root_fence_boot_changed",
+        )
+        fd = os.open(grant["cgroup_path"], os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            info = os.fstat(fd)
+            require(
+                (info.st_dev, info.st_ino) == (grant["cgroup_dev"], grant["cgroup_ino"])
+                and info.st_uid == 0
+                and info.st_mode & 0o022 == 0,
+                "root_fence_cgroup_changed",
+            )
+            for name in ("cgroup.freeze", "cgroup.kill"):
+                control = os.open(name, os.O_WRONLY | os.O_NOFOLLOW, dir_fd=fd)
+                try:
+                    require(os.write(control, b"1") == 1, "root_fence_unverified")
+                finally:
+                    os.close(control)
+            deadline = time.monotonic() + 1
+            while True:
+                values = {}
+                for name in ("cgroup.freeze", "cgroup.events"):
+                    control = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+                    try:
+                        values[name] = os.read(control, 4097)
+                    finally:
+                        os.close(control)
+                require(
+                    all(len(v) <= 4096 for v in values.values()),
+                    "root_fence_unverified",
+                )
+                if (
+                    values["cgroup.freeze"].strip() == b"1"
+                    and b"populated 0" in values["cgroup.events"].splitlines()
+                ):
+                    break
+                require(time.monotonic() < deadline, "root_fence_unverified")
+                time.sleep(0.01)
+        finally:
+            os.close(fd)
+        case = self._saved(grant)
+        receipt = {"grant_sha256": sha(grant), "state": "execution_fenced"}
+        if not os.path.lexists(case / "execution-fenced.json"):
+            try:
+                store(case / "execution-fenced.json", receipt)
+            except FileExistsError:
+                pass
+        require(
+            _decode(protected(case / "execution-fenced.json", 0o600)) == receipt,
+            "root_fence_receipt_changed",
+        )
+
     def _cleanup(self, grant):
         case = self._saved(grant)
+        self._fence_execution(grant)
         name = "sfactory-harness-" + grant["attempt_id"][4:]
         # A successful daemon query distinguishes absence from an unavailable daemon.
         identities = (
@@ -1257,17 +1316,37 @@ def _ticks(pid):
     )
 
 
+def _owner_alive(pid, ticks):
+    try:
+        fields = (
+            (Path("/proc") / str(pid) / "stat").read_text().rsplit(") ", 1)[1].split()
+        )
+        return fields[0] not in ("Z", "X") and int(fields[19]) == ticks
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def watchdog(configuration, identity, owner_pid, owner_ticks):
     supervisor = RootSupervisor(configuration, cleanup_only=True)
     case = supervisor._case(identity)
     grant = _decode(protected(case / "grant.json", 0o600))
+    failed_at = None
     while not os.path.lexists(case / "finished.json"):
-        try:
-            require(_ticks(owner_pid) == owner_ticks, "root_owner_lost")
-            supervisor._current(grant)
-        except Exception:
-            supervisor.revoke({"grant": grant})
-            return
+        if failed_at is None:
+            try:
+                require(_owner_alive(owner_pid, owner_ticks), "root_owner_lost")
+                supervisor._current(grant)
+            except Exception:
+                failed_at = time.monotonic()
+        if failed_at is not None:
+            try:
+                supervisor.revoke({"grant": grant})
+                return
+            except Exception:
+                # Cleanup retries cannot acquire another launch or inference root.
+                # Persistent frozen/unknown state survives this bounded observer.
+                if time.monotonic() - failed_at >= 30:
+                    return
         time.sleep(0.05)
 
 

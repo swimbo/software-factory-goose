@@ -238,6 +238,7 @@ class CleanupOutcomeTests(unittest.TestCase):
         root._saved = Mock(return_value=case)
         root._docker = Mock(return_value=b"")
         root._kernel_scope = Mock()
+        root._fence_execution = Mock()
         return root, case, {"attempt_id": "run_" + "a" * 64, "grant_id": "b" * 64}
 
     def test_known_removed_container_cleanup_is_idempotent(self):
@@ -266,6 +267,7 @@ class CleanupOutcomeTests(unittest.TestCase):
                 root._cleanup(grant)
                 root._cleanup(grant)
             self.assertFalse(mounts.exists())
+            self.assertEqual(root._fence_execution.call_count, 2)
             self.assertEqual(root._docker.call_count, 2)
             self.assertTrue(
                 all(call.args[0] == "container" for call in root._docker.call_args_list)
