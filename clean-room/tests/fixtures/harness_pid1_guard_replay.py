@@ -270,7 +270,7 @@ def controller(base, host_python, host_library, controller_library, fault):
     program = base / "idle-worker.py"
     product.store(
         program,
-        b"import subprocess,time\nsubprocess.Popen(['/usr/local/bin/python3','-I','-B','-c','import time;time.sleep(30)'])\ntime.sleep(30)\n",
+        b"import subprocess,time\nsubprocess.Popen(['/usr/local/bin/python3','-I','-B','-c','import time;time.sleep(90)'])\ntime.sleep(90)\n",
         0o444,
     )
     gate = base / "public-gate.py"
@@ -396,8 +396,7 @@ def controller(base, host_python, host_library, controller_library, fault):
         assert quota == period
         if fault == "owner-loss":
             kill_service_group(controller_library, parent)
-        else:
-            assert fault == "guard-crash"
+        elif fault == "guard-crash":
             observed = snapshot(controller_library, guard_ready["unit"])
             assert (
                 observed["MainPID"] == guard_ready["pid"]
@@ -405,7 +404,18 @@ def controller(base, host_python, host_library, controller_library, fault):
             )
             assert product._ticks(guard_ready["pid"]) == guard_ready["ticks"]
             kill_service_main(controller_library, observed)
-        assert select.select([notification], [], [], 5)[0], (
+        else:
+            assert fault == "lease-expiry"
+            # Keep both owner and worker live until the actual current lease
+            # expires. No catalog edit or synthetic clock drives the guard.
+            assert time.time_ns() // 1000000 < expiry
+            assert "populated 1" in (group / "cgroup.events").read_text().splitlines()
+        wait_seconds = (
+            max(0, (expiry - time.time_ns() // 1000000) / 1000) + 5
+            if fault == "lease-expiry"
+            else 5
+        )
+        assert select.select([notification], [], [], wait_seconds)[0], (
             "guard did not request scope revocation"
         )
         assert os.read(notification, 1) == b"R"
@@ -413,13 +423,17 @@ def controller(base, host_python, host_library, controller_library, fault):
         if fault == "owner-loss":
             assert not product._owner_alive(started["pid"], started["ticks"])
             assert product._owner_alive(guard_ready["pid"], guard_ready["ticks"])
-        else:
+        elif fault == "guard-crash":
             assert not product._owner_alive(guard_ready["pid"], guard_ready["ticks"])
             assert product._owner_alive(started["pid"], started["ticks"])
             observed = snapshot(controller_library, guard_ready["unit"])
             assert observed["InvocationID"] == guard_ready["invocation_id"]
             assert observed["SubState"] == "stop-post"
             assert (guard_group / "cgroup.procs").read_text().strip()
+        else:
+            assert time.time_ns() // 1000000 >= expiry
+            assert product._owner_alive(started["pid"], started["ticks"])
+            assert product._owner_alive(guard_ready["pid"], guard_ready["ticks"])
         assert "populated 0" in (group / "cgroup.events").read_text().splitlines()
         assert (group / "cgroup.freeze").read_text().strip() == "1"
         os.write(release, b"A")
@@ -440,6 +454,7 @@ def controller(base, host_python, host_library, controller_library, fault):
             "entire_supervisor_group_killed": fault == "owner-loss",
             "guard_alive_after_supervisor_group_loss": fault == "owner-loss",
             "guard_exec_stop_post_cleanup": fault == "guard-crash",
+            "lease_expired_with_live_supervisor": fault == "lease-expiry",
             "guard_cgroup_limits": limits,
             "exact_worker_fenced_and_removed": True,
             "synthetic_owner_revocation_acknowledged": True,
@@ -496,7 +511,9 @@ def main():
     parser.add_argument("--host-library")
     parser.add_argument("--controller-library")
     parser.add_argument(
-        "--fault", choices=("owner-loss", "guard-crash"), default="owner-loss"
+        "--fault",
+        choices=("owner-loss", "guard-crash", "lease-expiry"),
+        default="owner-loss",
     )
     args = parser.parse_args()
     if args.mode == "supervisor":

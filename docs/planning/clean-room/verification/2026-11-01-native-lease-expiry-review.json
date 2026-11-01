@@ -1,0 +1,41 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "85906609947c3eba8e4ca87b6babcbedd018da8d",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "85906609947c3eba8e4ca87b6babcbedd018da8d",
+    "pr_url": null,
+    "files_changed": 5
+  },
+  "intent": "Qualify actual current-lease expiry with a live supervisor using the existing disposable PID1/Root fixture; preserve production authority and all spending gates. This milestone covers native expiry only.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Synthetic registry/catalog/owner boundaries do not establish production launch authority."
+  ],
+  "testing_gaps": [
+    "Owner outage, unknown Docker and broader daemon/host loss remain outside this milestone."
+  ],
+  "coverage": {
+    "depth": "lite",
+    "criteria": [
+      "AGENTS.md (instruction-file fallback)"
+    ],
+    "compound_packs": "none declared",
+    "review_policy": "No governing REVIEW.md at base.",
+    "details": "Fixture-only assertions fail locally and loudly; no production code changes. Inspected complete changed fixture and adjacent owner/start/cleanup paths, native receipt, independent absence checks and evidence wording. No agents dispatched; learnings, agent-native and deployment lenses not assessed. Simplification threshold not reached (23 substantive inserted fixture lines)."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-native-lease-expiry",
+  "run_id": "20261101-native-lease-expiry"
+}

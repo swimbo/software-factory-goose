@@ -615,3 +615,7 @@ Root now starts a separately owned bounded PID1 guard with durable no-rearm inte
 ### Phase 11A guard-loop state and Darwin exit race — 2026-11-01
 
 Direct run_guard state tests now cover source drift after readiness, lease expiry with a live owner, revocation-only retries and exact monitor/stop-post deadlines. All three corresponding in-memory mutations are rejected. These tests explicitly mock Root/PID1/kernel/wallet boundaries. The full suite also reproduced a real Darwin check-to-signal exit race; fresh non-reaping exit observation after EPERM fixes it while preserving empty-group/ownership checks. Real-kernel regression and existing overflow/timeout pass. Full harness201 passed/six skipped (207 run), Ruff passes. See verification/2026-11-01-guard-runtime-state.md and darwin-exit-race.md. Native outage/expiry/unknown-Docker qualification, production integration/bounds and120live runs remain open; candidate off, caps unchanged.
+
+### Phase 11A native lease expiry — 2026-11-01
+
+Actual Root prepare/start and PID1 guard now pass current-lease expiry while the supervisor stays alive. Before synthetic wallet acknowledgement the exact worker cgroup is frozen/empty; independent inspection confirms terminal services and absent owned containers/slice afterward. See verification/2026-11-01-native-lease-expiry.md. Full harness201 passed/six skipped (207 run), Ruff passes. Production source unchanged; native outage/unknown-Docker/daemon/host-loss and actual gateway/bootstrap/provider bounds remain open. Live0/120, candidate disabled and caps unchanged.

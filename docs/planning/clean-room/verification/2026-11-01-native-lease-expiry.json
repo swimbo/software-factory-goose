@@ -1,0 +1,113 @@
+{
+  "actual_pid1_guard": true,
+  "actual_root_constructor_prepare_start": true,
+  "candidate_enabled": false,
+  "component_only": true,
+  "entire_supervisor_group_killed": false,
+  "exact_worker_fenced_and_removed": true,
+  "fault": "lease-expiry",
+  "guard_alive_after_supervisor_group_loss": false,
+  "guard_cgroup_limits": {
+    "cpu.max": "100000 100000",
+    "memory.max": "268435456",
+    "pids.max": "32"
+  },
+  "guard_exec_stop_post_cleanup": false,
+  "guard_unit": "sfactoryguard442ba223d6bdf480af3022840a9579ed8e0e81cd98f30f1942091da9601ee23e.service",
+  "independent_absence": {
+    "exact_grant_worker_containers_absent": true,
+    "named_controller_absent": true,
+    "owned_worker_slice_absent": true,
+    "schema": 1,
+    "service_state": "MainPID=0\nControlPID=0\nControlGroup=\nId=sfactoryguard442ba223d6bdf480af3022840a9579ed8e0e81cd98f30f1942091da9601ee23e.service\nActiveState=failed\nSubState=failed\n\nMainPID=0\nControlPID=0\nControlGroup=\nId=sfactoryguard7a6f07b0a65d0cc62f04a244cfb445d5a834151ceb8f67f419863283c838608c.service\nActiveState=failed\nSubState=failed\n"
+  },
+  "lease_expired_with_live_supervisor": true,
+  "live_attempts": 0,
+  "native_long_relay_path_tests": 2,
+  "owned_worker_slice": "sfactoryharness2564a66434384c4db48cd0544f594bc1a0179da9d8f24606904219c8b8de382a.slice",
+  "paid_calls": 0,
+  "production_admission": false,
+  "schema": 1,
+  "shared_fixture_regressions": [
+    {
+      "fault": "owner-loss",
+      "independent_services_terminal_containers_and_slice_absent": true,
+      "native_result": {
+        "actual_pid1_guard": true,
+        "actual_root_constructor_prepare_start": true,
+        "candidate_enabled": false,
+        "component_only": true,
+        "entire_supervisor_group_killed": true,
+        "exact_worker_fenced_and_removed": true,
+        "fault": "owner-loss",
+        "guard_alive_after_supervisor_group_loss": true,
+        "guard_cgroup_limits": {
+          "cpu.max": "100000 100000",
+          "memory.max": "268435456",
+          "pids.max": "32"
+        },
+        "guard_exec_stop_post_cleanup": false,
+        "guard_unit": "sfactoryguard1491c54f615b9ad9cbc2693a6a4713fe7a4726d97edc46c5e9d657f098baba3a.service",
+        "lease_expired_with_live_supervisor": false,
+        "live_attempts": 0,
+        "native_long_relay_path_tests": 2,
+        "owned_worker_slice": "sfactoryharness24a32837693d4f29aa0376be897bb99379ed04d2cda04279a577b6e46b5d7da7.slice",
+        "paid_calls": 0,
+        "production_admission": false,
+        "schema": 1,
+        "source_sha256": {
+          "harness_pid1_guard_replay.py": "1f1ea0dca6aa5dcbe62b0eeb163e388af4b51293f67f299f9a28db148c3fe159",
+          "linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+          "linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d"
+        },
+        "supervisor_unit": "sfactoryguard2b7ea36ffb0f87088e9e01d2051071389afbe3f480baf228669ea0b79b112002.service",
+        "synthetic_catalog_registry_owner": true,
+        "synthetic_owner_revocation_acknowledged": true
+      }
+    },
+    {
+      "fault": "guard-crash",
+      "independent_services_terminal_containers_and_slice_absent": true,
+      "native_result": {
+        "actual_pid1_guard": true,
+        "actual_root_constructor_prepare_start": true,
+        "candidate_enabled": false,
+        "component_only": true,
+        "entire_supervisor_group_killed": false,
+        "exact_worker_fenced_and_removed": true,
+        "fault": "guard-crash",
+        "guard_alive_after_supervisor_group_loss": false,
+        "guard_cgroup_limits": {
+          "cpu.max": "100000 100000",
+          "memory.max": "268435456",
+          "pids.max": "32"
+        },
+        "guard_exec_stop_post_cleanup": true,
+        "guard_unit": "sfactoryguard543af08045c015cd41262d99f818fe6547dfbb8ab746a5467071dd9420fbce9a.service",
+        "lease_expired_with_live_supervisor": false,
+        "live_attempts": 0,
+        "native_long_relay_path_tests": 2,
+        "owned_worker_slice": "sfactoryharness943e94c578a44066a43bc01cc61616694cc36a4d4c3542df9e4a986f47abc273.slice",
+        "paid_calls": 0,
+        "production_admission": false,
+        "schema": 1,
+        "source_sha256": {
+          "harness_pid1_guard_replay.py": "1f1ea0dca6aa5dcbe62b0eeb163e388af4b51293f67f299f9a28db148c3fe159",
+          "linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+          "linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d"
+        },
+        "supervisor_unit": "sfactoryguard01de135b8c1c8a6bbcaa08f5750bb6bd3cd527a40f351af19a2d175bd31ce9b6.service",
+        "synthetic_catalog_registry_owner": true,
+        "synthetic_owner_revocation_acknowledged": true
+      }
+    }
+  ],
+  "source_sha256": {
+    "harness_pid1_guard_replay.py": "1f1ea0dca6aa5dcbe62b0eeb163e388af4b51293f67f299f9a28db148c3fe159",
+    "linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+    "linux_supervisor.py": "44fc0262e2b4fc3f82bdc7db4ffb68908216231a7a7e6ca067e784e2064f433d"
+  },
+  "supervisor_unit": "sfactoryguard7a6f07b0a65d0cc62f04a244cfb445d5a834151ceb8f67f419863283c838608c.service",
+  "synthetic_catalog_registry_owner": true,
+  "synthetic_owner_revocation_acknowledged": true
+}
