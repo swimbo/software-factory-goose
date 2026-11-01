@@ -19,7 +19,7 @@ Factory branch: `codex/late-phase9-verification`. Source-composition checkpoint:
 - Protected spending authority, one-use gateway acquisition, durable capture and independent settlement RPC have component and restart proofs. These do not establish the full production path.
 - Actual Root prepare/start and PID1 guard pass supervisor-group loss, guard-main crash and current-lease expiry with a live supervisor. Exact owned resources were independently checked after cleanup. Registry/catalog/wallet replies in these native launch fixtures are explicitly synthetic.
 - The real long Unix relay path and a Darwin child-exit race were reproduced and corrected.
-- Latest full configured Python harness: **207 run, 201 passed, six skipped**. This was not rerun after the latest gateway parser draft; that draft changes no factory implementation file.
+- Latest full configured Python harness: **209 run, 203 passed, six skipped**. The joined guard outage tests use mocked system boundaries; see [combined-loss evidence](clean-room/verification/2026-11-01-guard-combined-loss.md).
 - A fresh exact-pin composed Bifrost source stage now includes physical capture/owner-root, governance, routing, embeddings, normalization, transport identity and native HTTP admission. Its server package compiles on Linux with Go1.27.2. Four existing public-loopback test groups pass. The final source manifest contains 1,891 files. The truncated older archive and absent historical build-cache paths were not reused.
 
 Evidence: [progress](clean-room/progress.md), [phase plan](clean-room/phase-11a-plan.md), [native lease expiry](clean-room/verification/2026-11-01-native-lease-expiry.md), [composed gateway source](clean-room/verification/2026-11-01-composed-gateway-source.md).

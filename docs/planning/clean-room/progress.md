@@ -647,3 +647,7 @@ Bifrost source checkpoint `be86704` adds a Linux completion witness and installe
 ### Phase 11A protected stream failure — 2026-11-01
 
 Resumed from the witness checkpoint. Full source review confirmed two P1 false-success paths: a stream hook error could skip later hooks and a serialization failure could drop a chunk before `[DONE]`. Bifrost source fix `cde48ea` fails the protected stream with a generic error and preserves post-hook/trace cleanup. Real-handler red/green and discriminating failure-signal tests, original-owner cancellation controls, combined native-ingress/gateway and race tests pass; focused review rechecked the fix. See verification/2026-11-01-gateway-completion.md. Private exchange/bootstrap, physical authorization and capture closure, provider charge bounds, launch gates and all 120 attempts remain open. Live 0/120; candidate disabled; caps unchanged.
+
+### Phase 11A combined guard loss — 2026-11-01
+
+Source test `c54ca81` exercises actual guard/revoke/cleanup control flow with temporary receipts under simultaneous Docker and owner outage and an unacknowledged create. System boundaries are mocked; native outage qualification remains open. Focused tests and two negative controls pass, independent source review found no actionable issues, and the configured full harness passed 209 tests with six skips. See verification/2026-11-01-guard-combined-loss.md. Live 0/120; candidate disabled; caps unchanged.

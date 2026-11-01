@@ -1,0 +1,7 @@
+# Guard retries during combined loss — 2026-11-01
+
+The actual `run_guard`, `RootSupervisor.revoke` and cleanup code now have joined tests for simultaneous Docker/owner outage and for an unacknowledged create after recovery. On each retry the execution fence precedes Docker inspection and owner revocation; a confirmed owner revocation is recorded. An unknown create remains unresolved even when Docker later returns empty. The tests use temporary receipts and explicitly mock PID1, kernel fencing, Docker and the owner; they do not qualify native daemon loss, host loss or production launch.
+
+The focused suite ran 20 tests with 17 passing and three Linux-only skips on macOS. Two isolated mutants were rejected: skipping owner revocation on cleanup failure and treating the unknown create as absent. The configured full harness ran 209 tests with six skips, using the existing pinned script host, normalizer and cached Docker test image. A first unconfigured discovery was interrupted; a restricted-PATH run hid Docker and caused the evaluator test to fail, and that test passed when Docker was restored. Neither is used as a passing result. Scoped Ruff and an independent [source review](2026-11-01-guard-combined-loss-source-review.json) passed. No shared service or live provider was changed or called.
+
+Actual production custody, provider charge bounds and the full launch/loss gates remain open. Live benchmark 0/120, candidate disabled, $5/UTC day and $0.75/permanent task unchanged.

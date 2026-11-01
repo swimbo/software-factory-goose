@@ -1,0 +1,79 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No actionable defects in the reviewed synthetic guard and supervisor test. This does not qualify native daemon or host loss.",
+  "scope": {
+    "base": "679ae6a03d58200519afa3b1255d7bf1f02cb252",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "679ae6a03d58200519afa3b1255d7bf1f02cb252",
+    "files_changed": 1,
+    "files": [
+      "clean-room/crates/execution/harness/test_guard_loss_integration.py"
+    ],
+    "source_sha256": {
+      "clean-room/crates/execution/harness/test_guard_loss_integration.py": "a952c1be717f6b1038e294a532d2241a39e6ca2a57c46a42418535413a3c5dbd"
+    }
+  },
+  "intent": "Exercise actual guard retry and supervisor cleanup with temporary persisted receipts under simultaneous daemon and owner outages; unknown create must remain unresolved. PID1, kernel, Docker and wallet are explicit seams.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "testing",
+    "reliability",
+    "adversarial",
+    "project-standards"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "PID1, kernel fencing, Docker and the owner RPC are mocked; passing tests do not establish native daemon or host-loss cleanup."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "The reviewed change is a single staged test file; no production source changes.",
+      "Parent reports configured full harness 209 tests run, six skipped; focused mutation log /tmp/sfactory-guard-loss-mutations.log rejected skipping owner revocation and treating unknown create as absent. The review did not rerun these tests.",
+      "The fixtures mock PID1, kernel fencing, Docker and owner RPC; this is not native daemon or host-loss qualification.",
+      "Correctness, testing, reliability, adversarial and project-standards reviewers each completed.",
+      "External model egress prohibited by caller; an independent in-process adversarial reviewer completed.",
+      "Settlement suppression was not evaluated because no plan was selected."
+    ],
+    "validation": {
+      "outcome": "empty-batch",
+      "reason": "No findings were selected for validation.",
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0,
+    "failed_reviewers": [],
+    "project_standards": [
+      "AGENTS.md"
+    ],
+    "test_result": "Parent-reported 209 run, six skipped; not independently rerun by report leaf."
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "user",
+    "outcome": "in-process-fallback",
+    "artifact": null,
+    "coverage": "External model egress prohibited by caller; an independent in-process adversarial reviewer completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/guard-loss-xJDEIBRq",
+  "run_id": "guard-loss-xJDEIBRq"
+}
