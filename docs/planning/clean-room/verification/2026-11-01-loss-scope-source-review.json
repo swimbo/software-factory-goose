@@ -1,0 +1,106 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "5203f8b",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "5203f8bd2851570bf9825278d13f4ffac4d6bcb9",
+    "pr_url": null,
+    "files_changed": 9
+  },
+  "intent": "Persist the exact admitted spending scope with its launch grant, revoke it after any cleanup attempt, and require acknowledged revocation before stopped. Wallet outage cannot prevent execution fencing; daemon outage cannot skip wallet revocation. No production qualification, provider inference or candidate enablement claim.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "project-standards",
+    "testing",
+    "security",
+    "reliability",
+    "api-contract",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "suppressed_by_confidence": {},
+    "mode_aware_demotions": 0,
+    "first_evidence_backfilled": 0,
+    "quote_check_demotions": 0,
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "validation": {
+      "confirmed": 0,
+      "rejected": 2,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "batch_outcome": "verdicts",
+      "bound_exceeded": false,
+      "protected_subject_reclassifications": 0,
+      "verdicts": [
+        {
+          "#": 1,
+          "status": "rejected",
+          "protected_subject": "concurrency",
+          "reason": "Fixed in reviewed source SHA256 84e08402458d86e33b4458c75e19d311385c8100bf3f89003c09535b7c91550e: linux_supervisor.py:1286 unconditionally requires _revoke_spending before the ordinary terminal store, while :1239 also verifies cached terminal results; on Python 3.11.6 the exact in-memory interleaving of actual revoke immediately before finished publication with the wallet becoming unavailable retained a prior owner acknowledgement and made only one wallet call, and test_normal_terminal_observe_also_requires_scope_retirement passed its wallet-down no-finished and corrupt-cached-ack assertions, so the intermediate-revision check-before-write bypass is absent."
+        },
+        {
+          "#": 2,
+          "status": "rejected",
+          "protected_subject": "authorization-authentication",
+          "reason": "Fixed in reviewed source SHA256 84e08402458d86e33b4458c75e19d311385c8100bf3f89003c09535b7c91550e: linux_supervisor.py:1245-1246 checks the stopped scope is empty and requires _revoke_spending before :1255 publishes finished.json, and :1335-1342 requires a confirmed owner reply or an exact retained acknowledgement; on Python 3.11.6 test_observe_cannot_finish_revoked_execution_before_wallet_ack passed with stop/cleanup present and a wallet-down seam, observing an exception with no finished marker and successful completion only after the owner acknowledgement recovered."
+        }
+      ]
+    },
+    "failed_reviewers": [],
+    "timed_out_reviewers": [],
+    "notes": [
+      "Seven same-serving-model persona results were collected. No cross-model corroboration or validator shortcut is claimed.",
+      "Cross-model pass not run: caller limited external egress to an authorized configured route and no checkout route was configured. Local adversarial reviewer covered the lens; no cross-model corroboration is claimed.",
+      "Applicable standards use AGENTS.md fallback; no CODING_STANDARDS.md or REVIEW.md applies.",
+      "Settlement suppression was not evaluated. Learnings, agent-native and deployment-verification personas were not selected.",
+      "Both P1 findings were reproduced on intermediate revisions, corrected by the parent, and independently rejected on final source after inspection of the actual refuting lines and discriminating tests. Rejected claims are not retained as residual risks.",
+      "The report leaf independently verified the cited unconditional acknowledgement checks at linux_supervisor.py:1239,1246,1286 and acknowledgement validation at :1335-1342 against the final source hash.",
+      "Parent verification: 190 tests run, 186 passed, four skipped; nine focused scope-revocation tests; Ruff and diff checks passed. Final-hash native durable-wallet and nine-case Linux cleanup replays passed with their explicit separate evidence boundaries.",
+      "Native wallet replay uses a synthetic execution-cleanup fault; native kernel/Docker cleanup replay uses a synthetic spending owner. Neither establishes combined production bootstrap or actual Bifrost capture.",
+      "Nested reviewer thread limits were recovered by collecting remaining reviewer and finish leaves from the root context. The dispatch end boundary was logged late after collection; elapsed stage costs overlap and are not exact parallel timing measurements.",
+      "This source milestone is reviewable; production launch, whole-service-group watchdog survival, broader daemon/host-loss qualification, provider charge bounds and the 120 live paired attempts remain outside this review completion claim. Candidate remains disabled; caps remain $5 per UTC day and $0.75 per permanent task."
+    ]
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: caller limited external egress to an authorized configured route and no checkout route was configured. Local adversarial reviewer covered the lens; no cross-model corroboration is claimed."
+  },
+  "source_sha256": {
+    "clean-room/crates/execution/harness/linux_supervisor.py": "84e08402458d86e33b4458c75e19d311385c8100bf3f89003c09535b7c91550e",
+    "clean-room/crates/execution/harness/test_supervisor_loss.py": "e98e0468f7e470897c12eb2375f410f9693a31df7b5e489726d2a754e24d9967",
+    "clean-room/tests/fixtures/harness_supervisor_loss_replay.py": "f6b6b31bc17dcdedc69fc584fa120b7957be139e478de78f307434bd33a7d3aa",
+    "clean-room/tests/fixtures/harness_wallet_custody_replay.py": "f4683dded989cbd6c0f74c4fd580b97bd294f2a3a4a121c845d83cbd49b30214",
+    "docs/planning/clean-room/progress.md": "633e5d2a1a095d8f781e133cb05b23907dffa817ee565fc5f67fb4c0d1841bcb",
+    "docs/planning/clean-room/verification/2026-11-01-loss-scope-cleanup-native.json": "00332f5a7dcdc53db2059ab110d66e4397b0d87bf662adf15f352be87117b643",
+    "docs/planning/clean-room/verification/2026-11-01-loss-scope-mutation.json": "e73e016ca126f079322d8da882eaa524045a8164dd72c151ab7a731b6eb7fcbd",
+    "docs/planning/clean-room/verification/2026-11-01-loss-scope-revocation.md": "d7528250582a902683cbbb0f0b843ef8aff5868107ee4ed7c12ce5764020375c",
+    "docs/planning/clean-room/verification/2026-11-01-loss-scope-wallet-native.json": "406dadbfd60505422d6c54def3d0f20eb781ad7bd854d046af16403e4e275025"
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-loss-scope",
+  "run_id": "20261101-loss-scope"
+}

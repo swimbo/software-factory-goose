@@ -438,8 +438,8 @@ def inside():
             "predecessor_fence_sha256": "b" * 64, "inventory_sha256": "c" * 64,
             "observed_at_ms": now, "approved_daily_cap_microusd": 5000000,
             "daily_cap_microusd": 5000000,
-            "opening_tasks": {"task0": 0, "task1": 0, "other": 0},
-            "opening_days": {str(now // 86400000): 4800000}, "scopes": [],
+            "opening_tasks": {"task0": 0, "task1": 0, "other": 0, "revoked": 0},
+            "opening_days": {str(now // 86400000): 4799998}, "scopes": [],
         }
         require(post(WALLET, "initialize", bootstrap)[0] == 200,
                 "fixture wallet bootstrap failed")
@@ -551,11 +551,44 @@ def inside():
         settlement = actor(2005, lambda: collector(records[0], profile, card))
         require(settlement["usage_rated_microusd"] == 2 and settlement["all_calls_complete"] is True,
                 "real collector settlement failed")
-        # The two reservations consume exactly the remaining UTC-day authority.
-        other_scope = admit("other", 1, 2)
+        # Only two microdollars remain; this reservation is intentionally too large.
+        other_scope = admit("other", 1, 3)
         other_call = records[0]["call"] | {"call_id": "other", "scope_sha256": other_scope}
         require(actor(2005, lambda: post(WALLET, "reserve", other_call)) == [200, "Denied"],
                 "settlement refunded day authority")
+        # Actual supervisor revocation with an explicit daemon-failure seam.
+        # No kernel-cleanup proof is claimed by this wallet fixture.
+        from linux_supervisor import RootSupervisor, store, sha
+        revoked_scope = admit("revoked", 1, 2)
+        revoked_call = records[0]["call"] | {
+            "call_id": "revoked-before-begin", "scope_sha256": revoked_scope,
+        }
+        require(actor(2005, lambda: post(WALLET, "reserve", revoked_call)) == [200, "Reserved"],
+                "revocation fixture reservation failed")
+        loss_case = Path(PREFIX) / "loss-case"
+        loss_case.mkdir(mode=0o700)
+        loss_grant = {"attempt_id": "run_" + "3" * 64}
+        store(loss_case / "grant.json", loss_grant)
+        store(loss_case / "owner-scope.json", {
+            "grant_sha256": sha(loss_grant), "scope_sha256": revoked_scope,
+        })
+        observer = object.__new__(RootSupervisor)
+        observer._case = lambda _: loss_case
+        observer.cfg = {"owner_socket": WALLET, "owner_service_uid": 2004}
+        def daemon_failure(_):
+            raise OSError("synthetic daemon unavailable after execution fence")
+        observer._cleanup = daemon_failure
+        try:
+            observer.revoke({"grant": loss_grant})
+        except OSError as exc:
+            require(str(exc).startswith("synthetic daemon"), "cleanup error replaced")
+        else:
+            raise RuntimeError("daemon unknown reported stopped")
+        require(json.loads((loss_case / "owner-revoked.json").read_bytes()) == {
+            "grant_sha256": sha(loss_grant), "scope_sha256": revoked_scope, "state": "revoked",
+        }, "durable owner revocation acknowledgement missing")
+        require(actor(2005, lambda: post(WALLET, "begin", revoked_call))[0] == 409,
+                "revoked reserved call could begin")
         # Restart actual durable Restate plus transports; do not reuse stale sockets.
         stop_pid(gateway)
         gateway = None
@@ -583,6 +616,8 @@ def inside():
                     "restart created a new begin authority")
             require(actor(2005, lambda r=record: direct_begin(r))[0] == 409,
                     "durable begin outcome lost at restart")
+        require(actor(2005, lambda: post(WALLET, "begin", revoked_call))[0] == 409,
+                "wallet restart restored revoked begin authority")
         require(actor(2005, lambda: collector(records[0], profile, card)) == settlement,
                 "settled capture/audit changed after restart")
         require(actor(2005, lambda: post(WALLET, "reserve", other_call)) == [200, "Denied"],
@@ -596,6 +631,9 @@ def inside():
             "worker_denied_before_http": True,
             "gateway_and_collector_money_roles_denied": True, "real_collector_wallet_settlement": True,
             "broker_to_independent_collector_rpc": True,
+            "supervisor_scope_revoked_despite_synthetic_daemon_failure": True,
+            "revoked_reserved_call_denied_before_and_after_wallet_restart": True,
+            "synthetic_execution_cleanup_fault": True,
             "collector_provider_content_rejected": True,
             "successful_acquisition": successful[1],
             "lost_acquisition_ack_not_rearmed": True,
@@ -614,7 +652,7 @@ def inside():
             "source_sha256": {name: hashlib.sha256(Path("/code/" + name).read_bytes()).hexdigest()
                               for name in ("gateway_custody.py", "protected_spending_control.py",
                                            "physical_usage.py", "usage_rating.py", "usage_spending.py",
-                                           "physical_settlement.py")},
+                                           "physical_settlement.py", "linux_supervisor.py")},
             "binary_sha256": {name: hashlib.sha256(Path("/opt/" + name).read_bytes()).hexdigest()
                               for name in ("runtime", "restate-server")},
         }

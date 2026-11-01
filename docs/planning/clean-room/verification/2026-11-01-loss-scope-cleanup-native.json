@@ -1,0 +1,235 @@
+{
+  "candidate_enabled": false,
+  "cases": [
+    {
+      "case": "owner_loss",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": true,
+      "discarded_ack_cleanup_component": false,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": false,
+      "start_acknowledgement_discarded": false,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "lease_expiry",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": true,
+      "discarded_ack_cleanup_component": false,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": false,
+      "start_acknowledgement_discarded": false,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "zombie_owner",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": true,
+      "discarded_ack_cleanup_component": false,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": false,
+      "start_acknowledgement_discarded": false,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "daemon_unknown",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": false,
+      "discarded_ack_cleanup_component": false,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": true,
+      "start_acknowledgement_discarded": false,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "unknown_start_ack",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": true,
+      "discarded_ack_cleanup_component": true,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": false,
+      "start_acknowledgement_discarded": true,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "late_queued_start",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": true,
+      "execution_fence_receipt": true,
+      "late_arrival_frozen": true,
+      "late_arrival_observed": true,
+      "passed": true,
+      "staged_sources_retained": false,
+      "start_requests": 1
+    },
+    {
+      "case": "unknown_create_absence",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": false,
+      "cleanup_refusal": "root_create_requires_reconciliation",
+      "create_request_body_incomplete": true,
+      "execution_fence_receipt": true,
+      "passed": true,
+      "staged_sources_retained": true
+    },
+    {
+      "case": "resource_drift",
+      "cgroup_empty": true,
+      "cgroup_frozen": true,
+      "cleanup_receipt": false,
+      "discarded_ack_cleanup_component": false,
+      "execution_fence_receipt": true,
+      "fixture_parent_preprovisioned_by_systemd": true,
+      "parent_limits_before_start": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "passed": true,
+      "processes_gone": true,
+      "remaining_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "1073741824",
+        "pids.max": "64"
+      },
+      "source_start_path_qualified": false,
+      "staged_sources_retained": true,
+      "start_acknowledgement_discarded": false,
+      "start_requests": 1,
+      "watchdog_error": null
+    },
+    {
+      "case": "destructive_guards",
+      "outcomes": [
+        {
+          "field": "boot_id",
+          "no_control_write": true,
+          "no_receipt": true,
+          "refused": true
+        },
+        {
+          "field": "cgroup_ino",
+          "no_control_write": true,
+          "no_receipt": true,
+          "refused": true
+        },
+        {
+          "field": "cgroup_dev",
+          "no_control_write": true,
+          "no_receipt": true,
+          "refused": true
+        },
+        {
+          "control": "cgroup.freeze",
+          "no_receipt": true,
+          "refused": true
+        },
+        {
+          "control": "cgroup.kill",
+          "no_receipt": true,
+          "refused": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "component_only": true,
+  "constructor_replaced_by_public_fixture_initializer": true,
+  "fixture_source_sha256": "f6b6b31bc17dcdedc69fc584fa120b7957be139e478de78f307434bd33a7d3aa",
+  "live_attempts": 0,
+  "paid_calls": 0,
+  "passed": true,
+  "product_source_sha256": "84e08402458d86e33b4458c75e19d311385c8100bf3f89003c09535b7c91550e",
+  "production_admission": false,
+  "schema": 1,
+  "verification_date": "2026-11-01",
+  "synthetic_spending_owner": true,
+  "independent_absence": {
+    "owned_container_and_controller_absence": true,
+    "owned_slice_absence": true,
+    "attempt_grants_checked": 27,
+    "final_attempt_grants_checked": 9
+  }
+}

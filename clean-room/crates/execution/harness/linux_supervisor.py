@@ -41,6 +41,7 @@ from protected_spending_control import _decode, _no_acl
 from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
+
 MOUNT_TARGETS = {
     "goose": "/goose",
     "worker": "/factory/linux_worker.py",
@@ -369,7 +370,9 @@ def stage_launch_source(fd, source, destination, expected_sha256=None):
                 and info.st_uid == 0
                 and info.st_mode & 0o022 == 0
                 and _digest(expected_sha256)
-                and 0 < info.st_size <= (
+                and 0
+                < info.st_size
+                <= (
                     LINUX_GOOSE_BYTES
                     if expected_sha256 == LINUX_GOOSE_SHA256
                     else MAX_LAUNCH_FILE_BYTES
@@ -847,18 +850,11 @@ class RootSupervisor:
         case = self._case(attempt["attempt_id"])
         intent = _decode(protected(case / "prepare-intent.json", 0o600))
         require(intent["attempt"] == attempt, "root_close_attempt_changed")
-        entry = _decode(
-            protected(self.catalog / (attempt["attempt_id"] + ".json"), 0o600)
-        )
-        require(
-            entry["scope_sha256"] == body["scope_sha256"], "root_close_scope_changed"
-        )
         grant = _decode(protected(case / "grant.json", 0o600))
-        self.revoke({"grant": grant})
         require(
-            self.owner.revoke(body["scope_sha256"]) is None,
-            "root_owner_revocation_unknown",
+            self._saved_scope(grant) == body["scope_sha256"], "root_close_scope_changed"
         )
+        self.revoke({"grant": grant})
         return {"scope_sha256": body["scope_sha256"], "status": "closed"}
 
     def prepare(self, body):
@@ -914,6 +910,10 @@ class RootSupervisor:
             os.chown(runtime, grant["broker_uid"], grant["broker_uid"])
             os.mkdir(runtime / "work", 0o700)
             os.chown(runtime / "work", grant["broker_uid"], grant["broker_uid"])
+            store(
+                case / "owner-scope.json",
+                {"grant_sha256": sha(grant), "scope_sha256": entry["scope_sha256"]},
+            )
             store(case / "grant.json", grant)
             return grant
 
@@ -1236,12 +1236,14 @@ class RootSupervisor:
             "root_worker_changed",
         )
         if os.path.lexists(case / "finished.json"):
+            self._revoke_spending(grant)
             return _decode(protected(case / "finished.json", 0o600))
         with self.guard:
             if os.path.lexists(case / "stop.json") and os.path.lexists(
                 case / "cleanup.json"
             ):
                 self._kernel_scope(grant, empty=True)
+                self._revoke_spending(grant)
                 result = dict(
                     grant_sha256=sha(grant),
                     state="finished",
@@ -1281,6 +1283,7 @@ class RootSupervisor:
                     overflow=item["State"]["ExitCode"] == 125,
                 )
                 self._cleanup(grant)
+            self._revoke_spending(grant)
             store(case / "finished.json", result)
             return result
 
@@ -1293,8 +1296,51 @@ class RootSupervisor:
                 store(case / "stop.json", dict(grant_sha256=sha(grant)))
             except FileExistsError:
                 pass
-        self._cleanup(grant)
+        try:
+            self._cleanup(grant)
+        finally:
+            # Wallet or registry outage must never prevent the execution fence;
+            # a daemon outage must never skip spending revocation either.
+            self._revoke_spending(grant)
         return {"grant_sha256": sha(grant), "state": "stopped"}
+
+    def _saved_scope(self, grant):
+        case = self._saved(grant)
+        value = _decode(protected(case / "owner-scope.json", 0o600))
+        require(
+            type(value) is dict
+            and set(value) == {"grant_sha256", "scope_sha256"}
+            and value["grant_sha256"] == sha(grant)
+            and _digest(value["scope_sha256"]),
+            "root_saved_scope_changed",
+        )
+        return value["scope_sha256"]
+
+    def _revoke_spending(self, grant):
+        scope = self._saved_scope(grant)
+        case = self._saved(grant)
+        receipt = {
+            "grant_sha256": sha(grant),
+            "scope_sha256": scope,
+            "state": "revoked",
+        }
+        path = case / "owner-revoked.json"
+        if not os.path.lexists(path):
+            # Cleanup-only observers connect lazily, after the kernel fence.
+            owner = getattr(self, "owner", None)
+            if owner is None:
+                owner = RootOwnerClient(
+                    self.cfg["owner_socket"], self.cfg["owner_service_uid"]
+                )
+            require(owner.revoke(scope) is None, "root_owner_revocation_unknown")
+            try:
+                store(path, receipt)
+            except FileExistsError:
+                pass
+        require(
+            _decode(protected(path, 0o600)) == receipt,
+            "root_owner_revocation_receipt_changed",
+        )
 
     def reconcile(self, body):
         require(

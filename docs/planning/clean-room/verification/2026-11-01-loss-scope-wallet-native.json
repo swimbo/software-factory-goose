@@ -1,0 +1,65 @@
+{
+  "actual_bifrost_capture": false,
+  "binary_sha256": {
+    "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+    "runtime": "26ac1199ae8a663535f2784d2dc0ac6b88be4486d9dfd838a643989f9862f450"
+  },
+  "broker_to_independent_collector_rpc": true,
+  "candidate_enabled": false,
+  "caps_microusd": {
+    "permanent_task": 750000,
+    "utc_day": 5000000
+  },
+  "collector_provider_content_rejected": true,
+  "component": "real_wallet_and_private_custody_join",
+  "day_cap_denied_after_low_cost_settlement_and_restart": true,
+  "gateway_and_collector_money_roles_denied": true,
+  "journal_capture_and_broker_restart_preserved_outcomes": true,
+  "live_attempts": 0,
+  "lost_acquisition_ack_not_rearmed": true,
+  "opening_inventory_reset_denied": true,
+  "paid_calls": 0,
+  "production_admission": false,
+  "real_capture_sqlite": true,
+  "real_collector_wallet_settlement": true,
+  "real_durable_wallet": true,
+  "real_kernel_uids": true,
+  "revoked_reserved_call_denied_before_and_after_wallet_restart": true,
+  "roles": {
+    "broker": 2005,
+    "capture": 2008,
+    "collector": 2006,
+    "gateway": 2007,
+    "root": 0,
+    "wallet": 2004,
+    "worker": 2001
+  },
+  "schema": 1,
+  "settled_usage_rated_microusd": 2,
+  "source_sha256": {
+    "gateway_custody.py": "834dc880da4c537d4b65f1c1c144e9dd6750f9e25bdf8ecda2000d805de45ae3",
+    "linux_supervisor.py": "84e08402458d86e33b4458c75e19d311385c8100bf3f89003c09535b7c91550e",
+    "physical_settlement.py": "c5d97e78ccafcf2ea0a9ba76b39b4b83013bc6c5ffe0009f9c56df91e78e4009",
+    "physical_usage.py": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+    "protected_spending_control.py": "e7bcfe86a6241c23946012c8df68a757f356d552c145eaf944d94f45b1a8bbc4",
+    "usage_rating.py": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a",
+    "usage_spending.py": "89dfe5e2fd3462d4875d5edf354e7b3fd9c4324ee2a06cdb7e200916f083e606"
+  },
+  "successful_acquisition": {
+    "acquired": true,
+    "root_sha256": "7e83732fc615b994366a717ec20e02dfea1265b60e0ddff3656ca38966462567"
+  },
+  "supervisor_scope_revoked_despite_synthetic_daemon_failure": true,
+  "synthetic_execution_cleanup_fault": true,
+  "synthetic_physical_usage": true,
+  "synthetic_root_bootstrap_and_charge_bounds": true,
+  "worker_denied_before_http": true,
+  "verification_date": "2026-11-01",
+  "fixture_sha256": "f4683dded989cbd6c0f74c4fd580b97bd294f2a3a4a121c845d83cbd49b30214",
+  "independent_absence": {
+    "owned_container_and_controller_absence": true,
+    "owned_slice_absence": true,
+    "attempt_grants_checked": 27,
+    "final_attempt_grants_checked": 9
+  }
+}

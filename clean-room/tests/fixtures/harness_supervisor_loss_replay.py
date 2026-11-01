@@ -6,7 +6,8 @@ read-only Docker CLI/source and Docker Unix socket; workers have no capabilities
 network, provider credentials or evaluator mount. This deliberately supplies a
 single public fixture catalog instead of production RootSupervisor initialization.
 The actual watchdog, current-lease checks, strict Docker inspection and cleanup
-methods run unchanged. It does not establish production bootstrap/admission.
+methods run unchanged. Spending revocation uses an explicit synthetic owner;
+this fixture does not prove durable wallet acknowledgement. It does not establish production bootstrap/admission.
 """
 
 import argparse
@@ -129,6 +130,14 @@ def ticks(pid):
         return None
 
 
+class SyntheticOwner:
+    """No wallet or money authority is exercised by this cleanup fixture."""
+
+    def revoke(self, scope):
+        assert scope == "5" * 64
+        return None
+
+
 class FixtureSupervisor(product.RootSupervisor):
     """Only initialization and explicit daemon fault injection are fixture seams."""
 
@@ -142,6 +151,7 @@ class FixtureSupervisor(product.RootSupervisor):
         )
         self.recipe, self.slots = self.cfg["recipe"], self.cfg["slots"]
         self.guard = threading.Lock()
+        self.owner = SyntheticOwner()
 
     def _docker(self, *args, timeout=8):
         if self.cfg["fault"] == "daemon_unknown" and args[:2] == ("container", "ls"):
@@ -274,6 +284,13 @@ def setup(base, case_name):
     product.store(catalog / (identity + ".json"), entry)
     product.store(catalog / (identity + ".lease.json"), lease)
     product.store(saved / "grant.json", grant)
+    product.store(
+        saved / "owner-scope.json",
+        {
+            "grant_sha256": sha(grant),
+            "scope_sha256": "5" * 64,
+        },
+    )
     product.store(
         saved / "prepare-intent.json", dict(attempt=attempt, admission=admission)
     )

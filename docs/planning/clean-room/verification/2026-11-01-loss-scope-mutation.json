@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "mutation": "omit spending revocation from loss cleanup",
+  "test": "test_supervisor_loss.ScopeRevocationTests",
+  "mutation_rejected": true,
+  "returncode": 1,
+  "original_source_sha256": "994e13a8edb630fd81c66d3d644c1c86351325286b7693301caef72dc1d96362",
+  "red_before_implementation": "four original entrypoint cases failed because revoke omitted owner scope acknowledgement"
+}
