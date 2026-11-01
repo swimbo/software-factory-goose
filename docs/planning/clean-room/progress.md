@@ -631,3 +631,7 @@ Resumed from the published parser checkpoint. Seven parser tests and four existi
 ### Phase 11A actual chat decoder characterization — 2026-11-01
 
 The isolated composed Linux transport's actual chat decoder accepts the public auto-route fixture, retains provider resolution for routing plugins, and maps max_tokens128 to MaxCompletionTokens128. See verification/2026-11-01-gateway-chat-decoder.md. This source-only test does not implement private ingress, establish provider bounds or admit production. Live0/120, candidate off and caps unchanged.
+
+### Phase 11A chat decoder adapter checkpoint — 2026-11-01
+
+A source-only gateway adapter validates the frozen envelope before invoking Bifrost's existing chat decoder. Two new fixture cases and the existing protocol/governed semantic-embedding tests pass on the composed Linux stage; test-first missing-symbol failure was observed. Published Bifrost checkpoint `76e71ae` is in progress: dedicated source review, source installer, private listener, owner acquisition, capture closure, provider charge bounds and launch gates remain open. No hosted calls; live0/120, candidate disabled, caps unchanged.
