@@ -1,0 +1,7 @@
+# Joined wallet reservation-cap checks
+
+The isolated wallet/Root/broker/Bifrost fixture now tests the existing wallet limits independently using synthetic opening inventory and synthetic route bounds. The opening task reservation is 649,999 microusd and the opening UTC-day reservation is 4,149,998. A completed synthetic exchange reserves 100,001, taking the task to its 750,000 limit while leaving daily headroom. A subsequent reservation on that task is denied. A second task then reserves 750,000 as a positive control, leaving one microusd of daily headroom; a third task's two-microusd reservation is denied while its own task limit has room.
+
+The [native receipt](2026-11-01-joined-cap-native.json) comes from the real durable journal and protected broker in a fresh network-none fixture. An independent read found one sealed complete capture and audit, and the exact owned container was absent after exit. The wallet's 13 Rust spending tests passed, including cross-day task totals, cross-task daily totals and no refund after unknown dispatch. The fixture lint and an independent source review passed.
+
+These checks demonstrate reservation-ledger enforcement under synthetic inputs. They do not prove that the reviewed reservation covers all actual provider input, output, retry or fee charges, nor do they authorize production startup or benchmark dispatch. No paid calls or candidate activation occurred; benchmark attempts remain 0/120.

@@ -12,6 +12,7 @@ not Root constructor, production bootstrap, admission, or budget qualification.
 
 import argparse
 import contextlib
+import copy
 import hashlib
 import json
 import os
@@ -33,6 +34,8 @@ ROOT_SOCKET = base.PREFIX + "/root/socket/service.sock"
 EXCHANGE = base.PREFIX + "/exchange/socket/service.sock"
 TASK = "01K00000000000000000000001"
 GENERATION = "01K00000000000000000000000"
+DAY_FILL_TASK = "01K00000000000000000000002"
+DAY_OVERFLOW_TASK = "01K00000000000000000000003"
 ATTEMPT = "run_" + "1" * 64
 ROUTE = "e" * 64
 REVIEW = "f" * 64
@@ -273,8 +276,9 @@ def inside():
         bootstrap = {"owner": base.OWNER, "policy_sha256": "a" * 64,
                      "predecessor_fence_sha256": "b" * 64, "inventory_sha256": "c" * 64,
                      "observed_at_ms": now, "approved_daily_cap_microusd": 5_000_000,
-                     "daily_cap_microusd": 5_000_000, "opening_tasks": {TASK: 0},
-                     "opening_days": {str(now // 86_400_000): 0}, "scopes": []}
+                     "daily_cap_microusd": 5_000_000,
+                     "opening_tasks": {TASK: 649_999, DAY_FILL_TASK: 0, DAY_OVERFLOW_TASK: 0},
+                     "opening_days": {str(now // 86_400_000): 4_149_998}, "scopes": []}
         base.require(base.post(base.WALLET, "initialize", bootstrap)[0] == 200, "wallet initialize failed")
         scope = {"task": TASK, "attempt": 1, "generation": GENERATION, "worker": "worker",
                  "lease_sha256": "d" * 64, "issued_at_ms": now, "expires_at_ms": scope_expiry,
@@ -340,6 +344,26 @@ def inside():
         base.require(processes["gateway"].wait(timeout=10) == 0, "Bifrost gateway exit failed")
         base.require(base.actor(2005, lambda: base.post(base.WALLET, "begin", call))[0] == 409,
                      "wallet allowed repeated begin")
+        next_call = call | {"call_id": "task-over-cap", "sequence": 1}
+        base.require(base.actor(2005, lambda: base.post(base.WALLET, "reserve", next_call)) == [200, "Denied"],
+                     "permanent task cap did not deny with daily budget remaining")
+
+        def admit_test_scope(task, amount):
+            item = copy.deepcopy(scope)
+            item["task"] = task
+            item["route"]["components"] = [{"id": "answer", "max_charge_microusd": amount}]
+            code, identity = base.post(base.WALLET, "admit_attempt", item)
+            base.require(code == 200 and identity == factory_scope_digest(item), "test scope admission failed")
+            return identity
+
+        fill_scope = admit_test_scope(DAY_FILL_TASK, 750_000)
+        fill_call = call | {"call_id": "daily-fill", "scope_sha256": fill_scope, "sequence": 0}
+        base.require(base.actor(2005, lambda: base.post(base.WALLET, "reserve", fill_call)) == [200, "Reserved"],
+                     "daily positive-control reservation failed")
+        overflow_scope = admit_test_scope(DAY_OVERFLOW_TASK, 2)
+        overflow_call = call | {"call_id": "daily-over-cap", "scope_sha256": overflow_scope, "sequence": 0}
+        base.require(base.actor(2005, lambda: base.post(base.WALLET, "reserve", overflow_call)) == [200, "Denied"],
+                     "daily cap did not deny a task below its own limit")
         base.require(base.observed_open(binding), "SQLite capture root missing")
         with sqlite3.connect(base.DATABASE, timeout=1) as db:
             rows = db.execute("SELECT binding, closure, audit FROM roots").fetchall()
@@ -367,6 +391,8 @@ def inside():
                               "real_broker_and_capture": True, "actual_bifrost_handler": True,
                               "provider_authorizer_route_and_charge_bounds_synthetic": True,
                               "wallet_begin_replay_after_completion_denied": True,
+                              "task_cap_denied_with_daily_headroom": True,
+                              "daily_cap_denied_with_task_headroom": True,
                               "altered_root_scope_denied": True, "worker_root_socket_denied": True,
                               "settled_usage_rated_microusd": result["settlement"]["usage_rated_microusd"],
                               "root_lease_deadline_observed": True, "paid_calls": 0,
