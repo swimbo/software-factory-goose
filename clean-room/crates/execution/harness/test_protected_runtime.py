@@ -7,6 +7,7 @@ import unittest
 import threading
 import time
 import platform
+import sys
 import os
 from unittest.mock import patch
 from types import SimpleNamespace
@@ -173,6 +174,52 @@ class ProtectedRuntime(unittest.TestCase):
         result = run_bounded(["/bin/sleep", "2"], cwd="/", env={}, timeout=0.05)
         self.assertTrue(result["timed_out"])
         self.assertNotEqual(result["exit_code"], 0)
+
+    @unittest.skipUnless(
+        sys.platform == "darwin" and platform.machine() == "arm64",
+        "requires Darwin zombie-led process-group semantics",
+    )
+    def test_leader_exit_between_ownership_check_and_signal_is_reobserved(self):
+        import time
+        from unittest.mock import patch
+        import protected_goose_runtime as runtime
+
+        with tempfile.TemporaryDirectory() as temporary:
+            release = Path(temporary) / "release"
+            command = (
+                "import pathlib,time; p=pathlib.Path("
+                + repr(str(release))
+                + ");\nwhile not p.exists(): time.sleep(0.005)\n"
+            )
+            observe = runtime._owned_exited
+            observations = []
+
+            def exit_after_observation(pid):
+                observed = observe(pid)
+                observations.append(observed)
+                if len(observations) == 1:
+                    self.assertFalse(observed)
+                    release.write_text("public fixture release")
+                    deadline = time.monotonic() + 3
+                    while not observe(pid):
+                        self.assertLess(time.monotonic(), deadline)
+                        time.sleep(0.005)
+                    # Return the true earlier observation; the child naturally
+                    # exited during the real check-to-signal race window.
+                return observed
+
+            with patch.object(
+                runtime, "_owned_exited", side_effect=exit_after_observation
+            ):
+                result = runtime.run_bounded(
+                    [sys.executable, "-I", "-B", "-c", command],
+                    cwd="/",
+                    env={},
+                    timeout=0.02,
+                )
+            self.assertEqual(observations, [False, True])
+            self.assertTrue(result["timed_out"])
+            self.assertEqual(result["stdout"], b"")
 
     def test_equivalent_goose_argument_serialization_preserves_exact_transcript_authority(
         self,

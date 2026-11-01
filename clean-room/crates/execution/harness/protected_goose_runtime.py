@@ -260,15 +260,15 @@ def run_bounded(argv, *, cwd, env, input_bytes=b"", timeout=30):
         selector.close()
         # Non-reaping kernel observation verifies ownership even for an exited
         # leader. Darwin returns EPERM for an empty zombie-led group.
-        exited = _owned_exited(process.pid)
+        _owned_exited(process.pid)
         try:
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
         except PermissionError:
             if (
-                not exited
-                or platform.system() != "Darwin"
+                platform.system() != "Darwin"
+                or not _owned_exited(process.pid)
                 or _darwin_group_members(process.pid) - {process.pid}
             ):
                 raise Denied("process_cleanup_unverified") from None

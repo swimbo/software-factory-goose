@@ -1,0 +1,19 @@
+{
+  "status": "complete",
+  "mode": "pipeline",
+  "independent_personas": {
+    "reuse": "No worthwhile findings",
+    "quality": "No worthwhile findings",
+    "efficiency": "No worthwhile findings",
+    "test-value": "No worthwhile findings",
+    "comments": "No worthwhile findings"
+  },
+  "applied": 0,
+  "source_mutations": false,
+  "verification": "test-value reviewer ran six focused tests successfully; parent canonical full suite 207 run/201 passed/6 skipped and Ruff pass",
+  "source_hashes": {
+    "clean-room/crates/execution/harness/protected_goose_runtime.py": "80440c272dbfb24546e26e5bf263e68d082281384dcc7b338ea6e53884555de3",
+    "clean-room/crates/execution/harness/test_guard_runtime.py": "632ddd0a24aea8af41b07a50842ea59759ac1948fad2d57cd0c6d0b0b58736f2",
+    "clean-room/crates/execution/harness/test_protected_runtime.py": "ff5187cb2bc1885fd4d6b04c0f33725d7b452461fdead0a5e7a275a217b6de5d"
+  }
+}

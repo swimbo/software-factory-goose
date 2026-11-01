@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "verification_date": "2026-11-01",
+  "runtime": "3.11.6",
+  "platform": "Darwin",
+  "machine": "arm64",
+  "real_child_and_kernel": true,
+  "real_waitid_nonreaping": true,
+  "real_killpg_permission_error": true,
+  "real_group_membership_query": true,
+  "red_old_code": "owned observation false, child naturally exited before signal, process_cleanup_unverified raised",
+  "green_owned_observations": [
+    false,
+    true
+  ],
+  "timeout_retained": true,
+  "output_bytes": 0,
+  "signal_retry": false,
+  "initial_ownership_check_retained": true,
+  "native_test": "test_protected_runtime.ProtectedRuntime.test_leader_exit_between_ownership_check_and_signal_is_reobserved",
+  "source_sha256": {
+    "clean-room/crates/execution/harness/protected_goose_runtime.py": "80440c272dbfb24546e26e5bf263e68d082281384dcc7b338ea6e53884555de3",
+    "clean-room/crates/execution/harness/test_protected_runtime.py": "ff5187cb2bc1885fd4d6b04c0f33725d7b452461fdead0a5e7a275a217b6de5d"
+  },
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "candidate_enabled": false
+}
