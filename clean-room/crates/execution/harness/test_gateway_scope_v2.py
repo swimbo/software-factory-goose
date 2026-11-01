@@ -49,7 +49,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
 
     def test_v2_exact_one_use_ack_and_version_separation(self):
         scope, root, call, authority, begin, opened = self.fixture()
-        authority.arm_v2(root, call, scope)
+        authority.arm_v2(root, call, scope, 1000)
         request = {"binding": root, "call": call}
         with self.assertRaises(ControlRefused):
             authority.acquire(2007, request)
@@ -59,6 +59,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
             "root_sha256": payload_sha256(root),
             "acquired": True,
             "scope": scope,
+            "root_deadline_ms": 1000,
         }
         self.assertEqual(authority.acquire_v2(2007, request), expected)
         with self.assertRaises(ControlRefused):
@@ -68,7 +69,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
     def test_scope_snapshot_is_copied_and_only_gateway_uid_may_acquire(self):
         scope, root, call, authority, begin, _ = self.fixture()
         original = copy.deepcopy(scope)
-        authority.arm_v2(root, call, scope)
+        authority.arm_v2(root, call, scope, 1000)
         scope["worker"] = "changed"
         with self.assertRaises(ControlRefused):
             authority.acquire_v2(2001, {"binding": root, "call": call})
@@ -79,13 +80,21 @@ class GatewayScopeV2Tests(unittest.TestCase):
     def test_unknown_ack_never_rearms_or_retries_begin(self):
         scope, root, call, authority, begin, opened = self.fixture()
         opened.side_effect = OSError("lost public fixture acknowledgement")
-        authority.arm_v2(root, call, scope)
+        authority.arm_v2(root, call, scope, 1000)
         for _ in range(2):
             with self.assertRaises(ControlRefused):
                 authority.acquire_v2(2007, {"binding": root, "call": call})
         with self.assertRaises(ControlRefused):
-            authority.arm_v2(root, call, scope)
+            authority.arm_v2(root, call, scope, 1000)
         self.assertEqual((begin.call_count, opened.call_count), (1, 1))
+
+    def test_invalid_or_extended_root_deadline_never_arms(self):
+        for deadline in (True, 0, -1, 172800001):
+            scope, root, call, authority, begin, opened = self.fixture()
+            with self.subTest(deadline=deadline), self.assertRaises(ControlRefused):
+                authority.arm_v2(root, call, scope, deadline)
+            self.assertEqual(authority.roots, {})
+            self.assertEqual((begin.call_count, opened.call_count), (0, 0))
 
     def test_v1_armed_root_cannot_be_acquired_as_v2(self):
         _, root, call, authority, begin, _ = self.fixture()
@@ -102,7 +111,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
             scope | {"route": scope["route"] | {"usage_tariff_sha256": "0" * 64}},
         ):
             with self.subTest(value=value), self.assertRaises(ControlRefused):
-                authority.arm_v2(root, call, value)
+                authority.arm_v2(root, call, value, 1000)
         self.assertEqual(authority.roots, {})
         self.assertEqual((begin.call_count, opened.call_count), (0, 0))
 
@@ -111,7 +120,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
         for field in ("route_sha256", "tariff_sha256"):
             changed = root | {field: "0" * 64}
             with self.subTest(field=field), self.assertRaises(ControlRefused):
-                authority.arm_v2(changed, call, scope)
+                authority.arm_v2(changed, call, scope, 1000)
         self.assertEqual(authority.roots, {})
         self.assertEqual((begin.call_count, opened.call_count), (0, 0))
 
@@ -146,6 +155,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 "schema": 2,
                 "scope_sha256": root["scope_sha256"],
                 "scope": scope,
+                "root_deadline_ms": 1000,
             }
         )
         client = object.__new__(PrivateGatewayClient)
@@ -159,6 +169,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 2007, {"binding": frame["binding"], "call": frame["call"]}
             )
             self.assertEqual(ack["scope"], scope)
+            self.assertEqual(ack["root_deadline_ms"], 1000)
             return {
                 k: call[k] for k in ("call_id", "scope_sha256", "request_sha256")
             } | {

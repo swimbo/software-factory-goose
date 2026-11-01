@@ -200,14 +200,18 @@ class ProtectedGatewayTransport:
                 {"attempt": attempt, "scope_sha256": call["scope_sha256"]},
             )
             require(
-                _keys(preimage, ("schema", "scope_sha256", "scope"))
+                _keys(
+                    preimage, ("schema", "scope_sha256", "scope", "root_deadline_ms")
+                )
                 and preimage["schema"] == 2
                 and type(preimage["schema"]) is int
                 and preimage["scope_sha256"] == call["scope_sha256"]
                 and type(preimage["scope"]) is dict,
                 "gateway_scope_changed",
             )
-            self.acquisition.arm_v2(root, copy.deepcopy(call), preimage["scope"])
+            self.acquisition.arm_v2(
+                root, copy.deepcopy(call), preimage["scope"], preimage["root_deadline_ms"]
+            )
         return self.client.exchange(
             root, copy.deepcopy(call), copy.deepcopy(request), expiry
         )

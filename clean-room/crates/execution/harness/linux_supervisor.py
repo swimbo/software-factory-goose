@@ -932,12 +932,21 @@ class RootSupervisor:
             require(intent["attempt"] == attempt, "root_scope_preimage_changed")
             grant = _decode(protected(case / "grant.json", 0o600))
             self._current(grant)
-            entry, _ = self._catalog(attempt, intent["admission"])
+            entry, lease = self._catalog(attempt, intent["admission"])
             expected = body["scope_sha256"]
             route = entry["scope"]["route"]
             now = time.time_ns() // 1000000
+            deadline = min(
+                grant["expires_at_ms"],
+                lease["expires_at_ms"],
+                entry["control_grant"]["expires_at_ms"],
+                entry["scope"]["expires_at_ms"],
+                route["valid_until_ms"],
+            )
             require(
-                not os.path.lexists(case / "owner-revoked.json")
+                type(deadline) is int
+                and now < deadline
+                and not os.path.lexists(case / "owner-revoked.json")
                 and not os.path.lexists(case / "finished.json")
                 and route["valid_from_ms"] <= now < route["valid_until_ms"]
                 and self._saved_scope(grant) == expected
@@ -949,6 +958,7 @@ class RootSupervisor:
                 "schema": 2,
                 "scope_sha256": expected,
                 "scope": copy.deepcopy(entry["scope"]),
+                "root_deadline_ms": deadline,
             }
 
     def authorize_tool(self, body):

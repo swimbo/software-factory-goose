@@ -110,14 +110,18 @@ class GatewayAcquisitionAuthority:
             )
             self.roots[key] = [copy.deepcopy(root), copy.deepcopy(call), "armed"]
 
-    def arm_v2(self, binding, call, scope):
-        # The broker supplies a Root-authenticated preimage. This check adds no
-        # spending authority; the gateway independently verifies the same hash.
+    def arm_v2(self, binding, call, scope, root_deadline_ms):
+        # The authenticated broker must relay Root's deadline honestly; it is a
+        # snapshot, not a signature or a live revocation channel. This adds no
+        # spending authority; the gateway independently verifies the scope hash.
         from linux_supervisor import factory_scope_digest
 
         try:
             require(
                 type(scope) is dict
+                and type(root_deadline_ms) is int
+                and 0 < root_deadline_ms
+                <= min(scope["expires_at_ms"], scope["route"]["valid_until_ms"])
                 and factory_scope_digest(scope) == binding["scope_sha256"]
                 and scope["route"]["route_sha256"] == binding["route_sha256"]
                 and scope["route"].get("usage_tariff_sha256")
@@ -129,7 +133,9 @@ class GatewayAcquisitionAuthority:
             raise ControlRefused("gateway_scope_changed") from None
         with self.lock:
             self.arm(binding, call)
-            self.roots[payload_sha256(binding)].append(copy.deepcopy(scope))
+            self.roots[payload_sha256(binding)].extend(
+                (copy.deepcopy(scope), root_deadline_ms)
+            )
 
     def acquire(self, uid, body):
         return self._acquire(uid, body, version=1)
@@ -153,7 +159,7 @@ class GatewayAcquisitionAuthority:
                 and state[0] == body["binding"]
                 and state[1] == body["call"]
                 and state[2] == "armed"
-                and len(state) == (3 if version == 1 else 4),
+                and len(state) == (3 if version == 1 else 5),
                 "gateway_root_unavailable",
             )
             state[2] = "unknown"
@@ -173,7 +179,9 @@ class GatewayAcquisitionAuthority:
             state[2] = "acquired"
             result = {"root_sha256": key, "acquired": True}
             if version == 2:
-                result.update(schema=2, scope=copy.deepcopy(state[3]))
+                result.update(
+                    schema=2, scope=copy.deepcopy(state[3]), root_deadline_ms=state[4]
+                )
             return result
 
     def dispatch(self, uid, method, body):

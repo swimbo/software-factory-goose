@@ -110,7 +110,7 @@ class ScopePreimageTests(unittest.TestCase):
         scope = legacy_scope()
         digest = product.factory_scope_digest(scope)
         attempt = {"attempt_id": "run_" + "a" * 64}
-        grant = {"attempt_id": attempt["attempt_id"], "public": "grant"}
+        grant = {"attempt_id": attempt["attempt_id"], "public": "grant", "expires_at_ms": 1000}
         admission = {"status": "allowed"}
         with tempfile.TemporaryDirectory() as directory:
             case = Path(directory)
@@ -123,7 +123,7 @@ class ScopePreimageTests(unittest.TestCase):
             backend._current = Mock(return_value=case)
             backend._saved_scope = Mock(return_value=digest)
             backend._catalog = Mock(
-                return_value=({"scope": scope, "scope_sha256": digest}, {})
+                return_value=({"scope": scope, "scope_sha256": digest, "control_grant": {"expires_at_ms": 2000}}, {"expires_at_ms": 500})
             )
             backend.owner = Mock()
             backend.gate = type(
@@ -142,8 +142,19 @@ class ScopePreimageTests(unittest.TestCase):
                     {"attempt": attempt, "scope_sha256": digest}
                 )
                 self.assertEqual(
-                    reply, {"schema": 2, "scope_sha256": digest, "scope": scope}
+                    reply, {"schema": 2, "scope_sha256": digest, "scope": scope, "root_deadline_ms": 500}
                 )
+                backend._catalog.return_value[1]["expires_at_ms"] = 750
+                self.assertEqual(backend.scope_preimage_v2({"attempt": attempt, "scope_sha256": digest})["root_deadline_ms"], 750)
+                backend._catalog.return_value[1]["expires_at_ms"] = 1500
+                self.assertEqual(backend.scope_preimage_v2({"attempt": attempt, "scope_sha256": digest})["root_deadline_ms"], 1000)
+                backend._catalog.return_value[0]["control_grant"]["expires_at_ms"] = 300
+                self.assertEqual(backend.scope_preimage_v2({"attempt": attempt, "scope_sha256": digest})["root_deadline_ms"], 300)
+                backend._catalog.return_value[0]["control_grant"]["expires_at_ms"] = 2000
+                backend._catalog.return_value[1]["expires_at_ms"] = 100
+                with self.assertRaises(product.SupervisorRefused):
+                    backend.scope_preimage_v2({"attempt": attempt, "scope_sha256": digest})
+                backend._catalog.return_value[1]["expires_at_ms"] = 500
                 reply["scope"]["worker"] = "changed"
                 self.assertEqual(scope["worker"], "worker")
                 for marker in ("owner-revoked.json", "finished.json"):
@@ -177,7 +188,7 @@ class ScopePreimageTests(unittest.TestCase):
                         },
                         "scope_sha256": digest,
                     },
-                    {"attempt": attempt, "scope_sha256": digest, "extra": 1},
+                    {"attempt": attempt, "scope_sha256": digest, "root_deadline_ms": 99999999},
                 ):
                     with self.assertRaises(product.SupervisorRefused):
                         backend.scope_preimage_v2(body)
@@ -188,16 +199,16 @@ class ScopePreimageTests(unittest.TestCase):
                     )
                 backend._saved_scope.return_value = digest
                 backend._catalog.return_value = (
-                    {"scope": scope | {"worker": "other"}, "scope_sha256": digest},
-                    {},
+                    {"scope": scope | {"worker": "other"}, "scope_sha256": digest, "control_grant": {"expires_at_ms": 2000}},
+                    {"expires_at_ms": 500},
                 )
                 with self.assertRaises(product.SupervisorRefused):
                     backend.scope_preimage_v2(
                         {"attempt": attempt, "scope_sha256": digest}
                     )
                 backend._catalog.return_value = (
-                    {"scope": scope, "scope_sha256": digest},
-                    {},
+                    {"scope": scope, "scope_sha256": digest, "control_grant": {"expires_at_ms": 2000}},
+                    {"expires_at_ms": 500},
                 )
                 backend._current.side_effect = product.SupervisorRefused("expired")
                 with self.assertRaises(product.SupervisorRefused):
