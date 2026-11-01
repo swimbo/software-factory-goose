@@ -1,0 +1,81 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No actionable defects found in the reviewed native fixture. This source-only verdict does not qualify production integration or Phase 11A.",
+  "scope": {
+    "base": "a3869c5",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "a3869c53541e8674f450a85794bc617366c5e56a",
+    "pr_url": null,
+    "files_changed": 1,
+    "files": [
+      "engine/transport/factory_gateway_actual_handler_native_test.go"
+    ],
+    "source_sha256": {
+      "engine/transport/factory_gateway_actual_handler_native_test.go": "89c3a274f66abf28246a5eb9aea8baf744b12f4f404c0a64c1df2f5c0969724a"
+    }
+  },
+  "intent": "Exercise distinct-UID private exchange through the actual Bifrost handler/core/local provider transport, concrete owner and capture clients, with synthetic route, authorization and services. No production qualification is claimed.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "testing",
+    "security",
+    "reliability",
+    "adversarial",
+    "maintainability"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "The fixture uses synthetic routing, provider, authorizer and broker/capture services; the services neither authenticate the gateway peer nor persist a real wallet ledger. It does not qualify production governance, durable custody or provider charge bounds.",
+    "Network isolation, capability limits, process boundary and exact teardown are supplied by the external launcher; on early failure the Go test does not join every child. Production watchdog and descendant cleanup remain unqualified.",
+    "The native fixture binary was not race-instrumented; prior component race tests cover narrower paths.",
+    "The fixture depends on normalizationHTTPAccount from the normalization test source; the composed installer must continue to include that test source."
+  ],
+  "testing_gaps": [
+    "The positive fixture does not test denial under provider, owner or capture failure, or distinct-UID unauthorized peers in the joined path.",
+    "The fixture covers one synthetic answer route, not production middleware configuration, classifier, embedding, fallback, retries, daemon/host loss or recovery."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Native fixture uses synthetic broker/capture ACKs; these servers do not verify gateway peer identity.",
+      "The external container launcher, not the Go test alone, establishes network isolation and exact teardown.",
+      "The native binary is not race instrumented.",
+      "The runtime fixture did not exercise production routing, real wallet, provider charge bounds or watchdog.",
+      "Parent inspected success logs and exact container absence; reviewers did not rerun native fixture.",
+      "External model egress prohibited by caller; in-process adversarial review completed.",
+      "Settlement suppression was not evaluated because no plan was selected."
+    ],
+    "validation": {
+      "outcome": "empty-batch",
+      "reason": "No findings selected for validation.",
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0,
+    "failed_reviewers": [],
+    "project_standards": "Not run; no applicable tracked standards found.",
+    "qualification": "Parent inspected the success logs and independently verified exact container absence with Docker reachable. Reviewers did not rerun the native fixture."
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "External model egress prohibited by caller; in-process adversarial review completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/actual-join-4iyizF4a",
+  "run_id": "actual-join-4iyizF4a"
+}
