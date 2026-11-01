@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "source_manifest_sha256": "e771666daf592836b7e03e7507be4096ba62360ffec6e42f652e187033356a34",
+  "source_files": 1894,
+  "source_sha256": {
+    "transports/bifrost-http/server/factory_gateway_protocol.go": "adc8f44509f21723cdc02cc3e5251f78152c22ff3593507ece00eda938111ded",
+    "transports/bifrost-http/server/factory_gateway_protocol_test.go": "7d5c51d34aaf1a350f4ae8791a8af7339c899a5d38b7915fd7647c259d009449",
+    "transports/bifrost-http/server/testdata/factory_gateway_python_frame.json": "2d6fcde543e2e752c734daaca98caa476fdb25b6ff94768e67cb08756241a51b"
+  },
+  "native_tests": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p",
+      "2",
+      "-v",
+      "-run",
+      "^(TestFactoryGatewayProtocol.*|TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup|TestEmbeddingQualificationRequiresExactTypedCapabilities|TestNativeIngressProfileUsesEffectiveWireCap|TestNativeIngressProfileExplicitAndBounded)$",
+      "-count=1",
+      "-timeout=45s",
+      "./bifrost-http/server"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 6.936391512397677,
+    "source_only": true,
+    "hosted_provider_calls": 0,
+    "production_admission": false
+  },
+  "native_test_log": "=== RUN   TestFactoryGatewayProtocolPreservesPythonRequestBytes\n--- PASS: TestFactoryGatewayProtocolPreservesPythonRequestBytes (0.00s)\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/overflow\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/duplicate-nested\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/wrong-owner\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/changed-request\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/sequence-null\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/trailing\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/escaped-duplicate\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/unknown-call\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/call-size\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/expired\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/invalid-utf8\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/duplicate-envelope\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/sequence-overflow\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/unknown-envelope\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/case-alias\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/beyond-lease\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/beyond-180s\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/route\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/tariff\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/attempt\n=== RUN   TestFactoryGatewayProtocolRejectsUnboundFrames/output\n--- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/overflow (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/duplicate-nested (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/wrong-owner (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/changed-request (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/sequence-null (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/trailing (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/escaped-duplicate (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/unknown-call (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/call-size (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/expired (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/invalid-utf8 (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/duplicate-envelope (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/sequence-overflow (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/unknown-envelope (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/case-alias (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/beyond-lease (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/beyond-180s (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/route (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/tariff (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/attempt (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsUnboundFrames/output (0.00s)\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/messages-null\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/unknown\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-null\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/messages-object\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/top-p\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/parallel\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/usage-extra\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/model\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/stream\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/tools-null\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/output\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/fractional-output\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/negative-output\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-string\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-high\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/choice\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/usage-false\n=== RUN   TestFactoryGatewayProtocolRejectsMalformedBoundRequests/request-overflow\n--- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/messages-null (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/unknown (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-null (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/messages-object (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/top-p (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/parallel (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/usage-extra (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/model (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/stream (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/tools-null (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/output (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/fractional-output (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/negative-output (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-string (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/temperature-high (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/choice (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/usage-false (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/request-overflow (0.00s)\n=== RUN   TestFactoryGatewayProtocolHonorsAbsoluteDeadlineBounds\n--- PASS: TestFactoryGatewayProtocolHonorsAbsoluteDeadlineBounds (0.00s)\n=== RUN   TestFactoryGatewayProtocolRejectsDuplicateBoundRequests\n=== RUN   TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/literal\n=== RUN   TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/escaped\n=== RUN   TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/nested\n--- PASS: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/literal (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/escaped (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/nested (0.00s)\n=== RUN   TestFactoryGatewayProtocolRejectsChangedContent\n--- PASS: TestFactoryGatewayProtocolRejectsChangedContent (0.00s)\n=== RUN   TestFactoryGatewayProtocolRejectsCallBindingMismatch\n=== RUN   TestFactoryGatewayProtocolRejectsCallBindingMismatch/call_id\n=== RUN   TestFactoryGatewayProtocolRejectsCallBindingMismatch/scope_sha256\n=== RUN   TestFactoryGatewayProtocolRejectsCallBindingMismatch/request_sha256\n--- PASS: TestFactoryGatewayProtocolRejectsCallBindingMismatch (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsCallBindingMismatch/call_id (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsCallBindingMismatch/scope_sha256 (0.00s)\n    --- PASS: TestFactoryGatewayProtocolRejectsCallBindingMismatch/request_sha256 (0.00s)\n=== RUN   TestNativeIngressProfileUsesEffectiveWireCap\n--- PASS: TestNativeIngressProfileUsesEffectiveWireCap (0.00s)\n=== RUN   TestNativeIngressProfileExplicitAndBounded\n--- PASS: TestNativeIngressProfileExplicitAndBounded (0.00s)\n=== RUN   TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup\n--- PASS: TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup (0.38s)\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/unpaid\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/missing\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/duplicate\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongmodel\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongapi\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminhash\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminenv\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminidentity\n--- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/unpaid (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/missing (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/duplicate (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongmodel (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongapi (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminhash (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminenv (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminidentity (0.00s)\nPASS\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.416s\n",
+  "mutations": [
+    {
+      "schema": 1,
+      "source_sha256": "adc8f44509f21723cdc02cc3e5251f78152c22ff3593507ece00eda938111ded",
+      "source_unchanged": true,
+      "mutations": [
+        {
+          "name": "digest",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsChangedContent (0.00s)"
+          ]
+        },
+        {
+          "name": "duplicates",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames/duplicate-envelope (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/literal (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/escaped (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsDuplicateBoundRequests/nested (0.00s)"
+          ]
+        },
+        {
+          "name": "route",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames/route (0.00s)"
+          ]
+        },
+        {
+          "name": "lease",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames/beyond-lease (0.00s)"
+          ]
+        },
+        {
+          "name": "utc-day",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolHonorsAbsoluteDeadlineBounds (0.00s)"
+          ]
+        },
+        {
+          "name": "request-cap",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsMalformedBoundRequests (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsMalformedBoundRequests/request-overflow (0.00s)"
+          ]
+        },
+        {
+          "name": "output-cap",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsUnboundFrames/output (0.00s)"
+          ]
+        }
+      ],
+      "hosted_provider_calls": 0,
+      "candidate_enabled": false
+    },
+    {
+      "schema": 1,
+      "source_sha256": "adc8f44509f21723cdc02cc3e5251f78152c22ff3593507ece00eda938111ded",
+      "source_unchanged": true,
+      "mutations": [
+        {
+          "name": "call-id",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch/call_id (0.00s)"
+          ]
+        },
+        {
+          "name": "call-scope",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch/scope_sha256 (0.00s)"
+          ]
+        },
+        {
+          "name": "call-request",
+          "exit_code": 1,
+          "behaviorally_rejected": true,
+          "failures": [
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch (0.00s)",
+            "--- FAIL: TestFactoryGatewayProtocolRejectsCallBindingMismatch/request_sha256 (0.00s)"
+          ]
+        }
+      ],
+      "hosted_provider_calls": 0,
+      "candidate_enabled": false
+    }
+  ],
+  "initial_surviving_mutant": {
+    "name": "digest",
+    "survived": true,
+    "later_rejected_by": "TestFactoryGatewayProtocolRejectsChangedContent",
+    "log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.032s\n"
+  },
+  "retained_remote_stage": "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91",
+  "candidate_enabled": false,
+  "live_attempts": 0,
+  "daily_cap_usd": 5,
+  "permanent_task_cap_usd": 0.75,
+  "production_admission": false,
+  "source_review": {
+    "status": "complete",
+    "run_id": "20261101-gateway-protocol",
+    "findings": 0,
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "api-contract",
+      "reliability",
+      "adversarial"
+    ]
+  },
+  "simplification": {
+    "review_passes": 5,
+    "final_source_edits": 0,
+    "test_value_gap": "Rebound duplicate cases added by parent after the review; original proof tests retained.",
+    "source": "Completed gateway_protocol_simplify agent messages before the pause; no persisted simplification receipt was found.",
+    "efficiency_suggestion": "Allowed-field map retained; no measured material benefit established for switch replacement."
+  }
+}

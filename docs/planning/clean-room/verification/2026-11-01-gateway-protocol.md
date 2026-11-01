@@ -1,0 +1,11 @@
+# Factory gateway protocol component
+
+The Linux-only parser and public Python frame are source artifacts for the pending private gateway ingress. They are not installed by the current source installers and do not create a listener, acquire spending authority or execute Bifrost. Stage the Go files into the composed transport server package and the JSON frame into that package's testdata directory for component verification. Production integration and admission remain required.
+
+The parser checks exact envelope/binding/call fields, recursive duplicate keys, UTF-8 and bounded JSON depth/bytes, the frozen owner/attempt/route/tariff, call equality, request digest/size, supported request options, output limits, current lease,180-second deadline and reserved UTC-day boundary. Raw nested request bytes are retained: Go reserialization differs from Python on HTML and Unicode line/paragraph separators. The real compatible request decoder and owner-root lifecycle must be connected by the future ingress; parsing alone grants no authority.
+
+On2026-11-01, seven parser tests and four existing governed semantic-embedding/native-HTTP test groups passed in the composed Go1.27.2 Linux stage with public fixtures only. A digest-check mutant initially survived because another validation masked the missing guard. A same-size content substitution now detects it. The ten independently rejected overlay mutants cover digest, recursive duplicates, route, lease, UTC day, request cap, output cap and the three call-to-binding equalities. Disk production source remained unchanged during mutation tests. Dedicated review evidence is retained with the factory's Phase11A verification artifacts.
+
+No hosted provider inference or production activation occurred. Live paired attempts remain0/120; candidate disabled; $5 UTC-day/$0.75 permanent-task caps unchanged. The actual private handler, protected startup/route binding, semantic startup ownership, joined capture/settlement, affordable provider-backed charge bounds and remaining launch/loss tests still precede the real120-attempt performance gate.
+
+The adjacent JSON receipt binds final native commands/logs, ten rejected mutations and the fresh1894-file source manifest. The older1891-file manifest belongs to the pre-parser source checkpoint and is not reused as final parser provenance.

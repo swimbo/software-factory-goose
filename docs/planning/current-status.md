@@ -1,6 +1,6 @@
 # Current status
 
-Updated: 2026-11-01 (America/New_York). **Paused at the user's request.**
+Updated: 2026-11-01 (America/New_York). **Active; resumed at the user's request.**
 
 ## Objective and gates
 
@@ -14,7 +14,7 @@ Finish Phase 11A: Harness Efficiency and Reliability, including the protected Go
 
 ## Completed and published
 
-Factory branch: `codex/late-phase9-verification`. Last implementation/evidence checkpoint before this status note: `2b2588d`, pushed to upstream.
+Factory branch: `codex/late-phase9-verification`. Source-composition checkpoint: `2b2588d`, pushed to upstream. Subsequent protocol verification is recorded below.
 
 - Protected spending authority, one-use gateway acquisition, durable capture and independent settlement RPC have component and restart proofs. These do not establish the full production path.
 - Actual Root prepare/start and PID1 guard pass supervisor-group loss, guard-main crash and current-lease expiry with a live supervisor. Exact owned resources were independently checked after cleanup. Registry/catalog/wallet replies in these native launch fixtures are explicitly synthetic.
@@ -24,13 +24,13 @@ Factory branch: `codex/late-phase9-verification`. Last implementation/evidence c
 
 Evidence: [progress](clean-room/progress.md), [phase plan](clean-room/phase-11a-plan.md), [native lease expiry](clean-room/verification/2026-11-01-native-lease-expiry.md), [composed gateway source](clean-room/verification/2026-11-01-composed-gateway-source.md).
 
-## Published in-progress checkpoint
+## Published protocol checkpoint and resumed verification
 
 The Bifrost publication worktree is separate from this repository:
 
 `/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-remaining-gateway-publication-04afte_6/integration`
 
-Branch: `codex/remaining-source-audit-20261031`. Prior published base: `28305356916d634089b171e8b5b6fe5c683487b0`. Draft checkpoint `1981836` was committed and pushed at the user's explicit request to publish all current work, including work in progress.
+Branch: `codex/remaining-source-audit-20261031`. Prior published base: `28305356916d634089b171e8b5b6fe5c683487b0`. Draft checkpoint `1981836` was committed and pushed at the user's explicit request to publish all current work, including work in progress. Resumed protocol verification and strengthened tests are published in `fb44e96`.
 
 The checkpoint includes these three artifact paths:
 
@@ -40,22 +40,21 @@ The checkpoint includes these three artifact paths:
 
 The draft parser preserves exact Python request bytes for hashing and validates bounded envelopes, duplicate/unknown fields, frozen identities, output limits, leases and the reserved UTC day. It grants no spending authority and is **not wired into an exchange handler or production startup**.
 
-Initial tests failed for the missing API, then four parser test functions passed on the isolated Linux stage, including malformed requests rebound to valid hashes. Simplification completed five review passes without final source edits. That review identified duplicate-request tests whose original hash mismatch could conceal a missing recursive duplicate check. A fifth sibling test now rebinds those duplicate requests to valid digests/sizes, but **that last test addition has not been run**. Dedicated code review, mutation checks and production integration remain unfinished. Publication is a preservation checkpoint, not verification or promotion. Do not describe the current draft as fully verified.
+After resuming, all seven parser test functions and four existing governed-call/native-HTTP groups pass on the actual composed Linux source. The previously unrun rebound-duplicate test now passes. A digest-check mutant initially survived because another validation masked it; a new same-size content substitution rejects it. Three isolated call-to-binding mismatch tests were added. Ten independent overlay guard mutants are rejected by runtime assertions; production parser source is unchanged. Dedicated source review completed seven independent in-process lenses with no retained findings. This is parser-component evidence only: the parser is still not connected to a listener or production startup. See [protocol evidence](clean-room/verification/2026-11-01-gateway-protocol.md).
 
-Current draft SHA256 values:
+Current protocol SHA256 values:
 
 - Parser: `adc8f44509f21723cdc02cc3e5251f78152c22ff3593507ece00eda938111ded`
-- Tests: `c904eb020f81b662a334927764471d5535181f925dda977974d87181ec8e5651`
+- Tests: `7d5c51d34aaf1a350f4ae8791a8af7339c899a5d38b7915fd7647c259d009449`
 
-Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated Linux source/toolchain/cache stage: `/home/bo/sfactory-gateway-composed-20261101-tlgy0o91` on `hermes-control`. The latest sibling test has not been copied there. The earlier composed-source manifest describes the pre-parser checkpoint; new parser files require a new manifest after verification. No task-owned local build/test/SSH process was observed running during this pause handoff.
+Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated Linux source/toolchain/cache stage: `/home/bo/sfactory-gateway-composed-20261101-tlgy0o91` on `hermes-control`. All current parser tests are copied there and verified. The new parser source manifest contains1,894 files; its SHA256 is `e771666daf592836b7e03e7507be4096ba62360ffec6e42f652e187033356a34`. The older1,891-file manifest remains the pre-parser checkpoint. No task-owned local build/test/SSH process was observed running during this pause handoff.
 
 ## Remaining work, in order
 
-1. Revalidate preserved draft and stage identities. Run the new duplicate-request test, discriminating parser mutations and relevant regressions; complete source review before treating the published parser checkpoint as a verified milestone.
-2. Implement and qualify the actual private gateway exchange handler and dedicated production bootstrap on the composed source. Authenticate the broker peer, acquire the existing one-use owner root, retain its context through the real auto/governance/embedding/classifier/answer pipeline, join all streams, and acknowledge durable capture before returning. Keep MCP/tool execution Goose-owned. Bind the current route snapshot and resolve semantic startup warmup ownership. The historical qualification bootstrap selects a different route and cannot substitute for this integration.
-3. Obtain supported, affordable **pre-dispatch all-path provider charge bounds** for the retained hosted route: rendered/tokenized input, supported output/reasoning limits, attempts and fees. Published token rates and post-response usage do not establish an enforceable input bound. Existing evidence does not support live admission; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
-4. Complete remaining native owner-outage, unknown-Docker, daemon/host-loss and production custody/launch qualification without weakening existing gates or disturbing shared services.
-5. Freeze the representative 20-task suite and both variants against identical models, route configuration, budgets, tariff and independent acceptance checks. Run three repeats per task/variant: **120 total attempts**. Respect the aggregate daily cap across days.
-6. Require every safety regression to pass, no decline in accepted-task count, at least **10% lower median audited usage-rated cost per accepted task**, and no more than **10% higher median completion time**. Missing evidence or a failed gate leaves Phase 11A incomplete and the baseline retained. Keep the candidate disabled until the complete gate passes.
+1. Implement and qualify the actual private gateway exchange handler and dedicated production bootstrap on the composed source. Authenticate the broker peer, acquire the existing one-use owner root, retain its context through the real auto/governance/embedding/classifier/answer pipeline, join all streams, and acknowledge durable capture before returning. Keep MCP/tool execution Goose-owned. Bind the current route snapshot and resolve semantic startup warmup ownership. The historical qualification bootstrap selects a different route and cannot substitute for this integration.
+2. Obtain supported, affordable **pre-dispatch all-path provider charge bounds** for the retained hosted route: rendered/tokenized input, supported output/reasoning limits, attempts and fees. Published token rates and post-response usage do not establish an enforceable input bound. Existing evidence does not support live admission; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
+3. Complete remaining native owner-outage, unknown-Docker, daemon/host-loss and production custody/launch qualification without weakening existing gates or disturbing shared services.
+4. Freeze the representative 20-task suite and both variants against identical models, route configuration, budgets, tariff and independent acceptance checks. Run three repeats per task/variant: **120 total attempts**. Respect the aggregate daily cap across days.
+5. Require every safety regression to pass, no decline in accepted-task count, at least **10% lower median audited usage-rated cost per accepted task**, and no more than **10% higher median completion time**. Missing evidence or a failed gate leaves Phase 11A incomplete and the baseline retained. Keep the candidate disabled until the complete gate passes.
 
-Do not resume implementation, run paid calls or activate anything while the goal is paused. Preserve all draft files, ledgers, failed-attempt evidence and isolated stages for an explicit resume.
+The goal is active again. Preserve all ledgers, failed-attempt evidence and isolated stages. Paid calls and activation remain subject to the unresolved bounds and launch gates above.

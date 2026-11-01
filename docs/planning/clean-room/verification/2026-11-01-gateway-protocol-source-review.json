@@ -1,0 +1,105 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "28305356916d634089b171e8b5b6fe5c683487b0",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "19818364d0bd1745c78e9d52cc857a020030c5ae",
+    "pr_url": null,
+    "files_changed": 3,
+    "includes_uncommitted_additions": [
+      "TestFactoryGatewayProtocolRejectsChangedContent",
+      "TestFactoryGatewayProtocolRejectsCallBindingMismatch"
+    ]
+  },
+  "intent": "Review the bounded Python-to-Go factory gateway envelope parser. Preserve exact raw nested request hashes, frozen owner/attempt/route/tariff/output/lease/UTC-day bindings, strict duplicate/unknown rejection and fixed sanitized errors. This source-only parser grants no authority and is not wired to production ingress; no full-phase or live-readiness claim.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "testing",
+    "maintainability",
+    "security",
+    "api-contract",
+    "reliability",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "mode": "agent report-only",
+    "reviewer_reasons": {
+      "correctness": "always-on",
+      "testing": "behavioral tests and public Python wire fixture",
+      "maintainability": "373 executable changed lines, parser/type boundary",
+      "security": "strict user-input and binding integrity",
+      "api-contract": "Python-to-Go request serialization boundary",
+      "reliability": "fixed errors, size and absolute deadline behavior",
+      "adversarial": "auth-adjacent prospective money admission contract and >50 code lines"
+    },
+    "project_standards": "No applicable criteria files found by successful tree search.",
+    "compound_packs": {
+      "roots": [],
+      "errors": [],
+      "warnings": []
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "suppressed_by_confidence": {},
+    "mode_aware_demotions": 0,
+    "first_evidence_backfilled": 0,
+    "first_evidence_demoted": 0,
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "validator": {
+      "outcome": "empty-batch",
+      "selected": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "reason": "No primary findings selected for validation."
+    },
+    "failed_reviewers": [],
+    "timed_out_reviewers": [],
+    "settlement_suppression_evaluated": false,
+    "notes": [
+      "Full review selected for cross-language/prospective money-boundary contract.",
+      "Project standards: not run (no applicable standards files); no packs declared or learnings corpus matched.",
+      "Current source remains a parser-only artifact; private handler/bootstrap/physical custody/launch/provider-bound/performance gates are outside this component review.",
+      "Parent independently runs native Linux tests and overlay mutation checks; reviewers made no host/provider calls.",
+      "Testing reviewer identified isolated call binding gaps, then re-read two parent-added sibling tests and returned no remaining gaps.",
+      "Cross-model pass not run under caller external-egress restriction; the in-process adversarial reviewer covered that lens. No different-model corroboration or confidence promotion is claimed.",
+      "Seven independent in-process persona reviews completed without retained findings, risks or testing gaps.",
+      "No plan was discovered; settlement suppression was not evaluated.",
+      "No reviewer failed or timed out; no confidence suppression, quote demotion or policy reclassification occurred.",
+      "No findings selected for validation; no cross-model validator shortcut was used."
+    ],
+    "not_assessed": [
+      "Private exchange handler and dedicated production bootstrap",
+      "Joined production custody and launch admission",
+      "Provider-backed pre-dispatch charge bounds",
+      "The 120-attempt paired performance gate"
+    ]
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run under caller external-egress restriction; the in-process adversarial reviewer covered that lens. No different-model corroboration or confidence promotion is claimed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-gateway-protocol",
+  "run_id": "20261101-gateway-protocol"
+}
