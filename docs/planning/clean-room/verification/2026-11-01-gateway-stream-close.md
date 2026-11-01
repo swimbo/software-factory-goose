@@ -1,0 +1,7 @@
+# Gateway stream close and join
+
+Bifrost source commit `05c7a48` bounds response-stream read and close as one lifecycle. A successful exchange requires both to finish, with a successful close, before capture. An unjoined read or close poisons the gateway; invalid streamed responses also receive bounded close handling. Poisoning is not process cleanup: the supervisor must terminate and join the gateway and its descendants before another attempt is admitted.
+
+Before the change, focused tests showed that a completed read could proceed without joining close and that cancellation could hang in close. The updated source passed race-enabled gateway and handler tests, seven installer tests, and pinned-installer replay after pre-exchange tree verification. Network-isolated, distinct-UID synthetic fixtures passed for close error, blocked close on an invalid response, v1 and v2 success, Root deadline expiry, and the actual Bifrost handler. The failure fixtures require close to be entered and reject any capture connection. Independent source review identified missing exchange-level failure tests; those tests were added and independently rechecked.
+
+The fixtures use synthetic broker, capture, authorization, routing and provider services. They do not qualify live billing, production gateway custody, synchronous router blocking, or process/descendant cleanup. No paid inference, benchmark attempt or candidate activation occurred.

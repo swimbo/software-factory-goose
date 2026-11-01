@@ -59,7 +59,7 @@ The resumed independent review confirmed and the source fix `cde48ea` addressed 
 
 The public Ollama Enterprise pricing page mentions user and API-key cost budgets, but does not establish the required hard in-flight, per-task and fee bounds. Account availability and contract details remain unverified; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
 
-The protected gateway now cancels a stalled response read at the shorter Root deadline; distinct-UID synthetic expiry and v1/v2 success fixtures passed on the installed source. See [stream deadline evidence](clean-room/verification/2026-11-01-root-stream-deadline.md). Synchronous router and stream-close blocking still require watchdog and cleanup qualification.
+The protected gateway cancels a stalled response read at the shorter Root deadline; distinct-UID synthetic expiry and v1/v2 success fixtures passed on the installed source. See [stream deadline evidence](clean-room/verification/2026-11-01-root-stream-deadline.md). The [stream close checkpoint](clean-room/verification/2026-11-01-gateway-stream-close.md) bounds read/close joining and poisons the gateway if either remains unjoined. Synchronous router blocking and termination and cleanup of a poisoned process and its descendants still require watchdog qualification.
 
 ## Remaining work, in order
 
