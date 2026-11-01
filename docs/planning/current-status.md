@@ -24,15 +24,15 @@ Factory branch: `codex/late-phase9-verification`. Last implementation/evidence c
 
 Evidence: [progress](clean-room/progress.md), [phase plan](clean-room/phase-11a-plan.md), [native lease expiry](clean-room/verification/2026-11-01-native-lease-expiry.md), [composed gateway source](clean-room/verification/2026-11-01-composed-gateway-source.md).
 
-## Preserved uncommitted work
+## Published in-progress checkpoint
 
 The Bifrost publication worktree is separate from this repository:
 
 `/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-remaining-gateway-publication-04afte_6/integration`
 
-Branch: `codex/remaining-source-audit-20261031`. Published base: `28305356916d634089b171e8b5b6fe5c683487b0`.
+Branch: `codex/remaining-source-audit-20261031`. Prior published base: `28305356916d634089b171e8b5b6fe5c683487b0`. Draft checkpoint `1981836` was committed and pushed at the user's explicit request to publish all current work, including work in progress.
 
-Three new artifact paths are untracked and intentionally uncommitted:
+The checkpoint includes these three artifact paths:
 
 - `engine/transport/factory_gateway_protocol.go`
 - `engine/transport/factory_gateway_protocol_test.go`
@@ -40,7 +40,7 @@ Three new artifact paths are untracked and intentionally uncommitted:
 
 The draft parser preserves exact Python request bytes for hashing and validates bounded envelopes, duplicate/unknown fields, frozen identities, output limits, leases and the reserved UTC day. It grants no spending authority and is **not wired into an exchange handler or production startup**.
 
-Initial tests failed for the missing API, then four parser test functions passed on the isolated Linux stage, including malformed requests rebound to valid hashes. Simplification completed five review passes without final source edits. That review identified duplicate-request tests whose original hash mismatch could conceal a missing recursive duplicate check. A fifth sibling test now rebinds those duplicate requests to valid digests/sizes, but **that last test addition has not been run**. Dedicated code review, mutation checks and final publication remain unfinished. Do not describe the current draft as fully verified.
+Initial tests failed for the missing API, then four parser test functions passed on the isolated Linux stage, including malformed requests rebound to valid hashes. Simplification completed five review passes without final source edits. That review identified duplicate-request tests whose original hash mismatch could conceal a missing recursive duplicate check. A fifth sibling test now rebinds those duplicate requests to valid digests/sizes, but **that last test addition has not been run**. Dedicated code review, mutation checks and production integration remain unfinished. Publication is a preservation checkpoint, not verification or promotion. Do not describe the current draft as fully verified.
 
 Current draft SHA256 values:
 
@@ -51,7 +51,7 @@ Resume metadata: `/tmp/sfactory-composed-gateway-stage.json`. Retained isolated 
 
 ## Remaining work, in order
 
-1. Revalidate preserved draft and stage identities. Run the new duplicate-request test, discriminating parser mutations and relevant regressions; complete source review before committing the parser milestone.
+1. Revalidate preserved draft and stage identities. Run the new duplicate-request test, discriminating parser mutations and relevant regressions; complete source review before treating the published parser checkpoint as a verified milestone.
 2. Implement and qualify the actual private gateway exchange handler and dedicated production bootstrap on the composed source. Authenticate the broker peer, acquire the existing one-use owner root, retain its context through the real auto/governance/embedding/classifier/answer pipeline, join all streams, and acknowledge durable capture before returning. Keep MCP/tool execution Goose-owned. Bind the current route snapshot and resolve semantic startup warmup ownership. The historical qualification bootstrap selects a different route and cannot substitute for this integration.
 3. Obtain supported, affordable **pre-dispatch all-path provider charge bounds** for the retained hosted route: rendered/tokenized input, supported output/reasoning limits, attempts and fees. Published token rates and post-response usage do not establish an enforceable input bound. Existing evidence does not support live admission; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
 4. Complete remaining native owner-outage, unknown-Docker, daemon/host-loss and production custody/launch qualification without weakening existing gates or disturbing shared services.
