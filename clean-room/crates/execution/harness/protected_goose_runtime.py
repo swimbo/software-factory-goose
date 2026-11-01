@@ -64,6 +64,7 @@ def profile_fingerprints(
         "physical_usage.py",
         "physical_settlement.py",
         "gateway_custody.py",
+        "gateway_transport.py",
         "factory_harness.py",
         "harness_mcp.py",
         "harness_session.py",

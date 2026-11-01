@@ -1,0 +1,8 @@
+{
+  "mutation": "Reinsert broker begin immediately before gateway-owned dispatch",
+  "exit_code": 1,
+  "failure_observed": "Second begin is refused by the same single-use journal; no valid gateway response/collector receipt is returned",
+  "killed": true,
+  "production_source_restored": true,
+  "original_sha256": "e7bcfe86a6241c23946012c8df68a757f356d552c145eaf944d94f45b1a8bbc4"
+}

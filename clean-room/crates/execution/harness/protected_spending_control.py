@@ -248,14 +248,31 @@ class PrivateSpendingClient:
             raise ControlRefused("invalid_spending_request")
         return self._send(method, canonical(body).encode())
 
-    def _send(self, method, raw, prefix="/spending/"):
+    def _send(
+        self,
+        method,
+        raw,
+        prefix="/spending/",
+        *,
+        request_limit=65536,
+        response_limit=MAX_RESPONSE,
+        timeout=TIMEOUT,
+    ):
         # Callers validate role-specific bodies first. Kernel ingress roles remain
         # the authority; sharing transport never grants another role's handlers.
-        if len(raw) > 65536 or self._check_path() != self.identity:
+        if (
+            not _integer(request_limit, 1, 131072)
+            or not _integer(response_limit, 1, 2 * MAX_SSE)
+            or type(timeout) not in (int, float)
+            or not math.isfinite(timeout)
+            or not 0 < timeout <= 180
+            or len(raw) > request_limit
+            or self._check_path() != self.identity
+        ):
             raise ControlRefused("private_spending_socket_changed")
         connection = None
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(TIMEOUT)
+        client.settimeout(timeout)
         expired = threading.Event()
 
         def interrupt():
@@ -265,7 +282,7 @@ class PrivateSpendingClient:
             except OSError:
                 pass
 
-        timer = threading.Timer(TIMEOUT, interrupt)
+        timer = threading.Timer(timeout, interrupt)
         timer.daemon = True
         timer.start()
         try:
@@ -280,7 +297,7 @@ class PrivateSpendingClient:
                 def connect(self):
                     raise ControlRefused("private_spending_reconnect_denied")
 
-            connection = UnixOnly("localhost", timeout=TIMEOUT)
+            connection = UnixOnly("localhost", timeout=timeout)
             connection.sock = client
             connection.request(
                 "POST",
@@ -299,10 +316,10 @@ class PrivateSpendingClient:
                 or len(lengths[0]) > 10
                 or not lengths[0].isascii()
                 or not lengths[0].isdecimal()
-                or not 0 < int(lengths[0]) <= MAX_RESPONSE
+                or not 0 < int(lengths[0]) <= response_limit
             ):
                 raise ControlRefused("spending_outcome_unknown")
-            result = response.read(MAX_RESPONSE + 1)
+            result = response.read(response_limit + 1)
             if expired.is_set() or len(result) != int(lengths[0]):
                 raise ControlRefused("spending_outcome_unknown")
             return _decode(result)
@@ -648,18 +665,30 @@ class JournaledControl:
                 "output_tokens": body["max_tokens"],
             }
             # Sticky before the first potentially committed RPC; no local rollback.
+            from gateway_transport import ProtectedGatewayTransport
+
+            gateway_owned = type(self.provider) is ProtectedGatewayTransport
+            if gateway_owned:
+                self.provider.validate_control(self.config, self.rpc)
             state["phase"] = "unknown"
             try:
                 reserved = self.rpc("reserve", copy.deepcopy(call))
                 if reserved == "Denied":
                     state["phase"] = "denied"
                     raise ControlRefused("budget_exhausted")
-                if (
-                    reserved != "Reserved"
-                    or self.rpc("begin", copy.deepcopy(call)) is not True
-                ):
+                if reserved != "Reserved":
                     raise ControlRefused("dispatch_outcome_unknown")
-                response = self.provider.exchange(copy.deepcopy(call), body)
+                if gateway_owned:
+                    response = self.provider.exchange_reserved(
+                        copy.deepcopy(attempt),
+                        copy.deepcopy(state["grant"]),
+                        copy.deepcopy(call),
+                        body,
+                    )
+                else:
+                    if self.rpc("begin", copy.deepcopy(call)) is not True:
+                        raise ControlRefused("dispatch_outcome_unknown")
+                    response = self.provider.exchange(copy.deepcopy(call), body)
                 if (
                     not _keys(response, SOURCE_FIELDS)
                     or type(response["sse"]) is not bytes

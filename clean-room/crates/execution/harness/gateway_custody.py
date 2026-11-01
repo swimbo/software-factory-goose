@@ -421,6 +421,7 @@ class ProtectedGatewayAcquisitionAuthority(GatewayAcquisitionAuthority):
             "gateway_private_services_invalid",
         )
         self.protected_uid = journal.broker_uid
+        self.journal, self.capture = journal, capture
         super().__init__(
             lambda call: journal("begin", call), capture.open, gateway_uid=gateway_uid
         )

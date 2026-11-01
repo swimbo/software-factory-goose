@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "component": "private_gateway_protocol",
+  "results": [
+    {
+      "worker_denied_before_http": true
+    },
+    {
+      "case": "complete",
+      "complete_sse_bytes": 1048576,
+      "envelope_bytes": 65859,
+      "logical_request_bytes": 65089,
+      "sse_sha256": "10b7cd81c376c7d83d68fb03edb0b83ba8f92238c4fc673a364a0c78bb762c46"
+    },
+    {
+      "case": "wrong_scope",
+      "refused": true
+    },
+    {
+      "case": "overflow",
+      "refused": true
+    },
+    {
+      "case": "drop",
+      "refused": true
+    }
+  ],
+  "actual_bifrost": false,
+  "actual_wallet_or_capture": false,
+  "synthetic_gateway_receipt": true,
+  "production_admission": false,
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "date": "2026-11-01",
+  "fixture_sha256": "68eaf63ef52f9cc30310dbf8ee23308400e8b26ab61cdfd18e73201be94b839a",
+  "source_sha256": {
+    "clean-room/crates/execution/harness/gateway_transport.py": "b3275301abb7d46dfa2dac833f9a53e394b065d906d04c2e46b5d7ac0d404a23",
+    "clean-room/crates/execution/harness/protected_spending_control.py": "e7bcfe86a6241c23946012c8df68a757f356d552c145eaf944d94f45b1a8bbc4",
+    "clean-room/crates/execution/harness/gateway_custody.py": "834dc880da4c537d4b65f1c1c144e9dd6750f9e25bdf8ecda2000d805de45ae3"
+  },
+  "independent_absence_check": {
+    "owned_controller_absent": true
+  }
+}
