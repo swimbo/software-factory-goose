@@ -92,3 +92,13 @@ pub mod root_launch_grant;
 
 #[cfg(all(target_os = "linux", feature = "registry-v5"))]
 pub mod sdk5_startup_guard;
+
+#[cfg(feature = "restate")]
+pub mod harness_spending;
+#[cfg(all(feature = "restate", unix))]
+pub mod harness_spending_ingress;
+#[cfg(feature = "restate")]
+pub mod harness_charge_bounds;
+
+#[cfg(all(feature = "restate", unix))]
+pub mod harness_owner;

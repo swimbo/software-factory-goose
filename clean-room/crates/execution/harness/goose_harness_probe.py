@@ -24,7 +24,27 @@ from harness_mcp import fixture_session
 GOOSE_SHA256 = "512bc701fca7312be12ae03215a41a0a60fae0848e2c39f167b7f79e510658fb"
 
 
+def correct_tool_value(name, values):
+    if len(values) != 1 or not isinstance(values[0], dict):
+        return False
+    try:
+        if name == "allowed":
+            return json.loads(values[0]["output"]) == "alpha"
+        if name == "schema_discovery":
+            schema = json.loads(values[0]["schema"])
+            return schema.get("name") == "fixture_read" and schema.get(
+                "inputSchema"
+            ) == {"type": "object", "properties": {}, "additionalProperties": False}
+        return True
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+
+
 class Stub(http.server.BaseHTTPRequestHandler):
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(5)
+
     def log_message(self, *_):
         pass
 
@@ -205,6 +225,11 @@ def run(args):
         "version": 1,
         "synthetic": True,
         "goose_sha256": GOOSE_SHA256,
+        "artifact_sha256": {
+            p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in code.iterdir()
+            if p.is_file()
+        },
         "candidate_enabled": False,
         "production_registered": False,
         "live_benchmark_runs": 0,
@@ -343,8 +368,10 @@ def run(args):
                 try:
                     values.append(json.loads(message["content"]))
                 except (ValueError, TypeError):
-                    values.append({"status":"unparsed"})
-            (case / "protocol-diagnostics.json").write_text(canonical({"tool_messages":messages,"stderr":result["stderr"]}))
+                    values.append({"status": "unparsed"})
+            (case / "protocol-diagnostics.json").write_text(
+                canonical({"tool_messages": messages, "stderr": result["stderr"]})
+            )
             advertised = sorted(
                 {
                     t["function"]["name"]
@@ -371,6 +398,7 @@ def run(args):
                 "external_network_denied": True,
                 "protected_code_write_denied": True,
                 "request_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                "tool_value_correct": correct_tool_value(name, values),
             }
             observed["passed"] = (
                 observed["exit_code"] == 0
@@ -379,6 +407,7 @@ def run(args):
                 and observed["tool_statuses"] == [expected]
                 and observed["two_core_tools_only"]
                 and observed["secret_absent"]
+                and observed["tool_value_correct"]
                 and observed["marker"] == ("AUTHORIZED" if name == "allowed" else None)
                 and (name != "masked" or observed["masked_result_observed"])
             )

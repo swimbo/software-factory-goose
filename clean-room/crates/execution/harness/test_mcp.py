@@ -9,7 +9,8 @@ import sys
 import threading
 import unittest
 
-from harness_mcp import response_for
+from harness_mcp import response_for, FixtureClient
+from goose_harness_probe import correct_tool_value
 
 
 class FakeSession:
@@ -108,7 +109,11 @@ class AdapterLifetime(unittest.TestCase):
                 size = int(self.headers.get("Content-Length", "0"))
                 json.loads(self.rfile.read(size))
                 if self.path == "/factory/list":
-                    response = [{"name": "run_script"}, {"name": "fetch_tool_schema"}]
+                    response = (
+                        []
+                        if getattr(self.server, "bad_list", False)
+                        else [{"name": "run_script"}, {"name": "fetch_tool_schema"}]
+                    )
                 elif self.path == "/factory/cancel":
                     cancelled.set()
                     response = {"cancelled": True}
@@ -200,6 +205,22 @@ class AdapterLifetime(unittest.TestCase):
             }
         )
         self.assertTrue(self.cancelled.wait(timeout=3))
+        self.send({"jsonrpc": "2.0", "id": 9, "method": "ping"})
+        self.assertEqual(self.receive(), {"jsonrpc": "2.0", "id": 9, "result": {}})
+        self.send(
+            {
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "tools/call",
+                "params": {"name": "run_script", "arguments": {"script": "return 2;"}},
+            }
+        )
+        refused = self.receive()
+        self.assertEqual(refused["id"], 10)
+        self.assertEqual(
+            json.loads(refused["result"]["content"][0]["text"]),
+            {"status": "refused", "reason": "attempt_closed"},
+        )
         self.child.stdin.close()
         self.child.stdin = None
         out, _ = self.child.communicate(timeout=3)
@@ -222,6 +243,106 @@ class AdapterLifetime(unittest.TestCase):
         self.assertTrue(self.cancelled.is_set())
         self.assertEqual(out, b"")
         self.assertEqual(self.child.returncode, 0)
+
+    def test_malformed_initialize_does_not_orphan_active_call(self):
+        self.send(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "run_script", "arguments": {"script": "return 1;"}},
+            }
+        )
+        self.assertTrue(self.started.wait(timeout=3))
+        self.send(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "initialize",
+                "params": {"protocolVersion": []},
+            }
+        )
+        self.assertEqual(self.receive()["id"], 2)
+        self.child.stdin.close()
+        self.child.stdin = None
+        out, _ = self.child.communicate(timeout=3)
+        self.assertTrue(self.cancelled.is_set())
+        self.assertEqual(out, b"")
+
+    def test_exceptional_dispatch_cancels_active_remote_work(self):
+        self.server.bad_list = True
+        self.send(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "run_script", "arguments": {"script": "return 1;"}},
+            }
+        )
+        self.assertTrue(self.started.wait(timeout=3))
+        self.send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        out, error = self.child.communicate(timeout=3)
+        self.assertTrue(self.cancelled.is_set())
+        self.assertEqual(out, b"")
+        self.assertEqual(self.child.returncode, 1)
+        self.assertNotIn(b"Traceback", error)
+
+
+class CompleteResponse(unittest.TestCase):
+    def test_truncated_valid_json_never_becomes_success(self):
+        class Broken(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                raw = b'{"status":"executed","output":"incomplete"}'
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw) + 25))
+                self.end_headers()
+                self.wfile.write(raw)
+                self.close_connection = True
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Broken)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with self.assertRaises(ValueError):
+                FixtureClient(server.server_port).call(
+                    "run_script", {"script": "return 1;"}
+                )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
+
+    def test_canary_rejects_corrupt_output_and_missing_or_wrong_schema(self):
+        self.assertTrue(correct_tool_value("allowed", [{"output": '"alpha"'}]))
+        self.assertFalse(correct_tool_value("allowed", [{"output": '"corrupt"'}]))
+        self.assertFalse(correct_tool_value("schema_discovery", [{}]))
+        self.assertFalse(
+            correct_tool_value("schema_discovery", [{"schema": '{"name":"wrong"}'}])
+        )
+        self.assertTrue(
+            correct_tool_value(
+                "schema_discovery",
+                [
+                    {
+                        "schema": json.dumps(
+                            {
+                                "name": "fixture_read",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": False,
+                                },
+                            }
+                        )
+                    }
+                ],
+            )
+        )
 
 
 if __name__ == "__main__":

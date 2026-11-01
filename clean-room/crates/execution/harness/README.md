@@ -1,6 +1,6 @@
 # Phase 11A harness candidate
 
-**Disabled. Not installed in Goose or the protected relay.** This is the local
+**Disabled. Not registered in production Goose or the protected relay.** This is the local
 candidate runtime and evaluation interface, not a production-readiness receipt.
 Current relay requests are exact-match, fixed two-turn `write_files` conversations;
 rewriting them to add tools or dynamic prompts would invalidate their authority.
@@ -95,7 +95,31 @@ No live benchmark or claimed savings is included in this repository milestone.
 ## Remaining admission work
 
 The general script capability needs a reviewed protected relay/launcher contract,
-actual pinned-Goose MCP integration proof, bounded production broker transport
+provisioned Linux pinned-Goose MCP/authority integration proof, bounded production broker transport
 proof, independent safety evidence, and the 120-run model comparison after the
 existing correctness/runtime gaps close. That boundary is intentionally not
 widened by importing this module. Phase 11A and Phase 12 remain incomplete.
+
+## Actual protected Goose canary
+
+`goose_harness_probe.py` exercises the reviewed patched Goose 1.49.0 through
+`harness_mcp.py`, with the trusted fixture broker outside the worker sandbox.
+The stdio CLI requires `--offline-fixture` and a synthetic loopback broker; it is
+not an admission path for live providers or production tools. The first actual
+six-case canary passed, including masking, denied writes and authority overrides.
+Cancellation and EOF suppression have isolated-process tests. See
+`docs/planning/clean-room/verification/2026-10-30-harness-goose-integration.md`
+from the repository root for exact evidence and live admission blockers.
+
+The 120-run benchmark remains at zero live attempts: the existing task/daily
+atomic authority is not connected to general script traffic, and complete
+classifier-plus-answer billed-cost receipts are unavailable. No old monetary
+waiver is carried forward and no synthetic result is relabeled as live evidence.
+
+### Audited usage-rated performance receipts
+
+The user-approved Phase 11A cost basis is `audited_usage_rated`. New runner configurations freeze both `cost_basis` and `tariff_sha256`; these enter attempt identities and durable configuration binding. `usage_rating.py` collects authenticated complete physical-call usage against a versioned constant-peak tariff. Cache categories are disjoint within total input, and total output includes reasoning. Missing cost inputs, partial usage, unknown models, incomplete physical manifests and changed tariffs refuse scoring. Exact Decimal costs are aggregated before ceiling to microUSD. This metric is never labeled a provider-confirmed billed debit.
+
+`usage_spending.py` claims stable `usage_<digest>` evidence IDs and closes the same owner journal under a tariff-bound root scope. Rated receipts omit `billed_microusd` and carry `usage_rating`; legacy provider-billed scopes and serialized digests retain their original behavior. Tiny rated costs never release conservative reservations. Root launch/route attestation, complete capture and reviewed enforceable all-path charge bounds remain prerequisites; source publication and a passing offline gate do not enable the candidate.
+
+The native Linux Unix relay and actual typed/QuickJS Goose rehearsal are component evidence. The current production root launcher still pins its fixed worker recipe and has no general frozen-suite admission. See `docs/planning/clean-room/verification/2026-10-30-harness-linux-goose-runtime.md`.

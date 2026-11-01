@@ -58,7 +58,8 @@ def response_for(session, request):
         version = params.get("protocolVersion")
         response["result"] = {
             "protocolVersion": version
-            if version in {"2024-11-05", "2025-03-26", "2025-06-18"}
+            if isinstance(version, str)
+            and version in {"2024-11-05", "2025-03-26", "2025-06-18"}
             else "2024-11-05",
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "factory-harness-candidate", "version": "1"},
@@ -90,6 +91,14 @@ def serve(session):
     closing = threading.Event()
     active = None
     cancellation_sent = False
+
+    def cancel_session():
+        nonlocal cancellation_sent
+        session.cancelled.set()
+        if not cancellation_sent:
+            cancellation_sent = True
+            if hasattr(session, "cancel_remote"):
+                session.cancel_remote()
 
     def read_frames():
         pending = b""
@@ -136,66 +145,87 @@ def serve(session):
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: closing.set())
     threading.Thread(target=read_frames, daemon=True).start()
-    while True:
-        if closing.is_set():
-            session.cancelled.set()
-            if not cancellation_sent:
-                cancellation_sent = True
-                if hasattr(session, "cancel_remote"):
-                    session.cancel_remote()
-            if active is None:
-                return
-        try:
-            response = completed.get_nowait()
-        except queue.Empty:
-            pass
-        else:
-            if not closing.is_set() and not session.cancelled.is_set():
-                write(response)
-            active = None
-        if closing.is_set():
-            if active is None:
-                return
-            time.sleep(0.01)
-            continue
-        try:
-            request = incoming.get(timeout=0.02)
-        except queue.Empty:
-            continue
-        if "id" not in request:
-            if (
-                request.get("method") == "notifications/cancelled"
-                and active is not None
-            ):
-                params = request.get("params", {})
-                if (
-                    isinstance(params, dict)
-                    and type(params.get("requestId")) is type(active[0])
-                    and params.get("requestId") == active[0]
-                ):
-                    session.cancelled.set()
-                    if not cancellation_sent:
-                        cancellation_sent = True
-                        if hasattr(session, "cancel_remote"):
-                            session.cancel_remote()
-            continue
-        if request.get("method") == "tools/call" and valid_id(request["id"]):
-            if active is not None:
-                write(
-                    {
-                        "jsonrpc": "2.0",
-                        "id": request["id"],
-                        "error": {"code": -32000, "message": "factory adapter busy"},
-                    }
-                )
+    try:
+        while True:
+            if closing.is_set():
+                cancel_session()
+                if active is None:
+                    return
+            try:
+                response = completed.get_nowait()
+            except queue.Empty:
+                pass
             else:
-                thread = threading.Thread(
-                    target=finish_call, args=(request,), daemon=False
-                )
-                active = (request["id"], thread)
-                thread.start()
-        else:
-            write(response_for(session, request))
+                if not closing.is_set() and not session.cancelled.is_set():
+                    write(response)
+                active = None
+            if closing.is_set():
+                if active is None:
+                    return
+                time.sleep(0.01)
+                continue
+            try:
+                request = incoming.get(timeout=0.02)
+            except queue.Empty:
+                continue
+            if "id" not in request:
+                if (
+                    request.get("method") == "notifications/cancelled"
+                    and active is not None
+                ):
+                    params = request.get("params", {})
+                    if (
+                        isinstance(params, dict)
+                        and type(params.get("requestId")) is type(active[0])
+                        and params.get("requestId") == active[0]
+                    ):
+                        cancel_session()
+                continue
+            if request.get("method") == "tools/call" and valid_id(request["id"]):
+                if session.cancelled.is_set():
+                    write(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request["id"],
+                            "result": {
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": canonical(
+                                            {
+                                                "status": "refused",
+                                                "reason": "attempt_closed",
+                                            }
+                                        ),
+                                    }
+                                ],
+                                "isError": True,
+                            },
+                        }
+                    )
+                elif active is not None:
+                    write(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": request["id"],
+                            "error": {
+                                "code": -32000,
+                                "message": "factory adapter busy",
+                            },
+                        }
+                    )
+                else:
+                    thread = threading.Thread(
+                        target=finish_call, args=(request,), daemon=False
+                    )
+                    active = (request["id"], thread)
+                    thread.start()
+            else:
+                write(response_for(session, request))
+    finally:
+        cancel_session()
+        if active is not None:
+            active[1].join(timeout=35)
 
 
 def fixture_session(args):
@@ -214,6 +244,8 @@ def fixture_session(args):
             stderr=subprocess.DEVNULL,
             check=True,
             timeout=3,
+            env={},
+            cwd="/",
         )
         value = json.loads(result.stdout)
         if set(value) != {"text"} or not isinstance(value["text"], str):
@@ -227,7 +259,6 @@ def fixture_session(args):
             or len(arguments["text"].encode()) > 128
         ):
             raise ValueError("invalid fixture")
-        # Name is fixed by trusted fixture configuration, never by tool arguments.
         marker = work / "authorized.marker"
         fd = os.open(
             marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
@@ -312,10 +343,20 @@ class FixtureClient:
                 or response.headers.get_content_type() != "application/json"
             ):
                 raise ValueError("fixture response unavailable")
+            lengths = response.headers.get_all("Content-Length", [])
+            if (
+                len(lengths) != 1
+                or not lengths[0].isascii()
+                or not lengths[0].isdigit()
+                or not 0 < int(lengths[0]) <= 65536
+                or response.headers.get_all("Transfer-Encoding", [])
+                or response.headers.get_all("Content-Encoding", [])
+            ):
+                raise ValueError("fixture framing unavailable")
             raw = response.read(65537)
-            if len(raw) > 65536:
-                raise ValueError("fixture response unavailable")
-            return json.loads(raw)
+            if len(raw) != int(lengths[0]):
+                raise ValueError("fixture response incomplete")
+            return json.loads(raw.decode("utf-8", "strict"))
         finally:
             conn.close()
 
