@@ -1,0 +1,5 @@
+{
+  "refused": true,
+  "zero_writes": true,
+  "error": "pinned source mismatch: bifrost.go\n"
+}

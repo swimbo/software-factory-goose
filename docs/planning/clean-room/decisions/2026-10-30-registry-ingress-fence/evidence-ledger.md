@@ -20,3 +20,7 @@ Research artifacts: [Linux](linux-research.md), [durable runtime](durable-resear
 [operations](ops-research.md). Primary URLs and current-versus-pinned limitations
 are captured there. The next position round must select the smallest decisive
 disposable experiment and state the conditions for any later real transition.
+
+## Registration force semantics, pinned Restate 1.8.0
+
+The [v1.8.0 request model](https://github.com/restatedev/restate/blob/v1.8.0/crates/admin-rest-model/src/deployments.rs#L141-L200) declares `force` in the registration JSON body. The [v1.8.0 handler](https://github.com/restatedev/restate/blob/v1.8.0/crates/admin/src/rest_api/deployments.rs#L70-L91) uses an omitted value as true on API V1/V2 and false for other versions; the [router](https://github.com/restatedev/restate/blob/v1.8.0/crates/admin/src/service.rs#L186-L209) assigns the unprefixed `/deployments` path `AdminApiVersion::Unknown`. Therefore the existing fixed unprefixed URI-only call on this pinned binary takes the non-force branch. That source conclusion is distinct from independently proving the attempted URI was fresh or that no prior same-URI registration was retried. Preserve prior installed helpers and retained receipts; future versioned fixed helpers must explicitly send JSON `force:false` and `breaking:false` and retain the one-attempt/unknown fence. Do not infer force behavior for other server versions or routed paths from this check.

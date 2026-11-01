@@ -1,0 +1,115 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No remaining defects were found in the reviewed five-file source milestone. This verdict covers source review only; production startup, full route and provider/lease/day authorization, joined real-wallet operation, and benchmark admission remain unqualified.",
+  "scope": {
+    "base": "28d60eeeeb1870379d2a6b7fd77b2b1be1db52c2",
+    "branch": "codex/phase11a-physical-capture-20261031",
+    "head_sha": "28d60eeeeb1870379d2a6b7fd77b2b1be1db52c2",
+    "pr_url": null,
+    "files_changed": 5,
+    "source_review_only": true,
+    "source_sha256": {
+      "engine/transport/factory_owner_root.go": "728d36c23c398c588aed034e9e73b1dfdf1947c911b37fb72281951c9f8dd7c5",
+      "engine/transport/factory_owner_root_test.go": "9d2c4c6442e744d2853b9fa7b66e95b3efa5a2a5c39f8bcaff7f8b1e706fe729",
+      "engine/transport/factory_physical.go": "e3930298a04b031319a54f715ae67e2ef4dc915b4d4b825aed22738718ca6ea1",
+      "engine/transport/patch_factory_physical.py": "5deda5ab63c555a50d60373a06b9313501fc7f4fae5fef57a47184c2799515de",
+      "engine/transport/factory_owner_http_test.go": "b33fb177e0ac55adcce81c61048cd402e0b01286103e4464ac03d9fb83004bd0"
+    }
+  },
+  "intent": "Acquire one acknowledged aggregate root through the protected Unix broker, enforce frozen component identities/counts, preserve acquisition cancellation, and persist a sealed sanitized capture before returning its digest. The final transport guard rejects missing or legacy ownership before connection acquisition.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "reliability",
+    "testing",
+    "maintainability",
+    "api-contract",
+    "performance",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Dedicated private-process startup must enable RequireFactoryOwnerContext before traffic. Trusted final-wire provider/lease/day authorization, joined real-wallet acquisition, whole production route coverage and live benchmark launch remain unqualified by this source-only review.",
+    "FactoryOwnerAuthorizer executes under the root mutex; its actual IPC deadline/cancellation qualification belongs to the separate production integration. Concrete broker/capture exchanges are bounded to two seconds and do not retry.",
+    "Final pinned full-core Linux schemas TestOwner|TestFactory exit 0 (25 passed, one kernel-fixture skip) and Mac schemas/utils short-race success (isolated-layout fasthttp-version check skipped) are parent-reported; raw logs were not supplied to this report leaf, and it did not rerun those suites. Separate native kernel fixture and actual transport receipts retain their narrower proof boundaries."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Final five-file SHA256 snapshot: /tmp/compound-engineering-501/ce-code-review/20261031-go-owner-root/final-source-hashes.json. Original four-file diff and source-hashes.json retained.",
+      "Eight independent generic reviewer passes collected. Correctness/security/testing/adversarial rechecked final helper/callpoint/fifth-test delta; other lenses covered original substantive source.",
+      "Simplifier mode:pipeline completed five inline persona substitutions in one leaf under initial active-agent saturation, not five independent reviews; no changes. See simplifier.json.",
+      "Testing original P2 component-limit proof gap and closure-map assertion gap were fixed by parent; testing-original.json retained, focused testing recheck confirms resolution.",
+      "Initial cancellation escape discovered by orchestrator was fixed by noarg Context() deriving acquiredCtx, active-afterBegin cancellation/deadline regression and parent-owned killed mutant.",
+      "Intermediate patcher omission of unconditional guard was corrected by parent after focused review caught generated-scratch/source mismatch; final callpoint precedes AcquireConn and writes.",
+      "Python private protocol static comparison verified gateway_custody.py commit5aa51b858654c7b1b9feb7b6f4d560da166e5501; not a joined live wallet proof.",
+      "Native receipt /tmp/sfactory-owner-required-native.json reports24 unique top-levelPASS, actual UID5/8service/UID7client kernel fixture, CGO0/no race, no paid calls. Parent final full-pinned-core HTTP positive/negative controls still running at handoff; do not claim they passed.",
+      "No production startup/ingress enablement, final-wire provider/lease/day proof callback installation, complete route coverage, or 120-run benchmark qualification.",
+      "Dispatch stage log was opened retrospectively after first four reviewer dispatches; it does not establish precise total review wall time.",
+      "Superseding pending transport note: orchestrator inspected /tmp/sfactory-owner-transport-guard.json: pinned core1.11.2 actual Linux transport guard positive exit0; exact no-guard negative exit1 unowned transport accepted, killed_missing_guard_mutant true. /tmp/sfactory-owner-cancel-mutation.json independently inspected killed active-afterBegin cancellation mutant. No paid/live calls or production admission. Parent reports final Mac schemas+utils short race pass with one isolated-layout fasthttp-version check skipped, but raw final race log was not inspected by orchestrator. Final full-core Linux schema owner/factory suite still running; do not call it completed.",
+      "Cross-model pass not run: parent explicitly prohibited external paid review and code egress; local adversarial reviewer completed.",
+      "Project standards: not run (no applicable standards files found by successful search).",
+      "Settlement suppression not evaluated: no plan discovered.",
+      "Suppressed findings: zero at all confidence anchors; malformed findings/returns: zero; first_evidence_backfilled: zero; missing-quote demotions: zero; mode-aware demotions: zero.",
+      "Validator selection: empty batch; zero shortcut skips and zero selected findings. No independent validation call is required when no finding survives.",
+      "Merge leaf rehashed all five current sources; hashes match final-source-hashes.json.",
+      "Final superseding suite status, parent-reported raw logs not supplied: final pinned full-core Linux schemas TestOwner|TestFactory exit0,25passed1kernel-fixture-skipped; separate native UID kernel component fixture24PASS. Mac final schemas+utils short-racePASS with isolated-root-layout-only TestFasthttpVersionIsConsistentAcrossModules skipped. Orchestrator inspected installer refusal receipt /tmp/sfactory-owner-installer-refusal.json: stale/modified pinned source rejected with zeroGoFileWrites. No further source edits; no production admission."
+    ],
+    "validator": {
+      "outcome": "empty-batch",
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "reason": "Merge leaf selected zero findings after parent fixes and focused rechecks."
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0,
+    "failed_reviewers": [],
+    "project_standards": "not run; successful search found no applicable standards files",
+    "checks": {
+      "final_source_hashes_match": true,
+      "native_actual_transport_guard_positive": "PASS, exit 0",
+      "native_missing_guard_negative_control": "FAIL as required, exit 1: unowned transport accepted",
+      "active_after_begin_cancellation_mutant": "killed",
+      "final_full_core_linux_schema_suite": "Parent-reported PASS, exit 0, 25 passed and one kernel-fixture skip; raw logs not supplied, not independently rerun",
+      "production_admission": false,
+      "candidate_enabled": false,
+      "paid_calls_in_review": 0,
+      "live_attempts_in_review": 0,
+      "final_mac_schemas_utils_short_race": "Parent-reported PASS; TestFasthttpVersionIsConsistentAcrossModules skipped for isolated root layout; raw logs not supplied",
+      "pinned_installer_refusal": "Inspected receipt: modified pinned bifrost.go rejected; zero writes",
+      "suite_results_independently_rerun_by_report_leaf": false
+    },
+    "historical_status_notes": "Earlier pending-transport and still-running-schema notes are retained as historical handoff states and are superseded by the final suite status note."
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: parent explicitly prohibited external paid review and code egress; local adversarial reviewer completed."
+  },
+  "resolved_during_review": [
+    "Cancellation lifetime escape fixed by acquisition-derived Context() and targeted after-Begin cancellation proof.",
+    "Component-limit test now bypasses aggregate/permit duplication guards to exercise per-component count; closure maps asserted exactly.",
+    "Intermediate missing unconditional installer guard fixed and rechecked at the final source hash."
+  ],
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261031-go-owner-root",
+  "review_artifact": "/tmp/compound-engineering-501/ce-code-review/20261031-go-owner-root/review.json",
+  "metadata_artifact": "/tmp/compound-engineering-501/ce-code-review/20261031-go-owner-root/metadata.json",
+  "run_id": "20261031-go-owner-root",
+  "completed_at": "2026-11-01T02:58:30.306536+00:00",
+  "factual_update_at": "2026-11-01T02:59:12.609708+00:00"
+}

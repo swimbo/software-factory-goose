@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-10-31T02:30:10Z",
+  "phase": "11A",
+  "status": "incomplete",
+  "candidate_enabled": false,
+  "completed_live_runs": 0,
+  "required_live_runs": 120,
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "user_route_decision": "retain current route and require billing exports",
+  "provider_observations": {
+    "ollama": {
+      "authenticated_account_request_costs_observed": true,
+      "row_fields": [
+        "timestamp",
+        "model",
+        "cost"
+      ],
+      "stable_response_to_billing_id_join_verified": false,
+      "export_completeness_verified": false,
+      "account_balance_or_timestamp_not_a_join": true,
+      "usage_api_still_aggregate": true
+    },
+    "vercel_embedding": {
+      "authenticated_historical_generation_lookup_http_status": 200,
+      "fixed_origin": "https://ai-gateway.vercel.sh",
+      "request_path_template": "/v1/generation?id=gen_<ulid>",
+      "model": "openai/text-embedding-3-small",
+      "provider_name": "openai",
+      "is_byok": false,
+      "total_cost_gateway_cost_usage_match": true,
+      "exact_decimal_amount_observed": true,
+      "new_inference_sent": false,
+      "historical_record_is_benchmark_evidence": false,
+      "factory_dispatch_generation_id_capture_verified": false,
+      "export_menu_observed": [
+        "CSV",
+        "JSON"
+      ],
+      "download_confirmation_received": false,
+      "collector_parser_accepts_observed_field_projection": true
+    }
+  },
+  "gateway_metadata": {
+    "factory_rule_count": 3,
+    "configured_rule_fallbacks": [
+      null,
+      null,
+      null
+    ],
+    "provider_max_retries": {
+      "ollama-cloud": 0,
+      "vercel-classifier": 0
+    },
+    "complete_route_attestation": false,
+    "enforceable_internal_call_token_bounds_verified": false
+  },
+  "host_observation": {
+    "sdk5_runtime_active": false,
+    "old_registry_runtime_active": true,
+    "private_runtime_active": true,
+    "production_launch_admission_verified": false,
+    "linux_phase11a_adapter_implemented": false
+  },
+  "remaining_prerequisites": [
+    "Ollama request-attributed billing export and response identifier correlation",
+    "Vercel embedding generation identifier captured by complete protected dispatch manifest",
+    "reviewed enforceable token and charge bounds for every billable path",
+    "production registry transition and protected Linux benchmark launch integration",
+    "120 actual paired attempts with independent acceptance"
+  ],
+  "sources": [
+    "https://ollama.com/blog/transparent-pricing",
+    "https://ollama.com/pricing",
+    "https://docs.ollama.com/api/usage",
+    "https://docs.ollama.com/api/systemone",
+    "https://docs.ollama.com/api/openai-compatibility",
+    "https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api",
+    "https://vercel.com/docs/ai-gateway/observability-and-spend/logs"
+  ],
+  "retention": "No credentials, account balances, real generation IDs, provider response bodies or private request contents are included."
+}

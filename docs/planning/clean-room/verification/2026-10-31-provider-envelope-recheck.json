@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "scope": "Read-only provider contract recheck. No inference, keys, auth, config/index changes or external communications. Only public model metadata and documentation fetched.",
+  "safe_affordable_envelope_established": false,
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "attempts_per_permanent_task": 6,
+  "candidate_enabled": false,
+  "paid_inference_calls": 0,
+  "actual_route_source": {
+    "module": "github.com/maximhq/bifrost/core@v1.11.2",
+    "ollama_source": "providers/ollama/ollama.go:177-228",
+    "path": "/v1/chat/completions",
+    "converter": "providers/openai/chat.go:154-161 maps MaxCompletionTokens to legacy max_tokens for Ollama",
+    "qualification": "Local cached source inspection only; not current running binary attestation."
+  },
+  "new_public_metadata": {
+    "flash_manifest": {
+      "url": "https://registry.ollama.ai/v2/library/deepseek-v4.1-flash/manifests/1017-cloud",
+      "sha256": "4ac3801a8d7e4cfdbc899090a136adf81dff821ccc600e0c9653e275000127ae",
+      "payload": {
+        "config": {
+          "digest": "sha256:59e7a5e66b31901d6b949f68d965e2964be790c18b251e7299ef259751ae67e2",
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 336
+        },
+        "layers": [],
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "schemaVersion": 2
+      }
+    },
+    "pro_manifest": {
+      "url": "https://registry.ollama.ai/v2/library/deepseek-v4-pro/manifests/0813-cloud",
+      "sha256": "47d1ad2bea02fdccfcd32868838fe2d3e7eb9d07529ae80ed0cb00e248879678",
+      "payload": {
+        "config": {
+          "digest": "sha256:ecb497165d73b0caaf3752ff933f17749a150e89c8715555ab345b479feeba96",
+          "mediaType": "application/vnd.docker.container.image.v1+json",
+          "size": 323
+        },
+        "layers": [],
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "schemaVersion": 2
+      }
+    },
+    "flash_stub": {
+      "url": "https://registry.ollama.ai/v2/library/deepseek-v4.1-flash/blobs/sha256:59e7a5e66b31901d6b949f68d965e2964be790c18b251e7299ef259751ae67e2",
+      "sha256": "59e7a5e66b31901d6b949f68d965e2964be790c18b251e7299ef259751ae67e2",
+      "payload": {
+        "architecture": "amd64",
+        "base_name": "deepseek-v4.1-flash:1017",
+        "capabilities": [
+          "completion",
+          "thinking",
+          "tools",
+          "vision"
+        ],
+        "context_length": 1048576,
+        "embedding_length": 0,
+        "file_type": "FP8",
+        "model_type": "763B",
+        "os": "linux",
+        "remote_host": "https://ollama.com",
+        "remote_model": "deepseek-v4.1-flash:1017",
+        "rootfs": {
+          "diff_ids": [],
+          "type": "layers"
+        }
+      }
+    },
+    "pro_stub": {
+      "url": "https://registry.ollama.ai/v2/library/deepseek-v4-pro/blobs/sha256:ecb497165d73b0caaf3752ff933f17749a150e89c8715555ab345b479feeba96",
+      "sha256": "ecb497165d73b0caaf3752ff933f17749a150e89c8715555ab345b479feeba96",
+      "payload": {
+        "architecture": "amd64",
+        "base_name": "deepseek-v4-pro:0813",
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking"
+        ],
+        "context_length": 1048576,
+        "embedding_length": 4096,
+        "file_type": "FP8",
+        "model_type": "1.65T",
+        "os": "linux",
+        "remote_host": "https://ollama.com",
+        "remote_model": "deepseek-v4-pro:0813",
+        "rootfs": {
+          "diff_ids": [],
+          "type": "layers"
+        }
+      }
+    },
+    "flash_show": {
+      "url": "https://ollama.com/api/show",
+      "operation": "public no-auth metadata POST",
+      "request": {
+        "model": "deepseek-v4.1-flash:1017",
+        "verbose": true
+      },
+      "sha256": "6232bbc0f39a8edd34f52f8fc76f6b0f99a84e95be2f044bd7764da95dcc04f9",
+      "payload": {
+        "capabilities": [
+          "completion",
+          "thinking",
+          "tools",
+          "vision"
+        ],
+        "details": {
+          "parent_model": "deepseek-v4.1-flash:1017",
+          "format": "",
+          "family": "deepseek_v41",
+          "families": null,
+          "parameter_size": "763205315794",
+          "quantization_level": "FP8"
+        },
+        "model_info": {
+          "deepseek_v41.context_length": 1048576,
+          "deepseek_v41.embedding_length": 0,
+          "general.architecture": "deepseek_v41",
+          "general.parameter_count": 763205315794
+        },
+        "modified_at": "2026-10-17T03:00:00-07:00",
+        "thinking": {
+          "values": [
+            false,
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "high"
+        }
+      }
+    },
+    "pro_show": {
+      "url": "https://ollama.com/api/show",
+      "operation": "public no-auth metadata POST",
+      "request": {
+        "model": "deepseek-v4-pro:0813",
+        "verbose": true
+      },
+      "sha256": "9903a36d08d149fd63dbf08d794e7f8dc530bcc9930f250c55ff433c0ee7750f",
+      "payload": {
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking"
+        ],
+        "details": {
+          "parent_model": "deepseek-v4-pro:0813",
+          "format": "",
+          "family": "deepseek4",
+          "families": null,
+          "parameter_size": "1650497936906",
+          "quantization_level": "FP8"
+        },
+        "model_info": {
+          "deepseek4.context_length": 1048576,
+          "deepseek4.embedding_length": 4096,
+          "general.architecture": "deepseek4",
+          "general.parameter_count": 1650497936906
+        },
+        "modified_at": "2026-08-13T08:00:00-07:00",
+        "thinking": {
+          "values": [
+            false,
+            "low",
+            "high",
+            "max"
+          ],
+          "default": "low"
+        }
+      }
+    }
+  },
+  "conclusions": [
+    "A smaller context window is not necessary if a supported request-specific billable input upper bound can be proven. Prior full-context reservations were fallback scenarios, not the unique possible design.",
+    "Native /api/chat num_predict and num_ctx reports cannot establish that max_tokens on actual /v1/chat/completions is unsupported. Official docs explicitly support max_tokens. Reasoning-inclusive billable output semantics still need route-specific validation.",
+    "Exact dated model Cloud metadata, even verbose, exposes context length1048576 and thinking modes but no tokenizer, renderer, template, serialized expansion maximum or count endpoint. Public registry dated cloud manifests have zero layers and stub-only metadata. Therefore copying an upstream tokenizer or selecting an arbitrary overhead constant does not establish hosted billable input.",
+    "A serialized-byte bound could be sufficient with a reviewed tokenization normalization bound and deterministic supported renderer expansion bound, incl every tool/schema/message field. No such bound is supplied by the observed hosted metadata/docs.",
+    "_debug_render_only is public OSS diagnostic, not an advertised Cloud no-charge operation. Unsupported-field fallback could dispatch inference; no free-count probe was attempted.",
+    "Input_tokens native OpenAI call may help classifier only if supported pass-through and same-final-payload/model/provider binding become documented; cannot solve Ollama answer route by itself.",
+    "No provider contact was sent. The narrow missing external contract is a no-inference count operation or maximum rendered/tokenized input expansion for exact hosted dated model and supported reasoning-inclusive output cap."
+  ],
+  "sources": [
+    {
+      "url": "https://docs.ollama.com/api/openai-compatibility",
+      "finding": "Direct cloud OpenAI base documented; max_tokens supported. No input count endpoint or hosted template bound documented."
+    },
+    {
+      "url": "https://docs.ollama.com/api-reference/show-model-details",
+      "finding": "Model details metadata operation used without authentication; no inference."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ollama/ollama/main/openai/openai.go",
+      "finding": "Public OSS OpenAI request accepts max_tokens and maps to num_predict; accepts _debug_render_only. This is not attestation of current Cloud release or charge semantics."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/ollama/ollama/main/server/routes.go",
+      "finding": "Public OSS cloud requests proxy before local rendering and debug-return code. A local debug render proof cannot establish remote template/count."
+    },
+    {
+      "url": "https://ollama.com/pricing",
+      "finding": "Peak Flash input .30/M output1.20/M; Pro input1.32/M output3.96/M; no service fees stated. Cache rates lower, peak uncached used for bounds."
+    },
+    {
+      "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+      "finding": "Supported OpenAI-compatible endpoints list models/chat-completions/embeddings, not input_tokens."
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/token-counting",
+      "finding": "Exact full processed input token count available on native Responses input_tokens endpoint; does not establish pass-through support on this retained Vercel route."
+    }
+  ]
+}

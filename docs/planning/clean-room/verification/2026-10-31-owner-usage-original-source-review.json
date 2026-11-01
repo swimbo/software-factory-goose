@@ -1,0 +1,218 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "scope": {
+    "base": "0da21980c322ce4992fd13faea52b5dbc37515d5",
+    "branch": "codex/phase11a-rated-integration-20261030",
+    "head_sha": "0da21980c322ce4992fd13faea52b5dbc37515d5",
+    "pr_url": null,
+    "files_changed": 13
+  },
+  "intent": "Add optional Root-owned protected spending owner/frontend binding and authenticated physical usage capture to audited usage-rated accounting, preserving existing service catalogs when absent and live admission denial. Source-only milestone: no producer/audit endpoint installed, no production launch admission or 120 live attempts certified. Keep candidate disabled and $5 UTC/day plus $0.75 permanent-task caps, no refund or unknown retries unchanged.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "reliability",
+    "api-contract",
+    "testing",
+    "maintainability",
+    "project-standards",
+    "adversarial"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:125 --         parent.gid() == binding.socket_gid && parent.mode() & 0o7777 == 0o710,",
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:106-112 -- let directory = std::fs::OpenOptions::new().read(true).custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC).open(parent)?; ... m.is_dir() && m.uid() == 0 && m.mode() & 0o022 == 0",
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:46-48 -- unsafe { libc::geteuid() } == config.journal_uid && unsafe { libc::getegid() } == config.journal_uid",
+        "clean-room/crates/execution/harness/protected_spending_control.py:199-203 -- fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)",
+        "The frontend requires every socket ancestor to be root-owned, runs as the distinct non-root journal UID with empty capabilities, and opens each ancestor using OpenOptions::new().read(true).custom_flags(O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC).open(parent) at lines 105-109.",
+        "clean-room/crates/execution/harness/protected_spending_control.py:199-202 -- fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd). PrivateCollectorClient and PrivateCaptureClient inherit this constructor and path check.",
+        "Unix directory read permission is absent for group and others under 0710; dedicated group membership supplies search permission only. No ACL or capability can supply missing read permission under the frontend checks. The mock source/client test constructs objects via object.__new__ and overrides transport, so it bypasses this incompatible provisioning contract."
+      ],
+      "file": "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs",
+      "first_evidence": "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:125 --         parent.gid() == binding.socket_gid && parent.mode() & 0o7777 == 0o710,",
+      "independent_reviewers": [
+        "reliability",
+        "adversarial"
+      ],
+      "line": 125,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "reliability",
+        "adversarial"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Require a root-owned 0750 socket parent instead of 0710 and provision the journal frontend, broker, and collector with membership in socket_gid. Add a Linux permission-boundary test under distinct unprivileged UIDs that exercises the actual directory checks and client initialization.",
+      "title": "Allow directory reads for the spending frontend and clients",
+      "why_it_matters": "The new frontend cannot start with its required socket-directory permissions. It runs as the non-root journal UID, requires every ancestor to be root-owned, and opens each directory for reading, but also requires the socket parent to be mode 0710, which grants non-owners no directory-read permission. The broker and collector inherit the same O_RDONLY traversal in PrivateSpendingClient, so even bypassing startup would leave both clients unable to connect. Giving the dedicated group read and traversal permission, with the frontend and clients in that group, makes the checks and transport usable while preserving socket isolation.",
+      "validation_status": "confirmed",
+      "validation_reason": "In the frozen staged snapshot, harness_spending_runtime.rs:46-48 requires the distinct non-root journal UID, lines 61-70 require empty capabilities, lines 105-115 open the root-owned socket parent O_RDONLY, and line 125 requires mode 0710, which denies that UID directory-read access even with socket-group membership; the configured frontend startup reaches this unconditional check, while existing Python client traversal at protected_spending_control.py:199-202 has the same incompatibility, and runtime incidence was not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "evidence": [
+        "clean-room/crates/control-plane/src/harness_owner.rs:309 --             .bind(HarnessSpending)",
+        "clean-room/crates/control-plane/src/harness_owner.rs:268 --         assert!(bind_owner(restate_sdk::endpoint::Endpoint::builder(), None).is_ok());",
+        "clean-room/crates/control-plane/src/harness_owner.rs:345 --             bind_owner(restate_sdk::endpoint::Endpoint::builder(), Some(&binding())).is_ok(),",
+        "The supplied staged diff adds bind_owner at lines 142-156 and uses its returned builder in src/bin/private_runtime.rs:622; the discovery test constructs its endpoint independently of that returned builder."
+      ],
+      "file": "clean-room/crates/control-plane/src/harness_owner.rs",
+      "first_evidence": "clean-room/crates/control-plane/src/harness_owner.rs:309 --             .bind(HarnessSpending)",
+      "independent_reviewers": [
+        "testing"
+      ],
+      "line": 309,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Build and discover endpoints returned by bind_owner for None and Some(binding), using a builder with an existing service. Assert the existing service set is unchanged for None and that exactly HarnessSpending with the eight handlers is added for Some under registry-sidecar; retain the feature-disabled rejection assertion.",
+      "title": "Exercise optional binding in endpoint discovery tests",
+      "why_it_matters": "The tests do not protect the change's central compatibility contract: preserving existing services without a binding and adding HarnessSpending only with a binding. The discovery test directly binds HarnessSpending, while both calls to bind_owner assert only success; returning the unmodified builder in the configured case would leave these tests green even though the production owner service disappears. Discovering the builder returned by bind_owner makes the tests sensitive to that failure and to accidental service registration in the absent case.",
+      "validation_status": "confirmed",
+      "validation_reason": "In the frozen staged snapshot, harness_owner.rs:268 and 345 only check bind_owner success while discovery at lines 308-310 directly binds HarnessSpending, so the new configured-owner path used by private_runtime.rs:622 could return the unchanged builder and all these assertions would remain satisfied; the precondition is a regression in optional binding, whose incidence was not measured, and inspection confirms the tests never discover either returned builder or assert preservation of an existing service."
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:125 --         parent.gid() == binding.socket_gid && parent.mode() & 0o7777 == 0o710,",
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:106-112 -- let directory = std::fs::OpenOptions::new().read(true).custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC).open(parent)?; ... m.is_dir() && m.uid() == 0 && m.mode() & 0o022 == 0",
+        "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:46-48 -- unsafe { libc::geteuid() } == config.journal_uid && unsafe { libc::getegid() } == config.journal_uid",
+        "clean-room/crates/execution/harness/protected_spending_control.py:199-203 -- fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)",
+        "The frontend requires every socket ancestor to be root-owned, runs as the distinct non-root journal UID with empty capabilities, and opens each ancestor using OpenOptions::new().read(true).custom_flags(O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC).open(parent) at lines 105-109.",
+        "clean-room/crates/execution/harness/protected_spending_control.py:199-202 -- fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd). PrivateCollectorClient and PrivateCaptureClient inherit this constructor and path check.",
+        "Unix directory read permission is absent for group and others under 0710; dedicated group membership supplies search permission only. No ACL or capability can supply missing read permission under the frontend checks. The mock source/client test constructs objects via object.__new__ and overrides transport, so it bypasses this incompatible provisioning contract."
+      ],
+      "file": "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs",
+      "first_evidence": "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs:125 --         parent.gid() == binding.socket_gid && parent.mode() & 0o7777 == 0o710,",
+      "independent_reviewers": [
+        "reliability",
+        "adversarial"
+      ],
+      "line": 125,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "reliability",
+        "adversarial"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Require a root-owned 0750 socket parent instead of 0710 and provision the journal frontend, broker, and collector with membership in socket_gid. Add a Linux permission-boundary test under distinct unprivileged UIDs that exercises the actual directory checks and client initialization.",
+      "title": "Allow directory reads for the spending frontend and clients",
+      "why_it_matters": "The new frontend cannot start with its required socket-directory permissions. It runs as the non-root journal UID, requires every ancestor to be root-owned, and opens each directory for reading, but also requires the socket parent to be mode 0710, which grants non-owners no directory-read permission. The broker and collector inherit the same O_RDONLY traversal in PrivateSpendingClient, so even bypassing startup would leave both clients unable to connect. Giving the dedicated group read and traversal permission, with the frontend and clients in that group, makes the checks and transport usable while preserving socket isolation.",
+      "validation_status": "confirmed",
+      "validation_reason": "In the frozen staged snapshot, harness_spending_runtime.rs:46-48 requires the distinct non-root journal UID, lines 61-70 require empty capabilities, lines 105-115 open the root-owned socket parent O_RDONLY, and line 125 requires mode 0710, which denies that UID directory-read access even with socket-group membership; the configured frontend startup reaches this unconditional check, while existing Python client traversal at protected_spending_control.py:199-202 has the same incompatibility, and runtime incidence was not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 75,
+      "evidence": [
+        "clean-room/crates/control-plane/src/harness_owner.rs:309 --             .bind(HarnessSpending)",
+        "clean-room/crates/control-plane/src/harness_owner.rs:268 --         assert!(bind_owner(restate_sdk::endpoint::Endpoint::builder(), None).is_ok());",
+        "clean-room/crates/control-plane/src/harness_owner.rs:345 --             bind_owner(restate_sdk::endpoint::Endpoint::builder(), Some(&binding())).is_ok(),",
+        "The supplied staged diff adds bind_owner at lines 142-156 and uses its returned builder in src/bin/private_runtime.rs:622; the discovery test constructs its endpoint independently of that returned builder."
+      ],
+      "file": "clean-room/crates/control-plane/src/harness_owner.rs",
+      "first_evidence": "clean-room/crates/control-plane/src/harness_owner.rs:309 --             .bind(HarnessSpending)",
+      "independent_reviewers": [
+        "testing"
+      ],
+      "line": 309,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Build and discover endpoints returned by bind_owner for None and Some(binding), using a builder with an existing service. Assert the existing service set is unchanged for None and that exactly HarnessSpending with the eight handlers is added for Some under registry-sidecar; retain the feature-disabled rejection assertion.",
+      "title": "Exercise optional binding in endpoint discovery tests",
+      "why_it_matters": "The tests do not protect the change's central compatibility contract: preserving existing services without a binding and adding HarnessSpending only with a binding. The discovery test directly binds HarnessSpending, while both calls to bind_owner assert only success; returning the unmodified builder in the configured case would leave these tests green even though the production owner service disappears. Discovering the builder returned by bind_owner makes the tests sensitive to that failure and to accidental service registration in the absent case.",
+      "validation_status": "confirmed",
+      "validation_reason": "In the frozen staged snapshot, harness_owner.rs:268 and 345 only check bind_owner success while discovery at lines 308-310 directly binds HarnessSpending, so the new configured-owner path used by private_runtime.rs:622 could return the unchanged builder and all these assertions would remain satisfied; the precondition is a regression in optional binding, whose incidence was not measured, and inspection confirms the tests never discover either returned builder or assert preservation of an existing service."
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Before activation, reconcile inherited-listener credentials with client peer authentication: harness_spending_runtime.rs requires an activated fd3, while protected_spending_control.py:276 requires SO_PEERCRED UID == service_uid (journal_uid). A conventional root-created systemd listener reports its creator's credentials even when the socket pathname is chowned to journal_uid; such provisioning would make every broker/collector request fail private_spending_peer_changed. No spending activation unit or producer is installed in this source-only scope, so the eventual listener creator/attestation contract remains unresolved. Existing project research in docs/planning/clean-room/decisions/2026-10-30-root-finalization/security-research.md:11 explicitly identifies this inherited-socket distinction.",
+    "The physical capture producer and audit endpoint are expressly not installed in this source-only scope; authenticated closure completeness and durable audit custody remain unverified for live use."
+  ],
+  "testing_gaps": [
+    "PrivateCaptureClient.closed and persist_audit are replaced by instance lambdas in test_physical_usage.py:161-162, so the new /capture/ request binding and audit acknowledgement checks (wrong digest, stored=false, malformed acknowledgement) have no behavioral test. Add transport-fake unit cases through these real methods before treating authenticated capture persistence as verified.",
+    "normalize_capture's embedding_no_output branch has no test; the only new profile fixture uses inclusive_output_total. Add an embedding profile and capture without output usage, assert zero normalized output and an exact rated receipt, and reject a non-embedding role using that semantics."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Scope exact13 staged files only; all untracked genericLinux implementation excluded.",
+      "AGENTS.md instruction fallback governs all13; no designated standards or review policy found.",
+      "Helper facts:1624 executable changed lines,1271 non-test; full depth.",
+      "Agent-native skipped: no newly agent-callable tools; owner/capture authority is internal, agent capability interface unchanged. Performance skipped: transforms small boundedMAX32; no material algorithm/cache change. No migrations, UI, Swift or matched learnings corpus/packs.",
+      "Standalone staged snapshot against exactHEAD; no commits in base..HEAD.",
+      "Five simplification personas completed; no worthwhile source changes. Optional two comment deletions declined as no material benefit.",
+      "Parent-reported tests: Mac/nativeLinux owner7, native registry-sidecar bothbinschecks; usage43 focused, profile regression. Reviewer source receipt does not independently certify installed production endpoints.",
+      "No plan discovered in docs/plans; legacy phase plan context informs intent, but full Phase11A work remains outside this isolated source milestone.",
+      "Scope log began after snapshot selection; delayed_scope_log records this honestly.",
+      "Cross-model pass not run: caller explicitly prohibits paid external review/source egress. Fresh local adversarial persona supplies lens; cross-model independence is not claimed.",
+      "Merged two same-defect directory-permission findings into #1; retained cautious manual route. Same-model agreement did not increase confidence.",
+      "No plan discovered; settlement suppression was not evaluated.",
+      "Confidence suppressions: 0. Missing first_evidence demotions: 0; first_evidence_backfilled: 0. Malformed findings and returns: 0. Mode-aware soft-bucket demotions: 0.",
+      "Validator shortcut-skipped: 0; neither finding has verified cross-model corroboration. Both primary findings selected for one validator batch.",
+      "Review evidence is the immutable original full.diff staged snapshot; newer source fixes are outside this round.",
+      "No triage groups: two unrelated findings do not form a meaningful multi-finding group.",
+      "Validator batch arrived within the bounded collection: confirmed 2 (#1 and #2); rejected 0; unresolved 0; malformed 0; failed 0; shortcut-skipped 0. Both confirmations are source-based; runtime incidence was not measured.",
+      "Protected classification: #1 authorization-authentication; #2 unprotected test coverage. No protected-subject reclassification or degraded blockers.",
+      "Stage 5c skipped: agent report-only, apply_local=false. Newer parent fixes remain outside this original snapshot review and require focused re-review.",
+      "Source-only review certifies no deployment, live admission, benchmark completion, or candidate promotion. Candidate remains disabled; $5/day and $0.75 permanent-task caps and no-refund/no-unknown-retry constraints remain in force."
+    ],
+    "validation": {
+      "confirmed": 2,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "failed_reviewers": []
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261031-owner-usage",
+  "run_id": "20261031-owner-usage",
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: caller explicitly prohibits paid external review/source egress. Fresh local adversarial persona supplies lens; cross-model independence is not claimed."
+  },
+  "verdict_reason": "Fix #1 so the configured frontend and clients can read the protected socket directory, then strengthen optional-binding discovery coverage in #2. This verdict applies only to the original frozen staged snapshot; later fixes are not cleared by this report.",
+  "fix_order": [
+    1,
+    2
+  ]
+}

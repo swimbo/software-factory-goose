@@ -1,0 +1,34 @@
+{
+  "candidate_enabled": false,
+  "component": "actual_private_capture_roles_and_sqlite_restart",
+  "live_attempts": 0,
+  "paid_calls": 0,
+  "production_admission": false,
+  "real_wallet_acquisition": false,
+  "results": [
+    {
+      "worker_denied_before_http": true
+    },
+    {
+      "opened": true,
+      "root_sha256": "4e6f237ae371420ec4cf7f3d958c838d24167777bdfa003a0f3b7b9d99ea506a"
+    },
+    {
+      "physical_manifest_sha256": "66d96f40a4e5fc4fdda159974a42cf92d958eb5226b2f4900cd9a0d8b2166c35",
+      "stored": true
+    },
+    {
+      "audit_persisted": true,
+      "closed_verified": true,
+      "invalid_audit_denied": true,
+      "rated_microusd": 2
+    },
+    {
+      "audit_persisted": true,
+      "closed_verified": true,
+      "invalid_audit_denied": true,
+      "rated_microusd": 2
+    }
+  ],
+  "schema": 1
+}

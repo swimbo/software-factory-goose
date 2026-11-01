@@ -1,0 +1,30 @@
+{
+  "schema": 3,
+  "phase": "11A",
+  "status": "blocked",
+  "candidate_enabled": false,
+  "required_live_runs": 120,
+  "completed_live_runs": 0,
+  "performance_cost_basis": "audited_usage_rated",
+  "tariff_profile": "constant_peak",
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
+  "performance_gate": {
+    "passed": false,
+    "reason": "incomplete_live_pairs"
+  },
+  "evidence": "2026-10-30-harness-usage-rated.json",
+  "blockers": [
+    "authenticated_complete_all_path_physical_usage_capture",
+    "reviewed_enforceable_provider_and_route_charge_bounds",
+    "production_registry_transition_and_generic_protected_linux_launch",
+    "120_real_paired_attempts_and_safety_acceptance_cost_time_gate"
+  ],
+  "note": "User-approved cost metric amendment implemented. No live inference, candidate activation, route change or production ledger reset.",
+  "latest_evidence": "2026-10-31-gateway-physical-capture.json",
+  "last_review_date": "2026-10-31",
+  "gateway_source_revision": "28d60eeeeb1870379d2a6b7fd77b2b1be1db52c2"
+}

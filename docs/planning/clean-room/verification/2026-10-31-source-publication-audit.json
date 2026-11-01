@@ -1,0 +1,2108 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "scope": "Source publication audit only; no deployment, inference, activation or candidate promotion",
+  "factory_parent": "7dbe7a8c7c51336eab161fa34ceb77e79913b4df",
+  "gateway_parent": "147d6f68e3609d86f62d9e8d27d1ca7cac7ffac4",
+  "secret_scan": {
+    "engine": "gitleaks default rules with 100 percent redaction",
+    "bytes_scanned": 2487573,
+    "findings": 4,
+    "confirmed_secrets": 0,
+    "disposition": "All four findings are public/synthetic journal-key ULID literals in three tests, manually inspected; no suppression added to pinned source",
+    "additional_checks": "No credential-value literals, private-key blocks, credential-bearing URLs, AWS/GitHub token patterns found; no symlinks or runtime/binary state in selected files"
+  },
+  "checks": {
+    "deployment_python": {
+      "passed": 429
+    },
+    "harness_python": {
+      "passed": 161,
+      "skipped": 4,
+      "initial_setup_failure": "Missing documented SFACTORY_TEST_SCRIPT_HOST; rerun passed with existing pinned local QuickJS host and normalizer"
+    },
+    "control_plane_registry_v5": {
+      "passed": 281,
+      "ignored": 1
+    },
+    "rust_bins_examples": "cargo check --features registry-v5 --bins --examples --locked --offline passed",
+    "harness_ruff": "passed",
+    "python_syntax_json": "all selected Python AST and JSON parsed",
+    "git_diff_check": "passed in both repositories",
+    "gateway_source": "23 selected files are byte-identical to reviewed and published isolated branch fa5a42d; existing full-core/native review receipts retained"
+  },
+  "excluded": [
+    {
+      "repo": "gateway",
+      "path": ".DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    },
+    {
+      "repo": "gateway",
+      "path": "clients/.DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    },
+    {
+      "repo": "gateway",
+      "path": "connectors/.DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    },
+    {
+      "repo": "gateway",
+      "path": "docs/.DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/.DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    },
+    {
+      "repo": "gateway",
+      "path": "runtime/.DS_Store",
+      "reason": "Unrelated macOS Finder metadata; retained locally, not staged"
+    }
+  ],
+  "files": [
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/bin/private_runtime.rs",
+      "sha256": "acc1f4745b55620cdba5f6922c770c6394d9cd03110998ea876137a7dd9add02",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/lib.rs",
+      "sha256": "bf292e0e5bd2c1f79ce601ca76e1638fe231dc748d50588577a42c1637c6496f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/private_runtime.rs",
+      "sha256": "63da1b4df6897aac38005e8d2f10d0af3aafef2d5119b4c847237441f4ba4a04",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/README.md",
+      "sha256": "671037507eb8c56d7d05db0d450256e1e618c12f1a40563e674c12715aaa7eae",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/goose_harness_probe.py",
+      "sha256": "ae68f7ba2cbf8154e143fd478ce9b86459e3aeb27775b47aeea9d18c2fa4954c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/harness_evaluation.py",
+      "sha256": "01190b4dd64b95f94458313eb9558d68b3edc0daa139986f032dba5b54246ef7",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/harness_mcp.py",
+      "sha256": "81f2d7327580041e721689abf2ce80f5816253b1dcaa1bae0efd12efc2185349",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_mcp.py",
+      "sha256": "98fce8688f61951ba75a0e4b1d9a90c09900a8d127b10e2942feea081f6b0835",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_identity_bridge.py",
+      "sha256": "8ec6132ff095382ba9ca2df5bc93c4f1611bfc654dca5518df2e0a16a1677079",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_launch_prepare.py",
+      "sha256": "27f55f50b38375387bebf42144292760d123f2efd42bcbd4527054b3e853a58e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_transition_gate.py",
+      "sha256": "c3cd605b13968654edea8c4a5955e429141bccd3b0f970e375ff26d296a0d264",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_eval_package_install.py",
+      "sha256": "dd41ffbe07e7a1637a720dcafe4b2950c2b0ccec3bb551a29e69205bbc8b1de4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/decisions/2026-10-30-registry-ingress-fence/evidence-ledger.md",
+      "sha256": "d8bdb505694e27e94bc23772652fbe0dea20049f3d6416ae73018d1de45b34a4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/phase-11a-plan.md",
+      "sha256": "2370880812620765591b397cba66a8a5bdd4e2acee036bbbe05ea6eb3cc6411b",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/phased-plan.md",
+      "sha256": "cc3fa0ec10d430aa47245410e8130dfde1d1c3f8079c7a0afeed10445288bd32",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/progress.md",
+      "sha256": "20adcd7133c819e48d5256e7d1b5da86a95a28950da07dbd84af51038f3b7f08",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/examples/harness_runtime_fixture.rs",
+      "sha256": "c32dd1537a1ba74ad4e2bceb6854fffb7e80d45e3517e72c6e361e5beec9c312",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/examples/harness_spending_fixture.rs",
+      "sha256": "6ca068c8d47c60db9d6aed7d2b95f427d9114f876db61e38903421ac1da50d2d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/examples/sdk5_discovery_fixture.rs",
+      "sha256": "5ecad554e2bea3b3838cc346ca068e2a53debdb480dff2a14a618401a00de39a",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/examples/sdk5_discovery_probe.rs",
+      "sha256": "78672d23ed806b7417bc35c1dc6f78a9c01bd9d3f0cabdd2ca12a53f4d984aff",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs",
+      "sha256": "60d86174455ef11a9bd9bde9bc44a99794a371ecbbd4cfd257e32dd63a1f7ece",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/harness_charge_bounds.rs",
+      "sha256": "620e6508235528bd3f65e7cc7b0808b46fd1257a564eeb7e787ab740ef339c3b",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/harness_owner.rs",
+      "sha256": "add0ba8903f6a752f25320babe6cbce446b0a9b3ed448cd6c1ed223348c6905f",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/harness_spending.rs",
+      "sha256": "473c15143b03804c3b39b5703516fd3beea5816fd0a8ba03294512a95b9c374c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/control-plane/src/harness_spending_ingress.rs",
+      "sha256": "0241abaef299468fd8a4fa325eb021f8a752a8fd0d1722ec489fc73107180356",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/benchmark-spending-policy.json",
+      "sha256": "95aa705949bb71f38702b2eeb2e906f3d4b024a010ddd1c258445b6049228623",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/benchmark_acceptance.py",
+      "sha256": "c198c2b81ba4f2732efecfbf9d89a10d04ee4fd0b3213e3570ed0b357845dd35",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/billing_capabilities.py",
+      "sha256": "9d3869c58c881bed6a47e44d666f79a70adc0a285097eefba923939841f57bdc",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/billing_receipts.py",
+      "sha256": "73c911a9537ec42e90db3791297586dcbd7bcb4c6e403255e06ab8f54c969bf9",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/billing_spending.py",
+      "sha256": "6dcb629856e9550db9ad8e075091e025cd9e8397725d6e0dfe42ccb73640ae24",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/container_eval_host.py",
+      "sha256": "9f18f50a99452863f1b1e9d173ad8c1ca0ba330de7fb1560888576907f6bc46c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/container_evaluator.py",
+      "sha256": "50640b0387ec71dd39e8f5ec8e9431b97b3d7a1ad8277b25609a2b2ed848bf4f",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/gateway_custody.py",
+      "sha256": "ce412937d4a83b43bd57740e997573940cd1c0247e15f4519eb4d1d7f997b8e0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/linux_goose_runtime.py",
+      "sha256": "562ce0729cea081465c38ef34a3240c3182d6be0cf7cb791331f7afd58516892",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/linux_runner.py",
+      "sha256": "0b6ac076f7bf8680a83688ec124058ddbd7f779eaa8486b9ee8f45ab85f2d8c3",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "sha256": "73f9f454fa2b53096d81f22816ece095b5e1e47657394f6e2da7b009e21bb539",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/linux_worker.py",
+      "sha256": "54f276266221b384a9b7cde236083fb7a7a2d0cafbb0e06107982f10b0413128",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/paired_runner.py",
+      "sha256": "215e77c76a900bdababa42df930000f6d5339e5178678f46e080ae5ef5793338",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/physical_usage.py",
+      "sha256": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/protected_goose_runtime.py",
+      "sha256": "07f850b86e394651568797727aa81387beff1057b34a383524febaea8b3fd2dd",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/protected_mcp.py",
+      "sha256": "5cbd36646fbc5117e09a8efb60b13853425817ae70321d96d1a8b153400baf15",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/protected_spending_control.py",
+      "sha256": "5ac006e9f21466b92008d1a215a7b3db2a65765b7305d32a5374bab9009e8323",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_benchmark_acceptance.py",
+      "sha256": "1ee36abf704e15f9a24c77e2a927838fd04d0f2787af0fdf81e2d9d6badcfa16",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_billing_capabilities.py",
+      "sha256": "7b348efb0af3bfdc57f7bddaafed1c7ea5065924cd54804bc973ae2e74e4c5d0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_billing_receipts.py",
+      "sha256": "1645068f5b31b34a4b1261cd14d61720745a7c343c688d59bd0998e487c8f753",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_billing_spending.py",
+      "sha256": "7185e2c2e55a16b487ec08827ca78794d7a0749148eba74df32b3d0277b06615",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_container_evaluator.py",
+      "sha256": "49c7017e7f63f31626c5387d12ffe7e597f380e90a6ad953ec54f62af5de78c5",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_gateway_custody.py",
+      "sha256": "931a666a5a2f6b72154d0c2c0a60448f3ffda8b8e2b93fba35662b36b9734a00",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_linux_goose_runtime.py",
+      "sha256": "698668da7c35ce33dae7ddd914859dfb4e46144c0d29bd73bcc52851512e0652",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_linux_runner.py",
+      "sha256": "0e50d6f190350304fa41b87181a37b1750dc56ea01b14818a76787efa0360ef1",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_linux_supervisor.py",
+      "sha256": "71b4d75837f915c7643cb8b9db8f2eae9b3d14de6777e33c120252eb182133c6",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_paired_runner.py",
+      "sha256": "bb8baae604ee14f8fc194b6faf76b35f192457035080a7457ab0d16e3bd0e7a0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_physical_usage.py",
+      "sha256": "665075a298b9708133e0d165d64a20d3c3f4219770a3a198ff40d072d9f404a4",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_profile_binding.py",
+      "sha256": "41c3672b28be734e948e00f87c12f4b5e097555eef26f1979a9bc0681b03939c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_protected_runtime.py",
+      "sha256": "d39ee2a0085077a1f1a2f9a56305683ae41e6a21033523a7c359ddcd73a50a6a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_protected_spending_control.py",
+      "sha256": "f0efd2241888eed23952b8b920e2b113bd28ef1c2162020ad912d39320199d4a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_rated_control.py",
+      "sha256": "3760d36ed317298c9d329f75fd390be06c174756647530bb3658da5abc5186ef",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_supervisor_loss.py",
+      "sha256": "c211464d7160dae4c8aaa95d42d17149a460fb99077a042ed48405431ecdec0e",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_usage_gate.py",
+      "sha256": "8731b7877785bdbc61b67a31347553b2a03226ab82efa36f5c5aa31fc91461ea",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_usage_rating.py",
+      "sha256": "07e1f7e19b3c036fe68d1621e79a120cc2ec911f8c66b936f1f7eacdb258d92e",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/test_usage_spending.py",
+      "sha256": "9ba146a357a0672298b5d13f3d3f2201a481605c7651c2a457962e2d55eac6e9",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/usage_rating.py",
+      "sha256": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/crates/execution/harness/usage_spending.py",
+      "sha256": "89dfe5e2fd3462d4875d5edf354e7b3fd9c4324ee2a06cdb7e200916f083e606",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator-units/software-factory-goose-eval-broker.service",
+      "sha256": "1558e0ac40d05d16ff020e4b89f71fbbd8956656a43f305fde26a135606f079d",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator-units/software-factory-goose-eval-broker.socket",
+      "sha256": "aecb2b0f443ec56ff440b15f0664b9944f286f1d0e8c94b290f795b6849ebc25",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_grant_sidecar_install.py",
+      "sha256": "c8d3ebb2ba4707fdb2600564a1ef3bbc558e7c433cc09413df51e4d8bf87f3b6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_backend.py",
+      "sha256": "d075a73243f4d1284c72686f4c92baf6e668b3f7a2e1732a77e8e5533786d681",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_broker.py",
+      "sha256": "708cc142b92d62929f81a692d69be8412b9bfd7037a3020ca24fc54f06b9e8b2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_canary_coordinator.py",
+      "sha256": "6db3a33e22188eb5ee1a5e207435c45544f1bc79a03e28b46eeab526f4ed0459",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_canary_runtime.py",
+      "sha256": "c56adee9bb5a01251127e8c5881cf628b7f7999e9ea44160f5f2a1efbd2f2409",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_client.py",
+      "sha256": "c3aa584feea36f6f6b566076cb0f09bef5bc7ee3ca8012bf57ffe949d79fe769",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_coordinator.py",
+      "sha256": "3b8f19db535092386ee2c8eb43e1aad480a509a1f79612a570d4374d32e853d9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_deadline.py",
+      "sha256": "ce390a0e56bd409ef05ccdb336748c4c6433bdaf2d59ff3533a9822185f0564e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_eval_server.py",
+      "sha256": "585a53a8137bfb6a96ec030cd9e23a08a83d6be4e27c1c46887209798f4f8800",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary2/nuc_registry_evaluator.py",
+      "sha256": "5c236c7ccf77b93d3c9ac89f05e9fc464afc8361e13e0aff26eafeb0fd4d1360",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_grant_sidecar_install.py",
+      "sha256": "c8d3ebb2ba4707fdb2600564a1ef3bbc558e7c433cc09413df51e4d8bf87f3b6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_backend.py",
+      "sha256": "d075a73243f4d1284c72686f4c92baf6e668b3f7a2e1732a77e8e5533786d681",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_broker.py",
+      "sha256": "708cc142b92d62929f81a692d69be8412b9bfd7037a3020ca24fc54f06b9e8b2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_canary_coordinator.py",
+      "sha256": "33d9eddc5816e0a6033409e6b53ccef9492d08b3936511506b294f873daa100a",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_canary_runtime.py",
+      "sha256": "32ff93429a4724f4a5e3f626e7ca53042131a4584a3f6b053612c0be1a22ecbf",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_client.py",
+      "sha256": "d395552f63a889f3d5725c05e7c9f99df5fc4803b317948fe677a0049eb45606",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_coordinator.py",
+      "sha256": "b827d01ff00d69cfce84cddac6973b8087e641b4219bf9f3627ac1c58372531c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_deadline.py",
+      "sha256": "ce390a0e56bd409ef05ccdb336748c4c6433bdaf2d59ff3533a9822185f0564e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_eval_server.py",
+      "sha256": "8cc655c66cb345e24a324aa5247209325a5d8a31ecd08b5df2a1845e8df6b9df",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary3/nuc_registry_evaluator.py",
+      "sha256": "5c236c7ccf77b93d3c9ac89f05e9fc464afc8361e13e0aff26eafeb0fd4d1360",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_grant_sidecar_install.py",
+      "sha256": "c8d3ebb2ba4707fdb2600564a1ef3bbc558e7c433cc09413df51e4d8bf87f3b6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_backend.py",
+      "sha256": "d075a73243f4d1284c72686f4c92baf6e668b3f7a2e1732a77e8e5533786d681",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_broker.py",
+      "sha256": "708cc142b92d62929f81a692d69be8412b9bfd7037a3020ca24fc54f06b9e8b2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_canary_coordinator.py",
+      "sha256": "8d1846b1fd88197f6141637f6a33463a389a64aa7d04fc0c05391e1c78ca2213",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_canary_runtime.py",
+      "sha256": "c41b73380cba62c92ce319cdb8d48e1171255b6f5e17bf97464a15039dcfb86b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_client.py",
+      "sha256": "6b4962adb09e97cd8897bae8f954bf6d6048148b7300a3c60281526081c3fa99",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_coordinator.py",
+      "sha256": "2899e033d7d9455db6e494742019a2f0acc29ce7c1e510940138b39c37747f83",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_deadline.py",
+      "sha256": "ce390a0e56bd409ef05ccdb336748c4c6433bdaf2d59ff3533a9822185f0564e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_eval_server.py",
+      "sha256": "a3c483dd02f0b8c8b0b2cb7c42178752d0f3f2561ce831de5a289a2f1a881926",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/evaluator_canary4/nuc_registry_evaluator.py",
+      "sha256": "5c236c7ccf77b93d3c9ac89f05e9fc464afc8361e13e0aff26eafeb0fd4d1360",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary2_activate.py",
+      "sha256": "f262cac2459820804ba71583f59bd5f896e121075d47397ea1d20b557e108841",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary2_attest.py",
+      "sha256": "1230f7ab2e387368db448c8fbd491ebcfa478290ac27fe3054f782552a0ae994",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary2_provision.py",
+      "sha256": "9d2ec1e7aafe1ace74f758894fd73fc78003e741aa10f4309b99acfdd501a92f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary2_run.py",
+      "sha256": "2762f7d47344b703e1039c6ef730d786c8b4cee08b318e18e854d0dc5eae1ee4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary2_service_install.py",
+      "sha256": "8ae4bd78882e8387e92c4341dbb9f8c77c92faa742eb9e5c0c8f5d3d2ec1f383",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_activate.py",
+      "sha256": "4615a9f1d3d70bf80c43121732257ea0519dd27738beafab6373b8155becf606",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_attest.py",
+      "sha256": "950a0bca3fee5690858d996eb0a4adda16ec1592505867264929fd33bfe40ac0",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_failure_inventory.py",
+      "sha256": "6abcdb2cdc13568871992a8559a6c9773d7505d7bf5a8c126185f537c50738d6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_owner_loss.py",
+      "sha256": "4ab8fab06bc0fc19c138935f73eafb1bd3180b7aa44e5a437af28e224d27eb8d",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_provision.py",
+      "sha256": "52d019da91a567d2a36c84c5f53677472d39d2ba0707bfbecf60b81a41a0f2f0",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_reconcile.py",
+      "sha256": "dea78f2a6b9cefd92117f7cc50cd8544b0b859a37f3a3ee3ee6db105c57b381f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary3_service_install.py",
+      "sha256": "0db172d061e1c95119f78a647bd633b9a62ce8d9cdac7827cf73554ce54b43d7",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_activate.py",
+      "sha256": "06cfdd313cf4a8ee5319b512d50b81bf4f10d4abb567dd21ecd1c3ac796c9f07",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_attest.py",
+      "sha256": "342cc293cd60bb6c02077de8b9682b40308056014c95431f2568822ca3893316",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_failure_inventory.py",
+      "sha256": "ff07f9c4498fde34be207523ee4453b4e88f0a2be4c65bcae68a32e557c7cc17",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_native_diagnostic.py",
+      "sha256": "5a40c93a2a0b706dd196b4f4bafdd6a6c9c05118c925ec97e23212818e2b4b79",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_native_run.py",
+      "sha256": "b64780a45a867e9010dec26b3a99813bc74d8990abf258d4351f4b8badae1e1e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_owner_loss.py",
+      "sha256": "3cc94e22fb041c5920fd2349bcf9045f00c0b109d2ce51b7d9c99a59309d9131",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_provision.py",
+      "sha256": "d6178c26fa988a9737821cf18e20f0f7def6f63c9b3e1658515959818ed20087",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_reconcile.py",
+      "sha256": "1ba7ac0e5dc57a461bd11082163f744adf15417390a8e058f256d019bc77f74a",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_recovery_observe.py",
+      "sha256": "a0f0ce0b124d1a0b8c8148ec26f1113d8386c9757b226af20267f0cecabdae4e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_canary4_service_install.py",
+      "sha256": "7193eff74b2f1bdc46fe98f59d3c38d06fb21f8979ade56fdf0fa72e1302a2cc",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_isolation_canary.py",
+      "sha256": "8fdaea2736dd62e70dba951fe5de97eb62d62534da49bfb068ab60389e2f55b5",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_native_pidfd_kill_canary.py",
+      "sha256": "91733a9eade4bfac202afdd483bbca9dd49dbb240b1caf59fb2c8396d7ba4cc4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_owner_loss_v2.py",
+      "sha256": "2f89cfb3c217f9072e0b505cb3f15e51e6ba54a8e0e297419d9f2298cc57de25",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_eval_pidfd_diagnostic.py",
+      "sha256": "77b008e1bcda3e6efab054cfd940d0e467437b3b339076bdf79ffbc8a9ace265",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admin_deny_probe.py",
+      "sha256": "001442ef01ea29bab184df41280cafda496bf9748aaf8dab5babc579b6a6a373",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_journal_probe.py",
+      "sha256": "0384219143ae6ae757b43c58ece9d85b2ac0ca0d784cda2e19a339ad8a1e4723",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_observe.py",
+      "sha256": "e71fa1ea7e8d0303c8f0dc9f257d2b3a2448b0ccef6e0839854886fcf76d5025",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_package_install.py",
+      "sha256": "b6e7d42571eb35f6263b5d46400806673ddb6f5df5d92f988218782eab975ae9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_package_v2_install.py",
+      "sha256": "03f8728dfd99213ef6ce605dd6e0cadbbd0cf1d178de0a56969995e116ddda34",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_package_v2_verify.py",
+      "sha256": "c989e5c8c011d30de44f1aa9bbe3e58c3cd38932a55767368de0e4742659c2c1",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_admission_probe_install.py",
+      "sha256": "409a687118ead68c29f6419aaba35c90b15aaea266488ae7623afd40b2a72821",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_drain_probe.py",
+      "sha256": "3c6d43d0346f80b4f1344b645069a0e054ee77eba580c8c91dca83098b69738b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_drain_schema_probe.py",
+      "sha256": "b53fc19066568087c5ca7e2b3a2f37065082fb0d2c40a72c8c4ad002d2c2e327",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_eval_listdir_diagnostic.py",
+      "sha256": "ff613fc1389eae5203f53ff0a66cd4c32c5ec928987d03773480cef2d57d9489",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_eval_package_diagnostic.py",
+      "sha256": "e353b5de0705985791b5c5c6cd6862f2762d9b0b45be9b216c725a7e9fd2cafc",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_eval_package_verify.py",
+      "sha256": "8ff6f1ad4006e95caa8b72cbda2d780a5d961ac1c36075471013a6b45ee28ac3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_external_preservation.py",
+      "sha256": "81ac913cb16a9080a17e732da910e31160297432a7747c4ef0d7f72f8a12551c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_fd_facility_canary.py",
+      "sha256": "2c50c5cd9a80e7f5bf043998dead406e3896c0dfdad8b46fd0ca53b97764f803",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_fd_graph.py",
+      "sha256": "eb88ea3bc379b3a9479560e8324c760789ff5f2f434633a9c3148af60bfa1095",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_fd_observer.py",
+      "sha256": "47558707ab52f9683cfb9ed00cf8d95eddd7a443979d4101c11c347f955e5203",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_gate_access_canary.py",
+      "sha256": "750337b13fa44485c6d537c7ebc5d34e069e6a5c9057103ad8b92bb9f1c347b2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_gate_install.py",
+      "sha256": "5cd341042bb611c65750c0ebe9a03b022a99c0ddad7197a1303749791e03bf1f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_live_history_probe.py",
+      "sha256": "2c81c4dfe4090f345e4aff9c6da6c2efd36075bc20465d8ce45ab4b41b13e773",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_offline_backup.py",
+      "sha256": "38d944ff9a8836b5dd898cba50cc5aa72260bc9f06dd0b0b1c46ff88f774934b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_old_deployment_probe.py",
+      "sha256": "625450eaf25f899ca4898f0221c4146997f4122fb87ee2a7d900e0be3260a1b4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_pending_admission.py",
+      "sha256": "7dd68673b6a98a53f4dc9a004ae4d367642b05cd2b31e78b06c24d606f0d585e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_recovery_readiness.py",
+      "sha256": "393cfa7efb112f0271923cced766030ea51a2b97bb7894f0fa42b4bccfb08676",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_replay_coordinator.py",
+      "sha256": "c5aa37da229605bd0f72e4fd80463ed8b911bde37fbbcc1701607631d6270f70",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_replay_probe.py",
+      "sha256": "5b3afd53cf5478abcb692f4cf8db03046533bb1db23ac8e82337ce1078118499",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_history.py",
+      "sha256": "a55923ad37c201d01f4f19f10b230ebca78059af6a6af2443c3d757af219c3d1",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_history_install.py",
+      "sha256": "19a572e12bca264b74f9b5117a6ea253ae40e115ad020a2398fb27dd7f775b6f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_history_probe.py",
+      "sha256": "a19054bf9dcfd8f8b00f389785ea0a36f1cf51a9721911b48ab911d8076fb7ea",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_history_probe_v2.py",
+      "sha256": "a7eb53947d3105c0aece53ca08b0c812cc1261cf83d4c4f733325edeee1742aa",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_history_v2_install.py",
+      "sha256": "5fb053d4f71947fb9660c8040ee3b4bf01373f74d3d0ed77a88f85f088067024",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_prepare.py",
+      "sha256": "8a3e82a664cb63c95bb6b86df382b5270ab70e715e2d22e7146f485bd09da6d4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_restore_verify.py",
+      "sha256": "58f677e6409073f6d9594dcf0aa4575be8ed05f854ccae6f293968ad309408e2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_retired_listener_install.py",
+      "sha256": "f8fa802cc582340d4f9c3e8ab9cbb0938cd3a73f58b48c5c662a66af57de6b71",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_retired_listener_probe.py",
+      "sha256": "865d2da0aa12000f5897ef57b3cc5085d8f68e78a3515464d27c047acb12f10f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_retirement_coordinator.py",
+      "sha256": "5bef867fe3cb41c1c7b750d8251d3861e7d45d890a32e6a651d45c7e25995842",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_sdk5_discovery_install.py",
+      "sha256": "83b52d5520ef9f6a65e8026426d6862c54d57bad68260391c1351dee2be34305",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_transition_delta.py",
+      "sha256": "db999139bfdd5cf004f76407e2b24d02af588bca8f9968528aee68645289d63d",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_unix_restate_activate.py",
+      "sha256": "429fe820ee06aede16f10b50649c09fb1203384cb26f816365124516ad729d77",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_unix_restate_probe.py",
+      "sha256": "d90fb65e96f992e7e5adedb97ecd5c9307fc94b501ff4e7aa9481aa9f8329496",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_unix_restate_provision.py",
+      "sha256": "ab1e88062fb3ec0720157be32d40c71f6dc0632f464ff5445cbd1c2d29643ff8",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_admission.py",
+      "sha256": "0dac604fa44a9be2e3eca971008e28a55698116b418f73df54a9cddaf6b101f3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_admission_producer.py",
+      "sha256": "94ef74223fbbde474ef0f6391725660905965432ec38fce3f933e95a4be23877",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_admission_producer_v2.py",
+      "sha256": "ad7cbbd5ad46e6d9426df0b6e8ff66e7b3e5b3afc3464ad6862ab93627cdc78c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_attestation.py",
+      "sha256": "51ef36afb2d0671aaa74e43db8f8f28247513805934d032bb55d0f82f2eba4a4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_catalog_publish.py",
+      "sha256": "54eb89ccb2bba2d758d10ad46196fde8a134ffbb51be8503e7551091d44af4cd",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_finish_transition.py",
+      "sha256": "8ac9c7920e0d74efab793839357298422cf45981f7c8fef968d953c41429bc79",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_guarded_attestation.py",
+      "sha256": "8542755e7ea23856647fbc02495d332367c456c3b3b006027955da0b647501b5",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_handler_replay_probe.py",
+      "sha256": "c8629c7db802e1f9605be97dff44bf0bcf67d0c7a4a9e2ea84c3e3e5fe748733",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_install.py",
+      "sha256": "f80148d6f88a9fa30e1cc599c32970cca3a5a24ccdccb5b88861c4068cc94a6e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_intloop_driver.py",
+      "sha256": "813725af66c08080f7864851de3aa0d0b5c897eff8ab9202bb0688c9fcbf431e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_launch_prepare.py",
+      "sha256": "1bec77c7833383d8c091162071a393729bb7739b3d0f222189cf3b85e7ec2ad2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_manifest_candidate.py",
+      "sha256": "9f1d98512bb0e7753773c8572a8a11c09325e6e84f9825da6ebbc13484dd4ee1",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_pass_evidence.py",
+      "sha256": "8437074eddd3996f551b72917500d6e0861d3dd0f49d63ba50558f8f5494f46f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_probe_install.py",
+      "sha256": "23dba6dc5eadee3afd0295408443940c5e3d006ebe0eaa6a5f6e2d84b90bb11f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_registration.py",
+      "sha256": "d6e2024a3c00b37a6e9b535d4f5ade1a2bc958ca7d8f9919bf0d8d10faa63a79",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_replay_finish.py",
+      "sha256": "c718c01e1cdfd3845505418d239f9dc0e504084b1ee88f2ec68c3dc901097af0",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_runtime_activate.py",
+      "sha256": "bf31aee7588c933b1ca50e94b8150f1f7f3dc6d2bbe438dd27a208c776d8d8ed",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_transition_plan.py",
+      "sha256": "20d38ba08c0c70f6fe0558fadee5e685da1ded52cb6d814c93cdb8be44900ab6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_unix_attestation.py",
+      "sha256": "5624fa047026ebce425916a8aac5989cc648dfe7c6ae5306a12d8c25d0c437ac",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_unix_attestation_stage.py",
+      "sha256": "da02bd59849f7522f71834784adb93785412253b06894c42076e2293e7c4ff58",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_unix_registration.py",
+      "sha256": "134a2b0a2639ed618045bb878196fae2b15e1122eb9550961c1221cc171b6597",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_registry_v5_unix_unit_upgrade.py",
+      "sha256": "ecaca38ba318eeb67fea928ccb18cf24d9804bf9e493aa185b617f3807c9de12",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_restate_source_inventory.py",
+      "sha256": "adcc70046c7a7fecaead340397d30730213ed59882dbfc96ccae3fcb9c87b33b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_restate_source_metadata.py",
+      "sha256": "a20bf306109a4f4c01406da28e287e29d031d65e61d1fcb8b3192cea5a2e24c6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_restate_source_metadata_v2.py",
+      "sha256": "4da39031f928c388343709409e285b8567d88442fd9e1c128469ff353f917b37",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_restate_tree_metadata.py",
+      "sha256": "34997c2ca19b6830cbd87d8c845cadd436f8fa0e49f6ab4701a84288e6da2dba",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_root_finalization_activate.py",
+      "sha256": "c70708295da8ee0604e9c0a7c747d8e8df2535b9bd385569e8b90d3ac4a6055b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_root_finalization_activation_plan.py",
+      "sha256": "55bd465c1df71cb5d521d596a63ba96a4722c3b38a24a1c3acb7c624ec956343",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_root_finalization_attest.py",
+      "sha256": "73d1c986b155ce2cc25fc5b9af1fb68e3b920386868b4273b65bf2c0215c5778",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_admission_receipt.py",
+      "sha256": "3d547e70e71555c17680a99c3f246a4afd0f54c259511588ab9ba8c059c88362",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_diagnostic2_inventory.py",
+      "sha256": "3213630f39594ebe7580658ecbaa808f563b3a6387bbf781def7f9d35338e9ba",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_failure_cleanup.py",
+      "sha256": "163ca0b124ea4066e27c73f675fa7f2cbf21074e9aa4282ef52063313bbc86f3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_failure_inventory.py",
+      "sha256": "f1ad41f21e5640ae15bef60f6a213326daf6648fd451e3dc6d5b2496f656d04c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_native_canary.py",
+      "sha256": "d33a2368baa664cd61963fce6ba131172262578ff0b9bfe3616c198ea83d983c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_native_diagnostic2.py",
+      "sha256": "5dbfd83bc745434c29f3f0701b42827f3b930fd18d9054037816947699452f11",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_discovery_native_diagnostic3.py",
+      "sha256": "b5d2df0646b2375d2f2e23fb2240d234bcf54b6cc5f9ef73c2b52edae7d294d9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_fd_guard_canary.py",
+      "sha256": "0d8c699977300bb42b93f50027d0ac59da99814c7678edaf8d3da6d9f50ac7be",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_fd_guard_recovery.py",
+      "sha256": "4ebc1584e2a796015b6dd48a001a96228ae3335a162a65e95e2693185f75e28b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_stdio_shape_canary.py",
+      "sha256": "d8deca787f29adaa01165561d97cd4f1529505d746901d2779e5b83d7b15aba4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_sdk5_unix_admin_fixed.py",
+      "sha256": "db874583f821284c636f735352856a45c546c4a5fd0a48cb9ebe937e896311ac",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_unix_admin_sdk_fd_diagnostic.py",
+      "sha256": "d5c6176ea242fbd091b61409fcb6ed7ce277592e89cc0a1cd9d5e8925f096796",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_unix_admin_sdk_preflight_inventory.py",
+      "sha256": "a37f5b561fb7465cfbbf5bdff6e64d036bbb835e7fe032505682d08bff00042f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/nuc_unixdiag_peer_canary.py",
+      "sha256": "fa3ee001644c16e7994c037b8cd4fd765e27688caf0bbcc1d5bd01e38a8aab77",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_eval_canary2_sources.py",
+      "sha256": "80e63b526d14480fe61ef2b83c4747534a3bd423a46ef8f1ba5f8d6023c69b42",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_eval_canary3_sources.py",
+      "sha256": "109868e6fb5d4c9be14ee770c2c5838e1b2c9967bcae47a3af322aac2de3aad1",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_eval_isolation_canary.py",
+      "sha256": "a71a440d3ca332507ea10b7ffcffded650a7a7bee852c2f9f4f1aa30b5137247",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_identity_bridge_adapters.py",
+      "sha256": "6e81f3ce3242f4745969ecb34c14e31b02467e6fd6458b94bb28f02739308a74",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_identity_bridge_eval_adapters.py",
+      "sha256": "68f8acdc2b1d49036a52d134d5d76876e4522ad42938cb5aad9e03f896eafeb2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_admission_journal_probe.py",
+      "sha256": "7293610a3d8a88db1b503c0ffee3f556c437186d2d9464cd14ae72d6e7d8987f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_admission_observe.py",
+      "sha256": "24968a7802ed4ea927461899da9f6c39e017cc569b6e5d66fb95a3d1ee517784",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_admission_package_install.py",
+      "sha256": "0eee19c417de256cf110226fba18e510348cc325f6322bd87aad19b8a95c0600",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_admission_package_v2_install.py",
+      "sha256": "e803ee64758f8703f5f287e538c6e1e84df99d52b0f196d8078e29f00ba4358e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_admission_probe_install.py",
+      "sha256": "f8c87d11a4862e80f9f8cf1486756605051409ac6fd8964334c260c30b7679d4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_drain_probe.py",
+      "sha256": "3962865bbfcb536cc160540a72472ca6a33c64ee94a71c591635b6392ce992ef",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_external_preservation.py",
+      "sha256": "bf8808ec1aec5863e1d96cb1d98ce4ec1ffb95c01c7b82f13512aa13fa94a8ed",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_fd_graph.py",
+      "sha256": "3a193477678f1846a2dea7b849a02a6821b0459b2dae43b8f85100e1dc586f61",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_gate_install.py",
+      "sha256": "8cf94e570899a6e5ff19733e7f6a358424feb6c9f24ca4902410440b22b53a5c",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_offline_backup.py",
+      "sha256": "51a336e8a6bf142877556caf16476f1458903e5598a373806c9231aaa41818a4",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_pending_admission.py",
+      "sha256": "5670aed33c59acd0ce67a5aff848df26564ae603a709a738650407a75588580f",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_recovery_readiness.py",
+      "sha256": "b98c15f9e4bc99567e0b40e96eb39ceeff40c6a6218f6c4f5960a12b94d802c7",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_replay_coordinator.py",
+      "sha256": "fc1188a95a6f42c61625044ab5d2593a3311b09faa9d3ce76ff6b265337371ec",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_replay_probe.py",
+      "sha256": "04d9f0433bc55bd8c82fd2b84b5e60434e032761ab4f72cbbb125ad2800d2a8e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_restore_history.py",
+      "sha256": "f81abb48eca4cfd31070340fa38189f8b4a249a2201ee6bfa844ecfe86f58636",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_restore_history_probe.py",
+      "sha256": "830394b4d3ea9954fc411b4920c790d7ed1febb235907e68daa139368c54e7ce",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_restore_prepare.py",
+      "sha256": "67e17d9b2cfd91fea504e65e104e72f94ade271d7295c8847767d56203335f33",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_restore_verify.py",
+      "sha256": "b065177e13a2ada5acf9528a3958b1e2f3f26b1941a27224f14ac0e196691bf3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_retirement_coordinator.py",
+      "sha256": "570c962cce95e9c57a12bc7bb8146bc7b5adac0e5fe3d137318d66f867f98245",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_transition_closure.py",
+      "sha256": "0e34757c053863699bcb0dd7bd2e0a98b3b53f7c65bd7745c9abdd35332ee36b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_transition_delta.py",
+      "sha256": "d06c6a9adc64f70aaffcd50dd20dfd4672400bf15d5f7bc661a1a04ee1bb9efa",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_unix_participants.py",
+      "sha256": "1c867f38567cc840c3c4a60fd014ab2d701267842e332ebe548031cc71c82395",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_admission_producer.py",
+      "sha256": "61b58ce1d852cee68c506e7301e5add687a9932b70ebe10e0de9b9b053072313",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_admission_producer_v2.py",
+      "sha256": "ef0f50cce8a1bd72d73cfe78f807b21ac5baba7755c73e0716002763b5cee574",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_draft_gate.py",
+      "sha256": "f50ae47de5f2ee4977d33ebb7850397eea1f768950eb5b9a2189f27463b13de2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_handler_replay_probe.py",
+      "sha256": "43d07a1e167df0a89519251eb2a2c2ae9268a8e535e83b6c6a0e761b76ffe77a",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_install.py",
+      "sha256": "e28658d9afa98560a31c171a8972c6fbd4421b4734e38cef3649f72321d8d890",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_manifest_candidate.py",
+      "sha256": "193547c85c75ceacbcb241f66d5ea66f12c5796ee24d8c7f0699690bbeb46c02",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_pass_evidence.py",
+      "sha256": "2bef9d4b4d8909f130b484182469e93e851f67772c44eab81bc58f7eaaf089fc",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_probe_install.py",
+      "sha256": "2ed094d19148bf8bca9f9ae575cb3b00b936d75179843eb5db10d16220f06e4e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_registration.py",
+      "sha256": "cb72b9d4b95ca949022fad7b7127235067f7a94b2f3781d6337e6b53f1f3f190",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_runtime_discovery_proof.py",
+      "sha256": "9175ac82fb8ebe1e6a964e11dd2184c8ab2bcfc53060f6133635ea653938663b",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_registry_v5_unix_attestation.py",
+      "sha256": "b6a076a86c0874203ff7ca5451a1f62f136d20eff09e4006d022f302001b66a7",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_restate_source_inventory.py",
+      "sha256": "1467070e515ff8f062bb93a2dccd155f2bfe4af9faad6285da4fb9a53d92a9e2",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_root_finalization_activate.py",
+      "sha256": "054979b2a797f4dd8844ab2af219c84ff36bcc95ce4c4bfcbab4e590d428a9a3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_root_finalization_activation_plan.py",
+      "sha256": "680cb58510881b5016946afcedab3626794a55d9e9e15d73ee769a1c86c9d6a9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_root_finalization_attest.py",
+      "sha256": "50f2868dc3ba1c4ab9cdb5523abab73b9c14de0563f8f26cfc926bd9ba675702",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_sdk5_admission_receipt.py",
+      "sha256": "75d74f0fe3d3987592dcf4f66fdc28a5a26dbd4e302a6575486746540f7baa25",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_sdk5_discovery_native_canary.py",
+      "sha256": "8cf74257faf26a2b3bdf3efc4dadfc298d4e9c1abe7179604ee7fef27bcdd9f9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_sdk5_fd_guard_canary.py",
+      "sha256": "41764d7c15323649e523702daa4004ed8ae1a943c3e08f6c4a5350e120341d2d",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_sdk5_fd_guard_recovery.py",
+      "sha256": "4ebe7899d97b494331dd9376bf92134f3373f26a8fbef0edffd595946934c033",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_sdk5_unix_admin_fixed.py",
+      "sha256": "45cffcc09ed5a097ad370c1bcaf5921d8013ebf0f35e86bd69b6279f806b4b81",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_unix_admin_classify.py",
+      "sha256": "ddd98218017450de7fbbe3b5c3d485ed986333bc202446dcd19e15c1c488e268",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_unix_admin_epoch_restart.py",
+      "sha256": "ef5fe2e1b330d93bae12e92d77e4c717836f4c0c55c513067148747eea23d082",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/deployment/test_nuc_unix_admin_snapshot_ops.py",
+      "sha256": "36345526f2992e0b6a009414315630b8756aedf3b1216043dbb74767860a853e",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/admission_package_v1/nuc_registry_retirement_coordinator.py",
+      "sha256": "b176de7c7a0859e786f018a99d654120b6df23019098ea534e97df8defd15944",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/admission_package_v1/nuc_registry_transition_gate.py",
+      "sha256": "8928d88597ce92132d7c81e4e097a14b2b82cccfdae3b9b7006b991f3b27c0d7",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_capture_store_replay.py",
+      "sha256": "7e36c4e00d9419879289503d138f7ab5189c85915be7acd75722df6af498259d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_linux_generic_worker_replay.py",
+      "sha256": "ecc10188665024d06f58711390ba74af45fac20b6310bb755256d1d85b740fa5",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_linux_goose_replay.py",
+      "sha256": "36d531510fc573c0d9e26ea1132adc94af4de96ec1283f765ed538335635b907",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_linux_private_runtime.py",
+      "sha256": "c2219582b06e0bee35ffab233a01a15ad1a7593eb21aedddcbf3946132897ccf",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_mount_source_replay.py",
+      "sha256": "15c5b75b8a5490321a08b69b859634d0022f93ee476bb1d2488719c1ddbd522d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_owner_peer_replay.py",
+      "sha256": "6d8710a923e09ba3a39d5247d99c850c86743da3787ebc71059ab53cd529dd29",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_paired_goose_replay.py",
+      "sha256": "b5fedc6818e16c8ed1ce56dc1f4a6e0a43159aa2ab17c8f3383393dc09754cd6",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_spending_replay.py",
+      "sha256": "140a141426ff649a95f709b8e70047ab57636add93779e423b9c19e4ff1f92e5",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/harness_supervisor_loss_replay.py",
+      "sha256": "b8834cef7a318ea6348579dce9f0fbaa2bfd343f8d90b666db1008a6868b1531",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/nuc_sdk5_guard_extra_fd.py",
+      "sha256": "b545b90dfb1804e14fe3fbf53023cd0eeba4056f1457a3d7cd163a8f7e450eb0",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/nuc_sdk5_guard_extra_fd_v2.py",
+      "sha256": "f3fbcd0ac9d3803fa8b2db7c4276c94da162bbffa71ad8da38f2482137b0b9ef",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/nuc_unixdiag_peer_spike.py",
+      "sha256": "1e368e3f4e3d88cc587eb97451246defa91cc6b21625fcf871d43ce73620f0c6",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "clean-room/tests/fixtures/test_nuc_unixdiag_peer_spike.py",
+      "sha256": "078fbc635c64082bdfc9fc5cff39b2fdd68c81df3fac64c4018a37cecd2a29a3",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/decisions/2026-10-30-registry-ingress-fence/production-transition-draft.md",
+      "sha256": "d39ccea0bb5cab2f15cf28a9a737a81e3a088a9b02a712b2878ae9e93f5a0506",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-goose-integration.json",
+      "sha256": "6525c0557e881f6f7c188997ab6c5d7e777d5a804a5c4919c16376cb36b17a35",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-goose-integration.md",
+      "sha256": "fab70af10eb5b8554e3aa3546264940b0ef20cac3371318b658fd3adece1a558",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-linux-goose-runtime.json",
+      "sha256": "8dee7a6e0310ba5422ec58051c5a09ac8f7756356791e90f4ba71e23df66bddd",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-linux-goose-runtime.md",
+      "sha256": "a5b287704845b6b80e7c0aa56c8a8341090dc8e7ca3fcbebd5ef6076b26204b0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-linux-private-runtime.json",
+      "sha256": "75558851a8747471f81e394beb4331719d8e521bf27ab32925bd17dc5a39dda7",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-linux-private-runtime.md",
+      "sha256": "aefe9c453833a3db57e8636ec70351e5c5114bfaae80f9f777151ec6034b4522",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-live-admission-audit.json",
+      "sha256": "c0970e8bce79a35a9f21f892c56907bc08f4d7f4c3c8826e2c272fe3efc81796",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-live-admission-audit.md",
+      "sha256": "0fa548522b71ac4a2303fe9640432a7660f06d31b0eb933323c3af9443e834b0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-runtime-runner.json",
+      "sha256": "afaca6e0e0003f5fd616f5792b3cd243c11a42a6565b6d9cf1cec376a7bcdced",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-runtime-runner.md",
+      "sha256": "31c7593184f6c1a851547f3707a69e8ce71455316c844fc2ff620a735873ed1e",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-spending-billing.json",
+      "sha256": "25e13fa252de1dd658cdd6dc49776904a9280523522ad8526b419cfaffb15fdf",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-spending-billing.md",
+      "sha256": "612d72497a3420bb891a33b4a77ddf857fae1a3856c246deb27f9cec3d0d81cb",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-usage-rated.json",
+      "sha256": "b89ac6e2a5c81491de42df7cb8de3fc5e5651648bc9c38af5847d170874d7d09",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-harness-usage-rated.md",
+      "sha256": "fbbd3a888e485d9bf6f820a7a9d8e87716dd376a20af92f83128585abd418e5d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-phase11a-benchmark-status.json",
+      "sha256": "ca9e7c615a035a6b60bb9950b1e62d531dd18f7aac81860f516f02f62e19b76c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-sdk5-attestor-build.md",
+      "sha256": "b5a9ee4491c4981c7ec953abd55d1362efd764f2507fea095412d719c1d6f424",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-30-unixdiag-peer-canary.md",
+      "sha256": "6e9ed2081bbc47946ad5c62be853d5068920286e9701036306abf1267fa7fd10",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-capture-store-native.json",
+      "sha256": "62c1e01f4ad622f97df1a02f57ef6788da3f2ec571afd8f0f3b8ad482dc22bc8",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-charge-bounds-source-review.json",
+      "sha256": "34c4997a5978b997685f7177a6f7882903a13c3e6207d89457c6f1de0787b53c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-custody-loss-qualification.json",
+      "sha256": "c350c9807868094610d6f78532aa4135198247e12adc036165430d0edba9c601",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-custody-loss-qualification.md",
+      "sha256": "bbec96bbb6cc07e803cbaee6b904d09dc0ec89f6d11f6ed1d8048337ba05dea2",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-custody-source-review.json",
+      "sha256": "2606563bb51bf604d590b0473ddd05ea8a4c5fe5ca0c255e8c29af03addea3f8",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-owner-cancel-mutation.json",
+      "sha256": "51653f10f5b7c2dc6ded6789e6f4a69ae78e7199e355cfdd2524d1ae38578cb2",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-owner-installer-refusal.json",
+      "sha256": "660daf5ce4092e30de3fcb09a86cfe65e0e8d9a0924ba8af20f9fd9be7552b12",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-owner-native.json",
+      "sha256": "cf3576a0b2a35d295dcdc8b041814a001bf73b0566f6ea9391b1788420258d34",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-owner-source-review.json",
+      "sha256": "0c7a47028d599a8415f60826a0624345cd7791166c114c7ad9276ca2905a65ca",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-owner-transport-guard.json",
+      "sha256": "a6ac96a946797c2893ee3994029b349291230b28d075e875e7d1a2eec3ad0e00",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-physical-capture.json",
+      "sha256": "bf7e89ad54f0e63eca8838bac5154d794b36efe29d63361deddfbfe5ba34a550",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-gateway-physical-capture.md",
+      "sha256": "22392280ddfd4f238e906f1391d4b53146610798f55a21ea3f7d97f94f71312a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-harness-charge-preflight.json",
+      "sha256": "b3a6b2c1337bcceaf06c0673ed093f0f3ea82b29ed9bdf6060a64697c852e6b0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-harness-charge-preflight.md",
+      "sha256": "cd9a21eeb62ff3535a2a9768b91ea8ae10e77a0021ff561b04e8dfd991b8970e",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-launch-custody-audit.json",
+      "sha256": "091cbc934b48082e5540c45b52d8ed1689628cf15af7c264b8d8c28c3d12bd4d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-migration-mount-source-review.json",
+      "sha256": "fe381fec504cc6a1381e47fed8fcb65c733fd3d9a29d5a339214a15404577e8d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-migration-mounts.json",
+      "sha256": "877f0d845802b71ad75c868264aae065056bc6854333bd9529246f4ac4ad71f9",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-migration-mounts.md",
+      "sha256": "07772729d285cd7f4971971f28b17b4b73dba5e2549b690ea784fe17308c345a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-usage-final-source-review.json",
+      "sha256": "093ed692a6cb250570a00fcbbc0296fd82f8004b888b089850bbc22746670650",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-usage-linux-integration.json",
+      "sha256": "1fb752efba2ffdaf4d5340ca2286bfa1bc39abc85e38f8b826467d1975fb3f02",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-usage-linux-integration.md",
+      "sha256": "cd264432cea58f21082b55d47d740126e1aa6435236d05a8a70114d1f14ebdee",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-owner-usage-original-source-review.json",
+      "sha256": "2dd67adc04a2c5a48107fdd904ca5728fd83ee064e5cb80c2d3c81bc3843b6ba",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-provider-charge-bound-resolution.json",
+      "sha256": "0cbdc695487a2021e35ee1a7855d70b7f7f8e6d4f8ff410b78dd90b54676e96a",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-provider-envelope-recheck.json",
+      "sha256": "6a402d527966d50ec82d97612044df689634c74955df1a23893e00e699175a8c",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-provider-price-observation.json",
+      "sha256": "5486b13d602c0e271fd17d555d3990264d22f8fc668fe0a3539399423aa45867",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-supervisor-loss-native.json",
+      "sha256": "17a6ed85e9a2394d5bda970dc19274f725bb854ca0430d3edadf68f96b079646",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-supervisor-loss-owned-cleanup.json",
+      "sha256": "d77d1822b25e6b1ce612f8545f64129863454f10b5670b626204db07bc94c78e",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "factory",
+      "path": "docs/planning/clean-room/verification/2026-10-31-supervisor-loss-source-review.json",
+      "sha256": "aca3bec7e6df0f71f76b3fea5cdab4a920c3165d1e96b4a792811f92b0062f9d",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "docs/planning/implementation-operator-handoff.md",
+      "sha256": "935f82c76e1ad11f92852ff7ccda5c7c8eb1d44992edb70586de1e169dc12dc9",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "gateway",
+      "path": "docs/planning/progress.md",
+      "sha256": "7472e79d36862221730488ad117e3323b166fb85a3e9e16612df56276eafc3fb",
+      "already_published_mirror": false
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory-physical-source-qualification.json",
+      "sha256": "1e117a41f893ae4f5dd394003fb0ca913a6a5b97e6fe3fcd9e9cc7185af5d694",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory-physical-source-qualification.md",
+      "sha256": "88c6d30246138e667b07f5bcbac7e0ed1a94ddc020ba64f5c242c615f10de8a8",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory-physical-source-review.json",
+      "sha256": "86ca983d0fae496ab986154420849d1d7569025ca4d397d5c48edc25a4ede0de",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_owner_http_test.go",
+      "sha256": "b33fb177e0ac55adcce81c61048cd402e0b01286103e4464ac03d9fb83004bd0",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_owner_root.go",
+      "sha256": "728d36c23c398c588aed034e9e73b1dfdf1947c911b37fb72281951c9f8dd7c5",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_owner_root_test.go",
+      "sha256": "9d2c4c6442e744d2853b9fa7b66e95b3efa5a2a5c39f8bcaff7f8b1e706fe729",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical.go",
+      "sha256": "e3930298a04b031319a54f715ae67e2ef4dc915b4d4b825aed22738718ca6ea1",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_bounds_test.go",
+      "sha256": "80eb2ac8b24450742fc318421933d11e0bb2deca9b7708f4f154a02d44c761b5",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_core_test.go",
+      "sha256": "973d7ae8b3b85925e72f44f95356a94d8521f7429ebf0597134e549b8ad06aa4",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_drain_test.go",
+      "sha256": "88e20ccc37b9c57c328843aaf14755a7e1a92444c203a863b5e7589cbda4d1c2",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_http_test.go",
+      "sha256": "61c6215f36ff94bddd5eb20fc6383e37d8dd3ae3dde2b86b3ec608a9143b21ca",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_ndjson_test.go",
+      "sha256": "409f5ae502cb44030f4f7292b17b5e21b49dc4dfb3c98e4444df1ac07859ee65",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_provider_test.go",
+      "sha256": "2858f9320e5c67bacc38fbca5ccc0eaa1ba99be42b94a44750c7013a995d38eb",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_retry_test.go",
+      "sha256": "01b5dc8e2bdf11b09dc540ef65cda005e16f10cb584243a072f9ecb43ad91f05",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_stream.go",
+      "sha256": "b0916e3947b0a5d0789a24ac2b050b812e76919ab55a41af4c0145f837e2d09b",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/factory_physical_test.go",
+      "sha256": "3c64127418fc18f243dfa12abb04bdf0a907787726e0e7c25353630b2813dd43",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/patch_factory_physical.py",
+      "sha256": "5deda5ab63c555a50d60373a06b9313501fc7f4fae5fef57a47184c2799515de",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-gateway-owner-cancel-mutation.json",
+      "sha256": "51653f10f5b7c2dc6ded6789e6f4a69ae78e7199e355cfdd2524d1ae38578cb2",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-gateway-owner-installer-refusal.json",
+      "sha256": "660daf5ce4092e30de3fcb09a86cfe65e0e8d9a0924ba8af20f9fd9be7552b12",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-gateway-owner-native.json",
+      "sha256": "cf3576a0b2a35d295dcdc8b041814a001bf73b0566f6ea9391b1788420258d34",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-gateway-owner-source-review.json",
+      "sha256": "0c7a47028d599a8415f60826a0624345cd7791166c114c7ad9276ca2905a65ca",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-gateway-owner-transport-guard.json",
+      "sha256": "a6ac96a946797c2893ee3994029b349291230b28d075e875e7d1a2eec3ad0e00",
+      "already_published_mirror": true
+    },
+    {
+      "repo": "gateway",
+      "path": "engine/transport/verification/2026-10-31-owner-custody.md",
+      "sha256": "32a8dee6062719e2d63b8ce341c3206b94228b826271325c413f676f77a09a01",
+      "already_published_mirror": true
+    }
+  ]
+}

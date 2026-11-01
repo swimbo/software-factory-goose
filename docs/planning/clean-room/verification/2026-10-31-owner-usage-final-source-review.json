@@ -1,0 +1,83 @@
+{
+  "status": "complete",
+  "verdict": "Source milestone ready; production launch and benchmark not admitted",
+  "timestamp_utc": "2026-10-31T13:24:54.894062+00:00",
+  "scope": {
+    "base": "0da21980c322ce4992fd13faea52b5dbc37515d5",
+    "files_changed": 20,
+    "source_sha256": {
+      "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs": "e8d29f86968d513c55f09e00f10bc5749fc9a1a659a05c27f3c9e05ef14912c1",
+      "clean-room/crates/control-plane/src/bin/private_runtime.rs": "801f3669fb1aee6c5728eb88e7804deef7dd3737a0c7815a04877682921f2e79",
+      "clean-room/crates/control-plane/src/harness_owner.rs": "e8f8fe8e783f813e511696ab39bf23f29917243b9c90a78e6c4e0098f067bd16",
+      "clean-room/crates/control-plane/src/harness_spending_ingress.rs": "0241abaef299468fd8a4fa325eb021f8a752a8fd0d1722ec489fc73107180356",
+      "clean-room/crates/control-plane/src/lib.rs": "d2bab52d6bff735b8c4f269197655f8854331a5fa517c9f5a60fdc2abfa182a1",
+      "clean-room/crates/control-plane/src/private_runtime.rs": "13cd015f9f791ab3ae908bf46a1f339f280c6a67f8b2314e68e6eb0afee72a91",
+      "clean-room/crates/execution/harness/physical_usage.py": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+      "clean-room/crates/execution/harness/protected_goose_runtime.py": "3ced921bc451d73e7d42ffa9a43935f3b09c3f4f5a290396519b4aeb6e92e38a",
+      "clean-room/crates/execution/harness/protected_spending_control.py": "5ac006e9f21466b92008d1a215a7b3db2a65765b7305d32a5374bab9009e8323",
+      "clean-room/crates/execution/harness/test_physical_usage.py": "665075a298b9708133e0d165d64a20d3c3f4219770a3a198ff40d072d9f404a4",
+      "clean-room/crates/execution/harness/test_profile_binding.py": "e6d3ec9e6be864bebf788f20d4c4fb5bd84069228ad5240cf447eed68814c2e8",
+      "clean-room/crates/execution/harness/test_usage_rating.py": "07e1f7e19b3c036fe68d1621e79a120cc2ec911f8c66b936f1f7eacdb258d92e",
+      "clean-room/crates/execution/harness/usage_rating.py": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a",
+      "clean-room/crates/execution/harness/linux_runner.py": "0b6ac076f7bf8680a83688ec124058ddbd7f779eaa8486b9ee8f45ab85f2d8c3",
+      "clean-room/crates/execution/harness/linux_supervisor.py": "7968cb9c46f821f68f9e11490c1c8711d68410cb94f3a2c931afc4de030328a3",
+      "clean-room/crates/execution/harness/linux_worker.py": "54f276266221b384a9b7cde236083fb7a7a2d0cafbb0e06107982f10b0413128",
+      "clean-room/crates/execution/harness/test_linux_runner.py": "0e50d6f190350304fa41b87181a37b1750dc56ea01b14818a76787efa0360ef1",
+      "clean-room/crates/execution/harness/test_linux_supervisor.py": "cb38269edb94784fc8b25fb94e54d6e2e17b59fecc358de74e8e38bac38532e0",
+      "clean-room/tests/fixtures/harness_linux_generic_worker_replay.py": "ecc10188665024d06f58711390ba74af45fac20b6310bb755256d1d85b740fa5",
+      "clean-room/tests/fixtures/harness_owner_peer_replay.py": "6d8710a923e09ba3a39d5247d99c850c86743da3787ebc71059ab53cd529dd29"
+    }
+  },
+  "findings": [],
+  "prior_receipt": "/tmp/compound-engineering-501/ce-code-review/20261031-owner-usage/review.json",
+  "resolved_original_findings": [
+    {
+      "id": 1,
+      "status": "resolved-source-reviewed",
+      "reason": "Self-bind as journal UID with service0750parent and readable immutable root ancestry resolves O_RDONLY incompatibility; activated/inherited listener refused, expected peer UID retained."
+    },
+    {
+      "id": 2,
+      "status": "resolved-source-reviewed",
+      "reason": "Actual bind_owner returned builder discovery preserves existing IntakeJournal; Some adds only HarnessSpending and exact8handlers; featureoffreject retained."
+    }
+  ],
+  "review_coverage": {
+    "original13": "Full8freshpersona+independentvalidator receipt retained; two confirmed findings fixed. Revised Rust/physicaltests/peerfixture followup source review attributed to orchestrator, not a fresh independent model.",
+    "generic6": "Fresh security and correctness personas inspected all6; no findings; same initial source hashes. Later helper/guard-only changes inspected by orchestrator and tested. Not described as a separate full8persona CE round.",
+    "simplification": "Original13 all5freshlenses, no worthwhile edits. Generic6+peerfixture all5freshlenses; applied _ticks reuse, bounded file_digest hashing and direct-test guards EOF. Optional tiny comment deletion declined.",
+    "independence_limits": "Fresh revisedRustsecurity spawn and completedreviewer followup both initially hit active threadlimit; delta source review is explicitly orchestrator. No cross-model paid review or source egress.",
+    "artifacts": [
+      "/tmp/compound-engineering-501/ce-code-review/20261031-owner-usage/generic-security.json",
+      "/tmp/compound-engineering-501/ce-code-review/20261031-owner-usage/generic-correctness.json",
+      "/tmp/compound-engineering-501/ce-code-review/20261031-owner-usage/revised-source-review.json"
+    ]
+  },
+  "verification": {
+    "independent_local": [
+      "python3 -B -m unittest test_linux_runner test_linux_supervisor test_physical_usage:22PASS",
+      "python3 -B test_linux_runner.py:6PASS",
+      "python3 -B test_linux_supervisor.py:6PASS",
+      "git diff --check:PASS"
+    ],
+    "parent_reported": [
+      "NativeLinux registry-sidecar bothbinschecks and7owner testsPASS",
+      "Native disposable ext-family chroot actual PrivateSpendingClient: selfboundUID2004/0750accept; rootcreated/chownpeerdenied;0710traversaldenied",
+      "Synthetic native genericworker baseline/candidate accepted;0paid/0live; not productionadmission"
+    ]
+  },
+  "remaining_gates": [
+    "Provider-supported all-path pre-dispatch charge bounds unresolved.",
+    "Production Root catalog/lease publisher, registry gate, authenticated usage capture producer and durable audit endpoint not installed/admitted.",
+    "Controlled start/observe/watchdog supervisor-loss, lostcreate/startack, leaseexpiry and cleanup qualification remains required; synthetic fixture is not this proof.",
+    "Full120paired benchmark not run or certified."
+  ],
+  "constraints": {
+    "candidate_enabled": false,
+    "daily_cap_usd": "5",
+    "permanent_task_cap_usd": "0.75",
+    "unknown_retry_allowed": false,
+    "refund_on_unknown": false,
+    "deployment_authorized_by_receipt": false
+  }
+}

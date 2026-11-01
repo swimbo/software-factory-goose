@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "observed_date": "2026-10-31",
+  "scope": "Research only. No paid inference, credential access, configuration/source/index edits or external messages.",
+  "approved_caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "attempts_per_task": 6,
+  "safe_current_route_admission_established": false,
+  "new_evidence": [
+    {
+      "claim": "Ollama OpenAI-compatible API cannot configure context size; documented workaround creates a local model, not a Cloud per-request limit.",
+      "url": "https://docs.ollama.com/api/openai-compatibility"
+    },
+    {
+      "claim": "Ollama contributor answered the Cloud num_ctx no-op report by confirming the served context is fixed at the model maximum and closing it as answered.",
+      "url": "https://github.com/ollama/ollama/issues/16598"
+    },
+    {
+      "claim": "Ollama Anthropic compatibility documents unsupported count_tokens and an accepted-but-unenforced budget_tokens control.",
+      "url": "https://docs.ollama.com/api/anthropic-compatibility"
+    },
+    {
+      "claim": "Vercel explicitly documents budgets as soft caps checked before requests; the crossing request can finish.",
+      "url": "https://vercel.com/kb/guide/cost-aware-model-routing-with-ai-gateway"
+    },
+    {
+      "claim": "Vercel Luna page documents maxOutputTokens as a hard generated-token cap including reasoning; this still requires source-verified wire mapping and does not bound its input.",
+      "url": "https://vercel.com/ai-gateway/models/gpt-6-luna"
+    },
+    {
+      "claim": "OpenAI now documents exact model-received input counts including formatting at POST /v1/responses/input_tokens. No Vercel pass-through support evidence found, and Ollama does not advertise this endpoint.",
+      "url": "https://developers.openai.com/api/docs/guides/token-counting"
+    }
+  ],
+  "alternatives_evaluated": {
+    "cloud_num_ctx": "Not a supported Cloud input cap, explicit negative evidence.",
+    "anthropic_thinking_budget": "Accepted but unenforced, cannot use as hard bound.",
+    "provider_credit_budgets": "Vercel soft caps do not bound the crossing request; account balance queries do not reserve a per-request allowance.",
+    "local_tokenizers_or_character_estimation": "No verified provider-added formatting/context maximum for exact hosted route; cannot replace reviewed billable maximum.",
+    "raw_generate_or_legacy_completion": "Different endpoint/prompt/tool semantics; no exact hosted tokenizer/template billing contract established, and classifier remains unbounded. Not silently substituted.",
+    "token_count_api": "Potential supported solution for the classifier if Vercel/Bifrost explicitly exposes same-payload exact count with proven billing/provider binding; current support not established. Does not solve Ollama answers.",
+    "max_tokens_zero_probe": "Would be a paid/unknown-bound call itself and zero semantics not established; no probe performed."
+  },
+  "public_catalog": {
+    "url": "https://ai-gateway.vercel.sh/v1/models",
+    "sha256": "067057ed1319cbc8be19270b8e7fb87aad0c35fc043a9407bda92eb6ff33f64c",
+    "luna_context_tokens": 1050000,
+    "standard_long_context_input_usd_per_million": "0.20",
+    "standard_long_context_output_usd_per_million": "0.75"
+  },
+  "input_only_context_reservation_scenarios_microusd": {
+    "qualification": "Illustrative whole-context scenarios, not attested complete maxima. Excludes output, fees and other calls.",
+    "flash_1000000_tokens_one_call": 300000,
+    "flash_six_calls": 1800000,
+    "pro_1000000_tokens_one_call": 1320000,
+    "luna_1050000_tokens_standard_long_context_one_call": 210000,
+    "luna_six_calls": 1260000
+  },
+  "required_missing_guarantee": "A provider-supported input-count or input-token/cost limit, bound to the final serialized request and model/provider route, covering every billable addition and all physical/hosted attempts; plus supported reasoning-inclusive output limits and complete fee ceilings.",
+  "conditional_target_math": {
+    "qualification": "Not an approved contract. Targets illustrate affordability if hard maxima become proven. Component-upward integer rounding used.",
+    "per_attempt_before_opening_spend_microusd": 125000,
+    "pro_output_cap_tokens": 4096,
+    "pro_max_input_tokens_at_that_output_before_preparation_or_more_calls": 82408
+  }
+}

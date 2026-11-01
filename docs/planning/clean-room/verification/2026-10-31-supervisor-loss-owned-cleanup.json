@@ -1,0 +1,50 @@
+{
+  "owned_cases": [
+    {
+      "attempt_id": "run_10c3e51fd7de43e6b306377ae45bc509ae7e0c28f4b04238a4ed80629f59bc89",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_7e86872cf31c45c19923a739259fc1ec560d1264d1304c299bbaacc820bcff17",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_9135a27c3fe64bcaae3f7c1f22230b4ec354a391f0ae401181d27bbf73eace5e",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_836e6760c5da45a6ad99c651ace0ace662cd2d7e17ee4ceba7d6bf482fe4265e",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_8f1347e79afc4edeb0da75624ee2b49ff31617a0b8a84312a4907c9cd652c897",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_71777c80480549cf842508d237a9877c0e9503491c8e4f7d9fa897f324b84281",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_47379088acc844c1be5200d9302d1b3bd292de2350644c7780089aee9a8da257",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_c38c63b6a9e14f44aa93cc1c6a155f4aca4e8a6fb9ae44e8831742f896473667",
+      "container_absent": true,
+      "slice_absent": true
+    },
+    {
+      "attempt_id": "run_b5b69c80fd3d4e00a9be58b0e9d60eb8ee38a53a88c44a928e06ce096394cea5",
+      "container_absent": true,
+      "slice_absent": true
+    }
+  ],
+  "all_absent": true
+}

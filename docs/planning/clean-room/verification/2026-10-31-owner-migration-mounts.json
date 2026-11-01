@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "base": "3ce757ab7dcd3d2f68bb01caf322f54b5fb07344",
+  "status": "source_fixes_and_native_mount_component_verified_live_blocked",
+  "live_attempts": 0,
+  "required_live_attempts": 120,
+  "paid_benchmark_inference_calls": 0,
+  "candidate_enabled": false,
+  "production_state_changed": false,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "attempts_per_permanent_task": 6,
+  "refunds_allowed": false,
+  "unknown_retries_allowed": false,
+  "verification": {
+    "python_harness_passed": 153,
+    "python_harness_skipped": 1,
+    "rust_registry_library_passed": 281,
+    "rust_registry_library_ignored": 1,
+    "native_linux_owner_passed": 8,
+    "native_registry_runtime_bins_check": "pass",
+    "strict_mac_clippy": "pass",
+    "ruff": "pass",
+    "post_fix_focused_linux_tests_passed": 19,
+    "native_mount_component": {
+      "candidate_enabled": false,
+      "component": "production_stage_launch_source_with_native_docker",
+      "controller": {
+        "changed_socket_denied": true,
+        "file_snapshot_survives_source_replacement": true,
+        "live_attempts": 0,
+        "oversize_denied": true,
+        "paid_calls": 0,
+        "production_admission": false,
+        "wrong_hash_denied": true
+      },
+      "production_admission": false,
+      "worker": {
+        "broker_uid": 2005,
+        "executable": "pinned-executable",
+        "live_attempts": 0,
+        "paid_calls": 0,
+        "snapshot": "pinned-original",
+        "socket_reply": "public-fixture-pong"
+      }
+    },
+    "native_tested_stage_function_sha256": "d757f11715aaeb264570ef5b6131993e74d7ca2cc553c2e9c3f2ff7276df7f49"
+  },
+  "red_evidence": [
+    {
+      "check": "owner migration regression",
+      "observed": "assertion a.registry_compatible(b) failed for activeSome and preservedNone before directional fix"
+    },
+    {
+      "check": "native stable descriptor mount",
+      "observed": "Docker/runc returned125 mounting /proc/hostpid/fd/fd: invalid argument; ordinary stable named bind returned0"
+    },
+    {
+      "check": "native changed descriptor mount",
+      "observed": "Docker/runc returned125 after original pathname replacement; no worker started"
+    },
+    {
+      "check": "initial socket-link fixture without FOWNER",
+      "observed": "protected_hardlinks rejected link of broker-owned socket; disposable trusted Root controller explicitly qualified FOWNER; worker stays cap-dropALL"
+    },
+    {
+      "check": "native executable regression",
+      "observed": "UID2001 execution of staged0444 program raised PermissionError Errno13; source execute bits now preserved with write and set-id bits cleared"
+    }
+  ],
+  "boundaries": [
+    "Named-mount proof executes production stage_launch_source only, not full RootSupervisor start/inspect/watchdog/cleanup or registry/owner admission",
+    "Historical catalog bytes were not rewritten; no production catalogs/leases/cgroups or allowances created",
+    "Exact current hosted input expansion bound or supported no-inference counting remains unavailable; max_tokens support on actual OpenAI-compatible route is acknowledged",
+    "Joined gateway root acquisition/capture/audit custody and privileged full supervisor/host-loss/unknown-ack/cleanup qualification remain incomplete",
+    "Full paired acceptance/cost/time gate not evaluated; live hard denial unchanged"
+  ],
+  "source_sha256": {
+    "clean-room/crates/control-plane/src/bin/harness_spending_runtime.rs": "60d86174455ef11a9bd9bde9bc44a99794a371ecbbd4cfd257e32dd63a1f7ece",
+    "clean-room/crates/control-plane/src/harness_owner.rs": "add0ba8903f6a752f25320babe6cbce446b0a9b3ed448cd6c1ed223348c6905f",
+    "clean-room/crates/control-plane/src/private_runtime.rs": "63da1b4df6897aac38005e8d2f10d0af3aafef2d5119b4c847237441f4ba4a04",
+    "clean-room/crates/execution/harness/linux_supervisor.py": "cd38c5f1877b7f91902724849efa3b70b4c33ae667b43d12cf6049c6bfbfc9b2",
+    "clean-room/crates/execution/harness/test_linux_supervisor.py": "efb9128bd4316f8dcdf8c020542df1b75ab1a8d9df786308720ad07a77758921",
+    "clean-room/tests/fixtures/harness_mount_source_replay.py": "15c5b75b8a5490321a08b69b859634d0022f93ee476bb1d2488719c1ddbd522d"
+  },
+  "source_review": {
+    "status": "complete",
+    "run_id": "20261031-migration-mount",
+    "receipt": "2026-10-31-migration-mount-source-review.json",
+    "coverage": "Nine source lenses, historical mode bug fixed and independently validated; native component only, no production or benchmark admission"
+  },
+  "source_commits": {
+    "owner_migration": "b786489",
+    "native_mount_sources": "033b0be"
+  }
+}

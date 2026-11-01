@@ -1,0 +1,81 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "Ready for source publication of the two reviewed files only. No retained findings. Production admission remains unverified; 0/120 real paired attempts were executed. This review does not authorize deployment, worker activation or candidate promotion.",
+  "scope": {
+    "base": "bb6526635ab856a3c29700d411c13c58d4274a59",
+    "branch": "codex/phase11a-rated-integration-20261030",
+    "head_sha": "bb6526635ab856a3c29700d411c13c58d4274a59",
+    "pr_url": null,
+    "files_changed": 2
+  },
+  "intent": "Compose trusted reviewed per-provider physical-call maxima and attempt counts into the existing RouteBound spending reservation. Require exact route coverage, fresh reviews, bounded counts, checked integer arithmetic and permanent-task affordability. This change only exposes reusable journal/arithmetic library modules; it does not register production service, prove provider contracts, launch workers or run paid attempts. Preserve $5/day, $0.75 permanent task, no refunds, unknown no retry and disabled candidate.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "project-standards",
+    "testing",
+    "maintainability",
+    "security",
+    "reliability",
+    "adversarial"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Source-only two-file milestone; authenticated gateway/owner integration, affordable attested provider contracts, production generic launch/registry admission and 120 live attempts remain unverified and outside this source review.",
+      "No production service was registered or deployed; library exports alone do not grant ingress authority.",
+      "Only the two explicit staged source files were reviewed. Concurrent planning progress/status and verification documents were excluded from the source diff.",
+      "Root AGENTS.md supplies fallback criteria; no CODING_STANDARDS.md, REVIEW.md, declared Compound Packs or plausible solutions corpus found.",
+      "API-contract lens skipped: new internal exported types have no evidenced external production consumers; agent-native, performance, migration and previous-comment surfaces absent.",
+      "Five simplification lenses completed. One restating comment was removed by caller; duplicated private hex validation intentionally retained to avoid widening journal helper visibility. Proof tests preserved.",
+      "After testing reviewer identified two concrete coverage gaps, caller added one independent test covering 2^64 wrap-to-zero and component expiry before route expiry. Testing reviewer independently rechecked and closed both gaps. No implementation behavior changed.",
+      "Full source verification log reports 273 passed, zero failures and one existing explicitly ignored disposable fixture test; strict registry-sidecar Clippy passed as reported by caller. No paid inference ran.",
+      "Cross-model pass not run: parent prohibited external provider/model review egress. Same-family separately dispatched local adversarial reviewer ran; no cross-model independence or agreement promotion claimed.",
+      "Seven reviewer artifacts and compact returns contain no findings, residual risks or testing gaps; source hashes match the reviewed working tree.",
+      "Suppressed findings: 0; mode-aware demotions: 0; malformed findings: 0; malformed returns: 0; missing-first-evidence demotions: 0; first_evidence_backfilled: 0.",
+      "Settlement suppression was not evaluated because no plan was discovered.",
+      "Validation selection: 0 primary findings; 0 selected and 0 shortcut-skipped; no cross-model corroboration shortcut claimed."
+    ],
+    "validator": {
+      "outcome": "empty-batch",
+      "reason": "All seven reviewers returned no retained findings; merge selected zero findings.",
+      "selected": 0,
+      "confirmed": 0,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "launched": false
+    },
+    "suppressed_by_confidence": {},
+    "mode_aware_demotions": 0,
+    "first_evidence_missing_demotions": 0,
+    "first_evidence_backfilled": 0,
+    "failed_reviewers": [],
+    "settlement_suppression_evaluated": false,
+    "production_admission": "unverified",
+    "real_paired_attempts": {
+      "completed": 0,
+      "required": 120
+    },
+    "local_apply": false
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model pass not run: parent prohibited external provider/model review egress. Same-family separately dispatched local adversarial reviewer ran; no cross-model independence or agreement promotion claimed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261031-rust-physical-bounds",
+  "run_id": "20261031-rust-physical-bounds"
+}

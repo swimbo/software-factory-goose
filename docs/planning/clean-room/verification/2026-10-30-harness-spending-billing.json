@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "phase": "11A",
+  "status": "blocked",
+  "candidate_enabled": false,
+  "production_registered": false,
+  "required_live_runs": 120,
+  "completed_live_runs": 0,
+  "approved_daily_cap_microusd": 5000000,
+  "task_cap_microusd": 750000,
+  "verified_checks": {
+    "python_harness_tests": 48,
+    "rust_journal_tests": 6,
+    "strict_scoped_clippy": true,
+    "ruff": true,
+    "real_disposable_restate": {
+      "synthetic": true,
+      "race_requests": 20,
+      "single_begin": true,
+      "unknown_survived_sigkill": true,
+      "daily_denial_survived_sigkill": true,
+      "opening_spend_retained": true,
+      "collector_claim_survived_sigkill": true,
+      "complete_receipt_settled_same_journal": true,
+      "actual_cost_did_not_refund_reservation": true
+    },
+    "opening_spend_negative_control_detected": true,
+    "lost_generation_claim_negative_control_detected": true,
+    "intended_publication_snapshot_rust_tests": 6
+  },
+  "sources_sha256": {
+    "clean-room/crates/control-plane/src/harness_spending.rs": "b60b44bfb60b9bb118652a35205ff4e5d2417a1e01dd4fbc5e09aa37d3b25721",
+    "clean-room/crates/control-plane/examples/harness_spending_fixture.rs": "7b6fb16ee6852dbfe3338ea588b156bfbaedbfefa8e557bc73c2d6d4c8101702",
+    "clean-room/crates/execution/harness/billing_receipts.py": "73c911a9537ec42e90db3791297586dcbd7bcb4c6e403255e06ab8f54c969bf9",
+    "clean-room/crates/execution/harness/billing_spending.py": "6dcb629856e9550db9ad8e075091e025cd9e8397725d6e0dfe42ccb73640ae24",
+    "clean-room/crates/execution/harness/test_billing_receipts.py": "1645068f5b31b34a4b1261cd14d61720745a7c343c688d59bd0998e487c8f753",
+    "clean-room/crates/execution/harness/test_billing_spending.py": "7185e2c2e55a16b487ec08827ca78794d7a0749148eba74df32b3d0277b06615",
+    "clean-room/tests/fixtures/harness_spending_replay.py": "140a141426ff649a95f709b8e70047ab57636add93779e423b9c19e4ff1f92e5",
+    "clean-room/crates/execution/harness/benchmark-spending-policy.json": "c49e97a383545b1deb805b3e014fc0cd867c74882511635598eca9166c28a6f8"
+  },
+  "blockers": [
+    "Protected runtime binding, predecessor fence and reconciled opening inventory not established.",
+    "Reviewed all-path enforceable charge/token bounds unavailable.",
+    "Complete correlated provider-billed receipts unavailable for unchanged answering route.",
+    "Fixed scope bootstrap is not authenticated incremental lease admission or a resumable independently evaluated 120-attempt driver."
+  ],
+  "performance_gate": {
+    "passed": false,
+    "reason": "incomplete_pairs",
+    "candidate_enabled": false
+  },
+  "code_review": {
+    "status": "complete",
+    "run_id": "phase11a-spending-20261030",
+    "reviewer_lenses": 9,
+    "independent_validation": true,
+    "findings_fixed_inline": [
+      1,
+      2
+    ],
+    "unresolved_source_findings": 0,
+    "review_receipt_sha256": "9d121b76414a4e2156b4612ad8eeb4e17c4ba5af432c69c79f769fb0be73a19c",
+    "scope": "Unregistered source components and disposable journal fixture; no production or performance certification"
+  }
+}

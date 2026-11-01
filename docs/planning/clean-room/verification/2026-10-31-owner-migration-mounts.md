@@ -1,0 +1,23 @@
+# Phase 11A migration and native mount qualification
+
+**Blocked: 0/120 live attempts; candidate disabled.** The $5 UTC-day and $0.75 permanent-task caps across all six attempts, no refunds, no unknown retries, independent evaluator and approval/registry gates remain unchanged. No production state or paid inference changed.
+
+## Resolved source defects
+
+Active owner configuration can now preserve historical catalogs that lack an owner field. It still rejects removing an existing owner or changing an existing binding. The spending frontend selects the registry's unique active intent, requires its owner and verifies historical compatibility. It no longer selects the first historical catalog. Existing historical bytes and their pins remain intact.
+
+Actual native Docker/runc rejected descriptor-path bind mounts (`/proc/<pid>/fd/<fd>`) even with an unchanged file. Normal named-path binds worked. The supervisor now stages bounded, SHA-verified regular-file snapshots under its private Root-owned attempt directory, with read-only modes and the original execute bits. Set-id and write bits are not propagated. A hard link pins the relay socket inode; replacement before linking is refused. Docker inspection requires all six exact staged sources. Known absence plus empty cgroup precedes staged-copy cleanup; unknown create outcomes retain the copies and refuse successful cleanup.
+
+Review caught an intermediate defect: making every snapshot 0444 stripped Goose's executable bit. A UID2001 native execution reproduced `PermissionError: [Errno 13]`. The corrected native fixture executes a pinned staged program, reads the original bytes after source-path replacement, and connects through a pinned socket to broker UID2005. Wrong hash, oversize and changed socket cases deny. The trusted disposable Root controller needs FOWNER to link a broker-owned socket under Linux protected-hardlink policy; the worker receives no capabilities.
+
+Verification: **153 harness tests passed, one skipped; 281 registry library tests passed, one existing fixture-dependent test ignored; eight native owner tests and both native runtime binary checks passed**. Strict Clippy and Ruff passed. After final fixes, all 19 focused Linux tests and the native execution/mount proof passed. The [receipt](2026-10-31-owner-migration-mounts.json) records hashes, negative evidence and scope. This proves the staging component, not installed production launch, complete watchdog/daemon-loss cleanup, or the paired performance gate.
+
+## Provider contract and custody
+
+The [new public provider recheck](2026-10-31-provider-envelope-recheck.json) corrects an overly broad inference: this route uses Ollama `/v1/chat/completions`, where `max_tokens` is supported. Native `num_ctx` and Anthropic budget behavior do not negate that support. Full-context reservation is an illustrative fallback, not the only possible bound.
+
+A smaller request-specific bound could suffice. However, exact dated Cloud manifests contain only remote stubs, and public `/api/show` metadata, even verbose, exposes no tokenizer, renderer or template. No supported no-inference input count or maximum hosted rendering/tokenization expansion was established. Reasoning-inclusive billable output semantics also need route-specific evidence. Local tokenizer estimates, arbitrary overhead constants, undocumented debug probes and post-inference token usage cannot substitute for the required pre-dispatch authority. The missing external contract has been requested; no provider message was sent.
+
+The [custody audit](2026-10-31-launch-custody-audit.json) also retracts the assumption that another money-authority operation is necessarily required per physical call. Existing single-use `begin` can claim one trusted gateway root under a fully reserved aggregate envelope. Correct integration must move that sole begin to authenticated root acquisition, never rearm after unknown acknowledgement or restart, enforce every physical component and final-wire bound, then persist a sanitized joined closure and collector audit. This integration remains unimplemented and unqualified; no schema or handler was added merely to manufacture authority.
+
+Remaining production prerequisites include joined gateway root/closure/audit custody; Root inventory and predecessor fence, registry publication and current leases; bounded preprovisioned cgroups; and full privileged start/observe, watchdog/supervisor/daemon-loss, unknown acknowledgement and descendant-cleanup qualification. Named snapshots remove descriptor binds, while host process-view requirements for kernel observations still require qualification. Existing correctness/runtime gaps remain prerequisites. Phase 11A and Phase 12's gate remain incomplete.

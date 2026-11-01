@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "status": "verified_components_production_and_live_denied",
+  "factory_source_commits": {
+    "loss": "a119cb271aee8ca805dcf5a3edeb2143ee17a0c9",
+    "capture": "5aa51b8"
+  },
+  "live_attempts": 0,
+  "required_live_attempts": 120,
+  "paid_benchmark_inference_calls": 0,
+  "candidate_enabled": false,
+  "performance_gate_passed": false,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "attempts_per_permanent_task": 6,
+  "refunds_allowed": false,
+  "unknown_inference_retries_allowed": false,
+  "verification": {
+    "python_tests_run": 165,
+    "python_passed": 161,
+    "python_skipped": 4,
+    "native_loss_cases": 9,
+    "native_destructive_refusal_controls": 5,
+    "capture_unit_tests": 6,
+    "profile_tests": 2,
+    "native_capture_store": "2026-10-31-capture-store-native.json",
+    "native_loss": "2026-10-31-supervisor-loss-native.json",
+    "owned_resource_absence": "2026-10-31-supervisor-loss-owned-cleanup.json",
+    "gateway_owner_native": "2026-10-31-gateway-owner-native.json",
+    "gateway_negative_controls": [
+      "2026-10-31-gateway-owner-transport-guard.json",
+      "2026-10-31-gateway-owner-cancel-mutation.json",
+      "2026-10-31-gateway-owner-installer-refusal.json"
+    ],
+    "full_core_linux_owner_factory": {
+      "passed": 25,
+      "skipped_kernel_fixture": 1
+    },
+    "full_core_macos": "schemas/utils short race passed with repository-layout consistency test excluded in isolated core"
+  },
+  "source_reviews": [
+    "2026-10-31-supervisor-loss-source-review.json",
+    "2026-10-31-gateway-custody-source-review.json",
+    "2026-10-31-gateway-owner-source-review.json"
+  ],
+  "external_blocker": "Provider-supported rendered/tokenized billable input maximum or supported no-inference input count for exact retained Cloud model/route, with supported reasoning-inclusive output semantics and all physical fees/attempt bounds. Existing public metadata/docs do not establish it. No estimates or undocumented paid probes substituted.",
+  "remaining_production_gates": [
+    "Join authenticated real wallet begin, production arm caller/common owner config, Go context attachment and durable Python closure/audit in actual Bifrost ingress",
+    "Dedicated gateway startup must enable mandatory owner requirement before any paid path; prove all internal routing contexts and final-wire callback preserve scope/lease/route/day validity",
+    "Root inventory/predecessor fence, registered owner, actual current leases and persistent resource-bounded systemd slices",
+    "Actual RootSupervisor.start unknown-ack handling and whole supervisor/watchdog service-group loss, real daemon restart and host-loss recovery",
+    "Disposable negative protected-state/ACL/alias/bootstrap admission qualification before capture service activation",
+    "Frozen actual 20-task three-repeat paired safety/acceptance/cost/time gate"
+  ],
+  "source_sha256": {
+    "clean-room/crates/execution/harness/linux_supervisor.py": "73f9f454fa2b53096d81f22816ece095b5e1e47657394f6e2da7b009e21bb539",
+    "clean-room/crates/execution/harness/gateway_custody.py": "ce412937d4a83b43bd57740e997573940cd1c0247e15f4519eb4d1d7f997b8e0",
+    "clean-room/tests/fixtures/harness_supervisor_loss_replay.py": "b8834cef7a318ea6348579dce9f0fbaa2bfd343f8d90b666db1008a6868b1531",
+    "clean-room/tests/fixtures/harness_capture_store_replay.py": "7e36c4e00d9419879289503d138f7ab5189c85915be7acd75722df6af498259d"
+  },
+  "gateway_source_commit": "2ece9ec8f889b2706ea4e4c4353338f1eb58afb7"
+}

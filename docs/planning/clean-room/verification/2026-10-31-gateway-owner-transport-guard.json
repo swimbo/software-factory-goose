@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "pinned_core": "1.11.2",
+  "native_linux_actual_transport": true,
+  "without_unconditional_guard": {
+    "exit": 1,
+    "stdout": "=== RUN   TestOwnerRequiredActualTransportRejectsUnbound\n    factory_owner_http_test.go:24: transport child: exit status 1 --- FAIL: TestOwnerRequiredActualTransportRejectsUnbound (0.00s)\n            factory_owner_http_test.go:44: unowned transport accepted\n        FAIL\n--- FAIL: TestOwnerRequiredActualTransportRejectsUnbound (0.01s)\nFAIL\n"
+  },
+  "with_unconditional_guard": {
+    "exit": 0,
+    "stdout": "=== RUN   TestOwnerRequiredActualTransportRejectsUnbound\n--- PASS: TestOwnerRequiredActualTransportRejectsUnbound (0.01s)\nPASS\n"
+  },
+  "killed_missing_guard_mutant": true,
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "production_admission": false
+}

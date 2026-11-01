@@ -1,0 +1,100 @@
+{
+  "behavioral_red": "Removing the cancellation/deadline guard causes Denied not raised in test_cancel_and_expiry_prevent_dispatch",
+  "creator_sigkill_cleanup": true,
+  "evaluator_image": "python@sha256:b3575dcf816cdacc5292df77a6e3e59b8941631078373a045efa2ac1e9c5c3b2",
+  "exact_final_whole_file_native_rerun": false,
+  "filesystem_network_denials": true,
+  "final_native_revalidation": {
+    "actual_inflight_quickjs_observed": true,
+    "authenticated_worker_cancel": true,
+    "baseline": {
+      "authorized_tools": 5,
+      "independent_evaluation_accepted": true,
+      "synthetic_sends": 6
+    },
+    "cancel_before_serialization_lock": true,
+    "cancellation_probe": "cancel-native-check.py",
+    "cancellation_probe_sha256": "68bd9e0b19c4bfcef11341bae4d121083cc29a48a34dd823eecfd7ab72938803",
+    "cancelled_child_refused_and_reaped": true,
+    "candidate": {
+      "authorized_tools": 3,
+      "independent_evaluation_accepted": true,
+      "synthetic_sends": 3
+    },
+    "canonical_tree": "integration",
+    "fresh_owned_stage": true,
+    "kernel_no_new_privileges": 1,
+    "kernel_seccomp": 2,
+    "paid_calls": 0,
+    "same_uid_broker_worker_refused": true,
+    "staged_source_hashes_observed_equal": true
+  },
+  "goose_sha256": "802d1478e6a53ef7c68a56ccfed3aec59eab0afd68aa411ec0c1b516dc5334db",
+  "historical_native_proof": {
+    "behavioral_red": "Removing the cancellation/deadline guard causes Denied not raised in test_cancel_and_expiry_prevent_dispatch",
+    "sources": {
+      "clean-room/crates/execution/harness/linux_goose_runtime.py": "a945eb2079e20727ff82039d0b1ab73d6fafb2d0815ac5c93603e6db3728908e",
+      "clean-room/crates/execution/harness/test_linux_goose_runtime.py": "34a40c16baf3b5da1a69b1426119964315156bdfdb90646b833340deb97feed3",
+      "clean-room/tests/fixtures/harness_linux_goose_replay.py": "f43beba8c55952e8e2245e87253d73e2f56bc1c9a841c470c57279918150bdc9"
+    },
+    "stage": "/tmp/sfactory-linux-goose-replay-DWm1sw9z",
+    "unit_tests": 5
+  },
+  "host": "hermes-control",
+  "independent_disposable_deadline_cleanup": true,
+  "kernel_wrong_uid_denied": true,
+  "linux_script_host_sha256": "04ed8fbb5b532514d691fec36c1fa44b0c93de66b2c2ac7d20a9e893c84e71af",
+  "live_benchmark_attempts": 0,
+  "native_pair": {
+    "baseline": {
+      "authorized_tools": 5,
+      "independent_evaluation_accepted": true,
+      "synthetic_sends": 6
+    },
+    "candidate": {
+      "authorized_tools": 3,
+      "independent_evaluation_accepted": true,
+      "synthetic_sends": 3
+    }
+  },
+  "paid_inference": 0,
+  "post_review_source_equivalence": {
+    "clean-room/crates/execution/harness/harness_evaluation.py": {
+      "change": "offline rated scoring result schema version changed to 2; not used by native transport fixture",
+      "current_sha256": "01190b4dd64b95f94458313eb9558d68b3edc0daa139986f032dba5b54246ef7",
+      "native_runtime_imported_observation_ast_equal": true,
+      "only_changed_function": "evaluate",
+      "tested_sha256": "a4b06fb9921492c8689ea633d4e46c6734d80b9e19dfd988af7bb4a6be89cc47"
+    },
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": {
+      "change": "three nonfunctional comments removed during simplification",
+      "current_sha256": "562ce0729cea081465c38ef34a3240c3182d6be0cf7cb791331f7afd58516892",
+      "entire_module_ast_equal": true,
+      "tested_sha256": "bc1893ccccf8609b7ecf088c5c030d133a22cd69c887faa7d80219d9b06ab3bd"
+    }
+  },
+  "production_candidate_enabled": false,
+  "production_runner_adapter_complete": false,
+  "quickjs_archive_sha256": "b376e839b322978313d929fd20663b11ba58b75df5a46c126dd19ea2fa70ad2a",
+  "schema": 1,
+  "source_head": "6e2136917ebc15304445e4eefdafa5d6d9f57c73",
+  "sources": {
+    "clean-room/crates/execution/harness/container_eval_host.py": "9f18f50a99452863f1b1e9d173ad8c1ca0ba330de7fb1560888576907f6bc46c",
+    "clean-room/crates/execution/harness/container_evaluator.py": "50640b0387ec71dd39e8f5ec8e9431b97b3d7a1ad8277b25609a2b2ed848bf4f",
+    "clean-room/crates/execution/harness/factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81",
+    "clean-room/crates/execution/harness/frozen-suite.json": "9062ef9d85545d3ea43cc8a6e2916048b5c95b8564bd32646006b704ea71dfbf",
+    "clean-room/crates/execution/harness/harness_evaluation.py": "a4b06fb9921492c8689ea633d4e46c6734d80b9e19dfd988af7bb4a6be89cc47",
+    "clean-room/crates/execution/harness/harness_mcp.py": "81f2d7327580041e721689abf2ce80f5816253b1dcaa1bae0efd12efc2185349",
+    "clean-room/crates/execution/harness/harness_session.py": "7b42b0ed5d22e33d7b62072e4241f826d3b5da185544a28dd7613a6a1db84709",
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": "bc1893ccccf8609b7ecf088c5c030d133a22cd69c887faa7d80219d9b06ab3bd",
+    "clean-room/crates/execution/harness/protected_goose_runtime.py": "4215c3a8dc3f3fa09acbae755ef4aa7eff3881f79bfb6a20f958166c47c3e2fb",
+    "clean-room/crates/execution/harness/test_linux_goose_runtime.py": "698668da7c35ce33dae7ddd914859dfb4e46144c0d29bd73bcc52851512e0652",
+    "clean-room/deployment/relay/nuc_goose_worker.py": "c0f51ee7767c6448c1fa3908e137c280753de302af9e7196751bb67fbc601df1",
+    "clean-room/tests/fixtures/harness_linux_goose_replay.py": "36d531510fc573c0d9e26ea1132adc94af4de96ec1283f765ed538335635b907"
+  },
+  "stage": "/tmp/sfactory-linux-goose-final-YE5Dg3eC",
+  "status": "isolated_native_component_passed",
+  "task": "intervals",
+  "unit_tests": 7,
+  "worker_image": "sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a"
+}

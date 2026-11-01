@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "scope": "Read-only Phase11A production custody/launch audit; no source/index/host mutations, no paid calls",
+  "base": "3ce757ab7dcd3d2f68bb01caf322f54b5fb07344",
+  "findings": [
+    {
+      "priority": "P1",
+      "issue": "Optional harness owner cannot migrate into preserved registry",
+      "evidence": [
+        "private_runtime.rs60 requires exact Option equality",
+        "bin/private_runtime.rs572 requires active config compatible with every preserved catalog",
+        "bin/harness_spending_runtime.rs initially selects catalogs.first instead of active_intent"
+      ],
+      "minimal_fix": "Directional activeSome/historicalNone compatibility without rewriting historical configs; require exact existingSome equality and prevent activeNone removal. Select exact unique active_intent catalog with requiredSome for owner frontend. Parent implementing."
+    }
+  ],
+  "custody_design": {
+    "extra_per_physical_money_operation_required": false,
+    "correction": "Earlier mandatory-extra-operation assertion retracted after examining State.begin Reserved\u2192Unknown single-use transition. Existing aggregate precharge includes every reviewed component attempt and has no refunds.",
+    "minimal_flow": [
+      "Python reserve once; move sole durable begin into authenticated trusted gateway root acquisition",
+      "Do not create or attach typed root before exact begin true acknowledgement; bind owner/scope/logical Call/frozen route+tariff+request",
+      "Local callback consumes percomponent slots and validates final wire request against reviewed hard envelope before socket write",
+      "Seal only after all transports joined; store bounded canonical sanitized closure with exact component dispositions before exposing physical manifest SHA",
+      "Collector UID only /capture/closed and /capture/audit; immutable exact-bind closure, audit digest and stored true only after file+directory durability",
+      "Unknown acknowledgement/crash prevents any root rearm, retains entire aggregate reservation; no reconstruction from caller headers or cached true responses"
+    ],
+    "tests": [
+      "Two concurrent gatewayroot acquisitions: one succeeds",
+      "Lost begin reply: zero provider socket writes and no retry",
+      "Crash after partial physical sends: no root recreation; full aggregate remainscharged",
+      "Component-count/finalwire overflow: reject before writes",
+      "Duplicate/mixed owner/scope/route closure and altered audit digest refused; audit fsyncfail withholds ack"
+    ]
+  },
+  "launch_qualification": {
+    "inventory": {
+      "hermes_cgroup_driver": "systemd",
+      "hermes_cgroup_version": "2",
+      "var_lib_and_home_filesystem_magic": "ef53",
+      "production_new_namespace_exists": false
+    },
+    "critical_fixture_boundary": "Current RootSupervisor builds bind mounts as /proc/<supervisor PID>/fd/<n>. Docker daemon must resolve that exact PID and descriptor in host view. Ordinary PID-namespaced fixture controller is not valid. Use native host process or explicitly host-PID trusted fixture and prove daemon resolution before claiming full supervisor launch.",
+    "smallest_next_fixture": [
+      "Isolated no-provider source/public files and exact label-owned workers only",
+      "First characterize actual Docker procfd read-only mounts with host PID view; hold descriptors through create/start/inspection",
+      "Fresh dedicated Root-owned bounded cgroup slice must actually exist with required dev/ino and memory/pids/cpu limits; do not invent in-memory cgroup evidence",
+      "Run actual generic prepare/start/observe/revoke/reconcile and independent acceptance with synthetic provider and actual Unix peers",
+      "Exercise supervisor loss, watchdog, lease expiry, revoked scope, lost create/start response; unknown create must never become absent merely from empty listing",
+      "Test actual registry/owner gate separately; synthetic gate or fixture owner does not certify production admission"
+    ],
+    "production_boundary": "Actual Root registry transition/admission, owner inventory/predecessor fence/current leases, protected gateway binding and capture storage remain prerequisites. No fixture publishes production authority."
+  },
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "caps_usd": {
+    "utc_day": "5",
+    "permanent_task": "0.75"
+  }
+}
