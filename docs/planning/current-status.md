@@ -30,7 +30,7 @@ The Bifrost publication worktree is separate from this repository:
 
 `/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-remaining-gateway-publication-04afte_6/integration`
 
-Branch: `codex/remaining-source-audit-20261031`. Prior published base: `28305356916d634089b171e8b5b6fe5c683487b0`. Draft checkpoint `1981836` was committed and pushed at the user's explicit request to publish all current work, including work in progress. Resumed protocol verification and strengthened tests are published in `fb44e96`. Decoder adapter work in progress is published in `76e71ae`.
+Branch: `codex/remaining-source-audit-20261031`. Prior published base: `28305356916d634089b171e8b5b6fe5c683487b0`. Draft checkpoint `1981836` was committed and pushed at the user's explicit request to publish all current work, including work in progress. Resumed protocol verification and strengthened tests are published in `fb44e96`. Decoder adapter source is published in `76e71ae`; expanded tests and six-lens review are published in `6d35c77`.
 
 The checkpoint includes these three artifact paths:
 
@@ -38,7 +38,7 @@ The checkpoint includes these three artifact paths:
 - `engine/transport/factory_gateway_protocol_test.go`
 - `engine/transport/testdata/factory_gateway_python_frame.json`
 
-The parser preserves exact Python request bytes for hashing and validates bounded envelopes, duplicate/unknown fields, frozen identities, output limits, leases and the reserved UTC day. It grants no spending authority and is **not wired into an exchange handler or production startup**. A source-only adapter now feeds accepted requests into the actual Bifrost chat decoder; it is not installed by the source installer. Its Linux fixture and selected parser/governed-embedding tests pass, but dedicated source review and complete ingress qualification remain open.
+The parser preserves exact Python request bytes for hashing and validates bounded envelopes, duplicate/unknown fields, frozen identities, output limits, leases and the reserved UTC day. It grants no spending authority and is **not wired into an exchange handler or production startup**. A source-only adapter now feeds accepted requests into the actual Bifrost chat decoder; it is not installed by the source installer. Its Linux fixtures and selected parser/governed-embedding tests pass; six-lens source review found no actionable issues. Complete ingress qualification remains open.
 
 After resuming, all seven parser test functions and four existing governed-call/native-HTTP groups pass on the actual composed Linux source. The previously unrun rebound-duplicate test now passes. A digest-check mutant initially survived because another validation masked it; a new same-size content substitution rejects it. Three isolated call-to-binding mismatch tests were added. Ten independent overlay guard mutants are rejected by runtime assertions; production parser source is unchanged. Dedicated source review completed seven independent in-process lenses with no retained findings. This is parser-component evidence only: the parser is still not connected to a listener or production startup. See [protocol evidence](clean-room/verification/2026-11-01-gateway-protocol.md).
 

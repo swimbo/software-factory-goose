@@ -635,3 +635,7 @@ The isolated composed Linux transport's actual chat decoder accepts the public a
 ### Phase 11A chat decoder adapter checkpoint — 2026-11-01
 
 A source-only gateway adapter validates the frozen envelope before invoking Bifrost's existing chat decoder. Two new fixture cases and the existing protocol/governed semantic-embedding tests pass on the composed Linux stage; test-first missing-symbol failure was observed. Published Bifrost checkpoint `76e71ae` is in progress: dedicated source review, source installer, private listener, owner acquisition, capture closure, provider charge bounds and launch gates remain open. No hosted calls; live0/120, candidate disabled, caps unchanged.
+
+### Phase 11A decoder fidelity review — 2026-11-01
+
+The source-only decoder adapter now has native tests for the exact public Unicode/HTML message, ordered non-empty tool descriptions and schema semantics, stream usage/tool-choice parameters, and sanitized refusal when a validly bound request fails the actual decoder. All gateway tests pass. Six-lens source review found no actionable issues. See verification/2026-11-01-gateway-decode-adapter.md and adjacent receipts. Source installer, private listener, owner acquisition, capture closure, provider charge bounds and launch gates remain open; no hosted calls, live0/120, candidate disabled and caps unchanged.

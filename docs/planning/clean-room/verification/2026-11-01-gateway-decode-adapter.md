@@ -1,0 +1,5 @@
+# Gateway chat decoder component
+
+The source-only adapter passes an accepted protected envelope to Bifrost's existing chat decoder. The real composed Linux source passes gateway protocol and adapter tests covering auto routing, output-token conversion, usage reporting option, tool-choice and parallel-call options, exact public Unicode/HTML message content, two ordered tool descriptions and schema semantics. A request with empty messages is rebound to the correct digest and size, passes envelope validation, then receives a fixed sanitized decoder refusal with no decoded request. Red-before-implementation was the missing adapter symbol. Native test commands, logs and source hashes are in the adjacent receipt.
+
+This is component evidence only. The artifact is not installed by the source installer and is not connected to a private listener. It does not authenticate peers, acquire spending authority, capture physical calls, or establish provider charge bounds. Provider and production routes were not called. Phase11A remains incomplete, live attempts0/120, candidate disabled; $5 UTC-day/$0.75 permanent-task caps remain binding.
