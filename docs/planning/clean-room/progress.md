@@ -589,3 +589,7 @@ Actual durable Rust wallet, protected gateway acquisition/capture and independen
 ### Phase 11A actual start-intent state — 2026-11-01
 
 Two actual-entrypoint tests verify durable start-intent/no-rearm/unknown reconciliation, including a retained cleanup receipt. Native replay source is reviewed, but execution is blocked by the missing pinned worker image; no image substitution was made and the exact empty test namespace was inode-checked and removed. See verification/2026-11-01-supervisor-start-state.md. Actual native start and full group/daemon/host-loss gates remain open, alongside provider bounds and production Bifrost/bootstrap integration. Phase11A incomplete, live0/120, candidate disabled and caps unchanged.
+
+### Phase 11A independent collector RPC — 2026-11-01
+
+Broker UID 2005 now calls a protected, separately running UID 2006 settlement service. Only binding metadata crosses its socket; provider text/SSE are excluded and extra content is refused. Real durable wallet/capture/RPC/restart proof and full source review pass. Both profiles bind the new service source (RED before adding the binding, GREEN afterward). See verification/2026-11-01-settlement-rpc.md. Integrated harness: 169 passed, four skipped (173 run). No new money authority, refunds, provider calls or production activation. Live attempts remain 0/120; candidate disabled and spending caps unchanged.

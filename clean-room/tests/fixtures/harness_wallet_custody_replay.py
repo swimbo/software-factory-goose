@@ -40,6 +40,7 @@ WALLET = PREFIX + "/wallet/socket/service.sock"
 BACKEND = PREFIX + "/wallet/backend/journal.sock"
 GATEWAY = PREFIX + "/broker/socket/service.sock"
 CAPTURE = PREFIX + "/capture/socket/service.sock"
+SETTLEMENT = PREFIX + "/collector/socket/service.sock"
 DATABASE = PREFIX + "/capture/state/capture.db"
 MARKER = "SFACTORY_WALLET_CUSTODY_DISPOSABLE"
 GROUP = 3003
@@ -337,22 +338,47 @@ def open_gateway(records, *, reserve):
     return fork_service(2005, "gateway", run)
 
 
-def collector(record, profile, card):
-    from physical_usage import (PrivateCaptureClient, PrivateCollectorClient,
-                                PhysicalUsageCollector)
-    source = PrivateCaptureClient(CAPTURE, service_uid=2008, collector_uid=2006,
-                                  broker_uid=2005, worker_uid=2001, owner=OWNER)
-    authority = PrivateCollectorClient(WALLET, service_uid=2004, collector_uid=2006,
-                                       broker_uid=2005, worker_uid=2001, owner=OWNER)
-    settled = PhysicalUsageCollector(source, authority, card, card.sha256(),
-                                     (profile,), ("answer", "fallback"))
+def open_settlement(profile, card, route):
+    def run(write):
+        from gateway_custody import PrivateCustodyServer
+        from physical_settlement import ProtectedUsageSettlement
+        from physical_usage import (PrivateCaptureClient, PrivateCollectorClient,
+                                    PhysicalUsageCollector)
+        source = PrivateCaptureClient(CAPTURE, service_uid=2008, collector_uid=2006,
+                                      broker_uid=2005, worker_uid=2001, owner=OWNER)
+        authority = PrivateCollectorClient(WALLET, service_uid=2004, collector_uid=2006,
+                                           broker_uid=2005, worker_uid=2001, owner=OWNER)
+        collector = PhysicalUsageCollector(source, authority, card, card.sha256(),
+                                           (profile,), ("answer", "fallback"))
+        backend = ProtectedUsageSettlement(collector, broker_uid=2005, worker_uid=2001,
+                                            route_sha256=route)
+        server = PrivateCustodyServer(SETTLEMENT, backend, service_uid=2006,
+                                      socket_gid=GROUP, prefix="/settlement/")
+        os.write(write, b"1")
+        os.close(write)
+        server.serve_forever(poll_interval=0.1)
+    return fork_service(2006, "settlement", run)
+
+
+def settlement_metadata(record, card):
     attempt = {"attempt_id": record["root"]["attempt_id"], "budget_owner": OWNER,
                "route": record["root"]["route_sha256"], "mode": "live",
-               "cost_basis": "audited_usage_rated", "tariff_sha256": card.sha256()}
+               "cost_basis": "audited_usage_rated", "tariff_sha256": card.sha256(),
+               "prompt": "fixture-private-prompt-never-to-collector"}
     response = {k: record["call"][k] for k in
                 ("call_id", "scope_sha256", "request_sha256")}
     response["physical_manifest_sha256"] = record["binding"].physical_manifest_sha256
-    return settled.settle(attempt, record["call"], response)
+    response["sse"] = b"fixture-provider-content-never-to-collector"
+    return attempt, record["call"], response
+
+
+def collector(record, profile, card):
+    from physical_settlement import PrivateSettlementClient
+    client = PrivateSettlementClient(SETTLEMENT, collector_uid=2006, broker_uid=2005,
+                                      worker_uid=2001, owner=OWNER,
+                                      route_sha256=record["root"]["route_sha256"],
+                                      tariff_sha256=card.sha256())
+    return client.settle(*settlement_metadata(record, card))
 
 
 def observed_open(root):
@@ -376,6 +402,8 @@ def inside():
         (PREFIX + "/broker", 0, 0, 0o755),
         (str(Path(GATEWAY).parent), 2005, GROUP, 0o750),
         (PREFIX + "/capture", 0, 0, 0o755),
+        (PREFIX + "/collector", 0, 0, 0o755),
+        (str(Path(SETTLEMENT).parent), 2006, GROUP, 0o750),
         (str(Path(CAPTURE).parent), 2008, GROUP, 0o750),
         (str(Path(DATABASE).parent), 2008, 2008, 0o700),
     ]:
@@ -384,7 +412,7 @@ def inside():
         os.chmod(target, mode)
         os.chown(target, uid, gid)
     sdk = restate = frontend = None
-    backend = capture = gateway = None
+    backend = capture = gateway = settler = None
     try:
         sdk = start_binary(["/opt/runtime", "sdk", "127.0.0.1:19080"], "sdk")
         deadline = time.monotonic() + 10
@@ -454,10 +482,11 @@ def inside():
                                      "sequence": 0, "request_bytes": 1000,
                                      "output_tokens": 100}})
         capture = open_capture(profile, card, route)
+        settler = open_settlement(profile, card, route)
         gateway = open_gateway(records, reserve=True)
         def worker_denial():
             denied = []
-            for path in (WALLET, GATEWAY, CAPTURE):
+            for path in (WALLET, GATEWAY, CAPTURE, SETTLEMENT):
                 connection = socket.socket(socket.AF_UNIX)
                 try:
                     connection.connect(path)
@@ -468,7 +497,7 @@ def inside():
                 finally:
                     connection.close()
             return denied
-        require(actor(2001, worker_denial) == [WALLET, GATEWAY, CAPTURE],
+        require(actor(2001, worker_denial) == [WALLET, GATEWAY, CAPTURE, SETTLEMENT],
                 "worker was not denied before HTTP")
         require(actor(2006, lambda: post(WALLET, "reserve", records[0]["call"]))[0] == 403,
                 "collector could reserve")
@@ -509,7 +538,17 @@ def inside():
                 "lost acknowledgement rearmed durable wallet")
         require(actor(2007, lambda: post(CAPTURE, "close", records[0]["envelope"],
                                        "/capture/"))[0] == 200, "complete closure failed")
-        settlement = actor(2006, lambda: collector(records[0], profile, card))
+        from physical_settlement import settlement_request
+        safe_metadata = settlement_request(*settlement_metadata(records[0], card))
+        require(actor(2007, lambda: post(SETTLEMENT, "settle", safe_metadata,
+                                       "/settlement/"))[0] == 400,
+                "gateway crossed collector settlement role")
+        secret_metadata = copy.deepcopy(safe_metadata)
+        secret_metadata["response"]["sse"] = "never allowed on collector wire"
+        require(actor(2005, lambda: post(SETTLEMENT, "settle", secret_metadata,
+                                       "/settlement/"))[0] == 400,
+                "collector accepted provider response content")
+        settlement = actor(2005, lambda: collector(records[0], profile, card))
         require(settlement["usage_rated_microusd"] == 2 and settlement["all_calls_complete"] is True,
                 "real collector settlement failed")
         # The two reservations consume exactly the remaining UTC-day authority.
@@ -520,6 +559,8 @@ def inside():
         # Restart actual durable Restate plus transports; do not reuse stale sockets.
         stop_pid(gateway)
         gateway = None
+        stop_pid(settler)
+        settler = None
         stop_pid(capture)
         capture = None
         stop_process(frontend)
@@ -530,17 +571,19 @@ def inside():
         restate = None
         remove_socket(GATEWAY)
         remove_socket(CAPTURE)
+        remove_socket(SETTLEMENT)
         restate, ports = start_journal()
         backend = start_backend(ports["http-ingress-server"])
         frontend = start_frontend()
         capture = open_capture(profile, card, route)
+        settler = open_settlement(profile, card, route)
         gateway = open_gateway(records, reserve=False)
         for record in records:
             require(actor(2007, lambda r=record: acquire(r))[0] == 400,
                     "restart created a new begin authority")
             require(actor(2005, lambda r=record: direct_begin(r))[0] == 409,
                     "durable begin outcome lost at restart")
-        require(actor(2006, lambda: collector(records[0], profile, card)) == settlement,
+        require(actor(2005, lambda: collector(records[0], profile, card)) == settlement,
                 "settled capture/audit changed after restart")
         require(actor(2005, lambda: post(WALLET, "reserve", other_call)) == [200, "Denied"],
                 "day cap changed after restart")
@@ -552,6 +595,8 @@ def inside():
             "real_capture_sqlite": True,
             "worker_denied_before_http": True,
             "gateway_and_collector_money_roles_denied": True, "real_collector_wallet_settlement": True,
+            "broker_to_independent_collector_rpc": True,
+            "collector_provider_content_rejected": True,
             "successful_acquisition": successful[1],
             "lost_acquisition_ack_not_rearmed": True,
             "journal_capture_and_broker_restart_preserved_outcomes": True,
@@ -568,13 +613,14 @@ def inside():
             "candidate_enabled": False,
             "source_sha256": {name: hashlib.sha256(Path("/code/" + name).read_bytes()).hexdigest()
                               for name in ("gateway_custody.py", "protected_spending_control.py",
-                                           "physical_usage.py", "usage_rating.py", "usage_spending.py")},
+                                           "physical_usage.py", "usage_rating.py", "usage_spending.py",
+                                           "physical_settlement.py")},
             "binary_sha256": {name: hashlib.sha256(Path("/opt/" + name).read_bytes()).hexdigest()
                               for name in ("runtime", "restate-server")},
         }
         print(canonical(result), flush=True)
     finally:
-        for pid in (gateway, capture, backend):
+        for pid in (gateway, settler, capture, backend):
             if pid is not None:
                 stop_pid(pid)
         for process in (frontend, restate, sdk):

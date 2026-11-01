@@ -483,11 +483,13 @@ class PrivateCustodyServer(socketserver.ThreadingMixIn, socketserver.UnixStreamS
     request_queue_size = 8
 
     def __init__(self, path, backend, *, service_uid, socket_gid, prefix):
+        from physical_settlement import ProtectedUsageSettlement
+
         require(
             os.geteuid() == service_uid
             and service_uid > 0
             and socket_gid > 0
-            and prefix in ("/capture/", "/gateway/"),
+            and prefix in ("/capture/", "/gateway/", "/settlement/"),
             "custody_service_identity_invalid",
         )
         require(
@@ -496,6 +498,8 @@ class PrivateCustodyServer(socketserver.ThreadingMixIn, socketserver.UnixStreamS
                 and type(backend) is ProtectedCaptureStore
                 or prefix == "/gateway/"
                 and type(backend) is ProtectedGatewayAcquisitionAuthority
+                or prefix == "/settlement/"
+                and type(backend) is ProtectedUsageSettlement
             )
             and backend.protected_uid == service_uid,
             "custody_backend_invalid",
@@ -570,7 +574,7 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
             method = self.path.removeprefix(self.server.prefix)
             require(
                 self.path == self.server.prefix + method
-                and method in ("open", "close", "closed", "audit", "acquire"),
+                and method in ("open", "close", "closed", "audit", "acquire", "settle"),
                 "custody_method_denied",
             )
             lengths = self.headers.get_all("Content-Length", [])

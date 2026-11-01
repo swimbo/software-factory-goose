@@ -14,6 +14,9 @@ class ProfileBinding(unittest.TestCase):
     def test_gateway_custody_implementation_is_bound_in_both_profiles(self):
         self.check_source("gateway_custody.py")
 
+    def test_physical_settlement_is_bound_in_both_profiles(self):
+        self.check_source("physical_settlement.py")
+
     def check_source(self, name):
         with tempfile.TemporaryDirectory() as directory:
             binaries = [
