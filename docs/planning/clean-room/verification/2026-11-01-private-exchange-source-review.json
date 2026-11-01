@@ -1,0 +1,251 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "Two independently confirmed defects in the reviewed source snapshot require correction; this source-only verdict does not establish production admission.",
+  "scope": {
+    "base": "cde48ea",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "cde48ea2ccb38f04c23484d78f9f5456389a7987",
+    "pr_url": null,
+    "files_changed": 4,
+    "snapshot_hashes_file": "/tmp/compound-engineering-501/ce-code-review/exchange-review-VJXwnncr/source-hashes.txt"
+  },
+  "intent": "Uninstalled protected private gateway exchange enforces Unix peer, one-use owner acquisition, registered router execution, bounded stream verification, and durable capture acknowledgement. Production bootstrap, real authorizer, inference/wallet custody and watchdog are not qualified.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "testing",
+    "reliability",
+    "adversarial",
+    "api-contract",
+    "maintainability"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_exchange.go:351 -- \t\tif !strings.HasPrefix(line, \"data: \") || done {",
+        "Actual composed handlers/inference.go:2154 starts StartSSEHeartbeat(lib.DefaultSSEHeartbeatInterval, reader.SendHeartbeat, cancel).",
+        "Actual composed lib/streamreader.go:165,238 uses `: heartbeat\\n` and a one-second interval.",
+        "Composed Bifrost handlers/inference.go:2154 starts reader.SendHeartbeat with lib.DefaultSSEHeartbeatInterval; lib/streamreader.go:165 and :238 define the frame as : heartbeat\\n and the interval as one second.",
+        "Actual Bifrost handlers/inference.go:2154 starts lib.StartSSEHeartbeat(lib.DefaultSSEHeartbeatInterval, reader.SendHeartbeat, cancel); lib/streamreader.go:165 and 238 specify ': heartbeat\\n' and one second."
+      ],
+      "file": "engine/transport/factory_gateway_exchange.go",
+      "first_evidence": "engine/transport/factory_gateway_exchange.go:351 -- \t\tif !strings.HasPrefix(line, \"data: \") || done {",
+      "independent_reviewers": [
+        "correctness",
+        "reliability",
+        "api-contract"
+      ],
+      "line": 351,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "reliability",
+        "api-contract"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Recognize and remove only the expected transport-generated heartbeat comments from the complete bounded stream before strict validation and before returning to the broker; add an actual-handler fixture that pauses long enough for a heartbeat and verifies normalized success.",
+      "title": "Handle Bifrost heartbeat comments without rejecting valid streams",
+      "why_it_matters": "The real Bifrost typed streaming handler emits a heartbeat comment every second while idle. The exchange rejects the comment after consuming the provider response, so otherwise healthy streams with a one-second idle gap cannot complete and may incur charges.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_exchange.go|351|handle the actual inference heartbeat without rejecting responses",
+        "reliability|engine/transport/factory_gateway_exchange.go|351|accept the actual handler's periodic heartbeat safely",
+        "api-contract|engine/transport/factory_gateway_exchange.go|351|accept transport heartbeat comments in valid streams"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The reviewed exchange rejects any non-data line, while the actual composed inference handler starts a one-second heartbeat whose frame is `: heartbeat\\n`, so an otherwise valid stream with an idle interval is refused; live incidence was not measured.",
+      "protected_subject": "public-contract"
+    },
+    {
+      "#": 2,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_exchange.go:348 -- \t\tif line == \"\" {",
+        "The following continue at line 349 discards event boundaries; the `[DONE]` branch at 355\u2013357 does not check a trailing blank delimiter.",
+        "engine/transport/factory_gateway_exchange.go:346-357 iterates independent newline-delimited lines, skips every blank line, and sets done on a [DONE] line regardless of the presence of any event separator or final newline.",
+        "engine/transport/factory_gateway_exchange.go:250-262 validates the raw bytes, waits for the witness, calls root.Close, and returns the SSE and manifest as a success response.",
+        "The concrete string data: {\"choices\":[{\"index\":0,\"finish_reason\":\"stop\",\"delta\":{}}]}\\ndata: [DONE] satisfies the parser's data, finish, and done checks despite containing no SSE event delimiter.",
+        "engine/transport/factory_gateway_exchange.go:345-357 treats each data line independently and sets done on [DONE] without requiring a following delimiter.",
+        "engine/transport/factory_gateway_exchange.go:250-262 validates the stream before root.Close and returns its acknowledgement."
+      ],
+      "file": "engine/transport/factory_gateway_exchange.go",
+      "first_evidence": "engine/transport/factory_gateway_exchange.go:348 -- \t\tif line == \"\" {",
+      "independent_reviewers": [
+        "correctness",
+        "adversarial",
+        "api-contract"
+      ],
+      "line": 348,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "adversarial",
+        "api-contract"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Parse bounded SSE as explicitly delimited events, require the permitted single data line in each event and the final blank delimiter, and add negative cases for adjacent data lines and a truncated terminal frame.",
+      "title": "Require complete SSE event framing before acknowledging success",
+      "why_it_matters": "The gateway accepts adjacent data lines and a terminal marker without a closing blank delimiter, then can seal capture and send HTTP 200 for malformed or truncated SSE. A stricter downstream broker may subsequently reject it, after the physical attempt is consumed.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_exchange.go|348|require complete sse event framing before acknowledging success",
+        "adversarial|engine/transport/factory_gateway_exchange.go|348|malformed stream reaches durable success without sse delimiters",
+        "api-contract|engine/transport/factory_gateway_exchange.go|348|require event delimiters before accepting stream success"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The reviewed exchange skips blank lines and accepts `[DONE]` without requiring event or terminal delimiters, so adjacent data lines with a stop event and undelimited terminal marker pass validation before durable close; incidence was not measured.",
+      "protected_subject": "public-contract"
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_exchange.go:351 -- \t\tif !strings.HasPrefix(line, \"data: \") || done {",
+        "Actual composed handlers/inference.go:2154 starts StartSSEHeartbeat(lib.DefaultSSEHeartbeatInterval, reader.SendHeartbeat, cancel).",
+        "Actual composed lib/streamreader.go:165,238 uses `: heartbeat\\n` and a one-second interval.",
+        "Composed Bifrost handlers/inference.go:2154 starts reader.SendHeartbeat with lib.DefaultSSEHeartbeatInterval; lib/streamreader.go:165 and :238 define the frame as : heartbeat\\n and the interval as one second.",
+        "Actual Bifrost handlers/inference.go:2154 starts lib.StartSSEHeartbeat(lib.DefaultSSEHeartbeatInterval, reader.SendHeartbeat, cancel); lib/streamreader.go:165 and 238 specify ': heartbeat\\n' and one second."
+      ],
+      "file": "engine/transport/factory_gateway_exchange.go",
+      "first_evidence": "engine/transport/factory_gateway_exchange.go:351 -- \t\tif !strings.HasPrefix(line, \"data: \") || done {",
+      "independent_reviewers": [
+        "correctness",
+        "reliability",
+        "api-contract"
+      ],
+      "line": 351,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "reliability",
+        "api-contract"
+      ],
+      "severity": "P1",
+      "suggested_fix": "Recognize and remove only the expected transport-generated heartbeat comments from the complete bounded stream before strict validation and before returning to the broker; add an actual-handler fixture that pauses long enough for a heartbeat and verifies normalized success.",
+      "title": "Handle Bifrost heartbeat comments without rejecting valid streams",
+      "why_it_matters": "The real Bifrost typed streaming handler emits a heartbeat comment every second while idle. The exchange rejects the comment after consuming the provider response, so otherwise healthy streams with a one-second idle gap cannot complete and may incur charges.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_exchange.go|351|handle the actual inference heartbeat without rejecting responses",
+        "reliability|engine/transport/factory_gateway_exchange.go|351|accept the actual handler's periodic heartbeat safely",
+        "api-contract|engine/transport/factory_gateway_exchange.go|351|accept transport heartbeat comments in valid streams"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The reviewed exchange rejects any non-data line, while the actual composed inference handler starts a one-second heartbeat whose frame is `: heartbeat\\n`, so an otherwise valid stream with an idle interval is refused; live incidence was not measured.",
+      "protected_subject": "public-contract"
+    },
+    {
+      "#": 2,
+      "autofix_class": "manual",
+      "confidence": 100,
+      "evidence": [
+        "engine/transport/factory_gateway_exchange.go:348 -- \t\tif line == \"\" {",
+        "The following continue at line 349 discards event boundaries; the `[DONE]` branch at 355\u2013357 does not check a trailing blank delimiter.",
+        "engine/transport/factory_gateway_exchange.go:346-357 iterates independent newline-delimited lines, skips every blank line, and sets done on a [DONE] line regardless of the presence of any event separator or final newline.",
+        "engine/transport/factory_gateway_exchange.go:250-262 validates the raw bytes, waits for the witness, calls root.Close, and returns the SSE and manifest as a success response.",
+        "The concrete string data: {\"choices\":[{\"index\":0,\"finish_reason\":\"stop\",\"delta\":{}}]}\\ndata: [DONE] satisfies the parser's data, finish, and done checks despite containing no SSE event delimiter.",
+        "engine/transport/factory_gateway_exchange.go:345-357 treats each data line independently and sets done on [DONE] without requiring a following delimiter.",
+        "engine/transport/factory_gateway_exchange.go:250-262 validates the stream before root.Close and returns its acknowledgement."
+      ],
+      "file": "engine/transport/factory_gateway_exchange.go",
+      "first_evidence": "engine/transport/factory_gateway_exchange.go:348 -- \t\tif line == \"\" {",
+      "independent_reviewers": [
+        "correctness",
+        "adversarial",
+        "api-contract"
+      ],
+      "line": 348,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness",
+        "adversarial",
+        "api-contract"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Parse bounded SSE as explicitly delimited events, require the permitted single data line in each event and the final blank delimiter, and add negative cases for adjacent data lines and a truncated terminal frame.",
+      "title": "Require complete SSE event framing before acknowledging success",
+      "why_it_matters": "The gateway accepts adjacent data lines and a terminal marker without a closing blank delimiter, then can seal capture and send HTTP 200 for malformed or truncated SSE. A stricter downstream broker may subsequently reject it, after the physical attempt is consumed.",
+      "source_detail_keys": [
+        "correctness|engine/transport/factory_gateway_exchange.go|348|require complete sse event framing before acknowledging success",
+        "adversarial|engine/transport/factory_gateway_exchange.go|348|malformed stream reaches durable success without sse delimiters",
+        "api-contract|engine/transport/factory_gateway_exchange.go|348|require event delimiters before accepting stream success"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The reviewed exchange skips blank lines and accepts `[DONE]` without requiring event or terminal delimiters, so adjacent data lines with a stop event and undelimited terminal marker pass validation before durable close; incidence was not measured.",
+      "protected_subject": "public-contract"
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "The synthetic native join uses a fixture router, manual witness, authorizer and capture ACKs; it does not establish actual inference, durable wallet, provider bounds, or watchdog qualification.",
+    "The synchronous Router.Handler may block before a stream is created; dedicated watchdog and descendant cleanup qualification remains required.",
+    "Cancellation assumes Close returns; the current real typed handler uses nonblocking lib.SSEStreamReader.Close, but protected router/plugin configuration must preserve or bound this property."
+  ],
+  "testing_gaps": [
+    "The synthetic native join does not exercise the actual inference handler through exchange or its real authentication/middleware and durable wallet closure."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Source snapshot fixed at review dispatch; parent may apply fixes afterward, so validate against saved full.diff and source-hashes.txt.",
+      "The synthetic native join uses a fixture router, manual witness, authorizer and capture ACKs; it does not establish actual inference, durable wallet, provider bounds, or watchdog qualification.",
+      "Downstream parser changed after review began; exchange must itself refuse malformed event framing before acknowledging durable success.",
+      "Heartbeat and event-framing findings independently reported by multiple in-process reviewers; semantic duplicates merged without confidence promotion.",
+      "No cross-model validation shortcut; both findings require independent validation.",
+      "Project standards: successful search found no applicable criteria files.",
+      "Settlement suppression not evaluated; no plan was discovered.",
+      "Both findings and their cited lines refer to the saved pre-fix snapshot. Parent is applying fixes separately; this receipt does not assess the revised source."
+    ],
+    "validation": {
+      "batch_count": 1,
+      "selected": 2,
+      "confirmed": 2,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "first_evidence_backfilled": 6,
+    "missing_first_evidence_demotions": 0,
+    "mode_aware_demotions": 0,
+    "rejected_claims": 0,
+    "semantic_duplicates_merged": 4,
+    "malformed_findings": 0,
+    "malformed_returns": 0,
+    "suppressed_by_confidence": {},
+    "failed_reviewers": [],
+    "shortcut_skipped": 0
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "External model egress prohibited by caller; an independent in-process adversarial reviewer completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/exchange-review-VJXwnncr",
+  "run_id": "exchange-review-VJXwnncr"
+}

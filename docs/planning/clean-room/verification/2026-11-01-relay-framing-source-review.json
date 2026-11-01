@@ -1,0 +1,112 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "verdict_reason": "No remaining actionable findings in this narrowly scoped relay framing change. This source review does not qualify production admission or Phase 11A.",
+  "scope": {
+    "base": "646e800",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "646e8003ce652b4ac4c48a479f950dc91bb34424",
+    "pr_url": null,
+    "files_changed": 2,
+    "files": [
+      "clean-room/crates/execution/harness/protected_goose_runtime.py",
+      "clean-room/crates/execution/harness/test_protected_runtime.py"
+    ],
+    "source_sha256": {
+      "clean-room/crates/execution/harness/protected_goose_runtime.py": "6fab44dfe803fc9b759cb0ee391c52022ef8c46ac1fa67da2a7f5a63654e1d50",
+      "clean-room/crates/execution/harness/test_protected_runtime.py": "621cce8a490ff02d2d567c655d102df906d871ddab5e195134310e3303e22971"
+    },
+    "snapshot_limit": "All five review lenses examined the original saved diff; only the test assertions changed afterward and were independently validated."
+  },
+  "intent": "Reject incomplete and malformed SSE event boundaries, support real Bifrost bare heartbeat comments, and preserve complete normalization before model-visible output.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "security",
+    "testing",
+    "adversarial",
+    "project-standards"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "resolved_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "clean-room/crates/execution/harness/test_protected_runtime.py:134 --             self.assertNotIn(b\"secret\", heartbeat)",
+        "The CRLF and trailing-heartbeat checks at lines 126 and 141 use the same absence-only assertion.",
+        "Read-only in-memory behavioral mutation replaced the returned bytes with b\"\" for heartbeat inputs; the complete named test passed."
+      ],
+      "file": "clean-room/crates/execution/harness/test_protected_runtime.py",
+      "first_evidence": "clean-room/crates/execution/harness/test_protected_runtime.py:134 --             self.assertNotIn(b\"secret\", heartbeat)",
+      "independent_reviewers": [
+        "testing"
+      ],
+      "line": 134,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "testing"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Assert each normalized response equals the baseline normalized output and the assistant contains the expected content, and add a heartbeat between the data line and its terminating blank line.",
+      "title": "Assert heartbeat preserves normalized response",
+      "why_it_matters": "The new positive heartbeat and CRLF checks only assert the absence of a secret and never verify that the complete response survives. A parser regression that drops all normalized bytes only for heartbeat inputs still passes this test, so the suite can report the new slow-stream path as covered while Goose receives no completion. The heartbeat between a data line and its blank delimiter is also not exercised.",
+      "source_detail_keys": [
+        "testing|clean-room/crates/execution/harness/test_protected_runtime.py|134|assert heartbeat preserves normalized response"
+      ],
+      "validation_status": "rejected",
+      "validation_reason": "The saved review diff had the reported absence-only checks, but the parent has since fixed the current test: lines 119-120 require the expected content and masked metadata, lines 128, 136, 143 and 150 compare each positive result with that baseline, and lines 144-150 include an interleaved heartbeat. An in-memory empty-output mutant now fails at line 119, so the reported false-pass no longer holds for the current source.",
+      "disposition": "Resolved by the caller after the reviewed snapshot; retained as historical evidence."
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Root AGENTS.md is the instruction-file fallback.",
+      "Independent probes confirm heartbeat between data and blank delimiter, trailing heartbeat and U+2028 content work in reviewed snapshot.",
+      "The parent was told the independent reviewer snapshot is complete and may strengthen tests before the validation stage.",
+      "No live provider, production admission or full Phase 11A completion is evaluated by this source review.",
+      "The validator independently verified the original heartbeat assertion defect was resolved in the current test, including rejecting an empty-output mutant.",
+      "Review found one P2 test-fidelity issue in the original snapshot; the independent validator rejected it as resolved against current test assertions.",
+      "The original heartbeat interleaving probe passed; the final test includes this case and compares the entire normalized output to a nonempty expected baseline.",
+      "No production runtime, real provider or whole Phase 11A claim is made by this receipt.",
+      "Settlement suppression was not evaluated; no plan was selected.",
+      "All five reviewer lenses returned; no reviewers failed or timed out."
+    ],
+    "validation": {
+      "confirmed": 0,
+      "rejected": 1,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0,
+      "bound_exceeded": false
+    },
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "mode_aware_demotions": 0,
+    "missing_quote_demotions": 0,
+    "failed_reviewers": [],
+    "project_standards": [
+      "AGENTS.md"
+    ]
+  },
+  "peer": {
+    "outcome": "in-process-fallback",
+    "coverage": "Cross-model review was prohibited by the caller; an independent in-process adversarial reviewer completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/relay-framing-su03e50h",
+  "run_id": "relay-framing-su03e50h"
+}

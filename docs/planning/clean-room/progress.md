@@ -651,3 +651,7 @@ Resumed from the witness checkpoint. Full source review confirmed two P1 false-s
 ### Phase 11A combined guard loss — 2026-11-01
 
 Source test `c54ca81` exercises actual guard/revoke/cleanup control flow with temporary receipts under simultaneous Docker and owner outage and an unacknowledged create. System boundaries are mocked; native outage qualification remains open. Focused tests and two negative controls pass, independent source review found no actionable issues, and the configured full harness passed 209 tests with six skips. See verification/2026-11-01-guard-combined-loss.md. Live 0/120; candidate disabled; caps unchanged.
+
+### Phase 11A private exchange source — 2026-11-01
+
+Bifrost `a3869c5` adds the uninstalled private exchange draft, with concrete owner acquisition/capture interfaces, bounded broker protocol and poisoned unknown outcomes. A distinct-UID native fixture passed on an earlier build with synthetic route/witness/provider/acknowledgements; actual inference and real wallet are not proven. Independent review found heartbeat and event-boundary defects; both were fixed and independently rechecked, with final Linux race tests passing. Factory `a132daf` fixes the same SSE framing boundary before normalization; full configured harness 209 run/six skipped, followed by focused stronger test validation. See verification/2026-11-01-private-exchange.md. Production startup, auth/route custody, final-wire provider bounds and process cleanup remain open; 0/120 live, candidate disabled, caps unchanged.
