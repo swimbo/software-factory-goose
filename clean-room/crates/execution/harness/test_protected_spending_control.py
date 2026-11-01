@@ -274,6 +274,33 @@ class ProtectedSpendingControl(unittest.TestCase):
             control.exchange(attempt, body(), 0)
         self.assertEqual(events, [])
 
+    def test_rated_live_route_denies_before_launch_even_with_permissive_metadata(self):
+        old, attempt, events, launch, broker, provider, collector = fixture("live")
+        tariff = "9" * 64
+        launch_admit = launch.admit
+        launch.admit = lambda value: launch_admit(value) | {
+            "cost_basis": "audited_usage_rated",
+            "tariff_sha256": tariff,
+        }
+        control = JournaledControl(
+            launch,
+            broker,
+            provider,
+            collector,
+            old.config | {"cost_basis": "audited_usage_rated", "tariff_sha256": tariff},
+        )
+        attempt |= {"cost_basis": "audited_usage_rated", "tariff_sha256": tariff}
+        with patch(
+            "protected_spending_control.assess_receipt_sources",
+            return_value={"allows_live_inference": True},
+        ):
+            receipt = control.admit(attempt)
+        self.assertEqual(receipt["status"], "denied")
+        self.assertEqual(events, [])
+        with self.assertRaises(ControlRefused):
+            control.exchange(attempt, body(), 0)
+        self.assertEqual(events, [])
+
     def test_unknown_acknowledgements_are_never_automatically_retried(self):
         for failure, expected in (
             ("reserve", ["admit", "reserve"]),
