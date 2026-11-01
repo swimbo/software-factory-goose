@@ -1,0 +1,6 @@
+{
+  "killed": true,
+  "stdout": "=== RUN   TestOwnerCancellationAfterBeginStopsRequestContext\n    factory_owner_root_test.go:510: acquisition cancellation did not stop active request context\n--- FAIL: TestOwnerCancellationAfterBeginStopsRequestContext (1.00s)\nFAIL\n",
+  "stderr": "",
+  "source_scratch_restored": true
+}
