@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "status": "no_supported_predispatch_envelope_established",
+  "paid_calls": 0,
+  "authenticated_calls": 0,
+  "external_messages": 0,
+  "retained_route_unchanged": true,
+  "candidate_enabled": false,
+  "official_sources": [
+    {
+      "url": "https://docs.ollama.com/api/openai-compatibility",
+      "finding": "OpenAI max_tokens supported; local Modelfile context-size workaround is not a smaller hosted billable-input contract"
+    },
+    {
+      "url": "https://docs.ollama.com/openapi.yaml",
+      "sha256": "d8e08be41dd858c933c32bef5ee8d0c5faf7d7462069a49b368731cfbceaab03",
+      "bytes": 87400,
+      "finding": "Published endpoint surface has no no-inference token-count endpoint"
+    },
+    {
+      "url": "https://docs.ollama.com/api/anthropic-compatibility",
+      "finding": "count_tokens unsupported; budget_tokens unenforced. Does not invalidate OpenAI max_tokens support."
+    },
+    {
+      "url": "https://ollama.com/pricing",
+      "finding": "Peak Flash input/output .30/1.20 USD per million; Pro 1.32/3.96. No service fees stated. Does not establish rendered-input or hidden hosted-attempt maxima."
+    },
+    {
+      "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+      "finding": "Supported endpoint list omits input_tokens; same-route counter support unestablished"
+    },
+    {
+      "url": "https://vercel.com/ai-gateway/models/gpt-6-luna",
+      "finding": "Reasoning-inclusive output cap does not bound request input"
+    },
+    {
+      "url": "https://vercel.com/kb/guide/cost-aware-model-routing-with-ai-gateway",
+      "finding": "Soft budgets can be exceeded by in-flight calls"
+    }
+  ],
+  "exact_cloud_metadata": [
+    {
+      "model": "deepseek-v4.1-flash:1017",
+      "sha256": "6232bbc0f39a8edd34f52f8fc76f6b0f99a84e95be2f044bd7764da95dcc04f9"
+    },
+    {
+      "model": "deepseek-v4-pro:0813",
+      "sha256": "9903a36d08d149fd63dbf08d794e7f8dc530bcc9930f250c55ff433c0ee7750f"
+    }
+  ],
+  "conclusion": "Public metadata unchanged from October31; no supported hosted tokenizer/template/count or rendering expansion bound. Request-specific supported count or hard bound could suffice; full context reservation is not the only possible design. No estimates substituted for authority. Continue independent integration/qualification; deny paid dispatch."
+}

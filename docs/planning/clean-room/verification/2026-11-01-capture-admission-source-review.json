@@ -1,0 +1,86 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "87d85b8",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "87d85b8408aa443a297e71ac7b3e4f686e14b0b3",
+    "pr_url": null,
+    "files_changed": 1,
+    "files": [
+      "clean-room/tests/fixtures/harness_capture_store_replay.py"
+    ],
+    "source_sha256": "aae12af6e396a611851ee3c170e2419b0a56663f996720697318ea604217e6b4"
+  },
+  "intent": "Extend the disposable actual-Linux capture replay to prove protected state and backend admission refusals before retaining the existing kernel-role and SQLite restart proof. This unit adds no production behavior or authority.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": {
+    "plan": "docs/planning/clean-room/phase-11a-plan.md",
+    "plan_source": "explicit",
+    "scope": "Only the caller-selected disposable protected capture-state qualification unit; no whole Phase 11A completion claim",
+    "addressed": [
+      "Non-writable ancestry and exact service-state mode/owner",
+      "Database mode/owner/symlink/hardlink rejection",
+      "POSIX ACL rejection and pure fixture backend refusal",
+      "Actual distinct-UID denial; kernel EACCES is required for inaccessible foreign-owner parent",
+      "No unsafe-state database or listener publication for corresponding controls; original role/audit/restart assertions retained"
+    ],
+    "missing_in_scoped_unit": [],
+    "full_phase_complete": false
+  },
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "This test-only proof uses explicit Root-created disposable filesystem state, synthetic usage data and a fixture broker open. It does not qualify real wallet acquisition, production bootstrap/launch admission, Bifrost physical capture, service-group/daemon/host loss or the 120-attempt performance gate.",
+    "Reviewer inspected prior native output with all nine negative controls passing and original role/restart proof. The final one-line normalized-reason output delta passes lint/AST; parent owns its final native rerun."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "lite",
+    "reason": "Helper:160 test lines,0 executable non-test,no hard-block classes. New failure sites are loud/local assertions in an explicit disposable fixture; no production auth/money/public contract was modified.",
+    "criteria": [
+      "AGENTS.md instruction-file fallback"
+    ],
+    "criteria_search": "Checked root and all fixture ancestors; no designated CODING_STANDARDS.md governs the file. No REVIEW.md exists at base on those ancestors.",
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "not_assessed": [
+      "No learnings, agent-native, deployment-note or independent cross-model review; no nested reviewer dispatched per caller constraint.",
+      "Untracked sibling worker files intentionally excluded."
+    ],
+    "source_inspected": [
+      "clean-room/tests/fixtures/harness_capture_store_replay.py",
+      "clean-room/crates/execution/harness/gateway_custody.py ProtectedCaptureStore and PrivateCustodyServer",
+      "docs/planning/clean-room/phase-11a-plan.md",
+      "/tmp/sfactory-capture-admission-final.stdout",
+      "/tmp/sfactory-capture-admission-final.stderr"
+    ],
+    "verification": [
+      "Python AST parse of exact final SHA",
+      "Ruff check exact final SHA:passed",
+      "Prior native result:9 expected negative-state controls and all original role/restart assertions passed; native resources not executed by reviewer"
+    ],
+    "resolved_during_review": [
+      {
+        "severity": "P2",
+        "file": "clean-room/tests/fixtures/harness_capture_store_replay.py",
+        "line": 330,
+        "issue": "JSON emitted str(error) while normalized reason was unused, failing Ruff F841.",
+        "resolution": "Caller changed the one emitted JSON value to reason; exact final delta inspected and Ruff passed."
+      }
+    ]
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-capture-admission",
+  "run_id": "20261101-capture-admission"
+}

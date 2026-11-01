@@ -1,0 +1,84 @@
+{
+  "candidate_enabled": false,
+  "component": "actual_private_capture_roles_and_sqlite_restart",
+  "live_attempts": 0,
+  "negative_state_controls": [
+    {
+      "case": "writable_ancestor",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "state_mode",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "foreign_state_owner",
+      "denied": true,
+      "reason": "kernel_state_access_denied"
+    },
+    {
+      "case": "database_mode",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "database_owner",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "database_hardlink",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "database_symlink",
+      "denied": true,
+      "reason": "capture_private_state_invalid"
+    },
+    {
+      "case": "state_acl",
+      "denied": true,
+      "reason": "private_spending_acl_denied"
+    },
+    {
+      "case": "fixture_backend",
+      "denied": true,
+      "reason": "custody_backend_invalid"
+    }
+  ],
+  "paid_calls": 0,
+  "production_admission": false,
+  "real_wallet_acquisition": false,
+  "results": [
+    {
+      "worker_denied_before_http": true
+    },
+    {
+      "opened": true,
+      "root_sha256": "4e6f237ae371420ec4cf7f3d958c838d24167777bdfa003a0f3b7b9d99ea506a"
+    },
+    {
+      "physical_manifest_sha256": "66d96f40a4e5fc4fdda159974a42cf92d958eb5226b2f4900cd9a0d8b2166c35",
+      "stored": true
+    },
+    {
+      "audit_persisted": true,
+      "closed_verified": true,
+      "invalid_audit_denied": true,
+      "rated_microusd": 2
+    },
+    {
+      "audit_persisted": true,
+      "closed_verified": true,
+      "invalid_audit_denied": true,
+      "rated_microusd": 2
+    }
+  ],
+  "schema": 1,
+  "date": "2026-11-01",
+  "source_sha256": "aae12af6e396a611851ee3c170e2419b0a56663f996720697318ea604217e6b4",
+  "scope": "Disposable actual protected Unix services/SQLite and kernel UIDs; fixture Root setup, usage and broker opening, not real wallet acquisition or production admission."
+}
