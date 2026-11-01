@@ -1,0 +1,7 @@
+# Linux relay binding through its held directory
+
+The actual Root prepare/start replay exposed AF_UNIX path too long before launch. A full attempt ID under a protected qualification namespace makes the relay's real pathname exceed Linux's socket address capacity. Earlier manually prepared fixtures used shorter names and did not exercise that path.
+
+LinuxWorkerRelay now binds through /proc/self/fd using an open, no-follow directory descriptor. It retains the original grant pathname, verifies directory ownership and write permissions, then verifies the same directory inode after binding. It does not truncate names, unlink an existing listener or fall back to another transport. Root's existing socket snapshot/hardlink and peer checks remain in place. Both profiles already bind this source, so the change invalidates both fingerprints.
+
+Two real Linux kernel tests pass: a deep socket is reached through its verified worker-visible hardlink and transfers exact bytes; an existing socket and a symlink parent are refused without replacement. The new test initially failed at import before implementation; the original native path failure preceded the fix. Existing protocol/state tests explicitly substitute the host bind operation when simulating Linux on macOS; they do not claim /proc or Linux peer qualification. See the native JSON for exact source hashes. No provider call, production activation or candidate promotion occurred.

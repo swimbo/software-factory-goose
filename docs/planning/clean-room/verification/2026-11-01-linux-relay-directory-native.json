@@ -1,0 +1,14 @@
+{
+  "tests_run": 2,
+  "passed": 2,
+  "skipped": 0,
+  "real_linux_kernel": true,
+  "held_directory_bind": true,
+  "hardlinked_worker_visible_path": true,
+  "no_overwrite_and_symlink_refusal": true,
+  "source_sha256": {
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": "f25f141488f3fbb7be195814ebcb419d9c384898d5740bf7e255f96c9a71ae69",
+    "clean-room/crates/execution/harness/test_linux_relay_path.py": "55aa40d099b63faf3c4fd5832fa6dd9fb51688cc06ad697962909563fd188dab"
+  },
+  "verification_date": "2026-11-01"
+}

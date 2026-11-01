@@ -8,9 +8,11 @@ admission, pricing, journal, evaluator or candidate authority of its own.
 import base64
 import os
 import platform
+from pathlib import Path
 import socket
 import socketserver
 import struct
+import stat
 import threading
 import time
 
@@ -28,6 +30,31 @@ def peer_uid(connection):
     return struct.unpack(
         "3i", connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
     )[1]
+
+
+def bind_filesystem_socket(connection, path):
+    """Bind through a held directory; the real protected pathname stays intact."""
+    if platform.system() != "Linux":
+        raise Denied("linux_socket_binding_required")
+    path = Path(path)
+    if not path.is_absolute() or ".." in path.parts:
+        raise Denied("invalid_relay_path")
+    descriptor = os.open(
+        path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    )
+    try:
+        before = os.fstat(descriptor)
+        if before.st_uid != os.geteuid() or before.st_mode & 0o022:
+            raise Denied("relay_directory_changed")
+        connection.bind(f"/proc/self/fd/{descriptor}/{path.name}")
+        current = path.parent.lstat()
+        if not stat.S_ISDIR(current.st_mode) or (before.st_dev, before.st_ino) != (
+            current.st_dev,
+            current.st_ino,
+        ):
+            raise Denied("relay_directory_changed")
+    finally:
+        os.close(descriptor)
 
 
 class _Handler(socketserver.StreamRequestHandler):
@@ -74,6 +101,9 @@ class LinuxWorkerRelay(socketserver.ThreadingUnixStreamServer):
         self.slots = threading.BoundedSemaphore(8)
         # UnixServer refuses an existing socket; never unlink another owner.
         super().__init__(os.fspath(path), _Handler)
+
+    def server_bind(self):
+        bind_filesystem_socket(self.socket, self.server_address)
 
     def process_request(self, request, address):
         if not self.slots.acquire(False):

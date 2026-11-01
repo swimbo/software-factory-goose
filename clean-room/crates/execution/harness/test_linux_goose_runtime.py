@@ -29,7 +29,15 @@ class TransportTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.cancelled = threading.Event()
         self.relay = Relay()
-        with patch("linux_goose_runtime.platform.system", return_value="Linux"):
+        # Protocol/state tests use the host Unix socket implementation; the
+        # separate Linux-only relay-path tests exercise real /proc binding.
+        with (
+            patch("linux_goose_runtime.platform.system", return_value="Linux"),
+            patch(
+                "linux_goose_runtime.bind_filesystem_socket",
+                side_effect=lambda connection, path: connection.bind(str(path)),
+            ),
+        ):
             self.server = LinuxWorkerRelay(
                 Path(self.tmp.name) / "relay.sock",
                 worker_uid=2001,
