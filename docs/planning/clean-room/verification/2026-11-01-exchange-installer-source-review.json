@@ -1,0 +1,156 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "The original reviewed snapshot had one confirmed P2 source-integrity defect. The parent subsequently fixed it; that later focused recheck is distinct from the original full review.",
+  "scope": {
+    "base": "11cc25a",
+    "branch": "codex/remaining-source-audit-20261031",
+    "head_sha": "11cc25a4e70281fb21f6390e1402e7af2e9cc2b8",
+    "files_changed": 2,
+    "files": [
+      "engine/transport/patch_factory_gateway_exchange.py",
+      "engine/transport/test_patch_factory_gateway_exchange.py"
+    ],
+    "source_sha256": {
+      "engine/transport/patch_factory_gateway_exchange.py": "c701b3035a146947eda2ca80d68ab3d553b4e578898a756d12a6bb382098fec2",
+      "engine/transport/test_patch_factory_gateway_exchange.py": "9e5b4346f48ed885924e592e4801953c0e9d437ff8dd708b11bb6a7f78d78c2b"
+    }
+  },
+  "intent": "Install 12 exact pinned artifacts into the exact disposable composed source stage after verifying prerequisites and full source tree, without enabling a listener, authority or production admission. Refuse drift and target conflicts before writes.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness",
+    "testing",
+    "security",
+    "adversarial"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "title": "Fail closed when a source subtree cannot be traversed",
+      "severity": "P2",
+      "file": "engine/transport/patch_factory_gateway_exchange.py",
+      "line": 72,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "first_evidence": "engine/transport/patch_factory_gateway_exchange.py:72 --     for root, dirs, names in os.walk(source, followlinks=False):",
+      "evidence": [
+        "engine/transport/patch_factory_gateway_exchange.py:72 --     for root, dirs, names in os.walk(source, followlinks=False):",
+        "The reviewed os.walk call omits onerror; directory traversal errors are silently ignored.",
+        "Three independent uid 501 fixtures added an unreadable directory containing an extra Go source and observed the same source-tree digest as the baseline.",
+        "engine/transport/patch_factory_gateway_exchange.py:104-105 compares the digest before creating outputs."
+      ],
+      "reviewers": [
+        "correctness",
+        "testing",
+        "security",
+        "adversarial"
+      ],
+      "independent_reviewers": [
+        "correctness",
+        "testing",
+        "security",
+        "adversarial"
+      ],
+      "suggested_fix": "Propagate os.walk traversal errors and add a nonroot regression asserting the installer refuses an unreadable subtree before creating any target.",
+      "why_it_matters": "An inaccessible subtree can hide source files from the exact-tree check. A later build under a different identity may include those files despite the accepted digest.",
+      "source_detail_keys": [
+        "correctness|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "testing|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "security|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "adversarial|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "Independent validator reproduced the issue in the saved staged snapshot. The parent subsequently fixed traversal errors and added a regression; focused recheck passed, outside the original snapshot."
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "title": "Fail closed when a source subtree cannot be traversed",
+      "severity": "P2",
+      "file": "engine/transport/patch_factory_gateway_exchange.py",
+      "line": 72,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "first_evidence": "engine/transport/patch_factory_gateway_exchange.py:72 --     for root, dirs, names in os.walk(source, followlinks=False):",
+      "evidence": [
+        "engine/transport/patch_factory_gateway_exchange.py:72 --     for root, dirs, names in os.walk(source, followlinks=False):",
+        "The reviewed os.walk call omits onerror; directory traversal errors are silently ignored.",
+        "Three independent uid 501 fixtures added an unreadable directory containing an extra Go source and observed the same source-tree digest as the baseline.",
+        "engine/transport/patch_factory_gateway_exchange.py:104-105 compares the digest before creating outputs."
+      ],
+      "reviewers": [
+        "correctness",
+        "testing",
+        "security",
+        "adversarial"
+      ],
+      "independent_reviewers": [
+        "correctness",
+        "testing",
+        "security",
+        "adversarial"
+      ],
+      "suggested_fix": "Propagate os.walk traversal errors and add a nonroot regression asserting the installer refuses an unreadable subtree before creating any target.",
+      "why_it_matters": "An inaccessible subtree can hide source files from the exact-tree check. A later build under a different identity may include those files despite the accepted digest.",
+      "source_detail_keys": [
+        "correctness|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "testing|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "security|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted",
+        "adversarial|engine/transport/patch_factory_gateway_exchange.py|72|unreadable subtree omitted"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "Independent validator reproduced the issue in the saved staged snapshot. The parent subsequently fixed traversal errors and added a regression; focused recheck passed, outside the original snapshot."
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "Source digest and installer assume a controlled disposable stage; modes, ownership, ACLs and hostile concurrent mutations are outside scope."
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Correctness, testing and adversarial reviewers reproduced the unreadable-directory issue under uid 501; security confirmed it by source inspection. Merge as one finding.",
+      "The full source digest excludes mode, ownership and ACLs; controlled disposable staging only.",
+      "Parent reported six tests passing and exact pinned stage successfully built; review did not rerun full native build.",
+      "The parent subsequently added an onerror callback and an unprivileged regression. The dispatch agent independently ran seven tests and Ruff on the later source; this focused delta check is not a new full review.",
+      "Production custody, hostile concurrent filesystem mutation, live spending and candidate activation were excluded.",
+      "The real pinned source build was not independently rerun by this report leaf."
+    ],
+    "validation": {
+      "outcome": "verdicts",
+      "confirmed": 1,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "failed_reviewers": [],
+    "project_standards": "not run; successful search found no governing standards files"
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "user",
+    "outcome": "in-process-fallback",
+    "artifact": null,
+    "coverage": "External model egress prohibited by caller; independent in-process adversarial review completed."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/installer-20261101",
+  "run_id": "installer-20261101"
+}
