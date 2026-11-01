@@ -1,0 +1,93 @@
+{
+  "status": "complete",
+  "verdict": "Ready to merge",
+  "scope": {
+    "base": "735f19e",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "735f19ed7ead12be3f84f32c3ba7c580b1016870",
+    "pr_url": null,
+    "files_changed": 1,
+    "files": [
+      "clean-room/tests/fixtures/harness_wallet_custody_replay.py"
+    ],
+    "source_sha256": "74d1769ff3d63a9787774c3497a0846a81bb5e872a9929e792d1ee71ee9dbeaf"
+  },
+  "intent": "Qualify actual durable Rust wallet begin/settlement and protected Unix custody with real kernel UIDs, dropped acquisition acknowledgement and restart persistence. Root bootstrap, charge bounds and physical usage remain explicitly synthetic; no production or Bifrost admission is claimed.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "correctness"
+  ],
+  "findings": [],
+  "actionable_findings": [],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": {
+    "plan": "docs/planning/clean-room/phase-11a-plan.md",
+    "plan_source": "explicit",
+    "scope": "Caller-owned qualification unit only; full Phase11A, launch and paid performance gate remain incomplete and excluded from this source review.",
+    "covered": [
+      "Private wallet/custody integration with authenticated Linux roles",
+      "Single-use durable begin across successful/lost-ack acquisitions and restart",
+      "Collector settlement and unchanged reservation/day authority",
+      "No production bootstrap, actual Bifrost usage, paid calls or promotion claim"
+    ],
+    "unrequested_behavior_rules": []
+  },
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    {
+      "detail": "Binary-to-Rust-source provenance is external to this fixture. Parent must retain fresh build inputs/compiler/lock hashes; native receipt retains actual runtime/restate binary hashes."
+    }
+  ],
+  "testing_gaps": [],
+  "coverage": {
+    "depth": "lite",
+    "depth_reason": "Only a disposable fail-loud proof fixture changes; zero executable non-test changed lines, no production money/auth boundary changes or helper full-floor classes.",
+    "criteria_sources": [
+      "AGENTS.md"
+    ],
+    "criteria_fallback": "No governing CODING_STANDARDS.md; root AGENTS.md applies.",
+    "compound_packs": {
+      "roots": [],
+      "warnings": [],
+      "errors": []
+    },
+    "review_policy": {
+      "sources": [],
+      "removed": 0,
+      "regraded": 0,
+      "not_applied": []
+    },
+    "simplification": "All five rubric lenses read and reviewed inline under no-subagent constraint. No worthwhile behavior-preserving changes; proof fixture retained unchanged.",
+    "native": "Inspected passing Root-run receipt /tmp/sfactory-wallet-custody-native.stdout. No native resources executed by reviewer.",
+    "independent_cross_model": false,
+    "not_assessed": [
+      "Learnings corpus",
+      "Agent-native gaps",
+      "Production deployment",
+      "Actual Bifrost physical capture",
+      "Provider charge bound",
+      "120 live paired attempts"
+    ]
+  },
+  "verification": {
+    "ruff": "passed",
+    "ast": "passed",
+    "native_actual_wallet": "Parent-owned native PASS receipt inspected",
+    "settled_usage_rated_microusd": 2,
+    "real_kernel_uid_roles": true,
+    "candidate_enabled": false,
+    "paid_calls": 0,
+    "live_attempts": 0
+  },
+  "resolved_findings": [
+    {
+      "issue": "The initial proof admitted two simultaneous unresolved scopes for one permanent task, rejected by correct predecessor gate.",
+      "resolution": "Final fixture uses two independent predeclared permanent task IDs task0/task1, each attempt1; no wallet gate or cap was weakened."
+    }
+  ],
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261101-wallet-custody",
+  "run_id": "20261101-wallet-custody"
+}

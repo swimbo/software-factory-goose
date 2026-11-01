@@ -1,0 +1,101 @@
+{
+  "actual_bifrost_capture": false,
+  "binary_sha256": {
+    "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+    "runtime": "26ac1199ae8a663535f2784d2dc0ac6b88be4486d9dfd838a643989f9862f450"
+  },
+  "candidate_enabled": false,
+  "caps_microusd": {
+    "permanent_task": 750000,
+    "utc_day": 5000000
+  },
+  "component": "real_wallet_and_private_custody_join",
+  "day_cap_denied_after_low_cost_settlement_and_restart": true,
+  "gateway_and_collector_money_roles_denied": true,
+  "journal_capture_and_broker_restart_preserved_outcomes": true,
+  "live_attempts": 0,
+  "lost_acquisition_ack_not_rearmed": true,
+  "opening_inventory_reset_denied": true,
+  "paid_calls": 0,
+  "production_admission": false,
+  "real_capture_sqlite": true,
+  "real_collector_wallet_settlement": true,
+  "real_durable_wallet": true,
+  "real_kernel_uids": true,
+  "roles": {
+    "broker": 2005,
+    "capture": 2008,
+    "collector": 2006,
+    "gateway": 2007,
+    "root": 0,
+    "wallet": 2004,
+    "worker": 2001
+  },
+  "schema": 1,
+  "settled_usage_rated_microusd": 2,
+  "source_sha256": {
+    "gateway_custody.py": "ce412937d4a83b43bd57740e997573940cd1c0247e15f4519eb4d1d7f997b8e0",
+    "physical_usage.py": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+    "protected_spending_control.py": "5ac006e9f21466b92008d1a215a7b3db2a65765b7305d32a5374bab9009e8323",
+    "usage_rating.py": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a",
+    "usage_spending.py": "89dfe5e2fd3462d4875d5edf354e7b3fd9c4324ee2a06cdb7e200916f083e606"
+  },
+  "successful_acquisition": {
+    "acquired": true,
+    "root_sha256": "ddaa09ac59a3e2e0a52c44784fbaebcd01d5ffc06a944d160f26691564d13b5d"
+  },
+  "synthetic_physical_usage": true,
+  "synthetic_root_bootstrap_and_charge_bounds": true,
+  "worker_denied_before_http": true,
+  "date": "2026-11-01",
+  "fixture_sha256": "74d1769ff3d63a9787774c3497a0846a81bb5e872a9929e792d1ee71ee9dbeaf",
+  "rust_source_sha256": {
+    "harness_spending.rs": "473c15143b03804c3b39b5703516fd3beea5816fd0a8ba03294512a95b9c374c",
+    "harness_spending_ingress.rs": "0241abaef299468fd8a4fa325eb021f8a752a8fd0d1722ec489fc73107180356"
+  },
+  "independent_owned_resource_check": {
+    "wallet_owned_containers_absent": true,
+    "start_controller_absent": true,
+    "qualification_parent_absent": true
+  },
+  "build_provenance": {
+    "files": {
+      "project/Cargo.lock": "81d5dd42e5b9a2899b92511a940e2654c16a76a0d0dd18674dd344c9b2d90835",
+      "project/Cargo.toml": "8e146c3feb92d412ded8ff8ef030b7a42f9f59b12c29d175ac4f6c20928d55aa",
+      "project/examples/runtime.rs": "c32dd1537a1ba74ad4e2bceb6854fffb7e80d45e3517e72c6e361e5beec9c312",
+      "project/src/harness_spending.rs": "473c15143b03804c3b39b5703516fd3beea5816fd0a8ba03294512a95b9c374c",
+      "project/src/harness_spending_ingress.rs": "0241abaef299468fd8a4fa325eb021f8a752a8fd0d1722ec489fc73107180356",
+      "target/debug/examples/runtime": "26ac1199ae8a663535f2784d2dc0ac6b88be4486d9dfd838a643989f9862f450"
+    },
+    "rustc_info": {
+      "rustc_fingerprint": 9653216386767400521,
+      "outputs": {
+        "5170565068485010963": {
+          "success": true,
+          "status": "",
+          "code": 0,
+          "stdout": "rustc 1.100.0-nightly (f7575a9da 2026-09-24)\nbinary: rustc\ncommit-hash: f7575a9da8e4a4fca3b5668d5a2ea7476db44b3f\ncommit-date: 2026-09-24\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0-nightly\nLLVM version: 23.1.1\n",
+          "stderr": ""
+        },
+        "7971740275564407648": {
+          "success": true,
+          "status": "",
+          "code": 0,
+          "stdout": "___\nlib___.rlib\nlib___.so\nlib___.so\nlib___.a\nlib___.so\n/usr/local/rustup/toolchains/nightly-2026-09-25-x86_64-unknown-linux-gnu\noff\npacked\nunpacked\n___\ndebug_assertions\nfmt_debug=\"full\"\noverflow_checks\npanic=\"unwind\"\nproc_macro\nrelocation_model=\"pic\"\ntarget_abi=\"\"\ntarget_arch=\"x86_64\"\ntarget_endian=\"little\"\ntarget_env=\"gnu\"\ntarget_family=\"unix\"\ntarget_feature=\"fxsr\"\ntarget_feature=\"sse\"\ntarget_feature=\"sse2\"\ntarget_feature=\"x87\"\ntarget_has_atomic\ntarget_has_atomic=\"16\"\ntarget_has_atomic=\"32\"\ntarget_has_atomic=\"64\"\ntarget_has_atomic=\"8\"\ntarget_has_atomic=\"ptr\"\ntarget_has_atomic_load_store\ntarget_has_atomic_load_store=\"16\"\ntarget_has_atomic_load_store=\"32\"\ntarget_has_atomic_load_store=\"64\"\ntarget_has_atomic_load_store=\"8\"\ntarget_has_atomic_load_store=\"ptr\"\ntarget_has_atomic_primitive_alignment=\"16\"\ntarget_has_atomic_primitive_alignment=\"32\"\ntarget_has_atomic_primitive_alignment=\"64\"\ntarget_has_atomic_primitive_alignment=\"8\"\ntarget_has_atomic_primitive_alignment=\"ptr\"\ntarget_has_reliable_f128\ntarget_has_reliable_f16\ntarget_has_reliable_f16_math\ntarget_has_threads\ntarget_object_format=\"elf\"\ntarget_os=\"linux\"\ntarget_pointer_width=\"64\"\ntarget_thread_local\ntarget_vendor=\"unknown\"\nub_checks\nunix\n",
+          "stderr": ""
+        },
+        "3750649890870994184": {
+          "success": true,
+          "status": "",
+          "code": 0,
+          "stdout": "___\nlib___.rlib\nlib___.so\nlib___.so\nlib___.a\nlib___.so\n/usr/local/rustup/toolchains/nightly-2026-09-25-x86_64-unknown-linux-gnu\noff\npacked\nunpacked\n___\ndebug_assertions\nfmt_debug=\"full\"\noverflow_checks\npanic=\"unwind\"\nproc_macro\nrelocation_model=\"pic\"\ntarget_abi=\"\"\ntarget_arch=\"x86_64\"\ntarget_endian=\"little\"\ntarget_env=\"gnu\"\ntarget_family=\"unix\"\ntarget_feature=\"fxsr\"\ntarget_feature=\"sse\"\ntarget_feature=\"sse2\"\ntarget_feature=\"x87\"\ntarget_has_atomic\ntarget_has_atomic=\"16\"\ntarget_has_atomic=\"32\"\ntarget_has_atomic=\"64\"\ntarget_has_atomic=\"8\"\ntarget_has_atomic=\"ptr\"\ntarget_has_atomic_load_store\ntarget_has_atomic_load_store=\"16\"\ntarget_has_atomic_load_store=\"32\"\ntarget_has_atomic_load_store=\"64\"\ntarget_has_atomic_load_store=\"8\"\ntarget_has_atomic_load_store=\"ptr\"\ntarget_has_atomic_primitive_alignment=\"16\"\ntarget_has_atomic_primitive_alignment=\"32\"\ntarget_has_atomic_primitive_alignment=\"64\"\ntarget_has_atomic_primitive_alignment=\"8\"\ntarget_has_atomic_primitive_alignment=\"ptr\"\ntarget_has_reliable_f128\ntarget_has_reliable_f16\ntarget_has_reliable_f16_math\ntarget_has_threads\ntarget_object_format=\"elf\"\ntarget_os=\"linux\"\ntarget_pointer_width=\"64\"\ntarget_thread_local\ntarget_vendor=\"unknown\"\nub_checks\nunix\n",
+          "stderr": ""
+        }
+      },
+      "successes": {}
+    },
+    "post_build_image_snapshot": "sha256:3218c38b2401ec207861f6534dfd21f58a8b0f1f2c25df52feae22a6dfcd1b3f"
+  },
+  "build_command": "cargo build --locked --example runtime --features restate --target-dir /target; separate public-dependency-only builder, runtime replay network none",
+  "build_provenance_limit": "Observed current staged source/lock/binary hashes and rustc metadata; post-build image snapshot is not an independent build attestation or a frozen production artifact."
+}

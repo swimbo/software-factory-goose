@@ -581,3 +581,7 @@ Live attempts remain 0/120; candidate disabled. Supported pre-dispatch provider 
 ### Phase 11A protected capture admission — 2026-11-01
 
 Nine actual Linux protected-state/alias/ACL/backend refusal controls pass, together with capture/audit restart recovery. Source review completed. See verification/2026-11-01-capture-admission.md. Public provider recheck remains unchanged: no supported affordable pre-dispatch envelope established; see verification/2026-11-01-provider-envelope-recheck.json. Paid attempts remain0/120 and candidate disabled. Real-wallet custody join and actual supervisor start unknown-ack qualification are in progress; source publication is not production admission.
+
+### Phase 11A real-wallet custody join — 2026-11-01
+
+Actual durable Rust wallet, protected gateway acquisition/capture and independent collector now pass one joined native component replay: kernel roles, one-use begin, discarded acquire acknowledgement, exact audit settlement, restart persistence, no reservation refund and opening-inventory reset refusal. Fresh current-source runtime provenance and completed review retained in verification/2026-11-01-wallet-custody.md. Full harness167 run:163 pass/four skip. Root bootstrap/bounds and physical closure remain synthetic; actual Bifrost/production admission is not established. Live0/120, candidate off, caps unchanged.
