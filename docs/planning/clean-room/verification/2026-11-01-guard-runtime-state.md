@@ -1,0 +1,7 @@
+# Direct guard-loop state qualification
+
+Four entry-point tests now execute run_guard through post-readiness source drift, lease expiry while the owner remains alive, transient administrative revocation failure and both 30-second retry deadlines. They use real private temporary files and explicit Root constructor, PID1, kernel and wallet seams. This is state/control-flow evidence, not native authority or cleanup qualification. The same validated supervisor object is retained; only revocation retries, no prepare/start or new launch authority occur; the original readiness binding is not rewritten after drift. Retry exhaustion retains unknown with no acknowledged completion.
+
+The production guard was unchanged. These are characterization tests for behavior already implemented. Three independent in-memory mutations are rejected: ignoring runtime source drift, extending the monitor retry deadline and extending the stop-post retry deadline. Disk source remains unchanged. The native expiry/outage-near-deadline and combined unknown-Docker/real-guard failure cases remain open. Source drift and administrative retries are not claims that a new paid inference may be retried.
+
+Final full configured harness after the separately discovered Darwin race fix: 207 run, 201 passed, six skipped. Ruff passes. Paid/live benchmark remains 0/120, candidate disabled; $5 UTC-day and $0.75 permanent-task caps unchanged. Provider-backed affordable charge bounds, production Bifrost/bootstrap/launch admission and the actual paired performance gate remain required.

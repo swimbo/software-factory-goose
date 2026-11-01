@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "in_memory_only": true,
+  "production_source_sha256": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+  "test_sha256": "632ddd0a24aea8af41b07a50842ea59759ac1948fad2d57cd0c6d0b0b58736f2",
+  "mutations": [
+    {
+      "mutation": "ignore_source_drift",
+      "test": "test_source_drift_after_readiness_retries_revocation_without_reconstruction",
+      "rejected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "extend_monitor_retry_deadline",
+      "test": "test_monitor_retry_deadline_preserves_unknown_without_completion",
+      "rejected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "mutation": "extend_stop_post_retry_deadline",
+      "test": "test_stop_post_retries_only_revocation_and_obeys_its_deadline",
+      "rejected": true,
+      "failures": 1,
+      "errors": 0
+    }
+  ]
+}
