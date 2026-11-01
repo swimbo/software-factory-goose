@@ -116,11 +116,13 @@ def linux_profiles(goose, host, normalizer, **configuration):
             "linux_goose_runtime.py",
             "linux_worker.py",
             "linux_supervisor.py",
+            "linux_worker_image.py",
+            "linux-worker.Dockerfile",
         )
     }
     return {
         variant: sha(
-            dict(schema=1, parent=profile, code=code, worker_protocol="unix-json-v1")
+            dict(schema=2, parent=profile, code=code, worker_protocol="unix-json-v1")
         )
         for variant, profile in parent.items()
     }

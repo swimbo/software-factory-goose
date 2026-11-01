@@ -80,10 +80,27 @@ def require_fixture_root(path):
 def run(base, goose):
     assert sys.platform == "linux" and os.geteuid() == 0
     require_fixture_root(base)
-    assert hashlib.sha256(goose.read_bytes()).hexdigest() == prior.LINUX_GOOSE_SHA256
+    with goose.open("rb") as stream:
+        assert hashlib.file_digest(stream, "sha256").hexdigest() == prior.LINUX_GOOSE_SHA256
+    # The actual launch path requires Root-owned sources. Preserve the public
+    # input and stage only this fixture's fresh private copy with bounded memory.
+    import shutil
+    pinned_goose = base / "goose-source"
+    shutil.copyfile(goose, pinned_goose)
+    os.chmod(pinned_goose, 0o555)
+    goose = pinned_goose
+
     configuration, grant, case, mounts, group = prior.setup(
         base, "actual_start_lost_ack"
     )
+    try:
+        return _replay(base, goose, configuration, grant, case, mounts, group)
+    finally:
+        # Initialization failures also retire only this newly created slice.
+        prior.slice_unit("StopUnit", group.name)
+
+
+def _replay(base, goose, configuration, grant, case, mounts, group):
     # setup's earlier cleanup-only case has not executed anything. Replace only
     # this fresh fixture's placeholder records with the actual start contract.
     (case / "start-intent.json").unlink()
@@ -132,8 +149,8 @@ def run(base, goose):
     )
     relay = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     relay.bind(grant["relay_path"])
-    os.chown(grant["relay_path"], 2005, 2001)
     os.chmod(grant["relay_path"], 0o660)
+    os.chown(grant["relay_path"], 2005, 2001)
     supervisor = StartFixtureSupervisor(configuration)
     container = "sfactory-harness-" + grant["attempt_id"][4:]
     tracked = {}
@@ -249,7 +266,6 @@ def run(base, goose):
                 timeout=12,
                 check=True,
             )
-        prior.slice_unit("StopUnit", group.name)
         marker = case / "watchdog.json"
         if marker.exists():
             child = json.loads(marker.read_bytes())["pid"]

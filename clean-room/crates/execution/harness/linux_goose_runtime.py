@@ -18,6 +18,7 @@ from factory_harness import Denied, canonical
 from protected_goose_runtime import parse_json
 
 LINUX_GOOSE_SHA256 = "802d1478e6a53ef7c68a56ccfed3aec59eab0afd68aa411ec0c1b516dc5334db"
+LINUX_GOOSE_BYTES = 288790232
 MAX_REQUEST = 65536
 
 

@@ -1,0 +1,41 @@
+{
+  "status": "native_worker_component_only",
+  "variants": [
+    {
+      "variant": "baseline",
+      "synthetic_sends": 6,
+      "authorized_tools": 5,
+      "independent_accepted": true,
+      "worker_program_sha256": "54f276266221b384a9b7cde236083fb7a7a2d0cafbb0e06107982f10b0413128",
+      "no_harness_or_evaluator_mount": true,
+      "paid_calls": 0,
+      "live_attempts": 0,
+      "candidate_enabled": false
+    },
+    {
+      "variant": "candidate",
+      "synthetic_sends": 3,
+      "authorized_tools": 3,
+      "independent_accepted": true,
+      "worker_program_sha256": "54f276266221b384a9b7cde236083fb7a7a2d0cafbb0e06107982f10b0413128",
+      "no_harness_or_evaluator_mount": true,
+      "paid_calls": 0,
+      "live_attempts": 0,
+      "candidate_enabled": false
+    }
+  ],
+  "root_supervisor_admission_verified": false,
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "date": "2026-11-01",
+  "image_id": "sha256:893d9cf783d732690c84fd3d5ee1a34d4a2b01a4ce570c1ec92d087438c0c01a",
+  "goose_sha256": "802d1478e6a53ef7c68a56ccfed3aec59eab0afd68aa411ec0c1b516dc5334db",
+  "script_host_sha256": "04ed8fbb5b532514d691fec36c1fa44b0c93de66b2c2ac7d20a9e893c84e71af",
+  "independent_absence_check": {
+    "owned_start_worker_absent": true,
+    "owned_controller_absent": true,
+    "owned_slice_absent": true,
+    "generic_pair_workers_absent": true
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema": 2,
+  "stage": "/home/bo/sfactory-harness-image-v2-20261101-ma_ed9wj",
+  "image_id": "sha256:893d9cf783d732690c84fd3d5ee1a34d4a2b01a4ce570c1ec92d087438c0c01a",
+  "base_image_id": "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+  "platform": "linux/amd64",
+  "dockerfile_sha256": "7ee0563c00c6f104e091a4f01e779ac406c62ebce9cdd9d24e902a66f4ccbfe3",
+  "archive_sha256": "814482b3cc0121efa2d0bd76b3e1e0753334f46734040f9bd78aaa1fe268dadc",
+  "archive_bytes": 45873152,
+  "archive_restoration_verified": true,
+  "legacy_pin_unchanged": true,
+  "candidate_enabled": false,
+  "paid_calls": 0,
+  "pinned_goose_loader_smoke": {
+    "uid": 2001,
+    "network": "none",
+    "readonly": true,
+    "capabilities": [],
+    "output": "1.49.0",
+    "source_sha256": "802d1478e6a53ef7c68a56ccfed3aec59eab0afd68aa411ec0c1b516dc5334db",
+    "actual_mcp_conversation": false
+  },
+  "date": "2026-11-01",
+  "both_variants_frozen_image_required": true,
+  "no_production_activation": true,
+  "actual_start_native": "2026-11-01-supervisor-start-v2-native.json",
+  "actual_goose_pair_native": "2026-11-01-image-v2-goose-native.json",
+  "profile_binding_red_before_fix": "Four failed subcases: image source and Dockerfile each changed neither baseline nor candidate fingerprint; all pass after binding both inputs in Linux profile schema2",
+  "qualification_evidence_retention": {
+    "evidence_root": "/var/lib/sfactory-harness-qualification-evidence-20261101-044cc70fce084c95a277d5ec41318ff6",
+    "owned_cases_retained": [
+      "qualification-6da4c1a103e24b788425ec7e792d9cee",
+      "qualification-7fb8b46d48f049d08441f6879392eca7",
+      "qualification-bbff76906e0145faa87e7abafad93afd",
+      "qualification-1662e9d8f1174cd5afac74c78610829f"
+    ],
+    "owned_slices_absent": [
+      "sfactoryharness857586db72424d7dbb60ebe70e5da965a46cd4e0ef084cf4b1bd42d9cc0f31b9.slice",
+      "sfactoryharnessd3542fc66143433993c8edd6e28e10439c9f63f604dc4eb882a775f815c20396.slice",
+      "sfactoryharnesscf424492ae7b4ad98c145f772169e71c1ac9c964b2df48b5ba464ed508d53b77.slice",
+      "sfactoryharness3642d7b75f354bb3bb517d762defd38de98992b0f42648598f604145ddd18e2c.slice"
+    ],
+    "factory_qualification_namespace_removed": true,
+    "archive_preserves_all_files_and_intents": true
+  },
+  "exact_previous_image_restoration_established": false
+}

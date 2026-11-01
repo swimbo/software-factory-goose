@@ -24,7 +24,7 @@ from factory_harness import Broker, Profile, canonical
 from protected_goose_runtime import BoundedWorkspace, BaselineSession, ModelRelay
 from linux_goose_runtime import LinuxWorkerRelay, LINUX_GOOSE_SHA256
 
-IMAGE = "sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a"
+from linux_worker_image import WORKER_IMAGE as IMAGE  # noqa: E402
 GOOSE = Path("/usr/local/libexec/software-factory-goose/goose-protected-802d1478")
 
 

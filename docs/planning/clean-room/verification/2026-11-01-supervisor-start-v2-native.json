@@ -1,0 +1,61 @@
+{
+  "actual_start_entrypoint": true,
+  "candidate_enabled": false,
+  "component_only": true,
+  "exact_execution_fence_and_cleanup": true,
+  "fixture_registry_gate": true,
+  "fixture_source_sha256": "bf1ffa9b393aa2db96858793a22819a16ed4bf5ee9a01997cd13ee668661f404",
+  "fixture_watchdog_initializer": true,
+  "live_attempts": 0,
+  "owned_cgroup": "sfactoryharness3642d7b75f354bb3bb517d762defd38de98992b0f42648598f604145ddd18e2c.slice",
+  "owned_container": "sfactory-harness-3642d7b75f354bb3bb517d762defd38de98992b0f42648598f604145ddd18e2c",
+  "paid_calls": 0,
+  "passed": true,
+  "product_source_sha256": "cbc337c9f2d5ab318f96cb990d9d1f5267ae9267e895ba6f6b1856211d1d1c70",
+  "production_admission": false,
+  "production_constructor": false,
+  "reconstructed_supervisor_rearm_denied": true,
+  "schema": 1,
+  "start_requests": 1,
+  "start_response_never_read": true,
+  "unknown_reconcile_retained": true,
+  "whole_service_group_loss_qualified": false,
+  "worker_and_descendants_gone": true,
+  "date": "2026-11-01",
+  "image_id": "sha256:893d9cf783d732690c84fd3d5ee1a34d4a2b01a4ce570c1ec92d087438c0c01a",
+  "goose_sha256": "802d1478e6a53ef7c68a56ccfed3aec59eab0afd68aa411ec0c1b516dc5334db",
+  "goose_bytes": 288790232,
+  "independent_absence_check": {
+    "owned_start_worker_absent": true,
+    "owned_controller_absent": true,
+    "owned_slice_absent": true,
+    "generic_pair_workers_absent": true
+  },
+  "controller_capabilities": [
+    "DAC_OVERRIDE",
+    "CHOWN",
+    "FOWNER"
+  ],
+  "worker_capabilities": [],
+  "fixture_scope": "Actual production start/stage/inspect/reconcile/revoke/fence/cleanup methods; fixture constructor/registry/watchdog initializer; public idle worker, no actual Goose invocation here. Separate real Goose/MCP pair proof.",
+  "final_source_sha256": {
+    "clean-room/crates/execution/harness/linux_goose_runtime.py": "af42aa68157b726e0bfe385ab35f1bb59437176dd161cf2e1387675fbca0756d",
+    "clean-room/crates/execution/harness/linux_runner.py": "44f4e257268016ee3825baa7d3263b41f3b09b7abbb438d3174660f95397d705",
+    "clean-room/crates/execution/harness/linux_supervisor.py": "cbc337c9f2d5ab318f96cb990d9d1f5267ae9267e895ba6f6b1856211d1d1c70",
+    "clean-room/crates/execution/harness/linux_worker_image.py": "d872cdcae7c0a9f4b0744d970c412a14bbc44406de43337737e5da930268e81c",
+    "clean-room/crates/execution/harness/linux-worker.Dockerfile": "7ee0563c00c6f104e091a4f01e779ac406c62ebce9cdd9d24e902a66f4ccbfe3",
+    "clean-room/crates/execution/harness/test_linux_image_binding.py": "571485fe4d8a9817e02a265ab9a29b05bc20ee6ee32e848f7a4b0210ce608bb6",
+    "clean-room/tests/fixtures/harness_supervisor_start_loss_replay.py": "bf1ffa9b393aa2db96858793a22819a16ed4bf5ee9a01997cd13ee668661f404",
+    "clean-room/tests/fixtures/harness_linux_goose_replay.py": "e655472963ae02297a4c0b2eadfffc4a9ef34f7858ee15a7c8e7289cac63849a",
+    "clean-room/tests/fixtures/harness_linux_generic_worker_replay.py": "c38684e37cc2d4fe69d692596c79078f38d71593b06a64869918c1ef74366a2c"
+  },
+  "prior_failures": [
+    "Missing obsolete worker image (no launch)",
+    "Fixture all-at-once Goose hashing exceeded256MiB; bounded streaming corrected",
+    "Nonpinned comparison Goose rejected; exact protected binary found",
+    "Fixture chmod-after-chown denied under constrained Root capabilities; order corrected",
+    "Actual staging256MiB limit rejected exact288790232-byte pinned Goose; exception scoped to its exactSHA",
+    "Protected-hardlink policy required trusted Root FOWNER; worker capDropALL unchanged"
+  ],
+  "qualified_scope": "Actual start lost-ack and cleanup with public idle worker; separate actualGoose/MCP pair. No combined production admission/whole-group/daemon/host-loss proof."
+}

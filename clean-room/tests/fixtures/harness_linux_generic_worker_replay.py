@@ -24,7 +24,7 @@ from harness_linux_goose_replay import SyntheticControl  # noqa: E402
 from benchmark_acceptance import evaluate  # noqa: E402
 from container_evaluator import DockerEvaluator  # noqa: E402
 
-IMAGE = "sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a"
+from linux_worker_image import WORKER_IMAGE as IMAGE  # noqa: E402
 
 
 def docker(*args, timeout=40):

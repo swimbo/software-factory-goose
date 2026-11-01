@@ -36,10 +36,11 @@ from linux_runner import (
     validate_worker,
 )
 from protected_goose_runtime import sha
+from linux_goose_runtime import LINUX_GOOSE_BYTES, LINUX_GOOSE_SHA256
 from protected_spending_control import _decode, _no_acl
 from factory_harness import canonical
 
-WORKER_IMAGE = "sha256:509d7c54cfdbf6afd9e1c80ff924d367bdaf0979e6ef63b1f7d1134ce3a9710a"
+from linux_worker_image import WORKER_IMAGE
 MOUNT_TARGETS = {
     "goose": "/goose",
     "worker": "/factory/linux_worker.py",
@@ -368,7 +369,11 @@ def stage_launch_source(fd, source, destination, expected_sha256=None):
                 and info.st_uid == 0
                 and info.st_mode & 0o022 == 0
                 and _digest(expected_sha256)
-                and 0 < info.st_size <= MAX_LAUNCH_FILE_BYTES,
+                and 0 < info.st_size <= (
+                    LINUX_GOOSE_BYTES
+                    if expected_sha256 == LINUX_GOOSE_SHA256
+                    else MAX_LAUNCH_FILE_BYTES
+                ),
                 "root_mount_source_changed",
             )
             readable = os.open("/proc/self/fd/" + str(fd), os.O_RDONLY | os.O_CLOEXEC)
