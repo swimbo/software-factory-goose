@@ -1,0 +1,213 @@
+{
+  "status": "complete",
+  "verdict": "Ready with fixes",
+  "verdict_reason": "Two P2 current-scope gaps were confirmed in the original snapshot. Parent later applied fixes; this receipt does not certify those edits or production admission.",
+  "scope": {
+    "base": "7574602",
+    "branch": "codex/late-phase9-verification",
+    "head_sha": "75746020996a5d8892665c7c88b4746d1586e118",
+    "pr_url": null,
+    "files_changed": 3,
+    "files": [
+      "clean-room/crates/execution/harness/linux_runner.py",
+      "clean-room/crates/execution/harness/linux_supervisor.py",
+      "clean-room/crates/execution/harness/test_scope_preimage_v2.py"
+    ],
+    "snapshot": "/tmp/compound-engineering-501/ce-code-review/scope-preimage-current/full.diff"
+  },
+  "intent": "Read-only broker-UID Root scope preimage v2 verifies current grant/catalog/lease and wallet-acknowledged saved scope digest; exact Rust serde scope digest and no wallet calls. This grants no spending authority; begin remains decisive.",
+  "intent_confidence": "explicit",
+  "reviewers": [
+    "security",
+    "correctness",
+    "testing"
+  ],
+  "findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "scope_preimage_v2 relies on _current, which checks grant expiry and stop.json but not finished.json or owner-revoked.json.",
+        "Normal stopped-worker observation calls _revoke_spending and writes finished.json without creating stop.json.",
+        "_revoke_spending persists owner-revoked.json."
+      ],
+      "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "first_evidence": "clean-room/crates/execution/harness/linux_supervisor.py:934 -- self._current(grant)",
+      "independent_reviewers": [
+        "security"
+      ],
+      "line": 934,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "security"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Refuse completed or owner-revoked attempts before returning the preimage, and test normal terminal observation as well as explicit stop/revocation.",
+      "title": "Refuse scope preimages after normal completion revokes the owner",
+      "why_it_matters": "The endpoint can return an apparently current scope preimage after normal completion has revoked that scope. Existing begin remains the spending gate, so this is not a demonstrated spending bypass.",
+      "source_detail_keys": [
+        "security|clean-room/crates/execution/harness/linux_supervisor.py|934|refuse scope preimages after normal completion revokes the owner"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original scope_preimage_v2 only calls _current, which checks stop.json and expiry, while the normal stopped-worker observe path writes owner-revoked.json and finished.json without stop.json; a completed grant with a still-current lease can therefore return its preimage. Current source lines 940-941 now reject both markers; this is a stale-read defect, not an established spending bypass, and incidence was not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "scope_preimage_v2 calls _current and _catalog, but validate_catalog checks scope and lease intervals and route hash without checking route currentness.",
+        "factory_scope_digest checks only valid_from_ms < valid_until_ms.",
+        "harness_spending.rs:218-220 defines wallet liveness as requiring both scope and route intervals."
+      ],
+      "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "first_evidence": "clean-room/crates/execution/harness/linux_supervisor.py:934 -- self._current(grant)",
+      "independent_reviewers": [
+        "correctness"
+      ],
+      "line": 934,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Require the current time to fall within the route interval before return, with deterministic boundary tests.",
+      "title": "Reject scope preimages outside the reviewed route interval",
+      "why_it_matters": "The endpoint can return a preimage when its reviewed route is not yet valid or expired. Existing begin remains the spending gate, so this is not a demonstrated spending bypass.",
+      "source_detail_keys": [
+        "correctness|clean-room/crates/execution/harness/linux_supervisor.py|934|reject scope preimages outside the reviewed route interval"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original method and validate_catalog check scope/lease time and route hash but do not compare the current clock with route.valid_from_ms or valid_until_ms, while wallet AttemptScope.live requires the half-open route interval; a current lease with a future or expired route can return the preimage. Current source line 942 now checks the route interval; incidence was not measured and begin remains decisive.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "actionable_findings": [
+    {
+      "#": 1,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "scope_preimage_v2 relies on _current, which checks grant expiry and stop.json but not finished.json or owner-revoked.json.",
+        "Normal stopped-worker observation calls _revoke_spending and writes finished.json without creating stop.json.",
+        "_revoke_spending persists owner-revoked.json."
+      ],
+      "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "first_evidence": "clean-room/crates/execution/harness/linux_supervisor.py:934 -- self._current(grant)",
+      "independent_reviewers": [
+        "security"
+      ],
+      "line": 934,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "security"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Refuse completed or owner-revoked attempts before returning the preimage, and test normal terminal observation as well as explicit stop/revocation.",
+      "title": "Refuse scope preimages after normal completion revokes the owner",
+      "why_it_matters": "The endpoint can return an apparently current scope preimage after normal completion has revoked that scope. Existing begin remains the spending gate, so this is not a demonstrated spending bypass.",
+      "source_detail_keys": [
+        "security|clean-room/crates/execution/harness/linux_supervisor.py|934|refuse scope preimages after normal completion revokes the owner"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original scope_preimage_v2 only calls _current, which checks stop.json and expiry, while the normal stopped-worker observe path writes owner-revoked.json and finished.json without stop.json; a completed grant with a still-current lease can therefore return its preimage. Current source lines 940-941 now reject both markers; this is a stale-read defect, not an established spending bypass, and incidence was not measured.",
+      "protected_subject": "authorization-authentication"
+    },
+    {
+      "#": 2,
+      "autofix_class": "gated_auto",
+      "confidence": 100,
+      "evidence": [
+        "scope_preimage_v2 calls _current and _catalog, but validate_catalog checks scope and lease intervals and route hash without checking route currentness.",
+        "factory_scope_digest checks only valid_from_ms < valid_until_ms.",
+        "harness_spending.rs:218-220 defines wallet liveness as requiring both scope and route intervals."
+      ],
+      "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+      "first_evidence": "clean-room/crates/execution/harness/linux_supervisor.py:934 -- self._current(grant)",
+      "independent_reviewers": [
+        "correctness"
+      ],
+      "line": 934,
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "requires_verification": true,
+      "reviewers": [
+        "correctness"
+      ],
+      "severity": "P2",
+      "suggested_fix": "Require the current time to fall within the route interval before return, with deterministic boundary tests.",
+      "title": "Reject scope preimages outside the reviewed route interval",
+      "why_it_matters": "The endpoint can return a preimage when its reviewed route is not yet valid or expired. Existing begin remains the spending gate, so this is not a demonstrated spending bypass.",
+      "source_detail_keys": [
+        "correctness|clean-room/crates/execution/harness/linux_supervisor.py|934|reject scope preimages outside the reviewed route interval"
+      ],
+      "validation_status": "confirmed",
+      "validation_reason": "The saved original method and validate_catalog check scope/lease time and route hash but do not compare the current clock with route.valid_from_ms or valid_until_ms, while wallet AttemptScope.live requires the half-open route interval; a current lease with a future or expired route can return the preimage. Current source line 942 now checks the route interval; incidence was not measured and begin remains decisive.",
+      "protected_subject": "authorization-authentication"
+    }
+  ],
+  "triage_groups": [],
+  "pre_existing_findings": [],
+  "requirements_completeness": null,
+  "learnings": [],
+  "agent_native_gaps": [],
+  "deployment_notes": [],
+  "residual_risks": [
+    "New method has no native Root-socket/SO_PEERCRED test; client test mocks effective UID and transport.",
+    "Scope read test mocks current-grant, catalog and saved-scope helpers, so does not establish integrated protected catalog/lease path.",
+    "Rated vector uses a reconstructed Rust struct rather than wallet AttemptScope.",
+    "Root revoke does not take the same guard; scope preimage remains data only and cannot establish current liveness."
+  ],
+  "testing_gaps": [
+    "No native Root socket/SO_PEERCRED proof for this method.",
+    "Scope read tests mock current, catalog, and saved-scope helpers."
+  ],
+  "coverage": {
+    "depth": "full",
+    "notes": [
+      "Review scope is the saved snapshot, not subsequent fixes.",
+      "The new method has no native Root-socket/SO_PEERCRED proof; scope-read test mocks current, catalog, and saved-scope helpers.",
+      "Rated vector uses reconstructed Rust type; production wallet AttemptScope rated digest direct test is recommended.",
+      "Stale-scope and route interval issues do not demonstrate spending bypass; begin remains decisive.",
+      "Root revoke does not take the same guard; returned scope preimage must remain data only and cannot establish current liveness.",
+      "The original snapshot was independently reviewed by security, correctness and testing; testing included adversarial inspection.",
+      "Parent reports subsequent terminal-marker and route-interval fixes, focused tests and an actual-wallet rated digest assertion; this original review did not rerun or certify them.",
+      "No production admission, provider inference or spending was tested."
+    ],
+    "validation": {
+      "outcome": "verdicts",
+      "selected": 2,
+      "confirmed": 2,
+      "rejected": 0,
+      "unresolved": 0,
+      "malformed": 0,
+      "failed": 0,
+      "shortcut_skipped": 0
+    },
+    "failed_reviewers": [],
+    "suppressed_by_confidence": {},
+    "first_evidence_backfilled": 0,
+    "missing_quote_demotions": 0,
+    "mode_aware_demotions": 0,
+    "project_standards": "AGENTS.md fallback"
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "user",
+    "outcome": "in-process-fallback",
+    "artifact": null,
+    "coverage": "Cross-model egress prohibited by caller; in-process testing included adversarial inspection."
+  },
+  "artifact_path": "/tmp/compound-engineering-501/ce-code-review/scope-preimage-current",
+  "run_id": "scope-preimage-current"
+}

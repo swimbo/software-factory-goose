@@ -671,3 +671,7 @@ Bifrost test `6b07584` characterizes a public context-only virtual key through a
 ### Phase 11A rated live-denial coverage — 2026-11-01
 
 Factory test `54095b9` covers the separately approved audited usage-rated live branch: permissive metadata and a valid rated receipt still deny before launch, journal, provider or collector. The 13-test module, guard-removal negative control and independent source review pass. See verification/2026-11-01-rated-live-deny.md for the missing protected startup and final-wire authority map. This is synthetic coverage, not production admission. Live 0/120; candidate disabled; caps unchanged.
+
+### Phase 11A Root scope preimage — 2026-11-01
+
+Factory `24852fc` adds a versioned broker-only Root scope-preimage read tied to the existing prepared grant, saved wallet-acknowledged hash, current catalog/lease, Rust-compatible digest, route interval and absence of terminal markers. It makes no wallet call and is data only, not a liveness or spending grant. Review found two original currentness gaps; tests reproduced them and the final checks passed focused recheck. Actual-wallet rated digest test passes; full configured Python harness 216 run/six skipped. Native Root-socket/catalog qualification, gateway v2 binding, provider bounds and production startup remain open. See verification/2026-11-01-scope-preimage.md. Live 0/120, candidate disabled, caps unchanged.
