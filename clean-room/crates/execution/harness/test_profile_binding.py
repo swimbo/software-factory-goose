@@ -9,6 +9,12 @@ from protected_goose_runtime import profile_fingerprints
 
 class ProfileBinding(unittest.TestCase):
     def test_physical_usage_implementation_is_bound_in_both_profiles(self):
+        self.check_source("physical_usage.py")
+
+    def test_gateway_custody_implementation_is_bound_in_both_profiles(self):
+        self.check_source("gateway_custody.py")
+
+    def check_source(self, name):
         with tempfile.TemporaryDirectory() as directory:
             binaries = [
                 Path(directory) / name for name in ("goose", "host", "normalizer")
@@ -21,9 +27,7 @@ class ProfileBinding(unittest.TestCase):
             def changed(path):
                 value = original(path)
                 return (
-                    value + b"\n# changed collector\n"
-                    if path.name == "physical_usage.py"
-                    else value
+                    value + b"\n# changed collector\n" if path.name == name else value
                 )
 
             with patch.object(Path, "read_bytes", changed):
