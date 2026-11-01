@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "source_manifest_sha256": "0eea99cbe4413ff977909d2a76f5dee6df228f3eac041199472af19e70d29157",
+  "source_files": 1891,
+  "module_files_sha256": {
+    "codec/go.mod": "31fba5186131ffd097eb697b8999434c6f7c99b22954de8554303003d7d56db0",
+    "codec/go.sum": "ff9eafe80a2e4a6d1cd2725cc93c392cc7690422700deeca026e68bf3b2999c6",
+    "contextadmission/go.mod": "ddae373368284d0d0c15172c9d011fd0757157850d4ad5c2f1ee46e5d7e61cac",
+    "core/go.mod": "71c1e50e1cded87dcedd4718fd4a9fc3eb850665b0c830f7f94d1b8f2dcd7f3f",
+    "core/go.sum": "9778c17f7395dfc0bf5c1f56fdce4a1079042f8dd2fe8ac23bf92732da9dc407",
+    "fasthttp/go.mod": "3a89a9babd2a8aeadb083e541ad45ea0a59be8a0f4a567be5ad3b1f1971a24a1",
+    "fasthttp/go.sum": "dcccf2ad3eaa4fe93544d983544aec2c8a44f40b577af51246d0f55e9c26f9e5",
+    "framework/go.mod": "4320475cb48ee0170f4423b4d60f58646212fdf00ab2cd1dcbaa246ca99be943",
+    "framework/go.sum": "bc0fbec41816f84779178283644abf710ca1553a5ca9b42a55229e76fcf43b8e",
+    "governance/go.mod": "4b07ebd4f1bbed107ba7c546e34dc74eed6af7b8c59c9b22614a815a0e3fedb8",
+    "governance/go.sum": "7f75cf7b822618a16b8af18c95c176a77529dcf24f11743e8e61987d7c7867c4",
+    "normalizer/go.mod": "8d946d4540407b8798e384361cd601f9d39a785c7bd12a06067389b4c264aacd",
+    "normalizer/go.sum": "ff9eafe80a2e4a6d1cd2725cc93c392cc7690422700deeca026e68bf3b2999c6",
+    "plugins/routing/go.mod": "16ab2c4de9273ee8db0e33ed013c09829465ffa713b860680410a1d419baa3dc",
+    "plugins/routing/go.sum": "6f996737986a0b6233bc7fbd1db01c09ffde02a4c32a6441bf3287d4656fd745",
+    "pricingrenewal/go.mod": "38436516e418d5e308cbdf67bcab1c3fa306e04eadfcd1385262fada5ff0023d",
+    "pricingrenewal/go.sum": "b59067d9db8cb2654be364ec1c7da3f6a92953f61a561d312ea4c14a7048a46d",
+    "transports/go.mod": "4909372284319cb9284582d8c918be04c8e00eef5d914fc7892d4b8c6cdd54c8",
+    "transports/go.sum": "247f778faf371693a757c13a204b9019f8407311a1763117f705feec1268805a"
+  },
+  "compile": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p",
+      "2",
+      "-run",
+      "^$",
+      "-timeout=30s",
+      "./bifrost-http/server"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 141.12470906879753,
+    "source_only": true,
+    "production_admission": false,
+    "hosted_provider_calls": 0
+  },
+  "public_tests": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p",
+      "2",
+      "-v",
+      "-run",
+      "^(TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup|TestEmbeddingQualificationRequiresExactTypedCapabilities|TestNativeIngressProfileUsesEffectiveWireCap|TestNativeIngressProfileExplicitAndBounded)$",
+      "-count=1",
+      "-timeout=45s",
+      "./bifrost-http/server"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 4.828154854942113,
+    "source_only": true,
+    "production_admission": false,
+    "providers": "loopback public fixtures only",
+    "hosted_provider_calls": 0,
+    "synthetic_provider_calls": "Loopback embeddings/classifier/answer exercised; exact count asserted inside existing test, not exported as a receipt metric."
+  },
+  "public_test_log": "=== RUN   TestNativeIngressProfileUsesEffectiveWireCap\n--- PASS: TestNativeIngressProfileUsesEffectiveWireCap (0.00s)\n=== RUN   TestNativeIngressProfileExplicitAndBounded\n--- PASS: TestNativeIngressProfileExplicitAndBounded (0.00s)\n=== RUN   TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup\n--- PASS: TestGovernedSemanticEmbeddingFullHTTPAndAuthorizedWarmup (0.43s)\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/unpaid\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/missing\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/duplicate\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongmodel\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongapi\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminhash\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminenv\n=== RUN   TestEmbeddingQualificationRequiresExactTypedCapabilities/adminidentity\n--- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/unpaid (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/missing (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/duplicate (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongmodel (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/wrongapi (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminhash (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminenv (0.00s)\n    --- PASS: TestEmbeddingQualificationRequiresExactTypedCapabilities/adminidentity (0.00s)\nPASS\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.467s\n",
+  "compile_log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.036s [no tests to run]\n",
+  "toolchain_version": "go1.27.2 linux/amd64",
+  "retained_remote_stage": "/home/bo/sfactory-gateway-composed-20261101-tlgy0o91",
+  "upstream_archive_sha256": "6a940a6a8c3c00f53a5f1f1faaee0949a8d48f38d1d101958e8378694e87fb7e",
+  "installers": [
+    {
+      "installer": "patch_factory_physical.py",
+      "source_sha256": "5deda5ab63c555a50d60373a06b9313501fc7f4fae5fef57a47184c2799515de",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_candidate.py",
+      "source_sha256": "9333f739e53f4b0d6698e8a3b3768b9b002096a3882e3c0aa2f0c403edd4450c",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_embedding.py",
+      "source_sha256": "97076480d9c920793893457fe300de65a5c79708a0a4f4c360e154d1b245a699",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_deadline.py",
+      "source_sha256": "c7f2f005625a09b44ca5af26ec3dcfdd17a34cf7a7d63cfe8b1149f35ab60635",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_normalizer.py",
+      "source_sha256": "48b59b617c08af32f0ddf16e4b365804ed9cee468cbdfd4affb85b5528394331",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_physical_identity.py",
+      "source_sha256": "a8f8c75e5fd00faaf9f70c9cf1eb736a76102c5737bb214b6381e7a7cd9779cd",
+      "exit_code": 0,
+      "stderr": ""
+    },
+    {
+      "installer": "patch_native_ingress.py",
+      "source_sha256": "15523d85837a4012769417c635eb0badea59d847a4a7dc8ceac3e98968e71867",
+      "exit_code": 0,
+      "stderr": ""
+    }
+  ],
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "daily_cap_usd": 5,
+  "permanent_task_cap_usd": 0.75,
+  "public_module_archives": {
+    "github.com/maximhq/bifrost/core": {
+      "version": "v1.11.2",
+      "zip_sha256": "e909aef8ae299e9108cf7861d55269683f746422153aeb577b5d77e117efdf74",
+      "go_sum": "h1:YZthhlJhYuUUAzT4IDv//nN77amdQrz3WrvtnNkT8cw="
+    },
+    "github.com/maximhq/bifrost/framework": {
+      "version": "v1.8.1",
+      "zip_sha256": "a5d735273d569b40478c83520b591ffce9af23e5ecc7cfc891562de10ed62449",
+      "go_sum": "h1:Cm99xu297bIR2bw+4dzIWA6101RW3ohBneQRaeLz6Ds="
+    },
+    "github.com/maximhq/bifrost/plugins/governance": {
+      "version": "v1.8.6",
+      "zip_sha256": "f75e976d8fd5f4dc1cdf57ba97a36020bbfe2f3169bf1b982b448b2089aae291",
+      "go_sum": "h1:qCU7u80S0CmGTtizmASpo6Uisd7KrNhUNT+tukYX9z4="
+    },
+    "github.com/maximhq/bifrost/plugins/routing": {
+      "version": "v1.1.6",
+      "zip_sha256": "02523cc168b42fe13cf34434b357984685bde4ef5d13387039f9711baa254f23",
+      "go_sum": "h1:dPUxY8BGlXtdC1QHN8D0SU+iDflF1mMJmK6pAxS5pVs="
+    },
+    "github.com/valyala/fasthttp": {
+      "version": "v1.74.0",
+      "zip_sha256": "fd9a063091f601f36b9184bcc9af81f9f9fb2d26e9ffbdb5a3a6d4cc9bc39098",
+      "go_sum": "h1:wMS9fnO2QTALozYx5pId2Vi7ZwU/epUkY8i/KPWCHoU="
+    },
+    "golang.org/toolchain": {
+      "version": "v0.0.1-go1.27.2.linux-amd64",
+      "zip_sha256": "3a467ed067f27cd55bf3a702f8e2bf12479f53c9d8ae0de548f48ebcb3c67796",
+      "go_sum": "h1:N6Xv/1OLzI0jVVkUwkrxHRZc/GCTARUo6idcngKwlDE="
+    }
+  }
+}

@@ -619,3 +619,7 @@ Direct run_guard state tests now cover source drift after readiness, lease expir
 ### Phase 11A native lease expiry — 2026-11-01
 
 Actual Root prepare/start and PID1 guard now pass current-lease expiry while the supervisor stays alive. Before synthetic wallet acknowledgement the exact worker cgroup is frozen/empty; independent inspection confirms terminal services and absent owned containers/slice afterward. See verification/2026-11-01-native-lease-expiry.md. Full harness201 passed/six skipped (207 run), Ruff passes. Production source unchanged; native outage/unknown-Docker/daemon/host-loss and actual gateway/bootstrap/provider bounds remain open. Live0/120, candidate disabled and caps unchanged.
+
+### Phase 11A composed gateway source — 2026-11-01
+
+Fresh exact-pin source reconstruction now composes all existing physical capture, owner-root, governance/routing/embedding/normalization/native HTTP patches. Actual bounded Linux server-package compile passes; four existing public-loopback test groups pass. Final1891-file manifest and commands are retained in verification/2026-11-01-composed-gateway-source.json. The old archive was truncated and old remote cache paths absent; no incompatible bytes were reused. Actual private ingress/bootstrap/current-route custody, provider bounds and remaining loss qualification remain open. No paid calls; live0/120, candidate disabled, caps unchanged.
