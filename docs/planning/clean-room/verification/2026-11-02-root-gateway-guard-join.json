@@ -1,0 +1,362 @@
+{
+  "candidate_enabled": false,
+  "component": "actual_private_root_gateway_pid1_owner_loss",
+  "date": "2026-11-02",
+  "earlier_setup_failure": {
+    "production_cleanup_qualified": false,
+    "reason": "controller overlay filesystem refused by protected socket helper during fixture retirement",
+    "stage": {
+      "base": "/var/lib/sfactory-harness/qualification-1685f368c59d4124b65a8be928cae203",
+      "child_dev": 66306,
+      "child_ino": 19300091,
+      "parent_created": false,
+      "parent_dev": 66306,
+      "parent_ino": 19295428,
+      "stage": "/home/bo/sfactory-root-launch-guard-20261102-s52qec3g"
+    },
+    "subsequent_host_retirement": {
+      "base": "/var/lib/sfactory-harness/qualification-1685f368c59d4124b65a8be928cae203",
+      "configuration": "/var/lib/sfactory-harness/qualification-1685f368c59d4124b65a8be928cae203/case/configuration.json",
+      "fixture_retired": true,
+      "production_cleanup_qualified": false,
+      "unit": "sfactoryguard7a49a80d1f4e67254c2982f133d6fb1acbb907367ffd43afc14cc07632ccdb34.service"
+    }
+  },
+  "harness_tests": {
+    "passed": 271,
+    "run": 278,
+    "skipped": 7
+  },
+  "host_filesystem_observation": {
+    "available_gib_displayed": 16,
+    "command": "df -h /var/lib/sfactory-harness",
+    "evidence_preserved": true,
+    "used_percent": 97
+  },
+  "independent_checks": {
+    "final_gateway_family_absent": true,
+    "owned_attempts": [
+      {
+        "base": "/var/lib/sfactory-harness/qualification-1685f368c59d4124b65a8be928cae203",
+        "controller_absent": true,
+        "fixture_retirement_terminal": {
+          "ActiveState": "inactive",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "success",
+          "SubState": "dead"
+        },
+        "grant_sha256": "78a1acdd0c1411ab69beba70a339fdf7b736e0392fb51886cf553ddfbd6b2b3b",
+        "guard_terminal": {
+          "ActiveState": "failed",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "exit-code",
+          "SubState": "failed"
+        },
+        "owner_revocation_recorded": true,
+        "production_cleanup_receipt_absent": true,
+        "slice_absent": true,
+        "socket_absent": true,
+        "worker_absent": true
+      },
+      {
+        "base": "/var/lib/sfactory-harness/qualification-e6f34b152a114dee917f8cd0129ab91f",
+        "controller_absent": true,
+        "fixture_retirement_terminal": {
+          "ActiveState": "inactive",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "success",
+          "SubState": "dead"
+        },
+        "grant_sha256": "dbda0c4abbe580e6d8e20e1caaba51ff6c386721876936bbf7e4793ed9004a3c",
+        "guard_terminal": {
+          "ActiveState": "failed",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "exit-code",
+          "SubState": "failed"
+        },
+        "owner_revocation_recorded": true,
+        "production_cleanup_receipt_absent": true,
+        "slice_absent": true,
+        "socket_absent": true,
+        "worker_absent": true
+      },
+      {
+        "base": "/var/lib/sfactory-harness/qualification-70d89b6e9fe84c31a170839138ce1433",
+        "controller_absent": true,
+        "fixture_retirement_terminal": {
+          "ActiveState": "inactive",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "success",
+          "SubState": "dead"
+        },
+        "grant_sha256": "868183aaff280105cee8c4baa6f33802b0f2f33cca26ed5efaf52cfacde55c49",
+        "guard_terminal": {
+          "ActiveState": "failed",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "exit-code",
+          "SubState": "failed"
+        },
+        "owner_revocation_recorded": true,
+        "production_cleanup_receipt_absent": true,
+        "slice_absent": true,
+        "socket_absent": true,
+        "worker_absent": true
+      },
+      {
+        "base": "/var/lib/sfactory-harness/qualification-7799792955684714ad8e21e5994e1935",
+        "controller_absent": true,
+        "fixture_retirement_terminal": {
+          "ActiveState": "inactive",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "success",
+          "SubState": "dead"
+        },
+        "grant_sha256": "dd40a9514666db36711af77126c1ed776ac92efcfadbbe4eaf18553d3d652735",
+        "guard_terminal": {
+          "ActiveState": "failed",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "exit-code",
+          "SubState": "failed"
+        },
+        "owner_revocation_recorded": true,
+        "production_cleanup_receipt_absent": true,
+        "slice_absent": true,
+        "socket_absent": true,
+        "worker_absent": true
+      },
+      {
+        "base": "/var/lib/sfactory-harness/qualification-9b4b7fab5d274e73adb12824bc2ccbc2",
+        "controller_absent": true,
+        "fixture_retirement_terminal": {
+          "ActiveState": "inactive",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "success",
+          "SubState": "dead"
+        },
+        "grant_sha256": "9707b5ce697ce1a047a93a05978c81a0501870ae2c20f03d87055148204b8967",
+        "guard_terminal": {
+          "ActiveState": "failed",
+          "ControlGroup": "",
+          "MainPID": 0,
+          "Result": "exit-code",
+          "SubState": "failed"
+        },
+        "owner_revocation_recorded": true,
+        "production_cleanup_receipt_absent": true,
+        "slice_absent": true,
+        "socket_absent": true,
+        "worker_absent": true
+      }
+    ]
+  },
+  "legacy_guard_regression": {
+    "actual_pid1_guard": true,
+    "actual_root_constructor_prepare_start": true,
+    "actual_root_gateway_launch_and_owner_loss": false,
+    "candidate_enabled": false,
+    "component_only": true,
+    "entire_supervisor_group_killed": true,
+    "exact_worker_fenced_and_removed": true,
+    "fault": "owner-loss",
+    "fixture_gateway_barrier_migrated_and_fenced": true,
+    "fixture_gateway_peer_and_child_fenced": false,
+    "fixture_gateway_unit": null,
+    "fixture_retirement_unit": null,
+    "gateway_family": [],
+    "guard_alive_after_supervisor_group_loss": true,
+    "guard_cgroup_limits": {
+      "cpu.max": "100000 100000",
+      "memory.max": "268435456",
+      "pids.max": "32"
+    },
+    "guard_exec_stop_post_cleanup": false,
+    "guard_terminal": {
+      "ActiveState": "inactive",
+      "ControlGroup": "",
+      "MainPID": 0,
+      "Result": "success",
+      "SubState": "dead"
+    },
+    "guard_unit": "sfactoryguarde0b7ee9da9703a2a80a628ea4a2cf3e8dfe0607287d9d649710dd4e178dda993.service",
+    "handed_socket_cleanup_denial_preserved": false,
+    "lease_expired_with_live_supervisor": false,
+    "live_attempts": 0,
+    "native_long_relay_path_tests": 2,
+    "owned_worker_slice": "sfactoryharness0aa1ca5754cd4dd0bd801ccaec04094a1d196727e4844dc8a673dbc0ac1dfef4.slice",
+    "paid_calls": 0,
+    "production_admission": false,
+    "production_cleanup_qualified": null,
+    "schema": 1,
+    "source_sha256": {
+      "harness_pid1_guard_replay.py": "6043908005065c03635ef42cfe2f378d942ba82ae6c204c3ec7526b8e5d870bb",
+      "harness_root_gateway_fixture.py": "3a37e1ef38bba54cde5dac344acb59af078065de54a56f3bc20b3d4e1817e44f",
+      "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+      "linux_supervisor.py": "05e66ca9505ce0fbebebf1f5de6c2426a43297340dd320231f6ea133915bf005"
+    },
+    "supervisor_unit": "sfactoryguard38687067a9da00e251086ea239f90a7af45f22fdf14f86364cf0e03a15d13ad7.service",
+    "synthetic_catalog_registry_owner": true,
+    "synthetic_owner_revocation_acknowledged": true
+  },
+  "live_attempts": 0,
+  "native": {
+    "actual_pid1_guard": true,
+    "actual_root_constructor_prepare_start": true,
+    "actual_root_gateway_launch_and_owner_loss": true,
+    "candidate_enabled": false,
+    "component_only": true,
+    "entire_supervisor_group_killed": true,
+    "exact_worker_fenced_and_removed": true,
+    "fault": "owner-loss",
+    "fixture_gateway_barrier_migrated_and_fenced": false,
+    "fixture_gateway_peer_and_child_fenced": false,
+    "fixture_gateway_unit": null,
+    "fixture_retirement_unit": "sfactoryguard4cb0ef2ca7b58809ef0635a87d7f37fc2db856bdc6a5f0f08db636db4ba63956.service",
+    "gateway_family": [
+      {
+        "pid": 1572736,
+        "ticks": 249825249
+      },
+      {
+        "pid": 1572753,
+        "ticks": 249825272
+      }
+    ],
+    "guard_alive_after_supervisor_group_loss": true,
+    "guard_cgroup_limits": {
+      "cpu.max": "100000 100000",
+      "memory.max": "268435456",
+      "pids.max": "32"
+    },
+    "guard_exec_stop_post_cleanup": false,
+    "guard_terminal": {
+      "ActiveState": "failed",
+      "ControlGroup": "",
+      "MainPID": 0,
+      "Result": "exit-code",
+      "SubState": "failed"
+    },
+    "guard_unit": "sfactoryguard9707b5ce697ce1a047a93a05978c81a0501870ae2c20f03d87055148204b8967.service",
+    "handed_socket_cleanup_denial_preserved": true,
+    "lease_expired_with_live_supervisor": false,
+    "live_attempts": 0,
+    "native_long_relay_path_tests": 2,
+    "owned_worker_slice": "sfactoryharnessf388dd5665a6478ba894a85dd5e70b4e8fdb0d7d89f44228b547bb62b1d32451.slice",
+    "paid_calls": 0,
+    "production_admission": false,
+    "production_cleanup_qualified": false,
+    "schema": 1,
+    "source_sha256": {
+      "harness_pid1_guard_replay.py": "c06f4420897d957306348c69236b7369b99b6760466befcba97e2d702ca71579",
+      "harness_root_gateway_fixture.py": "fbb44ff3460bd470087add2ae7b70353d53dd61b201a9f26354e4f55a4702022",
+      "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+      "linux_supervisor.py": "05e66ca9505ce0fbebebf1f5de6c2426a43297340dd320231f6ea133915bf005"
+    },
+    "supervisor_unit": "sfactoryguardb0c4d5018e22a066a9e6957d513701e14f6700c997634731e90ee490733555ab.service",
+    "synthetic_catalog_registry_owner": true,
+    "synthetic_owner_revocation_acknowledged": true
+  },
+  "normal_completion_overlay": {
+    "production_source_changed": false,
+    "purpose": "test-only overlay connects to the public target rather than killing it; parent and holding child complete before Root fence",
+    "result": {
+      "actual_cgroup_attachment_and_fence": true,
+      "actual_namespace_mapping_and_inspection": true,
+      "actual_root_prepare_attach_release": true,
+      "controller_cgroup": "0::/system.slice/docker-848ee25e89eb17ec71d13eff5d460bd2950dbc5f2373a2ecce36e6d8bc341df3.scope",
+      "filtered_descendant_namespace_changes_denied": true,
+      "filtered_namespace_changes_denied": true,
+      "fixture_socket_absent": true,
+      "gateway_executable_sha256": "d746734e7c322c6ffe488d668ab32459879db229145c83fc4d2bc4682088e3e6",
+      "gateway_pid": 1573710,
+      "gateway_start_ticks": 249829342,
+      "matching_leaf_removed": true,
+      "normal_child_eof_shutdown": true,
+      "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-848ee25e89eb17ec71d13eff5d460bd2950dbc5f2373a2ecce36e6d8bc341df3.scope/fixture-ad5975d64f9a430fb1868f286d0b8cc3da63aae08dbf4a1ea113c8229cfd79d1",
+      "owned_attempt_cgroup_absent": true,
+      "paid_calls": 0,
+      "production_admission": false,
+      "production_cleanup_qualified": false,
+      "source_sha256": {
+        "harness_gateway_root_attachment_replay.py": "9961aaab3079f6da664e1b14662eb343475048d4b65c64bff39a6a5d449cfab0",
+        "linux_supervisor.py": "05e66ca9505ce0fbebebf1f5de6c2426a43297340dd320231f6ea133915bf005"
+      },
+      "synthetic_authority_guard_and_socket_binding": true,
+      "unfiltered_namespace_syscall_controls": true
+    },
+    "stage": {
+      "container_name": "sfactory-root-attachment-sh3v9rx_",
+      "image": "sha256:893d9cf783d732690c84fd3d5ee1a34d4a2b01a4ce570c1ec92d087438c0c01a",
+      "source_archive_sha256": "654ef542f0bda68c333141aaefa03ebbc79e765a7e4173d3f562f75c3679d4e8",
+      "stage": "/home/bo/sfactory-root-attachment-sh3v9rx_"
+    }
+  },
+  "paid_calls": 0,
+  "production_admission": false,
+  "production_cleanup_qualified": false,
+  "schema": 1,
+  "source_review": {
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/root-owner-loss-5spkj9sa",
+    "final_native_replay_passed": true,
+    "finding_1_applied_inline": true,
+    "focused_fix_verification": {
+      "finding1": "resolved",
+      "inspected_evidence": [
+        {
+          "file": "clean-room/tests/fixtures/harness_gateway_exec_target.go",
+          "lines": "90-96,163-197",
+          "observation": "Holding child passes transfer/namespace probes before child-ready; parent validates child-ready before syscall.Listen and net.FileListener. Thus the pinned target LISTEN signal implies descendant handshake completion. CloseOnExec precedes child.Start, preventing inherited listener descriptor retention."
+        },
+        {
+          "file": "clean-room/tests/fixtures/harness_root_gateway_fixture.py",
+          "lines": "18-55",
+          "observation": "Still invokes actual backend._launch_gateway with the pinned executable and checks executable SHA256 plus exact socket LISTEN. live_gateway_family requires at least two captured identities, the launched gateway identity, and _owner_alive for every captured PID/start tick."
+        },
+        {
+          "file": "clean-room/tests/fixtures/harness_pid1_guard_replay.py",
+          "lines": "715-718,771-775",
+          "observation": "Family liveness check immediately precedes owner-loss injection; post-fault assertions retain all captured identities dead."
+        },
+        {
+          "file": "clean-room/crates/execution/harness/linux_supervisor.py",
+          "lines": "1865-1880,3048-3056",
+          "observation": "Real Root launch path remains used; _owner_alive excludes Z/X states and matches start ticks, preventing zombie identities from satisfying pre-fault liveness."
+        },
+        {
+          "file": "clean-room/tests/fixtures/harness_gateway_exec_target.go",
+          "lines": "94-96,179,191-202",
+          "observation": "On orderly accept/return, deferred listener close runs, then parent closes holding-child stdin and waits; child drains stdin until EOF and returns."
+        }
+      ],
+      "remaining_concerns": [
+        "Native final replay was reported running by caller and was not observed in this verification; runtime outcome remains for caller to record.",
+        "LISTEN now proves child-ready ordering, rather than waiting for exec-ready itself; for this hash-pinned fixture this resolves the identified race. FileListener or later failure remains fail-closed through process/liveness checks.",
+        "Pre-fault liveness is a point-in-time check; it cannot guarantee survival after the check. No material unfixed issue from finding #1 identified."
+      ],
+      "status": "complete",
+      "verification_scope": "Focused static verification of finding #1 only; no native replay executed or observed, no production behavior certification."
+    },
+    "remaining_findings": [],
+    "status": "complete",
+    "verdict": "Ready with fixes"
+  },
+  "stage": {
+    "base": "/var/lib/sfactory-harness/qualification-9b4b7fab5d274e73adb12824bc2ccbc2",
+    "child_dev": 66306,
+    "child_ino": 19300844,
+    "parent_created": false,
+    "parent_dev": 66306,
+    "parent_ino": 19295428,
+    "stage": "/home/bo/sfactory-root-launch-guard-20261102-ez7lb2v9"
+  },
+  "target_binary_sha256": "d746734e7c322c6ffe488d668ab32459879db229145c83fc4d2bc4682088e3e6",
+  "target_source_sha256": "255c29f75fab8f31b368dcdd018d4ef16e53978469a6bc32a2faba25c7ea7ad7"
+}

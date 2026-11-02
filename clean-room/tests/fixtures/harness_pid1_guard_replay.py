@@ -31,8 +31,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import linux_supervisor as product
 import linux_service_guard as guard
 import harness_supervisor_loss_replay as prior
+import harness_root_gateway_fixture as root_gateway
 
-MARKER = "SFACTORY_PID1_GUARD_DISPOSABLE"
+MARKER = root_gateway.MARKER
 OWNER_UID = 700004
 
 
@@ -418,7 +419,7 @@ def owner_server(path, notify, allow):
         server.serve_forever()
 
 
-def supervisor_main(configuration):
+def supervisor_main(configuration, gateway_root=False):
     # This is the actual constructor and entry points. The catalog/gate/owner
     # below are explicit public fixtures, never production bootstrap authority.
     backend = product.RootSupervisor(configuration)
@@ -448,6 +449,14 @@ def supervisor_main(configuration):
             "worker_protocol": "unix-json-v1",
         }
     )
+    launched = None
+    if gateway_root:
+        process, launched = root_gateway.launch_root_gateway(
+            backend,
+            grant,
+            configuration.parents[1]
+            / "source/clean-room/tests/fixtures/harness_gateway_exec_target",
+        )
     product.store(
         backend.state / "supervisor-started.json",
         {
@@ -455,6 +464,7 @@ def supervisor_main(configuration):
             "worker": worker,
             "pid": os.getpid(),
             "ticks": product._ticks(os.getpid()),
+            "gateway": launched,
         },
     )
     while True:
@@ -470,7 +480,14 @@ def controller(
     gateway_peer=False,
     schema_four=False,
     gateway_barrier=False,
+    gateway_root=False,
 ):
+    assert not gateway_root or (
+        schema_four
+        and not gateway_peer
+        and not gateway_barrier
+        and fault == "owner-loss"
+    )
     assert os.geteuid() == 0 and base.is_absolute()
     assert str(base).startswith("/var/lib/sfactory-harness/qualification-")
     assert (base / MARKER).read_text() == MARKER + "\n"
@@ -619,7 +636,11 @@ def controller(
         config.update(
             schema=4,
             gateway_uid=2007,
-            gateway_executable_sha256="a" * 64,
+            gateway_executable_sha256=digest(
+                base / "source/clean-room/tests/fixtures/harness_gateway_exec_target"
+            )
+            if gateway_root
+            else "a" * 64,
             gateway_socket_sha256=product.GATEWAY_SOCKET_SHA256,
         )
     configuration.unlink()
@@ -630,6 +651,8 @@ def controller(
     guard_ready = None
     gateway = None
     barrier = None
+    family = []
+    retirement = None
     guard_stopped = False
     try:
         with guard.SystemdManager(
@@ -644,6 +667,7 @@ def controller(
                     str(Path(__file__).resolve()),
                     "supervisor",
                     str(configuration),
+                    *(["--gateway-root"] if gateway_root else []),
                 ],
                 [host_python, "-I", "-B", str(Path(__file__).resolve()), "noop"],
                 60000000,
@@ -688,6 +712,8 @@ def controller(
             # The controller runs in an isolated container; host_python is for
             # PID1 services on the host and lacks libraries inside that image.
             barrier = start_gateway_barrier(sys.executable, grant, group, base)
+        if gateway_root:
+            family = root_gateway.live_gateway_family(group, started["gateway"])
         if fault == "owner-loss":
             kill_service_group(controller_library, parent)
         elif fault == "guard-crash":
@@ -742,27 +768,79 @@ def controller(
             )
         if gateway_barrier:
             assert barrier[0].wait(timeout=5) == -signal.SIGKILL
+        if gateway_root:
+            child = started["gateway"]
+            assert child["path"] == str(group / "gateway")
+            assert not product._owner_alive(child["pid"], child["ticks"])
+            assert all(not product._owner_alive(p["pid"], p["ticks"]) for p in family)
         os.write(release, b"A")
         deadline = time.monotonic() + 5
         while not (saved / "owner-revoked.json").exists():
             assert time.monotonic() < deadline
             time.sleep(0.02)
-        while not (saved / "cleanup.json").exists():
+        while not gateway_root and not (saved / "cleanup.json").exists():
             assert time.monotonic() < deadline, "guard cleanup did not complete"
             time.sleep(0.02)
-        assert (saved / "execution-fenced.json").exists() and (
-            saved / "cleanup.json"
-        ).exists()
+        assert (saved / "execution-fenced.json").exists()
+        assert (saved / "cleanup.json").exists() == (not gateway_root)
         # Keep the exact slice and fixture owner available until PID1 has run
         # ExecStopPost. Retiring the slice here races that second cleanup pass.
-        deadline = time.monotonic() + 35
+        deadline = time.monotonic() + (65 if gateway_root else 35)
         while True:
             final_guard = terminal_snapshot(controller_library, guard_ready["unit"])
             if final_guard["ActiveState"] in ("inactive", "failed"):
                 break
             assert time.monotonic() < deadline, "guard stop-post did not finish"
             time.sleep(0.05)
-        if fault != "guard-crash":
+        if gateway_root:
+            assert (
+                final_guard["ActiveState"] == "failed" and final_guard["MainPID"] == 0
+            ), final_guard
+            assert not (saved / "cleanup.json").exists()
+            try:
+                product.RootSupervisor(configuration, cleanup_only=True)._cleanup(grant)
+            except product.SupervisorRefused as error:
+                assert str(error) == "root_gateway_cleanup_unqualified", str(error)
+            else:
+                raise AssertionError("handed gateway cleanup unexpectedly admitted")
+            retirement = (
+                "sfactoryguard"
+                + hashlib.sha256((str(base) + "/retire").encode()).hexdigest()
+                + ".service"
+            )
+            with guard.SystemdManager(
+                controller_library, digest(controller_library)
+            ) as manager:
+                manager.start(
+                    retirement,
+                    [
+                        host_python,
+                        "-I",
+                        "-B",
+                        str(Path(__file__).resolve()),
+                        "retire",
+                        str(configuration),
+                    ],
+                    [host_python, "-I", "-B", str(Path(__file__).resolve()), "noop"],
+                    10000000,
+                )
+            deadline = time.monotonic() + 10
+            while not (saved / "fixture-retired.json").exists():
+                assert time.monotonic() < deadline, "host fixture retirement unknown"
+                time.sleep(0.02)
+            assert not group.exists()
+            while True:
+                retired = terminal_snapshot(controller_library, retirement)
+                if retired["ActiveState"] in ("inactive", "failed"):
+                    break
+                assert time.monotonic() < deadline, (
+                    "fixture retirement service still active"
+                )
+                time.sleep(0.01)
+            assert (
+                retired["ActiveState"] == "inactive" and retired["Result"] == "success"
+            ), retired
+        elif fault != "guard-crash":
             assert final_guard["ActiveState"] == "inactive", final_guard
             assert (
                 final_guard["MainPID"] == 0
@@ -789,6 +867,12 @@ def controller(
             "exact_worker_fenced_and_removed": True,
             "fixture_gateway_peer_and_child_fenced": gateway_peer,
             "fixture_gateway_barrier_migrated_and_fenced": gateway_barrier,
+            "actual_root_gateway_launch_and_owner_loss": gateway_root,
+            "production_cleanup_qualified": False if gateway_root else None,
+            "handed_socket_cleanup_denial_preserved": gateway_root,
+            "gateway_family": family,
+            "fixture_retirement_unit": retirement,
+            "guard_terminal": final_guard,
             "synthetic_owner_revocation_acknowledged": True,
             "synthetic_catalog_registry_owner": True,
             "production_admission": False,
@@ -801,7 +885,12 @@ def controller(
             "fixture_gateway_unit": gateway[0]["Id"] if gateway else None,
             "source_sha256": {
                 p.name: digest(p)
-                for p in (Path(product.__file__), Path(guard.__file__), Path(__file__))
+                for p in (
+                    Path(product.__file__),
+                    Path(guard.__file__),
+                    Path(__file__),
+                    Path(root_gateway.__file__),
+                )
             },
         }
         print(json.dumps(result, sort_keys=True), flush=True)
@@ -825,7 +914,7 @@ def controller(
                 assert not leaf.exists(), "guard did not reconcile the gateway leaf"
         # Unknown queued work retains its frozen cgroup and evidence.
         retained = state / attempt["attempt_id"] / "grant.json"
-        if retained.exists() and guard_stopped:
+        if retained.exists() and guard_stopped and not gateway_root:
             retire_worker_slice(configuration, json.loads(retained.read_bytes()), group)
         with contextlib.suppress(ProcessLookupError):
             os.kill(owner, signal.SIGKILL)
@@ -847,7 +936,7 @@ def retire_worker_slice(configuration, grant, group):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("controller", "supervisor", "noop"))
+    parser.add_argument("mode", choices=("controller", "supervisor", "retire", "noop"))
     parser.add_argument("path", nargs="?", type=Path)
     parser.add_argument("--host-python")
     parser.add_argument("--host-library")
@@ -855,6 +944,7 @@ def main():
     parser.add_argument("--gateway-peer", action="store_true")
     parser.add_argument("--schema-four", action="store_true")
     parser.add_argument("--gateway-barrier", action="store_true")
+    parser.add_argument("--gateway-root", action="store_true")
     parser.add_argument(
         "--fault",
         choices=("owner-loss", "guard-crash", "lease-expiry"),
@@ -863,13 +953,26 @@ def main():
     args = parser.parse_args()
     if args.mode == "supervisor":
         try:
-            supervisor_main(args.path)
+            supervisor_main(args.path, args.gateway_root)
         except Exception as error:
             product.store(
                 args.path.parent / "service-error.json",
                 {"type": type(error).__name__, "reason": str(error)[:512]},
             )
             raise
+    elif args.mode == "retire":
+        backend = product.RootSupervisor(args.path, cleanup_only=True)
+        started = json.loads(
+            product.protected(backend.state / "supervisor-started.json", 0o600)
+        )
+        grant = started["grant"]
+        root_gateway.retire_root_gateway_fixture(
+            args.path,
+            grant,
+            Path(grant["cgroup_path"]),
+            started["gateway"],
+            prior.slice_unit,
+        )
     elif args.mode == "controller":
         controller(
             args.path,
@@ -880,6 +983,7 @@ def main():
             args.gateway_peer,
             args.schema_four,
             args.gateway_barrier,
+            args.gateway_root,
         )
 
 

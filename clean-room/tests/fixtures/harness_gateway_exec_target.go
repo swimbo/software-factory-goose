@@ -4,8 +4,10 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -85,6 +87,14 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) == 2 && os.Args[1] == "hold-child" {
+		if !transferDenied(0) || !namespacesDenied() {
+			os.Exit(28)
+		}
+		fmt.Println("child-ready")
+		io.Copy(io.Discard, os.Stdin)
+		return
+	}
 	fd := flag.Int("socket-fd", -1, "")
 	path := flag.String("socket-path", "", "")
 	flag.Parse()
@@ -152,7 +162,25 @@ func main() {
 		os.Exit(2)
 	}
 	unixAddr, ok := addr.(*syscall.SockaddrUnix)
-	if !ok || unixAddr.Name != *path || syscall.Listen(*fd, 1) != nil {
+	if !ok || unixAddr.Name != *path {
+		os.Exit(3)
+	}
+	// Keep the listener private until the holding child has passed its probes.
+	syscall.CloseOnExec(*fd)
+	child := exec.Command("/proc/self/exe", "hold-child")
+	input, err := child.StdinPipe()
+	if err != nil {
+		os.Exit(29)
+	}
+	output, err := child.StdoutPipe()
+	if err != nil || child.Start() != nil {
+		os.Exit(29)
+	}
+	defer func() { input.Close(); child.Wait() }()
+	if line, err := bufio.NewReader(output).ReadString('\n'); err != nil || line != "child-ready\n" {
+		os.Exit(30)
+	}
+	if syscall.Listen(*fd, 1) != nil {
 		os.Exit(3)
 	}
 	file := os.NewFile(uintptr(*fd), "fixture-socket")
