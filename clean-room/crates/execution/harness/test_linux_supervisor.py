@@ -234,12 +234,53 @@ class CleanupOutcomeTests(unittest.TestCase):
         from pathlib import Path
 
         root = object.__new__(RootSupervisor)
+        root.cfg = {"schema": 3}
         case = Path(directory)
         root._saved = Mock(return_value=case)
         root._docker = Mock(return_value=b"")
         root._kernel_scope = Mock()
         root._fence_execution = Mock()
         return root, case, {"attempt_id": "run_" + "a" * 64, "grant_id": "b" * 64}
+
+    def test_bound_gateway_intent_never_claims_cleanup(self):
+        import contextlib
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            root.cfg = {"schema": 4}
+            (case / "gateway-bind-intent.json").write_text("{}")
+            with patch(
+                "linux_supervisor.gateway_bind_lock",
+                return_value=contextlib.nullcontext(),
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_cleanup_unqualified"
+                ):
+                    root._cleanup(grant)
+            root._fence_execution.assert_called_once_with(grant)
+            root._docker.assert_not_called()
+            self.assertFalse((case / "cleanup.json").exists())
+
+    def test_concurrent_gateway_bind_cannot_claim_cleanup(self):
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            root.cfg = {"schema": 4}
+            with patch(
+                "linux_supervisor.gateway_bind_lock",
+                side_effect=SupervisorRefused("root_gateway_bind_busy"),
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_bind_busy"
+                ):
+                    root._cleanup(grant)
+            root._fence_execution.assert_called_once_with(grant)
+            root._docker.assert_not_called()
+            self.assertFalse((case / "cleanup.json").exists())
 
     def test_known_removed_container_cleanup_is_idempotent(self):
         import tempfile

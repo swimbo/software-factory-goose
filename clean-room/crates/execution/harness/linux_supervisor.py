@@ -8,6 +8,8 @@ are retained; lost start acknowledgements never authorize another launch.
 """
 
 import copy
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import http.server
 import importlib.util
@@ -42,7 +44,6 @@ from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
 from linux_service_guard import start_guard, check_guard
-from linux_gateway_socket import bind_gateway_socket
 
 MOUNT_TARGETS = {
     "goose": "/goose",
@@ -61,6 +62,49 @@ class SupervisorRefused(LinuxRunnerRefused):
 def require(value, reason):
     if not value:
         raise SupervisorRefused(reason)
+
+
+@contextmanager
+def gateway_bind_lock(case):
+    """Serialize binding and cleanup across the supervisor and PID1 guard."""
+    path = case / "gateway-bind.lock"
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        info = os.fstat(fd)
+        named = os.stat(path, follow_symlinks=False)
+        require(
+            stat.S_ISREG(info.st_mode)
+            and info.st_uid == 0
+            and info.st_nlink == 1
+            and stat.S_IMODE(info.st_mode) == 0o600
+            and (info.st_dev, info.st_ino) == (named.st_dev, named.st_ino),
+            "root_gateway_lock_changed",
+        )
+        _no_acl(fd)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise SupervisorRefused("root_gateway_bind_busy") from None
+        named = os.stat(path, follow_symlinks=False)
+        require(
+            (info.st_dev, info.st_ino) == (named.st_dev, named.st_ino),
+            "root_gateway_lock_changed",
+        )
+        yield
+    finally:
+        os.close(fd)
+
+
+def load_gateway_socket(expected):
+    """Load only bytes verified against the Root-owned socket-helper digest."""
+    require(_digest(expected), "root_gateway_socket_digest_invalid")
+    path = Path(__file__).with_name("linux_gateway_socket.py")
+    source = protected(path, 0o444, expected=expected)
+    namespace = {"__name__": "root_gateway_socket", "__file__": str(path)}
+    exec(compile(source, str(path), "exec"), namespace)
+    binder = namespace.get("bind_gateway_socket")
+    require(callable(binder), "root_gateway_socket_invalid")
+    return binder
 
 
 def inspect_gateway_peer(grant, pid, start_ticks, uid, executable_sha256):
@@ -816,11 +860,12 @@ class RootSupervisor:
                 _digest(self.cfg["gateway_socket_sha256"]),
                 "root_gateway_socket_digest_invalid",
             )
-            protected(
-                Path(__file__).with_name("linux_gateway_socket.py"),
-                0o444,
-                expected=self.cfg["gateway_socket_sha256"],
-            )
+            if not cleanup_only:
+                protected(
+                    Path(__file__).with_name("linux_gateway_socket.py"),
+                    0o444,
+                    expected=self.cfg["gateway_socket_sha256"],
+                )
         self.runtime, self.catalog, self.state = (
             Path(self.cfg[k]) for k in ("runtime_root", "catalog_root", "state_root")
         )
@@ -1109,30 +1154,10 @@ class RootSupervisor:
         """Bind once under the current grant; this does not launch a gateway."""
         require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
         with self.gate.admission(), self.guard:
-            case = self._current(grant)
-            scope_sha256 = self._saved_scope(grant)
-            self._kernel_scope(grant, empty=False)
-            ready = check_guard(self, grant)
-            require(
-                ready["owner_pid"] == os.getpid()
-                and ready["owner_ticks"] == _ticks(os.getpid()),
-                "root_gateway_guard_owner_changed",
-            )
-            intent = {
-                "grant_sha256": sha(grant),
-                "scope_sha256": scope_sha256,
-                "gateway_uid": self.cfg["gateway_uid"],
-                "broker_gid": grant["broker_uid"],
-            }
-            store(case / "gateway-bind-intent.json", intent)
-            bound = None
-            try:
-                bound, identity = bind_gateway_socket(
-                    grant["attempt_id"][4:],
-                    self.cfg["gateway_uid"],
-                    grant["broker_uid"],
-                )
-                self._current(grant)
+            case = self._saved(grant)
+            with gateway_bind_lock(case):
+                case = self._current(grant)
+                scope_sha256 = self._saved_scope(grant)
                 self._kernel_scope(grant, empty=False)
                 ready = check_guard(self, grant)
                 require(
@@ -1140,13 +1165,38 @@ class RootSupervisor:
                     and ready["owner_ticks"] == _ticks(os.getpid()),
                     "root_gateway_guard_owner_changed",
                 )
-                receipt = {"intent": intent, "socket": identity}
-                store(case / "gateway-bound.json", receipt)
-                return bound, receipt
-            except BaseException:
-                if bound is not None:
-                    bound.close()
-                raise
+                bind_gateway_socket = load_gateway_socket(
+                    self.cfg["gateway_socket_sha256"]
+                )
+                intent = {
+                    "grant_sha256": sha(grant),
+                    "scope_sha256": scope_sha256,
+                    "gateway_uid": self.cfg["gateway_uid"],
+                    "broker_gid": grant["broker_uid"],
+                }
+                store(case / "gateway-bind-intent.json", intent)
+                bound = None
+                try:
+                    bound, identity = bind_gateway_socket(
+                        grant["attempt_id"][4:],
+                        self.cfg["gateway_uid"],
+                        grant["broker_uid"],
+                    )
+                    self._current(grant)
+                    self._kernel_scope(grant, empty=False)
+                    ready = check_guard(self, grant)
+                    require(
+                        ready["owner_pid"] == os.getpid()
+                        and ready["owner_ticks"] == _ticks(os.getpid()),
+                        "root_gateway_guard_owner_changed",
+                    )
+                    receipt = {"intent": intent, "socket": identity}
+                    store(case / "gateway-bound.json", receipt)
+                    return bound, receipt
+                except BaseException:
+                    if bound is not None:
+                        bound.close()
+                    raise
 
     def gateway_peer_v1(self, body):
         """Recheck an authenticated broker's kernel-reported gateway peer."""
@@ -1273,7 +1323,9 @@ class RootSupervisor:
         self._catalog(intent["attempt"], intent["admission"])
         require(
             time.time_ns() // 1000000 < grant["expires_at_ms"]
-            and not os.path.lexists(case / "stop.json"),
+            and not os.path.lexists(case / "stop.json")
+            and not os.path.lexists(case / "execution-fenced.json")
+            and not os.path.lexists(case / "cleanup.json"),
             "root_launch_expired_or_revoked",
         )
         return case
@@ -1511,6 +1563,16 @@ class RootSupervisor:
     def _cleanup(self, grant):
         case = self._saved(grant)
         self._fence_execution(grant)
+        if self.cfg.get("schema") == 4:
+            with gateway_bind_lock(case):
+                require(
+                    not os.path.lexists(case / "gateway-bind-intent.json"),
+                    "root_gateway_cleanup_unqualified",
+                )
+                return self._cleanup_after_fence(grant, case)
+        return self._cleanup_after_fence(grant, case)
+
+    def _cleanup_after_fence(self, grant, case):
         name = "sfactory-harness-" + grant["attempt_id"][4:]
         # A successful daemon query distinguishes absence from an unavailable daemon.
         identities = (

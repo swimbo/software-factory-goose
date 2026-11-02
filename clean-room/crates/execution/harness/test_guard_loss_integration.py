@@ -43,6 +43,7 @@ class GuardLossIntegrationTests(unittest.TestCase):
                 product.store(case / "start-intent.json", {"public": "fixture"})
 
             backend = object.__new__(product.RootSupervisor)
+            backend.cfg = {"schema": 3}
             backend._case = lambda _: case
             backend._current = Mock()
             backend.prepare = Mock()

@@ -5,9 +5,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 from types import SimpleNamespace
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -16,26 +20,119 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_supervisor_import_does_not_require_socket_helper_for_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "harness"
+            shutil.copytree(
+                Path(__file__).parent,
+                source,
+                ignore=shutil.ignore_patterns("__pycache__"),
+            )
+            (source / "linux_gateway_socket.py").unlink()
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    "-c",
+                    "import sys;sys.path.insert(0,sys.argv[1]);import linux_supervisor",
+                    str(source),
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stderr.decode(errors="replace")
+            )
+
+    def test_gateway_socket_loader_requires_digest_and_verified_source(self):
+        source = b"def bind_gateway_socket(*args):\n    return args\n"
+        with patch.object(root, "protected", return_value=source) as verified:
+            with self.assertRaises(root.SupervisorRefused):
+                root.load_gateway_socket("invalid")
+            verified.assert_not_called()
+            binder = root.load_gateway_socket("a" * 64)
+            self.assertEqual(binder(1, 2, 3), (1, 2, 3))
+            self.assertEqual(verified.call_args.kwargs["expected"], "a" * 64)
+            self.assertEqual(verified.call_args.args[1], 0o444)
+
+    def test_gateway_bind_lock_refuses_a_competing_holder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            original = os.fstat
+
+            def root_owned(fd):
+                info = original(fd)
+                return SimpleNamespace(
+                    st_mode=info.st_mode,
+                    st_uid=0,
+                    st_nlink=info.st_nlink,
+                    st_dev=info.st_dev,
+                    st_ino=info.st_ino,
+                )
+
+            with (
+                patch.object(root.os, "fstat", side_effect=root_owned),
+                patch.object(root, "_no_acl"),
+            ):
+                with root.gateway_bind_lock(case):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "root_gateway_bind_busy"
+                    ):
+                        with root.gateway_bind_lock(case):
+                            self.fail("concurrent lock acquired")
+                with root.gateway_bind_lock(case):
+                    pass
+
+    def test_current_grant_refuses_fenced_or_cleaned_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            (case / "prepare-intent.json").write_text('{"attempt":{},"admission":{}}')
+            backend = object.__new__(root.RootSupervisor)
+            backend._saved = Mock(return_value=case)
+            backend._catalog = Mock()
+            grant = {"expires_at_ms": time.time_ns() // 1000000 + 10000}
+            with patch.object(
+                root, "protected", side_effect=lambda p, *_: p.read_bytes()
+            ):
+                self.assertEqual(backend._current(grant), case)
+                for marker in ("execution-fenced.json", "cleanup.json"):
+                    path = case / marker
+                    path.write_text("{}")
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend._current(grant)
+                    path.unlink()
+
     def test_root_bound_socket_requires_current_guard_and_one_use_intent(self):
         with tempfile.TemporaryDirectory() as directory:
             case = Path(directory)
             grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
             backend = object.__new__(root.RootSupervisor)
-            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.cfg = {
+                "schema": 4,
+                "gateway_uid": 2007,
+                "gateway_socket_sha256": "d" * 64,
+            }
             backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
             backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
             backend._current = Mock(return_value=case)
             backend._saved_scope = Mock(return_value="c" * 64)
             backend._kernel_scope = Mock()
             sock = Mock()
             identity = {"path": "/public-fixture.sock", "dev": 1, "ino": 2}
+            bind = Mock(return_value=(sock, identity))
             ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
             with (
-                patch.object(
-                    root, "bind_gateway_socket", return_value=(sock, identity)
-                ) as bind,
+                patch.object(root, "load_gateway_socket", return_value=bind),
                 patch.object(root, "check_guard", return_value=ready) as guard,
                 patch.object(root, "_ticks", return_value=44),
+                patch.object(
+                    root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
             ):
                 backend.cfg["schema"] = 3
                 with self.assertRaises(root.SupervisorRefused):
@@ -65,22 +162,34 @@ class GatewayPeerTests(unittest.TestCase):
             case = Path(directory)
             grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
             backend = object.__new__(root.RootSupervisor)
-            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.cfg = {
+                "schema": 4,
+                "gateway_uid": 2007,
+                "gateway_socket_sha256": "d" * 64,
+            }
             backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
             backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
             backend._current = Mock(return_value=case)
             backend._saved_scope = Mock(return_value="c" * 64)
             backend._kernel_scope = Mock()
             sock = Mock()
             ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
             with (
-                patch.object(root, "bind_gateway_socket", return_value=(sock, {})),
+                patch.object(
+                    root,
+                    "load_gateway_socket",
+                    return_value=Mock(return_value=(sock, {})),
+                ),
                 patch.object(
                     root,
                     "check_guard",
                     side_effect=[ready, root.SupervisorRefused("guard lost")],
                 ),
                 patch.object(root, "_ticks", return_value=44),
+                patch.object(
+                    root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
             ):
                 with self.assertRaises(root.SupervisorRefused):
                     backend._bind_gateway_socket(grant)
