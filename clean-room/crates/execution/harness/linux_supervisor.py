@@ -18,6 +18,7 @@ import os
 import re
 from pathlib import Path
 import secrets
+import select
 import signal
 import socket
 import socketserver
@@ -1558,6 +1559,151 @@ class RootSupervisor:
                     if bound is not None:
                         bound.close()
                     raise
+
+    def _prepare_gateway(self, grant, bound_socket, program_fd):
+        """Start and attach a gated child; return its still-closed release gate.
+
+        This private construction path grants no inference authority. The
+        caller owns the returned process and gate and must fence/reconcile on
+        failure. Socket handoff cleanup and production bootstrap remain gated.
+        """
+        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        process = None
+        helper_fd = gate_r = gate_w = ready_r = ready_w = None
+        transferred = False
+        try:
+            with self.gate.admission(), self.guard:
+                case = self._saved(grant)
+                with gateway_bind_lock(case):
+                    case = self._current(grant)
+                    scope = self._saved_scope(grant)
+                    self._kernel_scope(grant, empty=False)
+                    ready = check_guard(self, grant)
+                    require(
+                        ready["owner_pid"] == os.getpid()
+                        and ready["owner_ticks"] == _ticks(os.getpid()),
+                        "root_gateway_guard_owner_changed",
+                    )
+                    bound = _decode(protected(case / "gateway-bound.json", 0o600))
+                    expected = {
+                        "grant_sha256": sha(grant),
+                        "scope_sha256": scope,
+                        "gateway_uid": self.cfg["gateway_uid"],
+                        "broker_gid": grant["broker_uid"],
+                    }
+                    require(
+                        type(bound) is dict
+                        and set(bound) == {"intent", "socket"}
+                        and bound["intent"] == expected
+                        and type(bound["socket"]) is dict
+                        and set(bound["socket"]) == {"path", "dev", "ino"}
+                        and bound["socket"]["path"]
+                        == "/var/lib/sfactory-harness/gw/"
+                        + grant["attempt_id"][4:]
+                        + ".sock"
+                        and _integer(bound["socket"]["dev"], 1)
+                        and _integer(bound["socket"]["ino"], 1)
+                        and type(program_fd) is int
+                        and program_fd >= 3,
+                        "root_gateway_bound_receipt_changed",
+                    )
+                    store(
+                        case / "gateway-spawn-intent.json",
+                        {"intent": expected, "socket": bound["socket"]},
+                    )
+                    helper_fd = stage_gateway_exec()
+                    gate_r, gate_w = os.pipe()
+                    ready_r, ready_w = os.pipe()
+                    now = time.time_ns() // 1000000
+                    deadline = min(grant["expires_at_ms"], now + 15000)
+                    require(now < deadline, "root_gateway_deadline_expired")
+                    config = {
+                        "gateway_uid": self.cfg["gateway_uid"],
+                        "gateway_gid": self.cfg["gateway_uid"],
+                        "broker_gid": grant["broker_uid"],
+                        "owner_pid": os.getpid(),
+                        "owner_ticks": _ticks(os.getpid()),
+                        "boot_id": grant["boot_id"],
+                        "cgroup_path": grant["cgroup_path"],
+                        "cgroup_dev": grant["cgroup_dev"],
+                        "cgroup_ino": grant["cgroup_ino"],
+                        "socket_path": bound["socket"]["path"],
+                        "socket_fd": bound_socket.fileno(),
+                        "socket_dev": bound["socket"]["dev"],
+                        "socket_ino": bound["socket"]["ino"],
+                        "program_fd": program_fd,
+                        "program_sha256": self.cfg["gateway_executable_sha256"],
+                        "gate_fd": gate_r,
+                        "ready_fd": ready_w,
+                        "deadline_ms": deadline,
+                    }
+                    process = subprocess.Popen(
+                        [
+                            self.cfg["python"],
+                            "-I",
+                            "-B",
+                            f"/proc/self/fd/{helper_fd}",
+                            canonical(config),
+                        ],
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        pass_fds=(
+                            helper_fd,
+                            program_fd,
+                            bound_socket.fileno(),
+                            gate_r,
+                            ready_w,
+                        ),
+                        user=self.cfg["gateway_uid"],
+                        group=self.cfg["gateway_uid"],
+                        extra_groups=[],
+                        cwd="/",
+                        env={},
+                        start_new_session=True,
+                    )
+            # The parent must not retain a socket copy after handing it to the child.
+            bound_socket.close()
+            os.close(gate_r)
+            gate_r = None
+            os.close(ready_w)
+            ready_w = None
+            wait = min(5.0, max(0.0, (deadline - time.time_ns() // 1000000) / 1000))
+            require(
+                wait > 0
+                and select.select([ready_r], [], [], wait)[0]
+                and os.read(ready_r, 1) == b"R",
+                "root_gateway_barrier_not_ready",
+            )
+            attached = self._attach_gateway(grant, process)
+            gate_info = os.fstat(gate_w)
+            require(
+                stat.S_ISFIFO(gate_info.st_mode) and not os.get_inheritable(gate_w),
+                "root_gateway_gate_changed",
+            )
+            store(
+                case / "gateway-prepared.json",
+                {
+                    "grant_sha256": sha(grant),
+                    "child": attached,
+                    "gate_dev": gate_info.st_dev,
+                    "gate_ino": gate_info.st_ino,
+                },
+            )
+            transferred = True
+            return process, gate_w, attached
+        finally:
+            bound_socket.close()
+            for fd in (helper_fd, gate_r, ready_r, ready_w):
+                if fd is not None:
+                    os.close(fd)
+            if not transferred:
+                if gate_w is not None:
+                    os.close(gate_w)
+                if process is not None:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait(timeout=5)
 
     def _attach_gateway(self, grant, process):
         """Attach a gated child under current authority; never release its gate.

@@ -22,6 +22,187 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_root_prepare_spawns_gated_child_and_never_releases_it(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bound,
+        ):
+            case = Path(directory)
+            grant = {
+                "attempt_id": "run_" + "a" * 64,
+                "broker_uid": 2005,
+                "cgroup_path": "/sys/fs/cgroup/public.slice",
+                "cgroup_dev": 1,
+                "cgroup_ino": 2,
+                "boot_id": "a" * 36,
+                "expires_at_ms": time.time_ns() // 1000000 + 12000,
+            }
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {
+                "schema": 4,
+                "gateway_uid": 2007,
+                "gateway_executable_sha256": "b" * 64,
+                "python": sys.executable,
+            }
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            attached = {
+                "path": grant["cgroup_path"] + "/gateway",
+                "dev": 3,
+                "ino": 4,
+                "pid": 456,
+                "ticks": 789,
+            }
+            backend._attach_gateway = Mock(return_value=attached)
+            intent = {
+                "grant_sha256": root.sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            record = {
+                "intent": intent,
+                "socket": {
+                    "path": "/var/lib/sfactory-harness/gw/" + "a" * 64 + ".sock",
+                    "dev": 5,
+                    "ino": 6,
+                },
+            }
+            (case / "gateway-bound.json").write_text(json.dumps(record))
+            child = Mock(pid=456)
+            original_socket = bound.fileno()
+            program = os.open(os.devnull, os.O_RDONLY)
+            helper = os.open(os.devnull, os.O_RDONLY)
+
+            def spawn(argv, **kwargs):
+                self.assertTrue((case / "gateway-spawn-intent.json").exists())
+                self.assertEqual(kwargs["user"], 2007)
+                self.assertEqual(kwargs["extra_groups"], [])
+                self.assertEqual(kwargs["env"], {})
+                self.assertIn(original_socket, kwargs["pass_fds"])
+                config = json.loads(argv[-1])
+                os.write(config["ready_fd"], b"R")
+                return child
+
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(
+                        root,
+                        "check_guard",
+                        return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                    ),
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root.subprocess, "Popen", side_effect=spawn),
+                ):
+                    actual, gate, receipt = backend._prepare_gateway(
+                        grant, bound, program
+                    )
+                try:
+                    self.assertEqual((actual, receipt), (child, attached))
+                    self.assertEqual(bound.fileno(), -1)
+                    self.assertFalse(os.get_inheritable(gate))
+                    self.assertTrue((case / "gateway-prepared.json").exists())
+                    backend._attach_gateway.assert_called_once_with(grant, child)
+                    child.kill.assert_not_called()
+                finally:
+                    os.close(gate)
+            finally:
+                os.close(program)
+
+    def test_root_prepare_kills_child_when_barrier_fails_before_ready(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bound,
+        ):
+            case = Path(directory)
+            grant = {
+                "attempt_id": "run_" + "a" * 64,
+                "broker_uid": 2005,
+                "cgroup_path": "/sys/fs/cgroup/public.slice",
+                "cgroup_dev": 1,
+                "cgroup_ino": 2,
+                "boot_id": "a" * 36,
+                "expires_at_ms": time.time_ns() // 1000000 + 12000,
+            }
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {
+                "schema": 4,
+                "gateway_uid": 2007,
+                "gateway_executable_sha256": "b" * 64,
+                "python": sys.executable,
+            }
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            backend._attach_gateway = Mock()
+            intent = {
+                "grant_sha256": root.sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            (case / "gateway-bound.json").write_text(
+                json.dumps(
+                    {
+                        "intent": intent,
+                        "socket": {
+                            "path": "/var/lib/sfactory-harness/gw/"
+                            + "a" * 64
+                            + ".sock",
+                            "dev": 5,
+                            "ino": 6,
+                        },
+                    }
+                )
+            )
+            child = Mock(pid=456)
+            child.poll.return_value = None
+            program = os.open(os.devnull, os.O_RDONLY)
+            helper = os.open(os.devnull, os.O_RDONLY)
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(
+                        root,
+                        "check_guard",
+                        return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                    ),
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root.subprocess, "Popen", return_value=child),
+                ):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "root_gateway_barrier_not_ready"
+                    ):
+                        backend._prepare_gateway(grant, bound, program)
+                child.kill.assert_called_once()
+                child.wait.assert_called_once_with(timeout=5)
+                backend._attach_gateway.assert_not_called()
+                self.assertEqual(bound.fileno(), -1)
+                self.assertTrue((case / "gateway-spawn-intent.json").exists())
+                self.assertFalse((case / "gateway-prepared.json").exists())
+            finally:
+                os.close(program)
+
     def test_gateway_exec_pin_matches_reviewed_source_and_refuses_changed_bytes(self):
         helper = Path(root.__file__).with_name("linux_gateway_exec.py")
         self.assertEqual(

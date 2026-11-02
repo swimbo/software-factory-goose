@@ -3,6 +3,7 @@
 
 import hashlib
 import ctypes
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,12 @@ import struct
 import subprocess
 import sys
 import time
+import threading
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+sys.path.insert(0, "/source/clean-room/crates/execution/harness")
+import linux_supervisor as product
 
 SOURCE = Path("/source/clean-room/crates/execution/harness/linux_gateway_exec.py")
 TARGET = Path("/var/lib/sfactory-harness/fixture-target")
@@ -282,6 +289,129 @@ def owner_loss_case():
             os.waitpid(child_pid, 0)
 
 
+def prepare_case(refuse=False):
+    """Exercise the real spawn path with explicitly synthetic Root seams."""
+    suffix = "c" if refuse else "b"
+    case = Path("/var/lib/sfactory-harness/prepare-" + suffix)
+    case.mkdir(mode=0o700)
+    group = Path("/sys/fs/cgroup" + Path("/proc/self/cgroup").read_text().strip()[3:])
+    group_info = group.stat()
+    grant = {
+        "attempt_id": "run_" + suffix * 64,
+        "broker_uid": 2005,
+        "cgroup_path": str(group),
+        "cgroup_dev": group_info.st_dev,
+        "cgroup_ino": group_info.st_ino,
+        "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+        "expires_at_ms": time.time_ns() // 1000000 + 12000,
+    }
+    name = ROOT / (suffix * 64 + ".sock")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bound:
+        bound.bind(str(name))
+        os.chmod(name, 0o660)
+        os.chown(name, 2007, 2005)
+        info = name.lstat()
+        intent = {
+            "grant_sha256": product.sha(grant),
+            "scope_sha256": "c" * 64,
+            "gateway_uid": 2007,
+            "broker_gid": 2005,
+        }
+        (case / "gateway-bound.json").write_text(
+            json.dumps(
+                {
+                    "intent": intent,
+                    "socket": {
+                        "path": str(name),
+                        "dev": info.st_dev,
+                        "ino": info.st_ino,
+                    },
+                }
+            )
+        )
+        backend = object.__new__(product.RootSupervisor)
+        backend.cfg = {
+            "schema": 4,
+            "gateway_uid": 2007,
+            "python": sys.executable,
+            "gateway_executable_sha256": hashlib.sha256(
+                TARGET.read_bytes()
+            ).hexdigest(),
+        }
+        backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+        backend.guard = threading.Lock()
+        backend._saved = Mock(return_value=case)
+        backend._current = Mock(return_value=case)
+        backend._saved_scope = Mock(return_value="c" * 64)
+        backend._kernel_scope = Mock()
+        backend._attach_gateway = Mock(
+            side_effect=lambda _, child: {
+                "path": str(group) + "/gateway",
+                "dev": group_info.st_dev,
+                "ino": group_info.st_ino,
+                "pid": child.pid,
+                "ticks": ticks(child.pid),
+            }
+        )
+        if refuse:
+            backend._attach_gateway.side_effect = product.SupervisorRefused(
+                "fixture attachment refused"
+            )
+        program = os.open(TARGET, os.O_RDONLY | os.O_CLOEXEC)
+        spawned = []
+        real_popen = subprocess.Popen
+
+        def record_spawn(*args, **kwargs):
+            child = real_popen(*args, **kwargs)
+            spawned.append(child)
+            return child
+
+        try:
+            with (
+                patch.object(
+                    product, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
+                patch.object(
+                    product,
+                    "protected",
+                    side_effect=lambda p, *a, **k: Path(p).read_bytes(),
+                ),
+                patch.object(
+                    product,
+                    "check_guard",
+                    return_value={
+                        "owner_pid": os.getpid(),
+                        "owner_ticks": ticks(os.getpid()),
+                    },
+                ),
+                patch.object(product.subprocess, "Popen", side_effect=record_spawn),
+            ):
+                if refuse:
+                    try:
+                        backend._prepare_gateway(grant, bound, program)
+                    except product.SupervisorRefused:
+                        pass
+                    else:
+                        raise RuntimeError("fixture attachment refusal ignored")
+                    backend._attach_gateway.assert_called_once()
+                    if (
+                        len(spawned) != 1
+                        or spawned[0].poll() is None
+                        or (case / "gateway-prepared.json").exists()
+                    ):
+                        raise RuntimeError("refused child not joined")
+                    return
+                process, gate, _ = backend._prepare_gateway(grant, bound, program)
+            os.close(gate)
+            if (
+                process.wait(timeout=5) == 0
+                or not (case / "gateway-prepared.json").exists()
+            ):
+                raise RuntimeError("prepared child escaped closed release gate")
+        finally:
+            os.close(program)
+
+
 def main():
     if (
         sys.platform != "linux"
@@ -309,6 +439,8 @@ def main():
     ):
         run_case(index, action)
     owner_loss_case()
+    prepare_case()
+    prepare_case(refuse=True)
     print(
         json.dumps(
             {
@@ -322,6 +454,8 @@ def main():
                 "wrong_socket_type_denied": True,
                 "released_exec_uid_verified": True,
                 "owner_loss_before_release_denied": True,
+                "root_prepare_spawn_closed_gate_verified": True,
+                "root_prepare_attachment_failure_child_joined": True,
                 "actual_cgroup_migration_tested": False,
                 "fixture_only": True,
                 "paid_calls": 0,
