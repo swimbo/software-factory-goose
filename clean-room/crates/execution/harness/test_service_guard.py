@@ -99,6 +99,85 @@ class GuardContractTests(unittest.TestCase):
 
 
 class GuardStartStateTests(unittest.TestCase):
+    def test_binding_accepts_schema_four_and_still_checks_pinned_inputs(self):
+        import json
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import call, patch
+        import linux_service_guard as guard
+
+        cfg = {
+            "schema": 4,
+            "guard_program": str(Path(guard.__file__).resolve()),
+            "supervisor_program": str(
+                Path(guard.__file__).with_name("linux_supervisor.py").resolve()
+            ),
+            "python": "/fixture/python",
+            "systemd_library": "/fixture/systemd",
+            **{
+                name + "_sha256": str(index) * 64
+                for index, name in enumerate(
+                    (
+                        "guard_program",
+                        "supervisor_program",
+                        "python",
+                        "systemd_library",
+                    ),
+                    1,
+                )
+            },
+        }
+        backend = SimpleNamespace(cfg=cfg, configuration=Path("/fixture/config"))
+        with (
+            patch.object(guard, "_immutable") as immutable,
+            patch("linux_supervisor.protected", return_value=json.dumps(cfg).encode()),
+        ):
+            result = guard._binding(backend)
+            self.assertEqual(result["config_sha256"], guard.sha(cfg))
+            self.assertEqual(result["guard_sha256"], cfg["guard_program_sha256"])
+            self.assertEqual(
+                result["supervisor_sha256"], cfg["supervisor_program_sha256"]
+            )
+            self.assertEqual(
+                immutable.call_args_list,
+                [
+                    call(cfg[name], cfg[name + "_sha256"])
+                    for name in (
+                        "guard_program",
+                        "supervisor_program",
+                        "python",
+                        "systemd_library",
+                    )
+                ],
+            )
+            for invalid in (1, 5, 4.0, True):
+                with self.subTest(schema=invalid), self.assertRaises(GuardRefused):
+                    guard._binding(SimpleNamespace(cfg=cfg | {"schema": invalid}))
+
+        for schema in (2, 3):
+            prior = cfg | {"schema": schema}
+            with (
+                self.subTest(schema=schema),
+                patch.object(guard, "_immutable"),
+                patch(
+                    "linux_supervisor.protected",
+                    return_value=json.dumps(prior).encode(),
+                ),
+            ):
+                self.assertEqual(
+                    guard._binding(SimpleNamespace(cfg=prior, configuration="/config"))[
+                        "config_sha256"
+                    ],
+                    guard.sha(prior),
+                )
+
+        with (
+            patch.object(guard, "_immutable"),
+            patch("linux_supervisor.protected", return_value=b"{}"),
+            self.assertRaisesRegex(GuardRefused, "guard_configuration_changed"),
+        ):
+            guard._binding(backend)
+
     def test_unknown_pid1_ack_never_dispatches_a_second_service(self):
         import json
         import tempfile
