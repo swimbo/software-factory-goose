@@ -158,13 +158,22 @@ class GatewayPeerTests(unittest.TestCase):
             "gateway_uid": 2007,
         }
         info = os.fstat(gate)
+        namespace = {
+            "grant_sha256": root.sha(grant),
+            "scope_sha256": "c" * 64,
+            "pid": child["pid"],
+            "ticks": child["ticks"],
+            "namespace": {"dev": 11, "ino": 12},
+        }
         prepared = {
             "grant_sha256": root.sha(grant),
             "child": child,
             "gate_dev": info.st_dev,
             "gate_ino": info.st_ino,
             "deadline_ms": grant["expires_at_ms"],
+            "namespace": namespace,
         }
+        (case / "gateway-userns.json").write_text(json.dumps(namespace))
         (case / "gateway-prepared.json").write_text(json.dumps(prepared))
         (case / "gateway-attached.json").write_text(
             json.dumps({"intent": intent, "child": child})
@@ -189,6 +198,9 @@ class GatewayPeerTests(unittest.TestCase):
                     patch.object(root, "check_guard", return_value=guard) as check,
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "inspect_prepared_gateway") as inspect,
+                    patch.object(
+                        root, "inspect_gateway_user_namespace"
+                    ) as userns_inspect,
                 ):
                     result = backend._release_gateway(grant, process, writer)
                     self.assertEqual(os.read(reader, 1), b"G")
@@ -201,6 +213,7 @@ class GatewayPeerTests(unittest.TestCase):
                     )
                     self.assertEqual(check.call_count, 2)
                     self.assertEqual(inspect.call_count, 2)
+                    self.assertEqual(userns_inspect.call_count, 2)
                     self.assertEqual(
                         json.loads((case / "gateway-released.json").read_text()), result
                     )
@@ -228,6 +241,7 @@ class GatewayPeerTests(unittest.TestCase):
                     patch.object(root, "check_guard", return_value=guard) as check,
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "inspect_prepared_gateway") as inspect,
+                    patch.object(root, "inspect_gateway_user_namespace"),
                 ):
                     with self.assertRaisesRegex(
                         root.SupervisorRefused, "root_gateway_gate_changed"
@@ -279,10 +293,45 @@ class GatewayPeerTests(unittest.TestCase):
                     ),
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "inspect_prepared_gateway"),
+                    patch.object(root, "inspect_gateway_user_namespace"),
                     patch.object(root.os, "fstat", side_effect=gate_info),
                 ):
                     backend._release_gateway(grant, process, writer)
                     self.assertEqual(os.read(reader, 1), b"G")
+            finally:
+                os.close(reader)
+
+    def test_root_release_refuses_substituted_namespace_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            reader, writer = os.pipe()
+            backend, grant, process, prepared = self.release_fixture(case, writer)
+            altered = dict(prepared["namespace"])
+            altered["namespace"] = {"dev": 11, "ino": 13}
+            (case / "gateway-userns.json").write_text(json.dumps(altered))
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(
+                        root,
+                        "check_guard",
+                        return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                    ),
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "inspect_gateway_user_namespace") as inspect,
+                ):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "root_gateway_prepared_receipt_changed"
+                    ):
+                        backend._release_gateway(grant, process, writer)
+                    inspect.assert_not_called()
+                    self.assertFalse((case / "gateway-release-intent.json").exists())
+                    self.assertEqual(os.read(reader, 1), b"")
             finally:
                 os.close(reader)
 
@@ -319,6 +368,7 @@ class GatewayPeerTests(unittest.TestCase):
                         "inspect_prepared_gateway",
                         side_effect=replace_after_check,
                     ),
+                    patch.object(root, "inspect_gateway_user_namespace"),
                 ):
                     with self.assertRaisesRegex(
                         root.SupervisorRefused, "root_gateway_gate_changed"
@@ -369,7 +419,7 @@ class GatewayPeerTests(unittest.TestCase):
                 "dev": 3,
                 "ino": 4,
                 "pid": 456,
-                "ticks": 789,
+                "ticks": 123,
             }
             backend._attach_gateway = Mock(return_value=attached)
             intent = {
@@ -391,15 +441,18 @@ class GatewayPeerTests(unittest.TestCase):
             original_socket = bound.fileno()
             program = os.open(os.devnull, os.O_RDONLY)
             helper = os.open(os.devnull, os.O_RDONLY)
+            bootstrap = os.open(os.devnull, os.O_RDONLY)
+            held_map = []
 
             def spawn(argv, **kwargs):
                 self.assertTrue((case / "gateway-spawn-intent.json").exists())
-                self.assertEqual(kwargs["user"], 2007)
-                self.assertEqual(kwargs["extra_groups"], [])
+                self.assertNotIn("user", kwargs)
                 self.assertEqual(kwargs["env"], {})
                 self.assertIn(original_socket, kwargs["pass_fds"])
                 config = json.loads(argv[-1])
-                os.write(config["ready_fd"], b"R")
+                held_map.append(os.dup(config["map_fd"]))
+                os.write(config["ready_fd"], b"N")
+                os.write(config["helper_config"]["ready_fd"], b"R")
                 return child
 
             try:
@@ -417,6 +470,13 @@ class GatewayPeerTests(unittest.TestCase):
                     ),
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root, "stage_gateway_userns", return_value=bootstrap),
+                    patch.object(
+                        root,
+                        "map_gateway_user_namespace",
+                        return_value={"dev": 11, "ino": 12},
+                    ),
+                    patch.object(root, "inspect_gateway_user_namespace"),
                     patch.object(root, "require_no_socket_copy"),
                     patch.object(root.subprocess, "Popen", side_effect=spawn),
                 ):
@@ -428,11 +488,15 @@ class GatewayPeerTests(unittest.TestCase):
                     self.assertEqual(bound.fileno(), -1)
                     self.assertFalse(os.get_inheritable(gate))
                     self.assertTrue((case / "gateway-prepared.json").exists())
+                    self.assertTrue((case / "gateway-userns.json").exists())
+                    self.assertEqual(os.read(held_map[0], 1), b"M")
                     backend._attach_gateway.assert_called_once_with(grant, child)
                     child.kill.assert_not_called()
                 finally:
                     os.close(gate)
             finally:
+                for fd in held_map:
+                    os.close(fd)
                 os.close(program)
 
     def test_root_prepare_kills_child_when_barrier_fails_before_ready(self):
@@ -488,6 +552,7 @@ class GatewayPeerTests(unittest.TestCase):
             child.poll.return_value = None
             program = os.open(os.devnull, os.O_RDONLY)
             helper = os.open(os.devnull, os.O_RDONLY)
+            bootstrap = os.open(os.devnull, os.O_RDONLY)
             try:
                 with (
                     patch.object(
@@ -503,11 +568,12 @@ class GatewayPeerTests(unittest.TestCase):
                     ),
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root, "stage_gateway_userns", return_value=bootstrap),
                     patch.object(root, "require_no_socket_copy"),
                     patch.object(root.subprocess, "Popen", return_value=child),
                 ):
                     with self.assertRaisesRegex(
-                        root.SupervisorRefused, "root_gateway_barrier_not_ready"
+                        root.SupervisorRefused, "root_gateway_namespace_not_ready"
                     ):
                         backend._prepare_gateway(grant, bound, program)
                 child.kill.assert_called_once()

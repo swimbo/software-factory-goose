@@ -368,9 +368,21 @@ def owner_loss_case():
             os.waitpid(child_pid, 0)
 
 
-def prepare_case(refuse=False, release=False, refuse_guard=False):
+def prepare_case(
+    refuse=False, release=False, refuse_guard=False, refuse_map_guard=False
+):
     """Exercise the real spawn path with explicitly synthetic Root seams."""
-    suffix = "e" if refuse_guard else "c" if refuse else "d" if release else "b"
+    suffix = (
+        "f"
+        if refuse_map_guard
+        else "e"
+        if refuse_guard
+        else "c"
+        if refuse
+        else "d"
+        if release
+        else "b"
+    )
     case = Path("/var/lib/sfactory-harness/prepare-" + suffix)
     case.mkdir(mode=0o700)
     group = Path("/sys/fs/cgroup" + Path("/proc/self/cgroup").read_text().strip()[3:])
@@ -477,19 +489,30 @@ def prepare_case(refuse=False, release=False, refuse_guard=False):
                     "owner_ticks": ticks(os.getpid()),
                 }
                 guard_check.side_effect = (
-                    [valid_guard, product.SupervisorRefused("fixture guard lost")]
+                    [
+                        valid_guard,
+                        valid_guard,
+                        valid_guard,
+                        product.SupervisorRefused("fixture guard lost after map"),
+                    ]
+                    if refuse_map_guard
+                    else [valid_guard, product.SupervisorRefused("fixture guard lost")]
                     if refuse_guard
                     else None
                 )
                 guard_check.return_value = valid_guard
-                if refuse or refuse_guard:
+                if refuse or refuse_guard or refuse_map_guard:
                     try:
                         backend._prepare_gateway(grant, bound, program)
                     except product.SupervisorRefused:
                         pass
                     else:
                         raise RuntimeError("fixture attachment refusal ignored")
-                    if refuse_guard:
+                    if refuse_map_guard:
+                        backend._attach_gateway.assert_not_called()
+                        if not (case / "gateway-userns.json").exists():
+                            raise RuntimeError("mapped namespace receipt missing")
+                    elif refuse_guard:
                         backend._attach_gateway.assert_not_called()
                         if (case / "gateway-parent-closed.json").exists():
                             raise RuntimeError("lost guard recorded socket handoff")

@@ -1910,7 +1910,8 @@ class RootSupervisor:
         """
         require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
         process = None
-        helper_fd = gate_r = gate_w = ready_r = ready_w = None
+        helper_fd = bootstrap_fd = gate_r = gate_w = ready_r = ready_w = None
+        ns_r = ns_w = map_r = map_w = None
         transferred = False
         try:
             with self.gate.admission(), self.guard:
@@ -1958,8 +1959,11 @@ class RootSupervisor:
                         {"intent": expected, "socket": bound["socket"]},
                     )
                     helper_fd = stage_gateway_exec()
+                    bootstrap_fd = stage_gateway_userns()
                     gate_r, gate_w = os.pipe()
                     ready_r, ready_w = os.pipe()
+                    ns_r, ns_w = os.pipe()
+                    map_r, map_w = os.pipe()
                     now = time.time_ns() // 1000000
                     deadline = min(grant["expires_at_ms"], now + 15000)
                     require(now < deadline, "root_gateway_deadline_expired")
@@ -1988,22 +1992,35 @@ class RootSupervisor:
                             self.cfg["python"],
                             "-I",
                             "-B",
-                            f"/proc/self/fd/{helper_fd}",
-                            canonical(config),
+                            f"/proc/self/fd/{bootstrap_fd}",
+                            canonical(
+                                {
+                                    "uid": self.cfg["gateway_uid"],
+                                    "broker_gid": grant["broker_uid"],
+                                    "owner_pid": config["owner_pid"],
+                                    "owner_ticks": config["owner_ticks"],
+                                    "ready_fd": ns_w,
+                                    "map_fd": map_r,
+                                    "helper_fd": helper_fd,
+                                    "helper_config": config,
+                                    "python": self.cfg["python"],
+                                    "deadline_ms": deadline,
+                                }
+                            ),
                         ],
                         stdin=subprocess.DEVNULL,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                         pass_fds=(
                             helper_fd,
+                            bootstrap_fd,
                             program_fd,
                             bound_socket.fileno(),
                             gate_r,
                             ready_w,
+                            ns_w,
+                            map_r,
                         ),
-                        user=self.cfg["gateway_uid"],
-                        group=self.cfg["gateway_uid"],
-                        extra_groups=[],
                         cwd="/",
                         env={},
                         start_new_session=True,
@@ -2036,6 +2053,57 @@ class RootSupervisor:
             gate_r = None
             os.close(ready_w)
             ready_w = None
+            os.close(ns_w)
+            ns_w = None
+            os.close(map_r)
+            map_r = None
+            wait = min(5.0, max(0.0, (deadline - time.time_ns() // 1000000) / 1000))
+            require(
+                wait > 0
+                and select.select([ns_r], [], [], wait)[0]
+                and os.read(ns_r, 1) == b"N",
+                "root_gateway_namespace_not_ready",
+            )
+            with self.gate.admission(), self.guard:
+                with gateway_bind_lock(case):
+                    self._current(grant)
+                    self._kernel_scope(grant, empty=False)
+                    guard = check_guard(self, grant)
+                    require(
+                        guard["owner_pid"] == os.getpid()
+                        and guard["owner_ticks"] == _ticks(os.getpid())
+                        and time.time_ns() // 1000000 < deadline,
+                        "root_gateway_guard_owner_changed",
+                    )
+                    child_ticks = _ticks(process.pid)
+                    namespace = map_gateway_user_namespace(
+                        process,
+                        child_ticks,
+                        self.cfg["gateway_uid"],
+                        grant["broker_uid"],
+                    )
+                    namespace_receipt = {
+                        "grant_sha256": sha(grant),
+                        "scope_sha256": scope,
+                        "pid": process.pid,
+                        "ticks": child_ticks,
+                        "namespace": namespace,
+                    }
+                    store(case / "gateway-userns.json", namespace_receipt)
+                    self._current(grant)
+                    self._kernel_scope(grant, empty=False)
+                    guard = check_guard(self, grant)
+                    require(
+                        guard["owner_pid"] == os.getpid()
+                        and guard["owner_ticks"] == _ticks(os.getpid())
+                        and time.time_ns() // 1000000 < deadline,
+                        "root_gateway_guard_owner_changed",
+                    )
+                    require(
+                        os.write(map_w, b"M") == 1, "root_gateway_map_release_unknown"
+                    )
+            os.close(map_w)
+            map_w = None
             wait = min(5.0, max(0.0, (deadline - time.time_ns() // 1000000) / 1000))
             require(
                 wait > 0
@@ -2043,7 +2111,15 @@ class RootSupervisor:
                 and os.read(ready_r, 1) == b"R",
                 "root_gateway_barrier_not_ready",
             )
+            inspect_gateway_user_namespace(
+                process,
+                child_ticks,
+                self.cfg["gateway_uid"],
+                grant["broker_uid"],
+                namespace,
+            )
             attached = self._attach_gateway(grant, process)
+            require(attached["ticks"] == child_ticks, "root_gateway_userns_changed")
             gate_info = os.fstat(gate_w)
             require(
                 stat.S_ISFIFO(gate_info.st_mode) and not os.get_inheritable(gate_w),
@@ -2057,13 +2133,24 @@ class RootSupervisor:
                     "gate_dev": gate_info.st_dev,
                     "gate_ino": gate_info.st_ino,
                     "deadline_ms": deadline,
+                    "namespace": namespace_receipt,
                 },
             )
             transferred = True
             return process, gate_w, attached
         finally:
             bound_socket.close()
-            for fd in (helper_fd, gate_r, ready_r, ready_w):
+            for fd in (
+                helper_fd,
+                bootstrap_fd,
+                gate_r,
+                ready_r,
+                ready_w,
+                ns_r,
+                ns_w,
+                map_r,
+                map_w,
+            ):
                 if fd is not None:
                     os.close(fd)
             if not transferred:
@@ -2212,6 +2299,7 @@ class RootSupervisor:
                     )
                     prepared = _decode(protected(case / "gateway-prepared.json", 0o600))
                     attached = _decode(protected(case / "gateway-attached.json", 0o600))
+                    userns = _decode(protected(case / "gateway-userns.json", 0o600))
                     intent = {
                         "grant_sha256": sha(grant),
                         "scope_sha256": scope,
@@ -2226,14 +2314,25 @@ class RootSupervisor:
                             "gate_dev",
                             "gate_ino",
                             "deadline_ms",
+                            "namespace",
                         }
                         and prepared["grant_sha256"] == sha(grant)
+                        and type(userns) is dict
+                        and set(userns)
+                        == {"grant_sha256", "scope_sha256", "pid", "ticks", "namespace"}
+                        and userns == prepared["namespace"]
+                        and userns["grant_sha256"] == sha(grant)
+                        and userns["scope_sha256"] == scope
+                        and userns["pid"] == process.pid
+                        and type(userns["namespace"]) is dict
+                        and set(userns["namespace"]) == {"dev", "ino"}
                         and type(attached) is dict
                         and set(attached) == {"intent", "child"}
                         and attached["intent"] == intent
                         and attached["child"] == prepared["child"]
                         and type(prepared["child"]) is dict
                         and prepared["child"].get("pid") == process.pid
+                        and prepared["child"].get("ticks") == userns["ticks"]
                         and _integer(prepared["deadline_ms"], 1)
                         and prepared["deadline_ms"] <= grant["expires_at_ms"]
                         and time.time_ns() // 1000000 < prepared["deadline_ms"]
@@ -2255,6 +2354,13 @@ class RootSupervisor:
                     inspect_prepared_gateway(
                         grant, prepared["child"], self.cfg["gateway_uid"]
                     )
+                    inspect_gateway_user_namespace(
+                        process,
+                        userns["ticks"],
+                        self.cfg["gateway_uid"],
+                        grant["broker_uid"],
+                        userns["namespace"],
+                    )
                     release = {
                         "grant_sha256": sha(grant),
                         "prepared_sha256": sha(prepared),
@@ -2271,6 +2377,13 @@ class RootSupervisor:
                     )
                     inspect_prepared_gateway(
                         grant, prepared["child"], self.cfg["gateway_uid"]
+                    )
+                    inspect_gateway_user_namespace(
+                        process,
+                        userns["ticks"],
+                        self.cfg["gateway_uid"],
+                        grant["broker_uid"],
+                        userns["namespace"],
                     )
                     info = os.fstat(gate_fd)
                     require(
