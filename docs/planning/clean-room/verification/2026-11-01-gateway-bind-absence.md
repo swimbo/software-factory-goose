@@ -1,0 +1,9 @@
+# Unhanded gateway bind reconciliation
+
+After fencing the attempt and taking the bind lock, schema 4 cleanup can reconcile a bind intent only when the saved intent exactly matches the grant and scope, no `gateway-bound.json` receipt exists, and the expected socket pathname is absent beneath Root-owned, non-writable ext4 directories without POSIX ACLs. It writes a durable `gateway-absent.json` receipt and continues existing container cleanup. It rechecks socket absence on each retry; a present socket, changed intent, existing handoff receipt or unreadable path remains unresolved. No socket pathname is deleted by this change.
+
+The absence check relies on the current binder's property that it returns a socket descriptor only after its handoff receipt is durable. Root schema 4 and the loader now require the exact reviewed helper SHA-256 `80d24595613219b7cd3e9645cc3179d710f3c982ac2c858ccb3b6059798aa488`, binding the fixed socket pathname contract to the reconciliation code. Both harness profiles already bind that helper source.
+
+A network-disabled, read-only ext4 chroot test checked the final supervisor source against an existing synthetic socket and a separate missing pathname. The existing socket was not treated as absent; the missing pathname was detected. Unit tests cover valid and mismatched intents, a present handoff receipt, an unreadable path, repeated cleanup, and rechecking absence after a simulated daemon failure. The full configured Python harness ran 253 tests: 247 passed and six skipped. The test reused the preserved fixture at `/home/bo/sfactory-root-gateway-socket-w6qQs7Xr/rootfs3` on `hermes-control` without writing to it.
+
+This does not qualify cleanup after a socket was created or a gateway was launched. Production bootstrap, route custody, all-path charge bounds and owner/daemon/host loss cleanup remain open. No paid inference or candidate activation occurred; 0/120 benchmark attempts have run.
