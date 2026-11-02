@@ -45,7 +45,7 @@ DATABASE = PREFIX + "/capture/state/capture.db"
 MARKER = "SFACTORY_WALLET_CUSTODY_DISPOSABLE"
 GROUP = 3003
 METHODS = {
-    "initialize", "admit_attempt", "admit_day", "revoke", "reserve", "begin",
+    "initialize", "admit_attempt", "admit_day", "revoke", "reserve", "begin", "verify_inflight",
     "claim_receipts", "complete",
 }
 LIMIT = 65536

@@ -155,7 +155,7 @@ def start_root(backend):
     return pid
 
 
-def open_broker(attempt, grant, call, request, card):
+def open_broker(attempt, grant, call, request, card, binding):
     def run(write):
         from gateway_custody import (PrivateCaptureOpenClient, PrivateCustodyServer,
                                      ProtectedGatewayAcquisitionAuthority)
@@ -197,6 +197,9 @@ def open_broker(attempt, grant, call, request, card):
         base.require(journal("reserve", call) == "Reserved", "wallet reservation denied")
         response = transport.exchange_reserved(attempt, grant, call, request)
         base.require(b"public result" in response["sse"], "synthetic Bifrost output missing")
+        from physical_usage import payload_sha256
+        verified_calls = authority.roots[payload_sha256(binding)][6]
+        base.require(verified_calls == 1, "physical wallet and Root verification missing")
         settlement = PrivateSettlementClient(base.SETTLEMENT, collector_uid=2006, broker_uid=2005,
                                              worker_uid=2001, owner=base.OWNER,
                                              route_sha256=ROUTE, tariff_sha256=card.sha256())
@@ -210,6 +213,7 @@ def open_broker(attempt, grant, call, request, card):
         (Path(base.GATEWAY).parent / "result.json").write_text(base.canonical({
             "response": {key: value for key, value in response.items() if key != "sse"},
             "settlement": receipt, "root_deadline_ms": observed["root_deadline_ms"],
+            "verified_physical_calls": verified_calls,
         }))
     return base.fork_service(2005, "broker", run)
 
@@ -322,7 +326,7 @@ def inside():
         base.require(base.actor(2001, worker_root_denied), "worker reached Root socket")
         children["capture"] = base.open_capture(profile, card, ROUTE)
         children["settler"] = base.open_settlement(profile, card, ROUTE)
-        children["broker"] = open_broker(attempt, grant, call, request, card)
+        children["broker"] = open_broker(attempt, grant, call, request, card, binding)
         processes["gateway"] = launch_gateway()
         result_path = Path(base.GATEWAY).parent / "result.json"
         deadline = time.monotonic() + 25
@@ -396,6 +400,7 @@ def inside():
                               "altered_root_scope_denied": True, "worker_root_socket_denied": True,
                               "settled_usage_rated_microusd": result["settlement"]["usage_rated_microusd"],
                               "root_lease_deadline_observed": True, "paid_calls": 0,
+                              "physical_scope_and_wallet_checks": result["verified_physical_calls"],
                               "live_attempts": 0, "candidate_activation_performed": False,
                               "production_admission": False,
                               "binary_sha256": {name: digest("/opt/" + name) for name in

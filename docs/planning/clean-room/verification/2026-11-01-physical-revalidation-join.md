@@ -1,0 +1,9 @@
+# Physical-call authority revalidation
+
+An isolated, network-none Linux fixture joined the real Rust spending journal and private ingress, Root scope RPC, protected broker, actual Bifrost handler, physical capture and independent collector. The gateway performed one synthetic provider call; the fixture explicitly required one successful physical-call wallet and Root revalidation before accepting its result. It settled one microusd of synthetic usage and separately exercised the task and daily reservation ceilings. The [raw receipt](2026-11-01-physical-revalidation-join.json) records component hashes and the synthetic boundaries. The exact fixture containers and stage processes were absent after completion.
+
+The Root constructor, registry, provider, authorizer, route and charge bounds were synthetic. This is not production bootstrap, admission, or proof of provider charge limits. Revalidation is point-in-time: loss of authority after a check still requires a separately qualified gateway and egress fence. The 120 paid attempts have not started; the candidate remains disabled.
+
+The Bifrost source and installer checkpoints are `82c3a20` and `62745cb`; the factory wallet and broker checkpoints are `e0ff427` and `c5f32f5`.
+
+The wallet and owner suites passed 29 tests; the focused Python gateway and spending suites passed 38 tests. Two isolated Go scope and physical-authorization tests passed with the race detector. The pinned exchange installer replayed against its reconstructed source preimage, and its seven Python tests passed. Four distinct-UID, network-none native exchange tests passed for v2 success, Root deadline during a stream, stream-close error, and an invalid response with blocked close. These are synthetic fixtures, not production failure qualification. A wider unconfigured Python run encountered 13 setup errors because its required QuickJS host environment variable was absent; it does not establish a full-suite pass.
