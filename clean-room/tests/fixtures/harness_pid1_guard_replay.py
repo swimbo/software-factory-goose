@@ -200,6 +200,7 @@ def start_gateway_peer(library, python, group, base):
 def start_gateway_barrier(python, grant, group, base):
     """Move a gated synthetic gateway into the fixture's actual attempt slice."""
     helper = product.stage_gateway_exec()
+    bootstrap = product.stage_gateway_userns()
     target = base / "source/clean-room/tests/fixtures/harness_gateway_exec_target"
     program = os.open(target, os.O_RDONLY | os.O_CLOEXEC)
     socket_path = Path("/var/lib/sfactory-harness/gw") / (
@@ -208,6 +209,8 @@ def start_gateway_barrier(python, grant, group, base):
     bound = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     gate_r, gate_w = os.pipe()
     ready_r, ready_w = os.pipe()
+    ns_r, ns_w = os.pipe()
+    map_r, map_w = os.pipe()
     proc = None
     leaf_identity = None
     try:
@@ -236,14 +239,39 @@ def start_gateway_barrier(python, grant, group, base):
             "deadline_ms": time.time_ns() // 1000000 + 15000,
         }
         proc = subprocess.Popen(
-            [python, "-I", "-B", f"/proc/self/fd/{helper}", json.dumps(config)],
+            [
+                python,
+                "-I",
+                "-B",
+                f"/proc/self/fd/{bootstrap}",
+                json.dumps(
+                    {
+                        "uid": 2007,
+                        "broker_gid": 2005,
+                        "owner_pid": config["owner_pid"],
+                        "owner_ticks": config["owner_ticks"],
+                        "ready_fd": ns_w,
+                        "map_fd": map_r,
+                        "helper_fd": helper,
+                        "helper_config": config,
+                        "python": python,
+                        "deadline_ms": config["deadline_ms"],
+                    }
+                ),
+            ],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            pass_fds=(helper, program, bound.fileno(), gate_r, ready_w),
-            user=2007,
-            group=2007,
-            extra_groups=[],
+            pass_fds=(
+                bootstrap,
+                helper,
+                program,
+                bound.fileno(),
+                gate_r,
+                ready_w,
+                ns_w,
+                map_r,
+            ),
             env={},
             start_new_session=True,
         )
@@ -251,12 +279,23 @@ def start_gateway_barrier(python, grant, group, base):
         gate_r = None
         os.close(ready_w)
         ready_w = None
+        os.close(ns_w)
+        ns_w = None
+        os.close(map_r)
+        map_r = None
+        assert select.select([ns_r], [], [], 5)[0] and os.read(ns_r, 1) == b"N"
+        child_ticks = product._ticks(proc.pid)
+        namespace = product.map_gateway_user_namespace(proc, child_ticks, 2007, 2005)
+        assert os.write(map_w, b"M") == 1
+        os.close(map_w)
+        map_w = None
         ready = select.select([ready_r], [], [], 5)[0] and os.read(ready_r, 1) == b"R"
         if not ready:
             if proc.poll() is not None:
                 raise RuntimeError(proc.stderr.read().decode(errors="replace"))
             raise RuntimeError("gateway barrier readiness timeout")
         assert proc.poll() is None
+        product.inspect_gateway_user_namespace(proc, child_ticks, 2007, 2005, namespace)
         case = base / "case/state" / grant["attempt_id"]
         scope = json.loads((case / "owner-scope.json").read_bytes())["scope_sha256"]
         intent = {
@@ -292,6 +331,7 @@ def start_gateway_barrier(python, grant, group, base):
         membership = (Path("/proc") / str(proc.pid) / "cgroup").read_text().strip()
         assert membership == "0::" + str(leaf).removeprefix("/sys/fs/cgroup")
         product.inspect_prepared_gateway(grant, attached, 2007)
+        product.inspect_gateway_user_namespace(proc, child_ticks, 2007, 2005, namespace)
         for changed, changed_uid in (
             (attached, 2008),
             (attached | {"ino": attached["ino"] + 1}, 2007),
@@ -314,7 +354,19 @@ def start_gateway_barrier(python, grant, group, base):
             proc.wait(timeout=5)
         raise
     finally:
-        for fd in (helper, program, gate_r, gate_w, ready_r, ready_w):
+        for fd in (
+            helper,
+            bootstrap,
+            program,
+            gate_r,
+            gate_w,
+            ready_r,
+            ready_w,
+            ns_r,
+            ns_w,
+            map_r,
+            map_w,
+        ):
             if fd is not None:
                 os.close(fd)
         bound.close()
@@ -703,21 +755,25 @@ def controller(
         ).exists()
         # Keep the exact slice and fixture owner available until PID1 has run
         # ExecStopPost. Retiring the slice here races that second cleanup pass.
-        if fault == "owner-loss":
-            deadline = time.monotonic() + 35
-            while True:
-                final_guard = terminal_snapshot(controller_library, guard_ready["unit"])
-                if final_guard["ActiveState"] in ("inactive", "failed"):
-                    break
-                assert time.monotonic() < deadline, "guard stop-post did not finish"
-                time.sleep(0.05)
+        deadline = time.monotonic() + 35
+        while True:
+            final_guard = terminal_snapshot(controller_library, guard_ready["unit"])
+            if final_guard["ActiveState"] in ("inactive", "failed"):
+                break
+            assert time.monotonic() < deadline, "guard stop-post did not finish"
+            time.sleep(0.05)
+        if fault != "guard-crash":
             assert final_guard["ActiveState"] == "inactive", final_guard
             assert (
                 final_guard["MainPID"] == 0
                 and not final_guard["ControlGroup"]
                 and final_guard["Result"] == "success"
             )
-            guard_stopped = True
+        else:
+            assert (
+                final_guard["ActiveState"] == "failed" and final_guard["MainPID"] == 0
+            ), final_guard
+        guard_stopped = True
         result = {
             "schema": 1,
             "component_only": True,
@@ -769,7 +825,7 @@ def controller(
                 assert not leaf.exists(), "guard did not reconcile the gateway leaf"
         # Unknown queued work retains its frozen cgroup and evidence.
         retained = state / attempt["attempt_id"] / "grant.json"
-        if retained.exists() and (fault != "owner-loss" or guard_stopped):
+        if retained.exists() and guard_stopped:
             retire_worker_slice(configuration, json.loads(retained.read_bytes()), group)
         with contextlib.suppress(ProcessLookupError):
             os.kill(owner, signal.SIGKILL)

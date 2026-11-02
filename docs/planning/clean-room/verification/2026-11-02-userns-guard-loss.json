@@ -1,0 +1,157 @@
+{
+  "actual_bifrost_provider_tested": false,
+  "actual_private_root_gateway_launch_tested": false,
+  "candidate_enabled": false,
+  "component": "namespaced_gateway_pid1_guard",
+  "earlier_lease_replay": {
+    "guard_terminal": "failed",
+    "guard_unit": "sfactoryguard9b535ee3ea72a001a2c8a1a4ad1b1bbc5519cb351b43a03c7b3fb1d2310e0673.service",
+    "observation": "fencing succeeded but stop-post exited 1 after fixture retired resources before terminal state",
+    "slice": "sfactoryharnessb12b238653ab4b01bd4f8bbec110c24d8fead039434443a0a796f080a05167c0.slice",
+    "slice_absent": true
+  },
+  "live_attempts": 0,
+  "paid_calls": 0,
+  "production_admission": false,
+  "runs": [
+    {
+      "actual_pid1_guard": true,
+      "actual_root_constructor_prepare_start": true,
+      "candidate_enabled": false,
+      "component_only": true,
+      "entire_supervisor_group_killed": true,
+      "exact_worker_fenced_and_removed": true,
+      "fault": "owner-loss",
+      "fixture_gateway_barrier_migrated_and_fenced": true,
+      "fixture_gateway_peer_and_child_fenced": false,
+      "fixture_gateway_unit": null,
+      "guard_alive_after_supervisor_group_loss": true,
+      "guard_cgroup_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "268435456",
+        "pids.max": "32"
+      },
+      "guard_exec_stop_post_cleanup": false,
+      "guard_unit": "sfactoryguard2210ca030c3d010e51015ba626a5351fefd8f17dee2efbed41a607a2027773b0.service",
+      "independent_slice_absence_verified": true,
+      "lease_expired_with_live_supervisor": false,
+      "live_attempts": 0,
+      "native_long_relay_path_tests": 2,
+      "owned_worker_slice": "sfactoryharness7189b399428f480c8592d9bf2fb553e4ba0a843203de4cba897bcd5bfee49b42.slice",
+      "paid_calls": 0,
+      "production_admission": false,
+      "schema": 1,
+      "source_sha256": {
+        "harness_pid1_guard_replay.py": "1d6492e42a441294368c2037a7655beaf8e9e72a3e6ae180e6f5e87e49b9177a",
+        "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+        "linux_supervisor.py": "89a72662a60bb8dd9ba68c0b309425d4db28d83d192568fa89ed491a67622c05"
+      },
+      "stage": {
+        "base": "/var/lib/sfactory-harness/qualification-468fe08495a54f98a41a2974aab13a0a",
+        "child_dev": 66306,
+        "child_ino": 19299973,
+        "parent_created": false,
+        "parent_dev": 66306,
+        "parent_ino": 19295428,
+        "stage": "/home/bo/sfactory-userns-guard-20261102-8n1fdet9"
+      },
+      "supervisor_unit": "sfactoryguardf1a1a4cafb07e9d17499ef10ae142b733e2ec7586d9b48786cd3968ea3ab897b.service",
+      "synthetic_catalog_registry_owner": true,
+      "synthetic_owner_revocation_acknowledged": true,
+      "terminal_guard_state_verified": true
+    },
+    {
+      "actual_pid1_guard": true,
+      "actual_root_constructor_prepare_start": true,
+      "candidate_enabled": false,
+      "component_only": true,
+      "entire_supervisor_group_killed": false,
+      "exact_worker_fenced_and_removed": true,
+      "fault": "guard-crash",
+      "fixture_gateway_barrier_migrated_and_fenced": true,
+      "fixture_gateway_peer_and_child_fenced": false,
+      "fixture_gateway_unit": null,
+      "guard_alive_after_supervisor_group_loss": false,
+      "guard_cgroup_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "268435456",
+        "pids.max": "32"
+      },
+      "guard_exec_stop_post_cleanup": true,
+      "guard_unit": "sfactoryguard8f14c78548ae7d7cfe819ae16da8410e17941ff676950bdc94658fa287eb4e31.service",
+      "independent_slice_absence_verified": true,
+      "lease_expired_with_live_supervisor": false,
+      "live_attempts": 0,
+      "native_long_relay_path_tests": 2,
+      "owned_worker_slice": "sfactoryharness246114f99cbe4391b7a5d90bfa7ab421a258dd7b58094b5f9918af1547241d30.slice",
+      "paid_calls": 0,
+      "production_admission": false,
+      "schema": 1,
+      "source_sha256": {
+        "harness_pid1_guard_replay.py": "1d6492e42a441294368c2037a7655beaf8e9e72a3e6ae180e6f5e87e49b9177a",
+        "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+        "linux_supervisor.py": "89a72662a60bb8dd9ba68c0b309425d4db28d83d192568fa89ed491a67622c05"
+      },
+      "stage": {
+        "base": "/var/lib/sfactory-harness/qualification-9c2c780a995945ddbae57ab274cf96ce",
+        "child_dev": 66306,
+        "child_ino": 19299856,
+        "parent_created": false,
+        "parent_dev": 66306,
+        "parent_ino": 19295428,
+        "stage": "/home/bo/sfactory-userns-guard-crash-20261102-f_6p1z5b"
+      },
+      "supervisor_unit": "sfactoryguard1cf60ec2164b86d67a25b7637538d79eff723419caffaf5805a7577db2192d3c.service",
+      "synthetic_catalog_registry_owner": true,
+      "synthetic_owner_revocation_acknowledged": true,
+      "terminal_guard_state_verified": true
+    },
+    {
+      "actual_pid1_guard": true,
+      "actual_root_constructor_prepare_start": true,
+      "candidate_enabled": false,
+      "component_only": true,
+      "entire_supervisor_group_killed": false,
+      "exact_worker_fenced_and_removed": true,
+      "fault": "lease-expiry",
+      "fixture_gateway_barrier_migrated_and_fenced": true,
+      "fixture_gateway_peer_and_child_fenced": false,
+      "fixture_gateway_unit": null,
+      "guard_alive_after_supervisor_group_loss": false,
+      "guard_cgroup_limits": {
+        "cpu.max": "100000 100000",
+        "memory.max": "268435456",
+        "pids.max": "32"
+      },
+      "guard_exec_stop_post_cleanup": false,
+      "guard_unit": "sfactoryguard9d053c869567139eb186e06e08ebee69cb79ed50fc6e939824324a14d091e575.service",
+      "independent_slice_absence_verified": true,
+      "lease_expired_with_live_supervisor": true,
+      "live_attempts": 0,
+      "native_long_relay_path_tests": 2,
+      "owned_worker_slice": "sfactoryharnessfee5db1b20b44161943376f47d9b7768763c4809336947749829913e2789c8f7.slice",
+      "paid_calls": 0,
+      "production_admission": false,
+      "schema": 1,
+      "source_sha256": {
+        "harness_pid1_guard_replay.py": "1d6492e42a441294368c2037a7655beaf8e9e72a3e6ae180e6f5e87e49b9177a",
+        "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+        "linux_supervisor.py": "89a72662a60bb8dd9ba68c0b309425d4db28d83d192568fa89ed491a67622c05"
+      },
+      "stage": {
+        "base": "/var/lib/sfactory-harness/qualification-da1199b934da40568eb39b55430567e4",
+        "child_dev": 66306,
+        "child_ino": 19299739,
+        "parent_created": false,
+        "parent_dev": 66306,
+        "parent_ino": 19295428,
+        "stage": "/home/bo/sfactory-userns-lease-expiry-20261102-9us10woo"
+      },
+      "supervisor_unit": "sfactoryguardc7b4816d3b5d4cb16ce8afe0f08134d6c458b6f0bdfb7fce10e9ac21e4f17069.service",
+      "synthetic_catalog_registry_owner": true,
+      "synthetic_owner_revocation_acknowledged": true,
+      "terminal_guard_state_verified": true
+    }
+  ],
+  "schema": 1
+}
