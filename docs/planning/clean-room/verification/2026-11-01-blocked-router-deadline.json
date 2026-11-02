@@ -1,0 +1,73 @@
+{
+  "bifrost_commit": "f726ca7",
+  "blocked_router_race_fixture_passed": true,
+  "candidate_enabled": false,
+  "cleanup_fence_qualified": false,
+  "component": "blocked_router_deadline",
+  "final_native_binary_sha256": "b52d3c34c85ca39f1e14afbcd2da59dfd859730f0205c9ac80b3245ea71cbe01",
+  "final_native_cases": [
+    "v2 success",
+    "root deadline during stream",
+    "stream close error",
+    "invalid response with blocked close",
+    "root deadline during blocked router"
+  ],
+  "fixture_containers_and_stage_processes_absent": true,
+  "gateway_unit_tests_race_passed": true,
+  "installer_replay_passed": true,
+  "joined_actual_wallet_broker_handler_fixture": {
+    "actual_bifrost_handler": true,
+    "altered_root_scope_denied": true,
+    "binary_sha256": {
+      "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+      "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+      "wallet-gateway-test": "f883910d90988e6f8ec4f464a4db2e113a91caae7e4a3fd5b701545f2546ad25"
+    },
+    "candidate_activation_performed": false,
+    "component": "wallet_root_broker_bifrost_capture_join",
+    "daily_cap_denied_with_task_headroom": true,
+    "fixture_sha256": {
+      "harness_wallet_custody_replay.py": "b36bae00c4f56a14b248190641bcac0ea95122b0482b895bdee585d4c688ca56",
+      "wallet-gateway-join.py": "9edcf7543e1b2f6453518a0e4c0cf742b439070b51a0ef0e159912a82f7bc4a9"
+    },
+    "harness_sha256": {
+      "factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81",
+      "gateway_custody.py": "05f8add200d7585daf8393a1249157dfb4e87469d6d73c93af2560931a4d5e48",
+      "gateway_transport.py": "bc5c5cd92f30daaabf67789f08468e796ee4b550f505cdf951d818ffc88a8045",
+      "linux_runner.py": "46ed8ee458bc1b58c011d17610c9d37bfd934692a7a0507f0833e662c36099a0",
+      "linux_supervisor.py": "d023201258014559bddb32eeff91e110c17bdcdac87ac7ef19435c470d7783ad",
+      "physical_settlement.py": "c5d97e78ccafcf2ea0a9ba76b39b4b83013bc6c5ffe0009f9c56df91e78e4009",
+      "physical_usage.py": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+      "protected_spending_control.py": "480588ac391c52c3a6c22a9d64f47b1e8b463305a066df4911209bb8a7aa6dec",
+      "usage_rating.py": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a"
+    },
+    "live_attempts": 0,
+    "paid_calls": 0,
+    "physical_scope_and_wallet_checks": 1,
+    "production_admission": false,
+    "provider_authorizer_route_and_charge_bounds_synthetic": true,
+    "real_broker_and_capture": true,
+    "root_constructor_and_registry_synthetic": true,
+    "root_lease_deadline_observed": true,
+    "root_scope_methods_actual": true,
+    "schema": 1,
+    "settled_usage_rated_microusd": 1,
+    "task_cap_denied_with_daily_headroom": true,
+    "wallet_actual": true,
+    "wallet_begin_replay_after_completion_denied": true,
+    "worker_root_socket_denied": true
+  },
+  "live_attempts": 0,
+  "native_cases_passed": 5,
+  "network": "none",
+  "original_blocked_router_test": "failed: no prompt refusal before client timeout",
+  "paid_calls": 0,
+  "production_admission": false,
+  "red_binary_sha256": "81369d2147dab6f9a279bacc68458cf4e7748d42e30fdc9b3a4a30f464eb5dba",
+  "schema": 1,
+  "source_sha256": {
+    "factory_gateway_exchange.go": "0e64319738e3f88c710f89473426892d4bd700d4d42a2f27bd9e6f0596191078",
+    "factory_gateway_exchange_native_test.go": "5d98ad2655eed0ba6582f5caa41145697e5d2cff23fc2ade6ae3a8002d05a58a",
+    "patch_factory_gateway_exchange.py": "06b7187323dd59388071f8fd6c753de480973772818f03471a45cd1ffb8d63ad"
+  }
+}

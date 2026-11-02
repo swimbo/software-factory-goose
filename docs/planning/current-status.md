@@ -63,7 +63,7 @@ The resumed independent review confirmed and the source fix `cde48ea` addressed 
 
 The public Ollama Enterprise pricing page mentions user and API-key cost budgets, but does not establish the required hard in-flight, per-task and fee bounds. Account availability and contract details remain unverified; see [provider recheck](clean-room/verification/2026-11-01-provider-envelope-recheck.json).
 
-The protected gateway cancels a stalled response read at the shorter Root deadline; distinct-UID synthetic expiry and v1/v2 success fixtures passed on the installed source. See [stream deadline evidence](clean-room/verification/2026-11-01-root-stream-deadline.md). The [stream close checkpoint](clean-room/verification/2026-11-01-gateway-stream-close.md) bounds read/close joining and poisons the gateway if either remains unjoined. Synchronous router blocking and termination and cleanup of a poisoned process and its descendants still require watchdog qualification.
+The protected gateway cancels a stalled response read at the shorter Root deadline; distinct-UID synthetic expiry and v1/v2 success fixtures passed on the installed source. See [stream deadline evidence](clean-room/verification/2026-11-01-root-stream-deadline.md). The [stream close checkpoint](clean-room/verification/2026-11-01-gateway-stream-close.md) bounds read/close joining and poisons the gateway if either remains unjoined. A [blocked-router regression](clean-room/verification/2026-11-01-blocked-router-deadline.md) now proves bounded failure and poisoned-process refusal at the Root deadline. The blocked goroutine can remain alive; termination and cleanup of the gateway and its descendants still require watchdog and egress-fence qualification.
 
 ## Remaining work, in order
 
