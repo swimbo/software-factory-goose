@@ -1,0 +1,44 @@
+{
+  "candidate_enabled": false,
+  "component": "gateway_peer_point_in_time_check",
+  "fixture_sha256": "c72800c4c0a5ff24695d7a4ed9d4aa0c26d7dd9c178972f4c3f130b6b94c6d0b",
+  "focused_tests_passed": 52,
+  "full_python_harness": {
+    "passed": 230,
+    "run": 236,
+    "skipped": 6
+  },
+  "joined_rehearsal": {
+    "cause": "unknown; preserved",
+    "container_absent": true,
+    "exact_stage": "/home/bo/sfactory-livejoin-tFlksV/rootfs-peer",
+    "failure": "wallet initialize failed before gateway peer check",
+    "passed": false
+  },
+  "live_attempts": 0,
+  "paid_calls": 0,
+  "pidfd_or_equivalent_lifetime_binding": "not implemented",
+  "production_bootstrap": "not qualified",
+  "provider_charge_bounds": "not qualified",
+  "same_uid_linux_proc_fixture": {
+    "broker_start_time_verified": true,
+    "changed_start_time_denied": true,
+    "cross_uid_proved": false,
+    "passed": true,
+    "production_cgroup_proved": false,
+    "same_pid_namespace_verified": true
+  },
+  "schema": 1,
+  "schema2_live_gateway_confirmation": "denied",
+  "source_commit": "bbf089a",
+  "source_sha256": {
+    "gateway_custody.py": "e06c7ad8445e2ddfec628c93e34dfbf7a8ca86f261444299d50b244f40115fa4",
+    "gateway_transport.py": "9a3dc8fe2de58bd6dbf288ef44535756f15391fc230475e2aeedb8790fad8e27",
+    "linux_runner.py": "21ed44800cbd76c2ae5ba448af9425006f3113b7576a051548ac682adb242fcb",
+    "linux_service_guard.py": "f72cc8c65f60e640cbb188f0972843d5d0bfc8fdb84c6e3912ba6dee4a25d31e",
+    "linux_supervisor.py": "14b36231adb1040221536c56b7c9261efa988885b1f786c434145b7294f4f105",
+    "test_gateway_peer.py": "f54a798969acfbf688f57d054d7f33c6b406a768c0185f6dbede7ca019a1ee58",
+    "test_gateway_scope_v2.py": "95aac5d378d9975e8bbad1785ecf1b292c30ad79a86c9e70e50e03c94db93da0",
+    "test_scope_preimage_v2.py": "24f29af735575f37881add1af597a380d4f338f737af7355f083b289e1de426c"
+  }
+}

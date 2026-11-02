@@ -1,0 +1,7 @@
+# Gateway peer process check
+
+Source commit `bbf089a` requires live physical-call confirmation to match the broker's kernel-reported gateway PID and process start time across acquisition and confirmation. Root's opt-in schema 3 additionally checks the current attempt and guard, matching broker/Root PID namespaces, the gateway UID, executable digest, process privileges, and membership in the attempt cgroup. A schema 2 Root configuration cannot confirm a live physical call. Rehearsal can run without this production check. This adds no spending authority.
+
+The full configured Python suite passed 236 tests with six skips; focused negative tests cover changed process, namespace, privilege, executable, guard and scope inputs. A Linux fixture verified the process inspection and broker start-time read against an owned same-UID child. It did not establish cross-UID access or a production cgroup. A distinct-UID joined rehearsal failed at wallet initialization before reaching the gateway; its cause and retained fixture state remain unresolved. See the [receipt](2026-11-01-gateway-peer-process-check.json).
+
+This is a point-in-time check, not a process-lifetime fence: PID and start-time matching alone does not rule out same-tick PID reuse. A pinned process handle such as a pidfd or an equivalent reviewed lifecycle binding, a real gateway launcher and persistent egress fencing still require qualification. Production configuration and activation were not performed; no paid calls or benchmark attempts ran.
