@@ -260,7 +260,13 @@ def supervisor_main(configuration):
 
 
 def controller(
-    base, host_python, host_library, controller_library, fault, gateway_peer=False
+    base,
+    host_python,
+    host_library,
+    controller_library,
+    fault,
+    gateway_peer=False,
+    schema_four=False,
 ):
     assert os.geteuid() == 0 and base.is_absolute()
     assert str(base).startswith("/var/lib/sfactory-harness/qualification-")
@@ -406,6 +412,13 @@ def controller(
         "systemd_library": host_library,
         "systemd_library_sha256": digest(host_library),
     }
+    if schema_four:
+        config.update(
+            schema=4,
+            gateway_uid=700005,
+            gateway_executable_sha256="a" * 64,
+            gateway_socket_sha256=product.GATEWAY_SOCKET_SHA256,
+        )
     configuration.unlink()
     product.store(configuration, config)
     unit = "sfactoryguard" + hashlib.sha256(str(base).encode()).hexdigest() + ".service"
@@ -595,6 +608,7 @@ def main():
     parser.add_argument("--host-library")
     parser.add_argument("--controller-library")
     parser.add_argument("--gateway-peer", action="store_true")
+    parser.add_argument("--schema-four", action="store_true")
     parser.add_argument(
         "--fault",
         choices=("owner-loss", "guard-crash", "lease-expiry"),
@@ -618,6 +632,7 @@ def main():
             args.controller_library,
             args.fault,
             args.gateway_peer,
+            args.schema_four,
         )
 
 
