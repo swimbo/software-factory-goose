@@ -1,0 +1,9 @@
+# Gateway bind and cleanup fence
+
+The schema 4 Root socket binder and cleanup now take the same Root-owned, nonblocking file lock. Cleanup fences the attempt cgroup before trying the lock. It refuses to write an absence receipt while binding is active or whenever a gateway bind intent exists; exact gateway socket and process cleanup is not yet qualified. A grant also ceases to be current once an execution-fenced or cleanup receipt exists. Intent and unknown outcomes remain intact.
+
+The socket helper is loaded from digest-verified bytes only on the bind path. Cleanup-only supervisor startup does not import or read that helper, so a missing helper does not by itself prevent the existing execution fence. This does not remove other existing configuration and guard requirements.
+
+An isolated network-disabled Linux fixture verified actual cross-process lock exclusion, release after a holder was killed, and subsequent reacquisition. Unit tests covered a competing lock, refusal to claim cleanup with a bind intent, rejection of fenced grants, and supervisor import with the helper absent. The full configured Python harness ran **249 tests: 243 passed and six skipped**. The isolated source and fixture stage is `/home/bo/sfactory-root-gateway-socket-w6qQs7Xr` on `hermes-control`; the test container exited.
+
+This is not production gateway launch or proof of complete socket, process or descendant cleanup. Until that cleanup is implemented and qualified, a schema 4 attempt with a bind intent remains unresolved by design. Provider charge bounds remain open. No paid inference or candidate activation occurred; 0/120 benchmark attempts have run.
