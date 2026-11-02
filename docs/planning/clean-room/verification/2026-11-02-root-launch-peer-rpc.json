@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "native_unmodified": {
+    "actual_root_prepare_attach_release": true,
+    "actual_namespace_mapping_and_inspection": true,
+    "actual_cgroup_attachment_and_fence": true,
+    "child_killed_and_joined": true,
+    "matching_leaf_removed": true,
+    "launched_gateway_peer_verified": true,
+    "actual_root_rpc_authorized_broker_passed": true,
+    "actual_root_rpc_descendant_denied": true,
+    "actual_root_rpc_wrong_uid_same_group_denied": true,
+    "unlaunched_same_binary_descendant_denied": true,
+    "legacy_attribute_check_accepts_descendant": true,
+    "peer_verification_preserves_launch_records": true,
+    "unfiltered_namespace_syscall_controls": true,
+    "filtered_namespace_changes_denied": true,
+    "filtered_descendant_namespace_changes_denied": true,
+    "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-e64473be79015da05032db24c3644f213881a56434811003efc67581a861aedc.scope/fixture-f60f5c9dd74541fe8df99db59b456eea27467438613346c6927369aad3271419",
+    "controller_cgroup": "0::/system.slice/docker-e64473be79015da05032db24c3644f213881a56434811003efc67581a861aedc.scope",
+    "gateway_pid": 1621577,
+    "gateway_start_ticks": 250072676,
+    "gateway_executable_sha256": "d746734e7c322c6ffe488d668ab32459879db229145c83fc4d2bc4682088e3e6",
+    "synthetic_authority_guard_and_socket_binding": true,
+    "production_cleanup_qualified": false,
+    "production_admission": false,
+    "paid_calls": 0,
+    "source_sha256": {
+      "linux_supervisor.py": "fd7fd9886e2d08889c6d1400b541d93830ac9db3f4ac22a66e6e79d33c66a1e3",
+      "harness_gateway_root_attachment_replay.py": "9fe2143395cb6431028c33d9bcb20643c443356dd610eff2a31ea9edb78d6e5a"
+    },
+    "owned_attempt_cgroup_absent": true,
+    "fixture_socket_absent": true
+  },
+  "mutation_controls": [
+    {
+      "mutation": "uid",
+      "isolated_archive_only": true,
+      "expected_assertion_failure": true,
+      "fixture_retirement": {
+        "fixture_retirement_only": true,
+        "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-792fdcf44849cc3b2dbcbddc413e86d134a49069859f8d21e64c2d84598b5c54.scope/fixture-f324c56d9ac047deb1f4a3322c0d9f6df15634f592574af0abdbeb6d1cb71a58",
+        "gateway_pid": 1621795,
+        "owned_attempt_cgroup_absent": true,
+        "fixture_socket_absent": true
+      }
+    },
+    {
+      "mutation": "launch",
+      "isolated_archive_only": true,
+      "expected_assertion_failure": true,
+      "fixture_retirement": {
+        "fixture_retirement_only": true,
+        "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-f50020a87fbba02e7fc303bbe0aac808eddb2a46eb09e9d0a92550801f371712.scope/fixture-e60a23ced61b44b6bd39794178416cece6c6bc42afef499b99c04eaf816e3fa9",
+        "gateway_pid": 1621949,
+        "owned_attempt_cgroup_absent": true,
+        "fixture_socket_absent": true
+      }
+    }
+  ],
+  "independent_retirement": [
+    {
+      "case": "good",
+      "fixture_retirement_only": true,
+      "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-e64473be79015da05032db24c3644f213881a56434811003efc67581a861aedc.scope/fixture-f60f5c9dd74541fe8df99db59b456eea27467438613346c6927369aad3271419",
+      "gateway_pid": 1621577,
+      "owned_attempt_cgroup_absent": true,
+      "fixture_socket_absent": true,
+      "container_name": "sfactory-root-attachment-phssp86u",
+      "independent_cgroup_pid_container_absent": true
+    },
+    {
+      "case": "uid",
+      "fixture_retirement_only": true,
+      "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-792fdcf44849cc3b2dbcbddc413e86d134a49069859f8d21e64c2d84598b5c54.scope/fixture-f324c56d9ac047deb1f4a3322c0d9f6df15634f592574af0abdbeb6d1cb71a58",
+      "gateway_pid": 1621795,
+      "owned_attempt_cgroup_absent": true,
+      "fixture_socket_absent": true,
+      "container_name": "sfactory-root-attachment-mt6ev7hi",
+      "independent_cgroup_pid_container_absent": true
+    },
+    {
+      "case": "launch",
+      "fixture_retirement_only": true,
+      "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-f50020a87fbba02e7fc303bbe0aac808eddb2a46eb09e9d0a92550801f371712.scope/fixture-e60a23ced61b44b6bd39794178416cece6c6bc42afef499b99c04eaf816e3fa9",
+      "gateway_pid": 1621949,
+      "owned_attempt_cgroup_absent": true,
+      "fixture_socket_absent": true,
+      "container_name": "sfactory-root-attachment-bdrr67st",
+      "independent_cgroup_pid_container_absent": true
+    }
+  ],
+  "initial_failed_mutation": {
+    "cleanup_error": "Child-only cleanup attempted gateway leaf rmdir while descendant remained; EBUSY observed.",
+    "fixed": "Finally fences entire owned attempt cgroup and waits populated0 before rmdir.",
+    "exact_owned_cgroup": "/sys/fs/cgroup/system.slice/docker-bbfe3d55b76e293080540107021b2e2d9661bb7d8fc726324b035f42a2746f30.scope/fixture-36fb63bbbf5f4aa6b248f28f40b0484e1870ef8c4742446e860996ff90c86b7a",
+    "exact_cgroup_and_container_independently_absent": true
+  },
+  "qualification_limits": [
+    "Root current authority, scope preimage and guard replies remain synthetic.",
+    "Uses raw Unix HTTP client; does not qualify protected production client ext4 pathname checks.",
+    "No full Bifrost production bootstrap, credential/plugin custody, all-path bounds, or handed-socket cleanup qualification."
+  ],
+  "production_admission": false,
+  "paid_calls": 0,
+  "review": {
+    "status": "complete",
+    "run_id": "20261102-3e8ca479d9ea",
+    "depth": "lite",
+    "actionable_findings": 0
+  }
+}

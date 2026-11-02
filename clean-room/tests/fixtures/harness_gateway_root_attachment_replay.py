@@ -28,6 +28,92 @@ sys.path.insert(
 import linux_supervisor as root
 
 
+def verify_peer_rpc(backend, case, grant, child, attached, descendants, popen):
+    """Exercise real Root HTTP/kernel peer checks; authority stays synthetic."""
+    backend._case = Mock(return_value=case)
+    backend.scope_preimage_v2 = Mock(return_value={})
+    backend.recipe = {"broker_uid": 2005}
+    backend.cfg["socket_path"] = str(case.parent / "root.sock")
+    body = {
+        "attempt": {"attempt_id": grant["attempt_id"]},
+        "scope_sha256": "c" * 64,
+        "pid": child.pid,
+        "start_ticks": attached["ticks"],
+    }
+    client = """
+import http.client,json,socket,sys
+connection=http.client.HTTPConnection('localhost',timeout=3)
+connection.sock=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+connection.sock.settimeout(3)
+connection.sock.connect(sys.argv[1])
+connection.request('POST','/harness-launch/gateway_peer_v1',body=sys.argv[2],headers={'Content-Type':'application/json'})
+response=connection.getresponse()
+raw=response.read()
+print(json.dumps({'status':response.status,'reply':json.loads(raw) if response.status==200 else None}))
+connection.close()
+"""
+    with root.Server(backend) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+
+            def request(uid, value):
+                process = popen(
+                    [
+                        sys.executable,
+                        "-I",
+                        "-B",
+                        "-c",
+                        client,
+                        backend.cfg["socket_path"],
+                        json.dumps(value),
+                    ],
+                    user=uid,
+                    group=2005,
+                    extra_groups=(),
+                    env={},
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                try:
+                    output, errors = process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate(timeout=5)
+                    raise
+                assert process.returncode == 0, errors
+                return json.loads(output)
+
+            with patch.object(
+                root,
+                "check_guard",
+                return_value={
+                    "owner_pid": os.getpid(),
+                    "owner_ticks": root._ticks(os.getpid()),
+                },
+            ):
+                assert request(2005, body) == {
+                    "status": 200,
+                    "reply": {
+                        "verified": True,
+                        "pid": child.pid,
+                        "start_ticks": attached["ticks"],
+                        "scope_sha256": "c" * 64,
+                    },
+                }
+                for pid in descendants:
+                    assert request(
+                        2005, body | {"pid": pid, "start_ticks": root._ticks(pid)}
+                    ) == {"status": 503, "reply": None}
+                # Same socket group permits connect; the handler must deny UID.
+                assert request(2006, body) == {"status": 503, "reply": None}
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+            assert not thread.is_alive()
+    Path(backend.cfg["socket_path"]).unlink()
+
+
 def main():
     if os.geteuid() != 0 or os.environ.get("SFACTORY_ROOT_ATTACHMENT_FIXTURE") != "1":
         raise RuntimeError("explicit disposable Root fixture required")
@@ -150,6 +236,7 @@ def main():
                     break
                 assert time.monotonic() < deadline, "gateway did not exec"
                 time.sleep(0.01)
+            root.store(case / "grant.json", grant)
             before = {p.name: p.read_bytes() for p in case.glob("*.json")}
             backend._verify_gateway_launch(
                 case, grant, child.pid, attached["ticks"], "c" * 64
@@ -177,6 +264,7 @@ def main():
                     pass
                 else:
                     raise AssertionError("unlaunched descendant admitted as gateway")
+            verify_peer_rpc(backend, case, grant, child, attached, descendants, popen)
             assert before == {p.name: p.read_bytes() for p in case.glob("*.json")}
             backend._fence_execution(grant)
             assert child.wait(timeout=5) == -signal.SIGKILL
@@ -191,6 +279,9 @@ def main():
                 "child_killed_and_joined": True,
                 "matching_leaf_removed": True,
                 "launched_gateway_peer_verified": True,
+                "actual_root_rpc_authorized_broker_passed": True,
+                "actual_root_rpc_descendant_denied": True,
+                "actual_root_rpc_wrong_uid_same_group_denied": True,
                 "unlaunched_same_binary_descendant_denied": True,
                 "legacy_attribute_check_accepts_descendant": True,
                 "peer_verification_preserves_launch_records": True,
@@ -215,14 +306,32 @@ def main():
         os.close(program)
         if gate is not None:
             os.close(gate)
-        if child is not None and child.poll() is None:
-            child.kill()
+        (group / "cgroup.kill").write_text("1")
+        if child is not None:
             child.wait(timeout=5)
+        deadline = time.monotonic() + 5
+        while "populated 0" not in (group / "cgroup.events").read_text().splitlines():
+            if time.monotonic() >= deadline:
+                raise RuntimeError("fixture descendants did not join after fencing")
+            time.sleep(0.01)
         # This is fixture retirement, not a production handed-socket receipt.
         if (group / "gateway").exists():
             (group / "gateway").rmdir()
         group.rmdir()
         name.unlink(missing_ok=True)
+        print(
+            json.dumps(
+                {
+                    "fixture_retirement_only": True,
+                    "owned_attempt_cgroup": str(group),
+                    "gateway_pid": None if child is None else child.pid,
+                    "owned_attempt_cgroup_absent": not group.exists(),
+                    "fixture_socket_absent": not name.exists(),
+                }
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
     assert not group.exists() and not name.exists()
     result["owned_attempt_cgroup_absent"] = True
     result["fixture_socket_absent"] = True
