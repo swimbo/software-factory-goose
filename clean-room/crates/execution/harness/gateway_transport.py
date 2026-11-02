@@ -200,17 +200,51 @@ class ProtectedGatewayTransport:
                 {"attempt": attempt, "scope_sha256": call["scope_sha256"]},
             )
             require(
-                _keys(
-                    preimage, ("schema", "scope_sha256", "scope", "root_deadline_ms")
-                )
+                _keys(preimage, ("schema", "scope_sha256", "scope", "root_deadline_ms"))
                 and preimage["schema"] == 2
                 and type(preimage["schema"]) is int
                 and preimage["scope_sha256"] == call["scope_sha256"]
                 and type(preimage["scope"]) is dict,
                 "gateway_scope_changed",
             )
+            saved_attempt = copy.deepcopy(attempt)
+            saved_call = copy.deepcopy(call)
+            saved_scope = copy.deepcopy(preimage["scope"])
+            root_deadline = preimage["root_deadline_ms"]
+            journal = self.journal
+
+            def verify_inflight():
+                # No reservation or retry is created by this check. The gateway
+                # must still be fenced if authority is lost after the check.
+                if journal("verify_inflight", copy.deepcopy(saved_call)) is not True:
+                    return False
+                current = scope_client(
+                    "scope_preimage_v2",
+                    {
+                        "attempt": copy.deepcopy(saved_attempt),
+                        "scope_sha256": saved_call["scope_sha256"],
+                    },
+                )
+                return (
+                    _keys(
+                        current, ("schema", "scope_sha256", "scope", "root_deadline_ms")
+                    )
+                    and type(current["schema"]) is int
+                    and current["schema"] == 2
+                    and current["scope_sha256"] == saved_call["scope_sha256"]
+                    and type(current["scope"]) is dict
+                    and canonical(current["scope"]) == canonical(saved_scope)
+                    and type(current["root_deadline_ms"]) is int
+                    and current["root_deadline_ms"] >= root_deadline
+                    and time.time_ns() // 1000000 < min(root_deadline, expiry)
+                )
+
             self.acquisition.arm_v2(
-                root, copy.deepcopy(call), preimage["scope"], preimage["root_deadline_ms"]
+                root,
+                copy.deepcopy(call),
+                saved_scope,
+                root_deadline,
+                verify=verify_inflight,
             )
         return self.client.exchange(
             root, copy.deepcopy(call), copy.deepcopy(request), expiry

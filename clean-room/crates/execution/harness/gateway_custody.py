@@ -110,7 +110,7 @@ class GatewayAcquisitionAuthority:
             )
             self.roots[key] = [copy.deepcopy(root), copy.deepcopy(call), "armed"]
 
-    def arm_v2(self, binding, call, scope, root_deadline_ms):
+    def arm_v2(self, binding, call, scope, root_deadline_ms, *, verify=None):
         # The authenticated broker must relay Root's deadline honestly; it is a
         # snapshot, not a signature or a live revocation channel. This adds no
         # spending authority; the gateway independently verifies the scope hash.
@@ -120,12 +120,14 @@ class GatewayAcquisitionAuthority:
             require(
                 type(scope) is dict
                 and type(root_deadline_ms) is int
-                and 0 < root_deadline_ms
+                and 0
+                < root_deadline_ms
                 <= min(scope["expires_at_ms"], scope["route"]["valid_until_ms"])
                 and factory_scope_digest(scope) == binding["scope_sha256"]
                 and scope["route"]["route_sha256"] == binding["route_sha256"]
                 and scope["route"].get("usage_tariff_sha256")
                 == binding["tariff_sha256"]
+                and (verify is None or callable(verify))
                 and len(encoded(scope).encode()) <= LIMIT,
                 "gateway_scope_changed",
             )
@@ -134,7 +136,7 @@ class GatewayAcquisitionAuthority:
         with self.lock:
             self.arm(binding, call)
             self.roots[payload_sha256(binding)].extend(
-                (copy.deepcopy(scope), root_deadline_ms)
+                (copy.deepcopy(scope), root_deadline_ms, verify, 0)
             )
 
     def acquire(self, uid, body):
@@ -156,10 +158,10 @@ class GatewayAcquisitionAuthority:
             state = self.roots.get(key)
             require(
                 state is not None
-                and state[0] == body["binding"]
-                and state[1] == body["call"]
+                and encoded(state[0]) == encoded(body["binding"])
+                and encoded(state[1]) == encoded(body["call"])
                 and state[2] == "armed"
-                and len(state) == (3 if version == 1 else 5),
+                and len(state) == (3 if version == 1 else 7),
                 "gateway_root_unavailable",
             )
             state[2] = "unknown"
@@ -184,8 +186,51 @@ class GatewayAcquisitionAuthority:
                 )
             return result
 
+    def verify_physical_v2(self, uid, body):
+        require(
+            uid == self.uid
+            and _keys(body, ("binding", "call", "physical_sequence", "physical_sha256"))
+            and type(body["binding"]) is dict
+            and set(body["binding"]) == ROOT_KEYS
+            and _integer(body["physical_sequence"], 0, 31)
+            and _digest(body["physical_sha256"]),
+            "gateway_physical_verification_denied",
+        )
+        key = payload_sha256(root_binding(body["binding"]))
+        with self.lock:
+            state = self.roots.get(key)
+            require(
+                state is not None
+                and len(state) == 7
+                and encoded(state[0]) == encoded(body["binding"])
+                and encoded(state[1]) == encoded(body["call"])
+                and state[2] == "acquired"
+                and callable(state[5])
+                and state[6] == body["physical_sequence"],
+                "gateway_physical_verification_denied",
+            )
+            # Consume this sequence before either protected read. An unknown or
+            # lost acknowledgement can never authorize the same dispatch again.
+            state[6] += 1
+            try:
+                require(state[5]() is True, "gateway_physical_verification_unknown")
+            except Exception:
+                state[2] = "failed"
+                raise ControlRefused("gateway_physical_verification_unknown") from None
+            return {
+                "verified": True,
+                "root_sha256": key,
+                "physical_sequence": body["physical_sequence"],
+                "physical_sha256": body["physical_sha256"],
+            }
+
     def dispatch(self, uid, method, body):
-        require(method in ("acquire", "acquire_v2"), "gateway_method_denied")
+        require(
+            method in ("acquire", "acquire_v2", "verify_physical_v2"),
+            "gateway_method_denied",
+        )
+        if method == "verify_physical_v2":
+            return self.verify_physical_v2(uid, body)
         return (
             self.acquire_v2(uid, body)
             if method == "acquire_v2"
@@ -626,6 +671,7 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
                     "audit",
                     "acquire",
                     "acquire_v2",
+                    "verify_physical_v2",
                     "settle",
                 ),
                 "custody_method_denied",

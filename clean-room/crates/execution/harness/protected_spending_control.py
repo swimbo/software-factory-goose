@@ -223,7 +223,10 @@ class PrivateSpendingClient:
                 os.close(fd)
 
     def __call__(self, method, body):
-        if method not in ("reserve", "begin") or os.geteuid() != self.broker_uid:
+        if (
+            method not in ("reserve", "begin", "verify_inflight")
+            or os.geteuid() != self.broker_uid
+        ):
             raise ControlRefused("private_spending_role_denied")
         if (
             not _keys(
@@ -246,7 +249,10 @@ class PrivateSpendingClient:
             or not _integer(body["output_tokens"], 1, 16384)
         ):
             raise ControlRefused("invalid_spending_request")
-        return self._send(method, canonical(body).encode())
+        result = self._send(method, canonical(body).encode())
+        if method == "verify_inflight" and result is not True:
+            raise ControlRefused("private_spending_verification_unknown")
+        return result
 
     def _send(
         self,

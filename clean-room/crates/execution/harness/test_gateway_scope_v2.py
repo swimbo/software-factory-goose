@@ -103,6 +103,99 @@ class GatewayScopeV2Tests(unittest.TestCase):
             authority.acquire_v2(2007, {"binding": root, "call": call})
         self.assertEqual(begin.call_count, 0)
 
+    def test_physical_confirmation_is_bound_sequenced_and_never_rebegins(self):
+        scope, root, call, authority, begin, opened = self.fixture()
+        check = Mock(return_value=True)
+        authority.arm_v2(root, call, scope, 1000, verify=check)
+        authority.acquire_v2(2007, {"binding": root, "call": call})
+        request = {
+            "binding": root,
+            "call": call,
+            "physical_sequence": 0,
+            "physical_sha256": "c" * 64,
+        }
+        for uid, change in (
+            (2001, {}),
+            (2007, {"physical_sequence": 1}),
+            (2007, {"physical_sha256": "bad"}),
+            (2007, {"call": call | {"sequence": 1}}),
+            (2007, {"call": call | {"sequence": False}}),
+        ):
+            with (
+                self.subTest(uid=uid, change=change),
+                self.assertRaises(ControlRefused),
+            ):
+                authority.verify_physical_v2(uid, request | change)
+        check.assert_not_called()
+        self.assertEqual(
+            authority.verify_physical_v2(2007, request),
+            {
+                "verified": True,
+                "root_sha256": payload_sha256(root),
+                "physical_sequence": 0,
+                "physical_sha256": "c" * 64,
+            },
+        )
+        with self.assertRaises(ControlRefused):
+            authority.verify_physical_v2(2007, request)
+        self.assertEqual(
+            authority.verify_physical_v2(
+                2007,
+                request
+                | {
+                    "physical_sequence": 1,
+                    "physical_sha256": "d" * 64,
+                },
+            )["physical_sequence"],
+            1,
+        )
+        self.assertEqual(
+            (begin.call_count, opened.call_count, check.call_count), (1, 1, 2)
+        )
+
+    def test_physical_confirmation_lost_or_false_ack_fails_closed(self):
+        for result in (False, None, OSError("lost")):
+            scope, root, call, authority, begin, _ = self.fixture()
+            check = (
+                Mock(side_effect=result)
+                if isinstance(result, Exception)
+                else Mock(return_value=result)
+            )
+            authority.arm_v2(root, call, scope, 1000, verify=check)
+            authority.acquire_v2(2007, {"binding": root, "call": call})
+            request = {
+                "binding": root,
+                "call": call,
+                "physical_sequence": 0,
+                "physical_sha256": "c" * 64,
+            }
+            with self.subTest(result=result):
+                for _ in range(2):
+                    with self.assertRaises(ControlRefused):
+                        authority.verify_physical_v2(2007, request)
+                self.assertEqual((begin.call_count, check.call_count), (1, 1))
+
+    def test_unverified_or_legacy_root_cannot_confirm_physical_call(self):
+        for version in (1, 2):
+            scope, root, call, authority, begin, _ = self.fixture()
+            if version == 1:
+                authority.arm(root, call)
+                authority.acquire(2007, {"binding": root, "call": call})
+            else:
+                authority.arm_v2(root, call, scope, 1000)
+                authority.acquire_v2(2007, {"binding": root, "call": call})
+            with self.assertRaises(ControlRefused):
+                authority.verify_physical_v2(
+                    2007,
+                    {
+                        "binding": root,
+                        "call": call,
+                        "physical_sequence": 0,
+                        "physical_sha256": "c" * 64,
+                    },
+                )
+            self.assertEqual(begin.call_count, 1)
+
     def test_changed_scope_route_or_tariff_never_arms(self):
         scope, root, call, authority, begin, opened = self.fixture()
         for value in (
@@ -170,6 +263,16 @@ class GatewayScopeV2Tests(unittest.TestCase):
             )
             self.assertEqual(ack["scope"], scope)
             self.assertEqual(ack["root_deadline_ms"], 1000)
+            verified = authority.verify_physical_v2(
+                2007,
+                {
+                    "binding": frame["binding"],
+                    "call": frame["call"],
+                    "physical_sequence": 0,
+                    "physical_sha256": "c" * 64,
+                },
+            )
+            self.assertTrue(verified["verified"])
             return {
                 k: call[k] for k in ("call_id", "scope_sha256", "request_sha256")
             } | {
@@ -180,7 +283,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
         client._send = send
         transport = object.__new__(ProtectedGatewayTransport)
         transport.journal, transport.acquisition, transport.client = (
-            object(),
+            Mock(return_value=True),
             authority,
             client,
         )
@@ -192,14 +295,48 @@ class GatewayScopeV2Tests(unittest.TestCase):
             "rehearsal",
         )
         transport._scope_client = root_client
-        with patch("gateway_transport.os.geteuid", return_value=2005):
+        with (
+            patch("gateway_transport.os.geteuid", return_value=2005),
+            patch("gateway_transport.time.time_ns", return_value=500_000_000),
+        ):
             result = transport.exchange_reserved(attempt, grant, call, request)
         self.assertEqual(result["sse"], b"data: [DONE]\n\n")
         self.assertEqual(begin.call_count, 1)
-        root_client._request.assert_called_once_with(
+        self.assertEqual(root_client._request.call_count, 2)
+        root_client._request.assert_called_with(
             "/harness-launch/scope_preimage_v2",
             {"attempt": attempt, "scope_sha256": root["scope_sha256"]},
         )
+        transport.journal.assert_called_once_with("verify_inflight", call)
+        verify = authority.roots[payload_sha256(root)][5]
+        initial = root_client._request.return_value
+        with (
+            patch("gateway_transport.os.geteuid", return_value=2005),
+            patch("gateway_transport.time.time_ns", return_value=500_000_000),
+        ):
+            for changed in (
+                initial | {"scope": scope | {"worker": "other"}},
+                initial | {"scope": scope | {"attempt": True}},
+                initial | {"scope_sha256": "0" * 64},
+                initial | {"root_deadline_ms": 999},
+                initial | {"root_deadline_ms": True},
+                initial | {"schema": True},
+                initial | {"unexpected": True},
+            ):
+                root_client._request.return_value = changed
+                with self.subTest(changed=changed):
+                    self.assertFalse(verify())
+            root_client._request.return_value = initial
+            transport.journal.return_value = False
+            before = root_client._request.call_count
+            self.assertFalse(verify())
+            self.assertEqual(root_client._request.call_count, before)
+            transport.journal.return_value = True
+        with (
+            patch("gateway_transport.os.geteuid", return_value=2005),
+            patch("gateway_transport.time.time_ns", return_value=1_000_000_000),
+        ):
+            self.assertFalse(verify())
         transport.mode = "live"
         attempt["mode"] = "live"
         transport._scope_client = None

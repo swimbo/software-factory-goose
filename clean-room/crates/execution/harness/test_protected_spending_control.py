@@ -182,6 +182,40 @@ class ProtectedSpendingControl(unittest.TestCase):
             ):
                 client("reserve", call | {field: value})
 
+    def test_inflight_verification_requires_exact_ack_and_never_retries(self):
+        client = object.__new__(PrivateSpendingClient)
+        client.broker_uid = os.geteuid()
+        call = {
+            "call_id": "call",
+            "scope_sha256": "a" * 64,
+            "request_sha256": "b" * 64,
+            "sequence": 0,
+            "request_bytes": 1,
+            "output_tokens": 1,
+        }
+        with patch.object(client, "_send", return_value=True) as send:
+            self.assertIs(client("verify_inflight", call), True)
+            self.assertEqual(send.call_count, 1)
+        for reply in (False, None, 1, {"ok": True}):
+            with (
+                self.subTest(reply=reply),
+                patch.object(client, "_send", return_value=reply) as send,
+            ):
+                with self.assertRaises(ControlRefused):
+                    client("verify_inflight", call)
+                self.assertEqual(send.call_count, 1)
+        with patch.object(
+            client, "_send", side_effect=ControlRefused("unknown")
+        ) as send:
+            with self.assertRaises(ControlRefused):
+                client("verify_inflight", call)
+            self.assertEqual(send.call_count, 1)
+        with patch(
+            "protected_spending_control.os.geteuid", return_value=client.broker_uid + 1
+        ):
+            with self.assertRaises(ControlRefused):
+                client("verify_inflight", call)
+
     def test_consumed_journal_dispatch_is_not_replayed(self):
         control, attempt, events, _, broker, *_ = fixture()
         control.admit(attempt)
