@@ -1,6 +1,7 @@
 """Root gateway process checks; synthetic proc files do not prove Linux custody."""
 
 import contextlib
+import errno
 import fcntl
 import hashlib
 import json
@@ -22,6 +23,18 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_socket_copy_scan_ignores_only_closed_descriptor_races(self):
+        with patch.object(root.os, "listdir", return_value=["9"]):
+            with patch.object(
+                root.os, "fstat", side_effect=OSError(errno.EBADF, "closed")
+            ):
+                root.require_no_socket_copy((1, 2))
+            with patch.object(
+                root.os, "fstat", side_effect=OSError(errno.EACCES, "denied")
+            ):
+                with self.assertRaises(PermissionError):
+                    root.require_no_socket_copy((1, 2))
+
     def test_root_launch_composes_bind_prepare_and_one_release(self):
         backend = object.__new__(root.RootSupervisor)
         grant = {"public": "fixture"}
@@ -404,6 +417,7 @@ class GatewayPeerTests(unittest.TestCase):
                     ),
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root, "require_no_socket_copy"),
                     patch.object(root.subprocess, "Popen", side_effect=spawn),
                 ):
                     actual, gate, receipt = backend._prepare_gateway(
@@ -489,6 +503,7 @@ class GatewayPeerTests(unittest.TestCase):
                     ),
                     patch.object(root, "_ticks", return_value=123),
                     patch.object(root, "stage_gateway_exec", return_value=helper),
+                    patch.object(root, "require_no_socket_copy"),
                     patch.object(root.subprocess, "Popen", return_value=child),
                 ):
                     with self.assertRaisesRegex(
@@ -747,6 +762,18 @@ class GatewayPeerTests(unittest.TestCase):
             ):
                 for name in ("gateway-created.json", "gateway-bound.json"):
                     (case / name).write_text(json.dumps(bound))
+                (case / "gateway-parent-closed.json").write_text(
+                    json.dumps(
+                        {
+                            "intent": intent,
+                            "socket": socket_identity,
+                            "child_pid": child.pid,
+                            "child_ticks": 789,
+                            "kernel_dev": 1,
+                            "kernel_ino": 2,
+                        }
+                    )
+                )
                 self.assertEqual(backend._attach_gateway(grant, child), attached)
                 self.assertEqual(check.call_count, 2)
                 self.assertEqual(
@@ -790,6 +817,7 @@ class GatewayPeerTests(unittest.TestCase):
             ):
                 (case / "gateway-created.json").write_text("{}")
                 (case / "gateway-bound.json").write_text("{}")
+                (case / "gateway-parent-closed.json").write_text("{}")
                 with self.assertRaisesRegex(
                     root.SupervisorRefused, "root_gateway_bound_receipt_changed"
                 ):
@@ -815,6 +843,18 @@ class GatewayPeerTests(unittest.TestCase):
                 }
                 for name in ("gateway-created.json", "gateway-bound.json"):
                     (case / name).write_text(json.dumps(bound))
+                (case / "gateway-parent-closed.json").write_text(
+                    json.dumps(
+                        {
+                            "intent": intent,
+                            "socket": bound["socket"],
+                            "child_pid": 456,
+                            "child_ticks": 789,
+                            "kernel_dev": 1,
+                            "kernel_ino": 2,
+                        }
+                    )
+                )
                 leaf = {"path": grant["cgroup_path"] + "/gateway", "dev": 3, "ino": 4}
 
                 def move(*args, on_created):

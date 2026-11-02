@@ -1,0 +1,5 @@
+# Gateway parent socket closure checkpoint
+
+The private Root preparation path records the child identity and bound socket receipt only after closing its socket descriptor, scanning its own descriptor table for another copy of the same kernel socket, and rechecking the current grant and guard. Attachment now requires that closure receipt and matches it to the attached child's PID and start ticks. Descriptor races that result in `EBADF` are tolerated; other scan errors fail closed.
+
+An isolated Linux fixture detected an intentionally duplicated socket, exercised real Root preparation, and verified that guard loss after child spawn kills and joins the gated child without recording closure. The fixture uses synthetic grant, guard, binding and attachment seams and does not establish whether the gateway or another process could transfer or retain a socket descriptor outside the supervisor's table. Handed-socket cleanup still refuses by default. Supervisor SHA-256 `ab25f4c0a06c811f3a1d3e40af51be4b1492f324acb11947e7017543ac427b6c`; fixture SHA-256 `091d808405d48633c1cfbef0e135255d6f374ebb63466d0814bd524181a6f8dd`. No paid calls occurred.

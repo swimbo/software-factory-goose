@@ -289,9 +289,9 @@ def owner_loss_case():
             os.waitpid(child_pid, 0)
 
 
-def prepare_case(refuse=False, release=False):
+def prepare_case(refuse=False, release=False, refuse_guard=False):
     """Exercise the real spawn path with explicitly synthetic Root seams."""
-    suffix = "c" if refuse else "d" if release else "b"
+    suffix = "e" if refuse_guard else "c" if refuse else "d" if release else "b"
     case = Path("/var/lib/sfactory-harness/prepare-" + suffix)
     case.mkdir(mode=0o700)
     group = Path("/sys/fs/cgroup" + Path("/proc/self/cgroup").read_text().strip()[3:])
@@ -389,25 +389,33 @@ def prepare_case(refuse=False, release=False):
                     "protected",
                     side_effect=lambda p, *a, **k: Path(p).read_bytes(),
                 ),
-                patch.object(
-                    product,
-                    "check_guard",
-                    return_value={
-                        "owner_pid": os.getpid(),
-                        "owner_ticks": ticks(os.getpid()),
-                    },
-                ),
+                patch.object(product, "check_guard") as guard_check,
                 patch.object(product.subprocess, "Popen", side_effect=record_spawn),
                 patch.object(product, "inspect_prepared_gateway"),
             ):
-                if refuse:
+                valid_guard = {
+                    "owner_pid": os.getpid(),
+                    "owner_ticks": ticks(os.getpid()),
+                }
+                guard_check.side_effect = (
+                    [valid_guard, product.SupervisorRefused("fixture guard lost")]
+                    if refuse_guard
+                    else None
+                )
+                guard_check.return_value = valid_guard
+                if refuse or refuse_guard:
                     try:
                         backend._prepare_gateway(grant, bound, program)
                     except product.SupervisorRefused:
                         pass
                     else:
                         raise RuntimeError("fixture attachment refusal ignored")
-                    backend._attach_gateway.assert_called_once()
+                    if refuse_guard:
+                        backend._attach_gateway.assert_not_called()
+                        if (case / "gateway-parent-closed.json").exists():
+                            raise RuntimeError("lost guard recorded socket handoff")
+                    else:
+                        backend._attach_gateway.assert_called_once()
                     if (
                         len(spawned) != 1
                         or spawned[0].poll() is None
@@ -479,6 +487,24 @@ def prepare_case(refuse=False, release=False):
             os.close(program)
 
 
+def socket_copy_case():
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+        duplicate = os.dup(sock.fileno())
+        info = os.fstat(sock.fileno())
+        identity = (info.st_dev, info.st_ino)
+        sock.close()
+        try:
+            try:
+                product.require_no_socket_copy(identity)
+            except product.SupervisorRefused:
+                pass
+            else:
+                raise RuntimeError("duplicate socket descriptor not detected")
+        finally:
+            os.close(duplicate)
+        product.require_no_socket_copy(identity)
+
+
 def main():
     if (
         sys.platform != "linux"
@@ -506,9 +532,11 @@ def main():
     ):
         run_case(index, action)
     owner_loss_case()
+    socket_copy_case()
     prepare_case()
     prepare_case(refuse=True)
     prepare_case(release=True)
+    prepare_case(refuse_guard=True)
     print(
         json.dumps(
             {
@@ -522,8 +550,10 @@ def main():
                 "wrong_socket_type_denied": True,
                 "released_exec_uid_verified": True,
                 "owner_loss_before_release_denied": True,
+                "root_duplicate_socket_copy_detected": True,
                 "root_prepare_spawn_closed_gate_verified": True,
                 "root_prepare_attachment_failure_child_joined": True,
+                "root_prepare_guard_loss_child_joined": True,
                 "root_release_target_peer_verified": True,
                 "actual_cgroup_migration_tested": False,
                 "fixture_only": True,

@@ -9,6 +9,7 @@ are retained; lost start acknowledgements never authorize another launch.
 
 import copy
 from contextlib import contextmanager
+import errno
 import fcntl
 import hashlib
 import http.server
@@ -147,6 +148,21 @@ def stage_gateway_exec():
     except BaseException:
         os.close(fd)
         raise
+
+
+def require_no_socket_copy(identity):
+    """Refuse while this supervisor retains a copy of the passed socket."""
+    for entry in os.listdir("/proc/self/fd"):
+        try:
+            info = os.fstat(int(entry))
+        except OSError as error:
+            if error.errno == errno.EBADF:
+                continue  # The enumerated descriptor can close during inspection.
+            raise
+        require(
+            not stat.S_ISSOCK(info.st_mode) or (info.st_dev, info.st_ino) != identity,
+            "root_gateway_socket_copy_retained",
+        )
 
 
 def attach_gateway_child(grant, process, uid, *, on_created):
@@ -1734,6 +1750,11 @@ class RootSupervisor:
                         and program_fd >= 3,
                         "root_gateway_bound_receipt_changed",
                     )
+                    socket_info = os.fstat(bound_socket.fileno())
+                    require(
+                        stat.S_ISSOCK(socket_info.st_mode),
+                        "root_gateway_socket_changed",
+                    )
                     store(
                         case / "gateway-spawn-intent.json",
                         {"intent": expected, "socket": bound["socket"]},
@@ -1791,6 +1812,28 @@ class RootSupervisor:
                     )
             # The parent must not retain a socket copy after handing it to the child.
             bound_socket.close()
+            require_no_socket_copy((socket_info.st_dev, socket_info.st_ino))
+            with self.gate.admission(), self.guard:
+                with gateway_bind_lock(case):
+                    self._current(grant)
+                    self._kernel_scope(grant, empty=False)
+                    ready = check_guard(self, grant)
+                    require(
+                        ready["owner_pid"] == os.getpid()
+                        and ready["owner_ticks"] == _ticks(os.getpid()),
+                        "root_gateway_guard_owner_changed",
+                    )
+                    store(
+                        case / "gateway-parent-closed.json",
+                        {
+                            "intent": expected,
+                            "socket": bound["socket"],
+                            "child_pid": process.pid,
+                            "child_ticks": _ticks(process.pid),
+                            "kernel_dev": socket_info.st_dev,
+                            "kernel_ino": socket_info.st_ino,
+                        },
+                    )
             os.close(gate_r)
             gate_r = None
             os.close(ready_w)
@@ -1862,6 +1905,9 @@ class RootSupervisor:
                 created_socket = _decode(
                     protected(case / "gateway-created.json", 0o600)
                 )
+                parent_closed = _decode(
+                    protected(case / "gateway-parent-closed.json", 0o600)
+                )
                 require(
                     type(bound) is dict
                     and set(bound) == {"intent", "socket"}
@@ -1874,7 +1920,23 @@ class RootSupervisor:
                     + grant["attempt_id"][4:]
                     + ".sock"
                     and _integer(bound["socket"]["dev"], 1)
-                    and _integer(bound["socket"]["ino"], 1),
+                    and _integer(bound["socket"]["ino"], 1)
+                    and type(parent_closed) is dict
+                    and set(parent_closed)
+                    == {
+                        "intent",
+                        "socket",
+                        "child_pid",
+                        "child_ticks",
+                        "kernel_dev",
+                        "kernel_ino",
+                    }
+                    and parent_closed["intent"] == socket_intent
+                    and parent_closed["socket"] == bound["socket"]
+                    and parent_closed["child_pid"] == process.pid
+                    and _integer(parent_closed["child_ticks"], 1)
+                    and _integer(parent_closed["kernel_dev"], 0, 2**64 - 1)
+                    and _integer(parent_closed["kernel_ino"], 1, 2**64 - 1),
                     "root_gateway_bound_receipt_changed",
                 )
                 intent = {
@@ -1911,6 +1973,7 @@ class RootSupervisor:
                     and set(attached) == {"path", "dev", "ino", "pid", "ticks"}
                     and {k: attached[k] for k in ("path", "dev", "ino")} == created
                     and attached["pid"] == process.pid
+                    and attached["ticks"] == parent_closed["child_ticks"]
                     and _integer(attached["ticks"], 1),
                     "root_gateway_attach_unknown",
                 )
