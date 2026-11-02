@@ -28,6 +28,8 @@ Bifrost commit `9f7fc47` adds a source-only private listener lifecycle for a pre
 
 Bifrost `52e30a5` and the updated factory fixture [join the actual listener to the wallet rehearsal](clean-room/verification/2026-11-01-listener-wallet-join.md). The network-disabled run completed one synthetic provider call and settlement before the parent cancelled the listener. Root construction, route, authorizer and charge bounds remain synthetic; no production admission or paid attempt occurred.
 
+Bifrost `c14651e` adds and tests [adoption of a supervisor-supplied listener descriptor](clean-room/verification/2026-11-01-gateway-inherited-listener.md), including an isolated cross-process `exec` handoff and a fresh synthetic wallet rehearsal. The actual Root launcher does not yet supply this descriptor, and pathname custody, production bootstrap and failure cleanup remain unqualified.
+
 - Protected spending authority, one-use gateway acquisition, durable capture and independent settlement RPC have component and restart proofs. These do not establish the full production path.
 - An [isolated joined fixture](clean-room/verification/2026-11-01-wallet-root-gateway-join.md) now exercises the durable wallet, real Root scope methods, protected broker, actual Bifrost handler, capture and collector together. Root construction, registry, route, provider, authorizer and bounds are synthetic; production admission remains unqualified.
 - The same isolated chain now [tests task and daily reservation ceilings separately](clean-room/verification/2026-11-01-joined-cap.md) against the real journal, with synthetic opening balances and bounds. The hosted all-path charge envelope remains unproven.
