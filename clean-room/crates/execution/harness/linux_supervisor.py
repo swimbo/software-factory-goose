@@ -18,6 +18,7 @@ import os
 import re
 from pathlib import Path
 import secrets
+import signal
 import socket
 import socketserver
 import stat
@@ -145,6 +146,119 @@ def stage_gateway_exec():
     except BaseException:
         os.close(fd)
         raise
+
+
+def attach_gateway_child(grant, process, uid):
+    """Move an unreaped, gated direct child into a fresh attempt-cgroup leaf.
+
+    The caller must hold the bind lock, current grant and guard, retain the
+    Popen object without concurrent waits, record intent before calling, recheck
+    authority before release, and fence/reconcile on any unknown result. This
+    function does not release the child or establish production authority.
+    """
+    pid = process.pid
+    path = grant["cgroup_path"]
+    require(
+        sys.platform == "linux"
+        and os.geteuid() == 0
+        and _integer(pid, 2, 2**31 - 1)
+        and _integer(uid, 1, 2**31 - 1)
+        and isinstance(path, str)
+        and path.startswith("/sys/fs/cgroup/")
+        and os.path.normpath(path) == path
+        and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
+        "root_gateway_attach_invalid",
+    )
+    require(
+        Path("/proc/sys/kernel/random/boot_id").read_text().strip() == grant["boot_id"],
+        "root_gateway_attach_boot_changed",
+    )
+    parent_fd = os.open(
+        path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    )
+    pidfd = leaf_fd = None
+    try:
+        parent = os.fstat(parent_fd)
+        require(
+            parent.st_uid == 0
+            and not parent.st_mode & 0o022
+            and (parent.st_dev, parent.st_ino)
+            == (grant["cgroup_dev"], grant["cgroup_ino"]),
+            "root_gateway_attach_scope_changed",
+        )
+        pidfd = os.pidfd_open(pid, 0)
+        ticks = _ticks(pid)
+
+        def check_child():
+            try:
+                exited = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            except ChildProcessError:
+                raise SupervisorRefused("root_gateway_attach_child_changed") from None
+            fields = dict(
+                line.split(":", 1)
+                for line in (Path("/proc") / str(pid) / "status")
+                .read_text()
+                .splitlines()
+                if ":" in line
+            )
+            require(
+                exited is None
+                and _ticks(pid) == ticks
+                and fields.get("PPid", "").strip() == str(os.getpid())
+                and fields.get("Uid", "").split() == [str(uid)] * 4
+                and fields.get("NoNewPrivs", "").strip() == "1"
+                and all(
+                    int(fields.get(k, "-1").strip(), 16) == 0
+                    for k in ("CapInh", "CapPrm", "CapEff", "CapAmb")
+                ),
+                "root_gateway_attach_child_changed",
+            )
+
+        check_child()
+        os.mkdir("gateway", 0o755, dir_fd=parent_fd)
+        leaf_fd = os.open(
+            "gateway",
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=parent_fd,
+        )
+        leaf = os.fstat(leaf_fd)
+        require(
+            leaf.st_uid == 0 and not leaf.st_mode & 0o022,
+            "root_gateway_attach_leaf_changed",
+        )
+        check_child()
+        control = os.open(
+            "cgroup.procs", os.O_WRONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=leaf_fd
+        )
+        try:
+            raw = str(pid).encode("ascii")
+            require(os.write(control, raw) == len(raw), "root_gateway_attach_unknown")
+        finally:
+            os.close(control)
+        check_child()
+        membership = (
+            (Path("/proc") / str(pid) / "cgroup").read_text().strip().splitlines()
+        )
+        parent_after = os.fstat(parent_fd)
+        named_leaf = os.stat("gateway", dir_fd=parent_fd, follow_symlinks=False)
+        require(
+            membership == ["0::" + path.removeprefix("/sys/fs/cgroup") + "/gateway"]
+            and (parent_after.st_dev, parent_after.st_ino)
+            == (parent.st_dev, parent.st_ino)
+            and (named_leaf.st_dev, named_leaf.st_ino) == (leaf.st_dev, leaf.st_ino),
+            "root_gateway_attach_unknown",
+        )
+        return {
+            "path": path + "/gateway",
+            "dev": leaf.st_dev,
+            "ino": leaf.st_ino,
+            "pid": pid,
+            "ticks": ticks,
+        }
+    finally:
+        for fd in (leaf_fd, pidfd, parent_fd):
+            if fd is not None:
+                os.close(fd)
 
 
 @contextmanager

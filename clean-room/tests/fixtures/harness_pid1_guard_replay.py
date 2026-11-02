@@ -197,7 +197,7 @@ def start_gateway_peer(library, python, group, base):
     return identity, [(pid, product._ticks(pid)), (child, product._ticks(child))]
 
 
-def start_gateway_barrier(python, group, base):
+def start_gateway_barrier(python, grant, group, base):
     """Move a gated synthetic gateway into the fixture's actual attempt slice."""
     helper = product.stage_gateway_exec()
     target = base / "source/clean-room/tests/fixtures/harness_gateway_exec_target"
@@ -208,7 +208,6 @@ def start_gateway_barrier(python, group, base):
     bound = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     gate_r, gate_w = os.pipe()
     ready_r, ready_w = os.pipe()
-    leaf = group / "fixture-gateway"
     proc = None
     leaf_identity = None
     try:
@@ -258,10 +257,20 @@ def start_gateway_barrier(python, group, base):
                 raise RuntimeError(proc.stderr.read().decode(errors="replace"))
             raise RuntimeError("gateway barrier readiness timeout")
         assert proc.poll() is None
-        os.mkdir(leaf, 0o755)
-        info = leaf.stat()
-        leaf_identity = (info.st_dev, info.st_ino)
-        (leaf / "cgroup.procs").write_text(str(proc.pid))
+        for changed_grant, changed_uid in (
+            (grant, 2008),
+            (grant | {"cgroup_ino": grant["cgroup_ino"] + 1}, 2007),
+        ):
+            try:
+                product.attach_gateway_child(changed_grant, proc, changed_uid)
+            except product.SupervisorRefused:
+                pass
+            else:
+                raise RuntimeError("changed child or cgroup accepted")
+            assert not (group / "gateway").exists()
+        attached = product.attach_gateway_child(grant, proc, 2007)
+        leaf = Path(attached["path"])
+        leaf_identity = (attached["dev"], attached["ino"])
         membership = (Path("/proc") / str(proc.pid) / "cgroup").read_text().strip()
         assert membership == "0::" + str(leaf).removeprefix("/sys/fs/cgroup")
         assert proc.poll() is None and os.write(gate_w, b"G") == 1
@@ -597,7 +606,7 @@ def controller(
         if gateway_barrier:
             # The controller runs in an isolated container; host_python is for
             # PID1 services on the host and lacks libraries inside that image.
-            barrier = start_gateway_barrier(sys.executable, group, base)
+            barrier = start_gateway_barrier(sys.executable, grant, group, base)
         if fault == "owner-loss":
             kill_service_group(controller_library, parent)
         elif fault == "guard-crash":
