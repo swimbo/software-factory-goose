@@ -54,7 +54,7 @@ MOUNT_TARGETS = {
     "relay": "/gate/relay.sock",
 }
 GATEWAY_SOCKET_SHA256 = (
-    "80d24595613219b7cd3e9645cc3179d710f3c982ac2c858ccb3b6059798aa488"
+    "61f27706562c229da7fe704c1b5e6e3620d2f62fb82cfff4ea188c45d4813567"
 )
 
 
@@ -110,8 +110,9 @@ def load_gateway_socket(expected):
     return binder
 
 
-def gateway_socket_absent(attempt_id):
-    """Read-only absence check beneath Root-owned, non-writable ext4 parents."""
+@contextmanager
+def gateway_socket_parent(attempt_id):
+    """Hold Root-owned, non-writable ext4 ancestors during socket operations."""
     require(
         isinstance(attempt_id, str)
         and re.fullmatch(r"run_[0-9a-f]{64}", attempt_id) is not None,
@@ -139,14 +140,51 @@ def gateway_socket_absent(attempt_id):
                     dir_fd=fd,
                 )
                 descriptors.append(fd)
-        try:
-            os.stat(attempt_id[4:] + ".sock", dir_fd=fd, follow_symlinks=False)
-        except FileNotFoundError:
-            return True
-        return False
+        yield fd, attempt_id[4:] + ".sock", str(parent / (attempt_id[4:] + ".sock"))
     finally:
         for fd in reversed(descriptors):
             os.close(fd)
+
+
+def gateway_socket_absent(attempt_id):
+    """Read-only absence check beneath Root-owned, non-writable ext4 parents."""
+    with gateway_socket_parent(attempt_id) as (fd, name, _):
+        try:
+            os.stat(name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return True
+        return False
+
+
+def remove_unhanded_gateway_socket(attempt_id, identity):
+    """Remove only the recorded inode; the caller must fence and hold the bind lock."""
+    with gateway_socket_parent(attempt_id) as (fd, name, path):
+        require(
+            type(identity) is dict
+            and set(identity) == {"path", "dev", "ino"}
+            and identity["path"] == path
+            and _integer(identity["dev"], 1)
+            and _integer(identity["ino"], 1),
+            "root_gateway_created_identity_invalid",
+        )
+        try:
+            info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            os.fsync(fd)
+            return
+        require(
+            stat.S_ISSOCK(info.st_mode)
+            and info.st_nlink == 1
+            and (info.st_dev, info.st_ino) == (identity["dev"], identity["ino"]),
+            "root_gateway_created_identity_changed",
+        )
+        os.unlink(name, dir_fd=fd)
+        os.fsync(fd)
+        try:
+            os.stat(name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        raise SupervisorRefused("root_gateway_cleanup_unknown")
 
 
 def inspect_gateway_peer(grant, pid, start_ticks, uid, executable_sha256):
@@ -1218,11 +1256,38 @@ class RootSupervisor:
                 }
                 store(case / "gateway-bind-intent.json", intent)
                 bound = None
+                created = None
+
+                def record_created(identity):
+                    nonlocal created
+                    require(
+                        created is None
+                        and type(identity) is dict
+                        and set(identity) == {"path", "dev", "ino"}
+                        and identity["path"]
+                        == "/var/lib/sfactory-harness/gw/"
+                        + grant["attempt_id"][4:]
+                        + ".sock"
+                        and _integer(identity["dev"], 1)
+                        and _integer(identity["ino"], 1),
+                        "root_gateway_created_identity_invalid",
+                    )
+                    store(
+                        case / "gateway-created.json",
+                        {"intent": intent, "socket": identity},
+                    )
+                    created = copy.deepcopy(identity)
+
                 try:
                     bound, identity = bind_gateway_socket(
                         grant["attempt_id"][4:],
                         self.cfg["gateway_uid"],
                         grant["broker_uid"],
+                        on_created=record_created,
+                    )
+                    require(
+                        created is not None and identity == created,
+                        "root_gateway_created_identity_changed",
                     )
                     self._current(grant)
                     self._kernel_scope(grant, empty=False)
@@ -1612,6 +1677,11 @@ class RootSupervisor:
                     "root_gateway_cleanup_unqualified",
                 )
                 intent_path = case / "gateway-bind-intent.json"
+                created_path = case / "gateway-created.json"
+                require(
+                    not os.path.lexists(created_path) or os.path.lexists(intent_path),
+                    "root_gateway_bind_intent_changed",
+                )
                 if os.path.lexists(intent_path):
                     intent = _decode(protected(intent_path, 0o600))
                     expected = {
@@ -1621,10 +1691,22 @@ class RootSupervisor:
                         "broker_gid": grant["broker_uid"],
                     }
                     require(intent == expected, "root_gateway_bind_intent_changed")
-                    require(
-                        gateway_socket_absent(grant["attempt_id"]),
-                        "root_gateway_cleanup_unqualified",
-                    )
+                    if os.path.lexists(created_path):
+                        created = _decode(protected(created_path, 0o600))
+                        require(
+                            type(created) is dict
+                            and set(created) == {"intent", "socket"}
+                            and created["intent"] == intent,
+                            "root_gateway_created_receipt_changed",
+                        )
+                        remove_unhanded_gateway_socket(
+                            grant["attempt_id"], created["socket"]
+                        )
+                    else:
+                        require(
+                            gateway_socket_absent(grant["attempt_id"]),
+                            "root_gateway_cleanup_unqualified",
+                        )
                     receipt = {
                         "grant_sha256": sha(grant),
                         "state": "absent_before_handoff",

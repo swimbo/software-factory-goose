@@ -23,7 +23,7 @@ def _require(value, reason):
         raise ControlRefused(reason)
 
 
-def bind_gateway_socket(attempt_digest, gateway_uid, broker_gid):
+def bind_gateway_socket(attempt_digest, gateway_uid, broker_gid, *, on_created):
     """Bind once; return a non-listening socket and its filesystem identity.
 
     The parent is preprovisioned by Root. Unknown or failed creation is never
@@ -41,6 +41,7 @@ def bind_gateway_socket(attempt_digest, gateway_uid, broker_gid):
         and gateway_uid != broker_gid,
         "gateway_bind_invalid",
     )
+    _require(callable(on_created), "gateway_bind_invalid")
     name = attempt_digest + ".sock"
     _require(NAME.fullmatch(name) is not None, "gateway_bind_invalid")
     path = ROOT / name
@@ -80,9 +81,13 @@ def bind_gateway_socket(attempt_digest, gateway_uid, broker_gid):
         bound.bind(str(path))
         before = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
         _require(
-            stat.S_ISSOCK(before.st_mode) and before.st_uid == 0 and before.st_nlink == 1,
+            stat.S_ISSOCK(before.st_mode)
+            and before.st_uid == 0
+            and before.st_nlink == 1,
             "gateway_bind_path_changed",
         )
+        identity = {"path": str(path), "dev": before.st_dev, "ino": before.st_ino}
+        on_created(identity.copy())
         os.chmod(name, 0o660, dir_fd=descriptor)
         os.chown(
             name, gateway_uid, broker_gid, dir_fd=descriptor, follow_symlinks=False
@@ -100,9 +105,8 @@ def bind_gateway_socket(attempt_digest, gateway_uid, broker_gid):
             and bound.getsockname() == str(path),
             "gateway_bind_path_changed",
         )
-        result = {"path": str(path), "dev": after.st_dev, "ino": after.st_ino}
-        return bound, result
-    except Exception:
+        return bound, identity
+    except BaseException:
         if bound is not None:
             bound.close()
         raise

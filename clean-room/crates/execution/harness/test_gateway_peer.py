@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -20,6 +21,43 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_remove_unhanded_socket_checks_inode_and_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "socket"
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                sock.bind(str(path))
+                info = path.lstat()
+                identity = {"path": str(path), "dev": info.st_dev, "ino": info.st_ino}
+                fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    with patch.object(
+                        root,
+                        "gateway_socket_parent",
+                        return_value=contextlib.nullcontext((fd, path.name, str(path))),
+                    ):
+                        with self.assertRaises(root.SupervisorRefused):
+                            root.remove_unhanded_gateway_socket(
+                                "run_" + "a" * 64, identity | {"ino": info.st_ino + 1}
+                            )
+                        self.assertTrue(path.exists())
+                        root.remove_unhanded_gateway_socket("run_" + "a" * 64, identity)
+                        self.assertFalse(path.exists())
+                        root.remove_unhanded_gateway_socket("run_" + "a" * 64, identity)
+                        path.write_text("public fixture")
+                        other = path.lstat()
+                        with self.assertRaises(root.SupervisorRefused):
+                            root.remove_unhanded_gateway_socket(
+                                "run_" + "a" * 64,
+                                {
+                                    "path": str(path),
+                                    "dev": other.st_dev,
+                                    "ino": other.st_ino,
+                                },
+                            )
+                        self.assertEqual(path.read_text(), "public fixture")
+                finally:
+                    os.close(fd)
+
     def test_gateway_absence_check_refuses_invalid_or_unreadable_path(self):
         with patch.object(
             root.os, "open", side_effect=PermissionError("fixture denied")
@@ -140,8 +178,17 @@ class GatewayPeerTests(unittest.TestCase):
             backend._saved_scope = Mock(return_value="c" * 64)
             backend._kernel_scope = Mock()
             sock = Mock()
-            identity = {"path": "/public-fixture.sock", "dev": 1, "ino": 2}
-            bind = Mock(return_value=(sock, identity))
+            identity = {
+                "path": "/var/lib/sfactory-harness/gw/" + "a" * 64 + ".sock",
+                "dev": 1,
+                "ino": 2,
+            }
+            bind = Mock(
+                side_effect=lambda *_, on_created: (
+                    on_created(identity),
+                    (sock, identity),
+                )[1]
+            )
             ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
             with (
                 patch.object(root, "load_gateway_socket", return_value=bind),
@@ -165,10 +212,14 @@ class GatewayPeerTests(unittest.TestCase):
                 actual, receipt = backend._bind_gateway_socket(grant)
                 self.assertIs(actual, sock)
                 self.assertEqual(receipt["socket"], identity)
-                bind.assert_called_once_with("a" * 64, 2007, 2005)
+                self.assertEqual(bind.call_args.args, ("a" * 64, 2007, 2005))
+                self.assertTrue(callable(bind.call_args.kwargs["on_created"]))
                 self.assertEqual(backend._current.call_count, 3)
                 self.assertEqual(
                     json.loads((case / "gateway-bound.json").read_text()), receipt
+                )
+                self.assertEqual(
+                    json.loads((case / "gateway-created.json").read_text()), receipt
                 )
                 with self.assertRaises(FileExistsError):
                     backend._bind_gateway_socket(grant)
@@ -191,13 +242,20 @@ class GatewayPeerTests(unittest.TestCase):
             backend._saved_scope = Mock(return_value="c" * 64)
             backend._kernel_scope = Mock()
             sock = Mock()
+            identity = {
+                "path": "/var/lib/sfactory-harness/gw/" + "a" * 64 + ".sock",
+                "dev": 1,
+                "ino": 2,
+            }
+            bind = Mock(
+                side_effect=lambda *_, on_created: (
+                    on_created(identity),
+                    (sock, identity),
+                )[1]
+            )
             ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
             with (
-                patch.object(
-                    root,
-                    "load_gateway_socket",
-                    return_value=Mock(return_value=(sock, {})),
-                ),
+                patch.object(root, "load_gateway_socket", return_value=bind),
                 patch.object(
                     root,
                     "check_guard",
@@ -212,7 +270,49 @@ class GatewayPeerTests(unittest.TestCase):
                     backend._bind_gateway_socket(grant)
                 sock.close.assert_called_once_with()
                 self.assertTrue((case / "gateway-bind-intent.json").is_file())
+                self.assertTrue((case / "gateway-created.json").is_file())
                 self.assertFalse((case / "gateway-bound.json").exists())
+
+    def test_root_refuses_socket_without_durable_creation_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {
+                "schema": 4,
+                "gateway_uid": 2007,
+                "gateway_socket_sha256": root.GATEWAY_SOCKET_SHA256,
+            }
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            sock = Mock()
+            with (
+                patch.object(
+                    root,
+                    "load_gateway_socket",
+                    return_value=Mock(return_value=(sock, {})),
+                ),
+                patch.object(
+                    root,
+                    "check_guard",
+                    return_value={"owner_pid": os.getpid(), "owner_ticks": 44},
+                ),
+                patch.object(root, "_ticks", return_value=44),
+                patch.object(
+                    root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    root.SupervisorRefused, "root_gateway_created_identity_changed"
+                ):
+                    backend._bind_gateway_socket(grant)
+            sock.close.assert_called_once_with()
+            self.assertTrue((case / "gateway-bind-intent.json").exists())
+            self.assertFalse((case / "gateway-bound.json").exists())
 
     def test_broker_proc_namespace_and_missing_peer_fail_closed(self):
         with (

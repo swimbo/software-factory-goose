@@ -41,6 +41,14 @@ def inside():
     )
     sys.path.insert(0, "/code")
     from linux_gateway_socket import ROOT, bind_gateway_socket
+    from linux_supervisor import (
+        RootSupervisor,
+        SupervisorRefused,
+        gateway_socket_absent,
+        remove_unhanded_gateway_socket,
+        sha,
+        store,
+    )
     from protected_spending_control import ControlRefused
 
     parent = ROOT
@@ -48,7 +56,7 @@ def inside():
     parent.parent.chmod(0o755)
     parent.chmod(0o777)
     try:
-        bind_gateway_socket("a" * 64, 2007, 2005)
+        bind_gateway_socket("a" * 64, 2007, 2005, on_created=lambda _: None)
     except ControlRefused:
         pass
     else:
@@ -57,12 +65,16 @@ def inside():
     require(not list(parent.iterdir()), "invalid parent created a socket")
     for invalid in ("bad", "A" * 64):
         try:
-            bind_gateway_socket(invalid, 2007, 2005)
+            bind_gateway_socket(invalid, 2007, 2005, on_created=lambda _: None)
         except ControlRefused:
             pass
         else:
             raise RuntimeError("invalid attempt digest accepted")
-    bound, identity = bind_gateway_socket("a" * 64, 2007, 2005)
+    identities = []
+    bound, identity = bind_gateway_socket(
+        "a" * 64, 2007, 2005, on_created=identities.append
+    )
+    require(identities == [identity], "creation callback identity changed")
     process = None
     broker = None
     read_fd, write_fd = os.pipe()
@@ -72,7 +84,7 @@ def inside():
             "Root listened",
         )
         try:
-            bind_gateway_socket("a" * 64, 2007, 2005)
+            bind_gateway_socket("a" * 64, 2007, 2005, on_created=lambda _: None)
         except ControlRefused:
             pass
         else:
@@ -139,11 +151,83 @@ def inside():
         )
         require(process.wait(timeout=10) == 0, "gateway fixture failed")
         try:
-            bind_gateway_socket("a" * 64, 2007, 2005)
+            bind_gateway_socket("a" * 64, 2007, 2005, on_created=lambda _: None)
         except ControlRefused:
             pass
         else:
             raise RuntimeError("completed socket was silently replaced")
+        unhanded = []
+        pending, pending_identity = bind_gateway_socket(
+            "b" * 64, 2007, 2005, on_created=unhanded.append
+        )
+        pending.close()
+        require(unhanded == [pending_identity], "unhanded identity changed")
+        try:
+            remove_unhanded_gateway_socket(
+                "run_" + "b" * 64,
+                pending_identity | {"ino": pending_identity["ino"] + 1},
+            )
+        except SupervisorRefused:
+            pass
+        else:
+            raise RuntimeError("mismatched socket inode removed")
+        require(
+            not gateway_socket_absent("run_" + "b" * 64),
+            "mismatched socket disappeared",
+        )
+        remove_unhanded_gateway_socket("run_" + "b" * 64, pending_identity)
+        remove_unhanded_gateway_socket("run_" + "b" * 64, pending_identity)
+        require(gateway_socket_absent("run_" + "b" * 64), "unhanded socket remains")
+
+        def interrupted(_):
+            raise KeyboardInterrupt("fixture callback failure")
+
+        try:
+            bind_gateway_socket("c" * 64, 2007, 2005, on_created=interrupted)
+        except KeyboardInterrupt:
+            pass
+        else:
+            raise RuntimeError("callback interruption accepted")
+        require(
+            not gateway_socket_absent("run_" + "c" * 64),
+            "ambiguous socket silently removed",
+        )
+        case = Path("/var/lib/sfactory-harness/root-case")
+        case.mkdir(mode=0o700)
+        grant = {"attempt_id": "run_" + "d" * 64, "broker_uid": 2005}
+        intent = {
+            "grant_sha256": sha(grant),
+            "scope_sha256": "e" * 64,
+            "gateway_uid": 2007,
+            "broker_gid": 2005,
+        }
+        store(case / "gateway-bind-intent.json", intent)
+
+        def durable_created(value):
+            store(case / "gateway-created.json", {"intent": intent, "socket": value})
+
+        pending, _ = bind_gateway_socket(
+            "d" * 64, 2007, 2005, on_created=durable_created
+        )
+        pending.close()
+        supervisor = object.__new__(RootSupervisor)
+        supervisor.cfg = {"schema": 4, "gateway_uid": 2007}
+        supervisor._saved = lambda _: case
+        supervisor._saved_scope = lambda _: "e" * 64
+        supervisor._fence_execution = lambda _: None
+        supervisor._kernel_scope = lambda *_args, **_kwargs: None
+        supervisor._docker = lambda *_args: b""
+        supervisor._cleanup(grant)
+        supervisor._cleanup(grant)
+        require(
+            gateway_socket_absent(grant["attempt_id"]),
+            "Root cleanup did not remove owned socket",
+        )
+        require(
+            (case / "gateway-absent.json").is_file()
+            and (case / "cleanup.json").is_file(),
+            "Root cleanup receipts missing",
+        )
         print(
             json.dumps(
                 {
@@ -154,6 +238,9 @@ def inside():
                     "gateway_peer_uid": peer["uid"],
                     "gateway_peer_pid_matches": True,
                     "gateway_go_activation": True,
+                    "unhanded_inode_cleanup": True,
+                    "ambiguous_callback_socket_retained": True,
+                    "root_cleanup_with_synthetic_fence_and_daemon": True,
                     "fixture_only": True,
                     "paid_calls": 0,
                     "production_admission": False,

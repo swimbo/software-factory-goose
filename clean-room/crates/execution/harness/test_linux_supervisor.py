@@ -339,6 +339,76 @@ class CleanupOutcomeTests(unittest.TestCase):
                 absent.assert_not_called()
                 self.assertFalse((case / "cleanup.json").exists())
 
+    def test_created_unhanded_socket_requires_matching_intent_and_identity(self):
+        import contextlib
+        import json
+        import tempfile
+        from unittest.mock import Mock, patch
+        from linux_supervisor import sha
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            grant["broker_uid"] = 2005
+            root.cfg = {"schema": 4, "gateway_uid": 2007}
+            root._saved_scope = Mock(return_value="c" * 64)
+            intent = {
+                "grant_sha256": sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            identity = {"path": "/public-fixture.sock", "dev": 1, "ino": 2}
+            (case / "gateway-bind-intent.json").write_text(json.dumps(intent))
+            created = case / "gateway-created.json"
+            created.write_text(
+                json.dumps(
+                    {"intent": intent | {"gateway_uid": 2008}, "socket": identity}
+                )
+            )
+            with (
+                patch(
+                    "linux_supervisor.gateway_bind_lock",
+                    return_value=contextlib.nullcontext(),
+                ),
+                patch(
+                    "linux_supervisor.protected",
+                    side_effect=lambda p, *a, **k: p.read_bytes(),
+                ),
+                patch("linux_supervisor.remove_unhanded_gateway_socket") as remove,
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_created_receipt_changed"
+                ):
+                    root._cleanup(grant)
+                remove.assert_not_called()
+                created.write_text(json.dumps({"intent": intent, "socket": identity}))
+                root._cleanup(grant)
+                root._cleanup(grant)
+            self.assertEqual(remove.call_count, 2)
+            remove.assert_called_with(grant["attempt_id"], identity)
+            self.assertTrue((case / "gateway-absent.json").is_file())
+            self.assertTrue((case / "cleanup.json").is_file())
+
+    def test_orphaned_socket_creation_receipt_never_claims_cleanup(self):
+        import contextlib
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            root.cfg = {"schema": 4}
+            (case / "gateway-created.json").write_text("{}")
+            with patch(
+                "linux_supervisor.gateway_bind_lock",
+                return_value=contextlib.nullcontext(),
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_bind_intent_changed"
+                ):
+                    root._cleanup(grant)
+            root._docker.assert_not_called()
+            self.assertFalse((case / "cleanup.json").exists())
+
     def test_reconciliation_rechecks_absence_after_daemon_failure(self):
         import contextlib
         import json
