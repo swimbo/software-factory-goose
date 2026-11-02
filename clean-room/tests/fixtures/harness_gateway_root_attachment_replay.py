@@ -36,6 +36,7 @@ def main():
     if marker.read_text() != "ROOT_ATTACHMENT_DISPOSABLE\n":
         raise RuntimeError("isolated fixture marker required")
     target = base / "gateway-target"
+    subprocess.run([str(target), "probe-namespaces"], check=True, timeout=5)
     identity = uuid.uuid4().hex + uuid.uuid4().hex
     case = base / identity
     case.mkdir(mode=0o700)
@@ -161,6 +162,9 @@ def main():
                 "actual_cgroup_attachment_and_fence": True,
                 "child_killed_and_joined": True,
                 "matching_leaf_removed": True,
+                "unfiltered_namespace_syscall_controls": True,
+                "filtered_namespace_changes_denied": True,
+                "filtered_descendant_namespace_changes_denied": True,
                 "owned_attempt_cgroup": str(group),
                 "controller_cgroup": membership[0],
                 "gateway_pid": attached["pid"],

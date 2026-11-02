@@ -24,13 +24,63 @@ func transferDenied(fd int) bool {
 	return err == syscall.EPERM
 }
 
+func namespaceCalls() (uintptr, uintptr, uintptr) {
+	switch runtime.GOARCH {
+	case "amd64":
+		return 272, 308, 56
+	case "arm64":
+		return 97, 268, 220
+	default:
+		os.Exit(20)
+		return 0, 0, 0
+	}
+}
+
+func namespacesDenied() bool {
+	unshare, setns, clone := namespaceCalls()
+	_, _, unshareErr := syscall.RawSyscall(unshare, 0, 0, 0)
+	_, _, setnsErr := syscall.RawSyscall(setns, ^uintptr(0), 0, 0)
+	if unshareErr != syscall.EPERM || setnsErr != syscall.EPERM {
+		return false
+	}
+	// CLONE_THREAD without CLONE_SIGHAND is invalid: these probes cannot
+	// create children even if the namespace filter is missing.
+	for _, flag := range []uintptr{0x20000, 0x2000000, 0x4000000, 0x8000000, 0x10000000, 0x20000000, 0x40000000} {
+		_, _, errno := syscall.RawSyscall(clone, flag|0x10000, 0, 0)
+		if errno != syscall.EPERM {
+			return false
+		}
+	}
+	_, _, clone3Err := syscall.RawSyscall(435, 0, 0, 0)
+	return clone3Err == syscall.ENOSYS
+}
+
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "probe-namespaces" {
+		unshare, setns, clone := namespaceCalls()
+		_, _, unshareErr := syscall.RawSyscall(unshare, 0, 0, 0)
+		_, _, setnsErr := syscall.RawSyscall(setns, ^uintptr(0), 0, 0)
+		if unshareErr != 0 || setnsErr != syscall.EBADF {
+			os.Exit(24)
+		}
+		_, _, clone3Err := syscall.RawSyscall(435, 0, 0, 0)
+		if clone3Err != syscall.EINVAL {
+			os.Exit(27)
+		}
+		for _, flag := range []uintptr{0x20000, 0x2000000, 0x4000000, 0x8000000, 0x10000000, 0x20000000, 0x40000000} {
+			_, _, errno := syscall.RawSyscall(clone, flag|0x10000, 0, 0)
+			if errno != syscall.EINVAL {
+				os.Exit(26)
+			}
+		}
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "probe-x32-alias" {
 		syscall.RawSyscall(512, 0, 0, 0)
 		os.Exit(23)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "probe-child" {
-		if !transferDenied(0) {
+		if !transferDenied(0) || !namespacesDenied() {
 			os.Exit(11)
 		}
 		return
@@ -44,6 +94,9 @@ func main() {
 	}
 	if !transferDenied(*fd) {
 		os.Exit(11)
+	}
+	if !namespacesDenied() {
+		os.Exit(25)
 	}
 	var numbers []uintptr
 	switch runtime.GOARCH {

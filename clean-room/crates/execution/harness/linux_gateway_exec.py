@@ -39,7 +39,7 @@ class SockFprog(ctypes.Structure):
 
 
 def install_transfer_filter():
-    """Deny descriptor transfer and alternate asynchronous dispatch syscalls.
+    """Deny descriptor transfer, namespace changes and alternate dispatch.
 
     This is one confinement layer, not proof of exclusive UID or whole-system
     socket custody. Unsupported ABIs fail closed before the gateway starts.
@@ -47,13 +47,16 @@ def install_transfer_filter():
     machine = os.uname().machine
     if machine == "x86_64":
         arch = 0xC000003E
+        clone = 56
         denied = (
             16,
             46,
             47,
             101,
+            272,
             299,
             307,
+            308,
             310,
             311,
             312,
@@ -66,12 +69,15 @@ def install_transfer_filter():
         )
     elif machine == "aarch64":
         arch = 0xC00000B7
+        clone = 220
         denied = (
             29,
+            97,
             117,
             211,
             212,
             243,
+            268,
             269,
             270,
             271,
@@ -96,6 +102,23 @@ def install_transfer_filter():
     # x32 and its historical 512-547 aliases on x86-64.
     instructions.extend(
         (SockFilter(0x35, 0, 1, 512), SockFilter(0x06, 0, 0, 0x80000000))
+    )
+    # clone3 stores flags behind a pointer which classic seccomp cannot inspect.
+    # ENOSYS permits normal libc thread creation to fall back to reviewed clone.
+    instructions.extend(
+        (SockFilter(0x15, 0, 1, 435), SockFilter(0x06, 0, 0, 0x00050026))
+    )
+    # Both supported little-endian ABIs pass clone flags in argument zero.
+    # Permit ordinary forks/threads, but no NEWNS/NEWCGROUP/NEWUTS/NEWIPC/
+    # NEWUSER/NEWPID/NEWNET flags. unshare and setns are denied below.
+    instructions.extend(
+        (
+            SockFilter(0x15, 0, 4, clone),
+            SockFilter(0x20, 0, 0, 16),
+            SockFilter(0x45, 0, 1, 0x7E020000),
+            SockFilter(0x06, 0, 0, 0x00050001),
+            SockFilter(0x06, 0, 0, 0x7FFF0000),
+        )
     )
     for number in denied:
         instructions.extend(
