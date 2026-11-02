@@ -4,6 +4,9 @@
 import hashlib
 import ctypes
 import contextlib
+import array
+import errno
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -147,7 +150,15 @@ def run_case(index, action):
                 raise RuntimeError("wrong cgroup launched target")
             return
         if read(proc.stdout.fileno()) != b"exec-ready\n":
-            raise RuntimeError("released target did not execute")
+            status = proc.poll()
+            detail = (
+                proc.stderr.read().decode(errors="replace")
+                if status is not None
+                else "still running"
+            )
+            raise RuntimeError(
+                f"released target did not execute: status={status}: {detail}"
+            )
         peer_r, peer_w = os.pipe()
         broker = os.fork()
         if broker == 0:
@@ -505,6 +516,38 @@ def socket_copy_case():
         product.require_no_socket_copy(identity)
 
 
+def unfiltered_transfer_control():
+    left, right = socket.socketpair()
+    reader, writer = os.pipe()
+    try:
+        if (
+            left.sendmsg(
+                [b"x"],
+                [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", [reader]))],
+            )
+            != 1
+        ):
+            raise RuntimeError("unfiltered transfer control failed")
+        data, anc, _, _ = right.recvmsg(1, socket.CMSG_SPACE(array.array("i").itemsize))
+        received = array.array("i")
+        received.frombytes(anc[0][2][: received.itemsize])
+        if data != b"x" or len(received) != 1:
+            raise RuntimeError("unfiltered transfer was not delivered")
+        os.close(received[0])
+        try:
+            fcntl.ioctl(reader, 0, 0)
+        except OSError as error:
+            if error.errno == errno.EPERM:
+                raise RuntimeError("unfiltered ioctl was already denied") from None
+        else:
+            raise RuntimeError("unfiltered invalid ioctl unexpectedly succeeded")
+    finally:
+        left.close()
+        right.close()
+        os.close(reader)
+        os.close(writer)
+
+
 def main():
     if (
         sys.platform != "linux"
@@ -516,6 +559,7 @@ def main():
     ROOT.chmod(0o755)
     shutil.copyfile("/fixture-target", TARGET)
     TARGET.chmod(0o555)
+    unfiltered_transfer_control()
     for index, action in enumerate(
         (
             "closed_gate",
@@ -541,6 +585,15 @@ def main():
         json.dumps(
             {
                 "closed_gate_denied": True,
+                "unfiltered_scm_rights_control_delivered": True,
+                "unfiltered_ioctl_control_not_denied": True,
+                "filtered_gateway_sendmsg_and_ioctl_denied": True,
+                "filtered_gateway_descendant_sendmsg_denied": True,
+                "filtered_gateway_alternate_dispatch_syscalls_denied": True,
+                "filtered_x32_alias_killed": True
+                if os.uname().machine == "x86_64"
+                else None,
+                "filtered_gateway_tcp_stream_verified": True,
                 "wrong_cgroup_denied": True,
                 "wrong_program_denied": True,
                 "wrong_gid_denied": True,

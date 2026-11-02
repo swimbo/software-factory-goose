@@ -25,6 +25,96 @@ class GatewayExecRefused(Exception):
     pass
 
 
+class SockFilter(ctypes.Structure):
+    _fields_ = [
+        ("code", ctypes.c_ushort),
+        ("jt", ctypes.c_ubyte),
+        ("jf", ctypes.c_ubyte),
+        ("k", ctypes.c_uint),
+    ]
+
+
+class SockFprog(ctypes.Structure):
+    _fields_ = [("length", ctypes.c_ushort), ("filter", ctypes.POINTER(SockFilter))]
+
+
+def install_transfer_filter():
+    """Deny descriptor transfer and alternate asynchronous dispatch syscalls.
+
+    This is one confinement layer, not proof of exclusive UID or whole-system
+    socket custody. Unsupported ABIs fail closed before the gateway starts.
+    """
+    machine = os.uname().machine
+    if machine == "x86_64":
+        arch = 0xC000003E
+        denied = (
+            16,
+            46,
+            47,
+            101,
+            299,
+            307,
+            310,
+            311,
+            312,
+            321,
+            323,
+            425,
+            426,
+            427,
+            438,
+        )
+    elif machine == "aarch64":
+        arch = 0xC00000B7
+        denied = (
+            29,
+            117,
+            211,
+            212,
+            243,
+            269,
+            270,
+            271,
+            272,
+            280,
+            282,
+            425,
+            426,
+            427,
+            438,
+        )
+    else:
+        raise GatewayExecRefused("gateway_exec_refused")
+    # Validate the audit architecture before interpreting syscall numbers.
+    instructions = [
+        SockFilter(0x20, 0, 0, 4),
+        SockFilter(0x15, 1, 0, arch),
+        SockFilter(0x06, 0, 0, 0x80000000),
+        SockFilter(0x20, 0, 0, 0),
+    ]
+    # Reject later unreviewed syscall numbers on either ABI. This also rejects
+    # x32 and its historical 512-547 aliases on x86-64.
+    instructions.extend(
+        (SockFilter(0x35, 0, 1, 512), SockFilter(0x06, 0, 0, 0x80000000))
+    )
+    for number in denied:
+        instructions.extend(
+            (SockFilter(0x15, 0, 1, number), SockFilter(0x06, 0, 0, 0x00050001))
+        )
+    instructions.append(SockFilter(0x06, 0, 0, 0x7FFF0000))
+    filters = (SockFilter * len(instructions))(*instructions)
+    program = SockFprog(len(instructions), filters)
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.prctl.argtypes = [
+        ctypes.c_int,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+    ]
+    require(libc.prctl(22, 2, ctypes.addressof(program), 0, 0) == 0)
+
+
 def require(value):
     if not value:
         raise GatewayExecRefused("gateway_exec_refused")
@@ -250,6 +340,11 @@ def run(config):
     check_identity(config, cgroup=False)
     check_program(config["program_fd"], config["program_sha256"])
     check_socket(config)
+    # CPython can use ioctl for close-on-exec flags, so set these before the
+    # inherited filter denies ioctl. No exec occurs before the release gate.
+    os.set_inheritable(config["socket_fd"], True)
+    os.set_inheritable(config["program_fd"], False)
+    install_transfer_filter()
     require(time.time_ns() // 1000000 < config["deadline_ms"])
     require(os.write(config["ready_fd"], b"R") == 1)
     os.close(config["ready_fd"])
@@ -265,8 +360,6 @@ def run(config):
     check_program(config["program_fd"], config["program_sha256"])
     check_socket(config)
     require(os.execve in os.supports_fd)
-    os.set_inheritable(config["socket_fd"], True)
-    os.set_inheritable(config["program_fd"], False)
     os.execve(
         config["program_fd"],
         [

@@ -42,6 +42,8 @@ The Root configuration accepts schema 4, but the guard previously refused it dur
 
 A private [Root cgroup-attachment primitive](clean-room/verification/2026-11-02-gateway-attach-primitive.json) now verifies the unreaped child and pinned attempt cgroup before moving the child into a new leaf. An isolated native fixture rejected changed UID and cgroup identity, then exercised the move and guard fence. The production launcher must still hold the bind lock, persist intent, recheck authority, release the gate and reconcile unknown outcomes.
 
+The pre-exec helper now installs a [candidate descriptor-transfer filter](clean-room/verification/2026-11-02-gateway-transfer-filter.md). Synthetic x86-64 Linux controls, descendant and PID1 tests passed; ARM64 execution, real Bifrost compatibility and exclusive UID or external descriptor custody remain open. Handed-socket cleanup remains denied.
+
 The preparation path now [records closure of its own socket copy](clean-room/verification/2026-11-02-gateway-parent-socket-closure.md) and binds that evidence to the attached child. It checks the supervisor descriptor table, not possible socket transfers to other processes, so handed-socket cleanup remains denied.
 
 A private [launch composition](clean-room/verification/2026-11-02-root-gateway-launch.md) now joins bind, preparation and release and invokes revoke and child joining on failure. Its native fixture uses synthetic authority and mocked socket binding and attachment; production readiness, handed-socket cleanup and lifecycle ownership remain unqualified.

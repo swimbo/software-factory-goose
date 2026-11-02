@@ -59,7 +59,7 @@ MOUNT_TARGETS = {
 GATEWAY_SOCKET_SHA256 = (
     "61f27706562c229da7fe704c1b5e6e3620d2f62fb82cfff4ea188c45d4813567"
 )
-GATEWAY_EXEC_SHA256 = "0f25e4b3206115469b188594250a837eb7ad1194d9715372b4f69d1bb65d34b5"
+GATEWAY_EXEC_SHA256 = "200f297d36c687056e682c8fa46183fd505ae36e4f22838e818f734b12679e26"
 
 
 class SupervisorRefused(LinuxRunnerRefused):
@@ -225,6 +225,7 @@ def attach_gateway_child(grant, process, uid, *, on_created):
                 and fields.get("PPid", "").strip() == str(os.getpid())
                 and fields.get("Uid", "").split() == [str(uid)] * 4
                 and fields.get("NoNewPrivs", "").strip() == "1"
+                and fields.get("Seccomp", "").strip() == "2"
                 and all(
                     int(fields.get(k, "-1").strip(), 16) == 0
                     for k in ("CapInh", "CapPrm", "CapEff", "CapAmb")
@@ -417,6 +418,7 @@ def inspect_prepared_gateway(grant, child, uid):
             and fields.get("Uid", "").split() == [str(uid)] * 4
             and fields.get("Gid", "").split() == [str(uid)] * 4
             and fields.get("NoNewPrivs", "").strip() == "1"
+            and fields.get("Seccomp", "").strip() == "2"
             and all(
                 int(fields.get(k, "-1").strip(), 16) == 0
                 for k in ("CapInh", "CapPrm", "CapEff", "CapAmb")
