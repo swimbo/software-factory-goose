@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Disposable user namespace replay of the real gateway exec barrier."""
 
-import ctypes
 import errno
 import hashlib
 import json
@@ -14,6 +13,7 @@ import struct
 import sys
 import time
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from harness_apparmor_ptrace_fixture import attack, run_victim
 
@@ -22,7 +22,6 @@ import linux_supervisor as root
 
 ROOT = Path("/var/lib/sfactory-harness/gw")
 TARGET = Path("/var/lib/sfactory-harness/fixture-target")
-HELPER = "/var/lib/sfactory-harness/fixture-helper.py"
 
 
 def read(fd):
@@ -79,21 +78,39 @@ def case(index, mode):
         "ready_fd": ready_w,
         "deadline_ms": time.time_ns() // 1000000 + 15000,
     }
+    with patch.object(
+        root, "protected", side_effect=lambda path, mode, expected: path.read_bytes()
+    ):
+        helper_fd = root.stage_gateway_exec()
+        bootstrap_fd = root.stage_gateway_userns()
+    bootstrap = {
+        "uid": 2007,
+        "broker_gid": 2005,
+        "owner_pid": config["owner_pid"],
+        "owner_ticks": config["owner_ticks"],
+        "ready_fd": ns_w,
+        "map_fd": map_r,
+        "helper_fd": helper_fd,
+        "helper_config": config,
+        "python": "/usr/bin/python3.13",
+        "deadline_ms": config["deadline_ms"],
+    }
     child = os.fork()
     if child == 0:
         try:
             for fd in (gate_w, ready_r, ns_r, map_w, out_r):
                 os.close(fd)
-            if ctypes.CDLL(None, use_errno=True).unshare(0x10000000) != 0:
-                raise OSError(ctypes.get_errno(), "unshare")
-            os.write(ns_w, b"N")
-            if os.read(map_r, 1) != b"M":
-                raise RuntimeError("mapping gate closed")
-            os.setgroups([])
-            os.setgid(2007)
-            os.setuid(2007)
             os.dup2(out_w, 1)
-            for fd in (bound.fileno(), program, gate_r, ready_w):
+            for fd in (
+                bound.fileno(),
+                program,
+                gate_r,
+                ready_w,
+                ns_w,
+                map_r,
+                helper_fd,
+                bootstrap_fd,
+            ):
                 os.set_inheritable(fd, True)
             os.execve(
                 "/usr/bin/python3.13",
@@ -101,14 +118,14 @@ def case(index, mode):
                     "/usr/bin/python3.13",
                     "-I",
                     "-B",
-                    HELPER,
-                    json.dumps(config, separators=(",", ":")),
+                    f"/proc/self/fd/{bootstrap_fd}",
+                    json.dumps(bootstrap, separators=(",", ":")),
                 ],
                 {},
             )
         except BaseException:
             os._exit(1)
-    for fd in (gate_r, ready_w, ns_w, map_r, out_w, program):
+    for fd in (gate_r, ready_w, ns_w, map_r, out_w, program, helper_fd, bootstrap_fd):
         os.close(fd)
     bound.close()
     replacement = None
@@ -116,10 +133,38 @@ def case(index, mode):
         if read(ns_r) != b"N":
             raise RuntimeError("namespace child failed")
         proc = Path("/proc") / str(child)
-        (proc / "uid_map").write_text("0 0 1\n2007 2007 1\n")
-        (proc / "gid_map").write_text("0 0 1\n2005 2005 1\n2007 2007 1\n")
+        if mode == "closed_map":
+            os.close(map_w)
+            map_w = None
+            _, status = os.waitpid(child, 0)
+            child = None
+            if os.waitstatus_to_exitcode(status) == 0 or read(ready_r):
+                raise RuntimeError("closed map gate executed helper")
+            return
+        child_ref, child_ticks = SimpleNamespace(pid=child), ticks(child)
+        if mode == "bad_map":
+            (proc / "uid_map").write_text("0 0 1\n2007 2008 1\n")
+            (proc / "gid_map").write_text("0 0 1\n2005 2005 1\n2007 2007 1\n")
+        else:
+            identity = root.map_gateway_user_namespace(
+                child_ref, child_ticks, 2007, 2005
+            )
+            try:
+                root.map_gateway_user_namespace(child_ref, child_ticks, 2007, 2005)
+            except root.SupervisorRefused:
+                pass
+            else:
+                raise RuntimeError("user namespace mapping was repeated")
         os.write(map_w, b"M")
         ready = read(ready_r)
+        if mode == "bad_map":
+            if ready:
+                raise RuntimeError("changed namespace map reached helper")
+            _, status = os.waitpid(child, 0)
+            child = None
+            if os.waitstatus_to_exitcode(status) == 0:
+                raise RuntimeError("changed namespace map succeeded")
+            return
         if mode == "wrong_type":
             if ready:
                 raise RuntimeError("wrong socket type accepted")
@@ -153,9 +198,6 @@ def case(index, mode):
         os.write(gate_w, b"G")
         if read(out_r) != b"exec-ready\n":
             raise RuntimeError("gateway target self-tests failed")
-        namespace = os.stat(proc / "ns/user")
-        identity = {"dev": namespace.st_dev, "ino": namespace.st_ino}
-        child_ref, child_ticks = SimpleNamespace(pid=child), ticks(child)
         root.inspect_gateway_user_namespace(
             child_ref, child_ticks, 2007, 2005, identity
         )
@@ -240,7 +282,15 @@ def main():
     if run_victim("", False) != {"duplicate_errno": 0, "trace_errno": 0}:
         raise RuntimeError("same-UID attacker positive control unavailable")
     for index, mode in enumerate(
-        ("wrong_type", "closed_gate", "replaced_socket", "release"), 1
+        (
+            "closed_map",
+            "bad_map",
+            "wrong_type",
+            "closed_gate",
+            "replaced_socket",
+            "release",
+        ),
+        1,
     ):
         case(index, mode)
     print(
@@ -253,6 +303,10 @@ def main():
                 "same_uid_ptrace_pidfd_denied": True,
                 "broker_peer_identity_verified": True,
                 "root_userns_inspection_verified": True,
+                "root_userns_bootstrap_verified": True,
+                "root_userns_map_and_pin_verified": True,
+                "namespace_remap_denied": True,
+                "closed_or_changed_map_denied": True,
                 "production_admission": False,
                 "paid_calls": 0,
             }

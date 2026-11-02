@@ -1,0 +1,11 @@
+# Gated gateway user-namespace bootstrap
+
+Added a source-only Root-created namespace bootstrap and a private supervisor mapping primitive. The bootstrap creates a user namespace, announces readiness, waits on a bounded mapping gate, checks the exact UID/GID maps and owner, drops groups, UID, GID and capabilities under no-new-privileges, and executes the pinned pre-exec helper. The supervisor mapping primitive checks the direct child and namespace owner/parent, writes each initially empty map once, verifies the result and returns the namespace identity. The caller must durably bind that identity to the grant before opening the mapping gate; an error requires fencing and joining the child. The supervisor can stage the bootstrap in a digest-checked, sealed descriptor, and both paired profile fingerprints bind its source.
+
+A network-disabled x86-64 native fixture exercised the staged bootstrap and helper with the actual mapping and namespace inspection primitives, followed by the filtered synthetic Go gateway. It rejected a closed mapping gate, a substituted UID map, a repeated mapping, a wrong socket type, a closed gateway gate and a socket replacement after readiness. Same-UID ptrace and descriptor duplication were denied after exec while the positive control succeeded; the synthetic broker observed the expected gateway PID and UID. The fixture substitutes the protected source-file reader while retaining digest and seal checks, and uses synthetic authority and a controller-owned cgroup.
+
+The configured Python suite passed 277 tests with seven skipped; Ruff passed for the changed Python files.
+
+The production launcher does **not** yet call these primitives or persist their namespace receipt. Namespace continuity and exclusive membership, actual cgroup attachment and guard integration, real Bifrost route/credentials, spending bounds, egress fencing and failure cleanup remain open. This replay makes no production admission, paid call or candidate activation; the benchmark remains 0/120 and the $5/day and $0.75/task caps remain binding.
+
+Bootstrap SHA-256 `3fe39cc36c47b303b8729c4a165d9a8acd9492afb1f84ed9532b181012d0c2f9`; supervisor SHA-256 `26583e9b53958ed3f0f15d165c248401e08a110b9d17cc449b72e94811bb4b01`; fixture SHA-256 `bbfa07db7b9f7b414ea143bf0189bbababf5db6ec45209f15918dcc4a77a7ccf`.

@@ -118,6 +118,7 @@ def linux_profiles(goose, host, normalizer, **configuration):
             "linux_supervisor.py",
             "linux_gateway_socket.py",
             "linux_gateway_exec.py",
+            "linux_gateway_userns_bootstrap.py",
             "linux_service_guard.py",
             "linux_worker_image.py",
             "linux-worker.Dockerfile",

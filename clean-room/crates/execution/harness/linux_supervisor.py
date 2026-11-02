@@ -60,6 +60,9 @@ GATEWAY_SOCKET_SHA256 = (
     "61f27706562c229da7fe704c1b5e6e3620d2f62fb82cfff4ea188c45d4813567"
 )
 GATEWAY_EXEC_SHA256 = "5ead7644c07a62548d9e36b5058a0d1262119b3cbffacae098da505217e75aba"
+GATEWAY_USERNS_SHA256 = (
+    "3fe39cc36c47b303b8729c4a165d9a8acd9492afb1f84ed9532b181012d0c2f9"
+)
 
 
 class SupervisorRefused(LinuxRunnerRefused):
@@ -120,10 +123,21 @@ def stage_gateway_exec():
     A future launcher must pass this descriptor explicitly and execute it via
     /proc/self/fd; this function neither creates a process nor grants authority.
     """
-    path = Path(__file__).with_name("linux_gateway_exec.py")
-    source = protected(path, 0o444, expected=GATEWAY_EXEC_SHA256)
+    return _stage_gateway_source("linux_gateway_exec.py", GATEWAY_EXEC_SHA256)
+
+
+def stage_gateway_userns():
+    """Stage the pinned namespace bootstrap without starting it."""
+    return _stage_gateway_source(
+        "linux_gateway_userns_bootstrap.py", GATEWAY_USERNS_SHA256
+    )
+
+
+def _stage_gateway_source(name, expected):
+    path = Path(__file__).with_name(name)
+    source = protected(path, 0o444, expected=expected)
     require(
-        hashlib.sha256(source).hexdigest() == GATEWAY_EXEC_SHA256,
+        hashlib.sha256(source).hexdigest() == expected,
         "root_gateway_exec_changed",
     )
     fd = os.memfd_create("sfactory-gateway-exec", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING)
@@ -251,6 +265,96 @@ def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
             (current.st_dev, current.st_ino) == (info.st_dev, info.st_ino) and live(),
             "root_gateway_userns_changed",
         )
+    finally:
+        for fd in (parent, namespace, pidfd):
+            if fd is not None:
+                os.close(fd)
+
+
+def map_gateway_user_namespace(process, ticks, uid, broker_gid):
+    """Map a gated direct child and return its pinned namespace identity.
+
+    The caller owns the child, has received its namespace-ready byte, and must
+    keep the map gate closed until the identity is durably bound to the grant.
+    Any error leaves an unknown child that must be fenced and joined.
+    """
+    require(
+        _integer(process.pid, 2, 2**31 - 1)
+        and _integer(ticks, 1)
+        and _integer(uid, 1, 2**31 - 1)
+        and _integer(broker_gid, 1, 2**31 - 1)
+        and uid != broker_gid
+        and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
+        "root_gateway_userns_invalid",
+    )
+    pid = process.pid
+    base = Path("/proc") / str(pid)
+    pidfd = os.pidfd_open(pid, 0)
+    namespace = parent = None
+    try:
+
+        def live():
+            try:
+                exited = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            except ChildProcessError:
+                raise SupervisorRefused("root_gateway_userns_changed") from None
+            return exited is None and _ticks(pid) == ticks
+
+        require(live(), "root_gateway_userns_changed")
+        fields = dict(
+            line.split(":", 1)
+            for line in (base / "status").read_text().splitlines()
+            if ":" in line
+        )
+        require(
+            fields.get("PPid", "").strip() == str(os.getpid())
+            and fields.get("Uid", "").split() == ["0"] * 4
+            and fields.get("NoNewPrivs", "").strip() == "1",
+            "root_gateway_userns_changed",
+        )
+        namespace = os.open(base / "ns/user", os.O_RDONLY | os.O_CLOEXEC)
+        info = os.fstat(namespace)
+        owner = bytearray(4)
+        fcntl.ioctl(namespace, 0xB704, owner, True)
+        parent = fcntl.ioctl(namespace, 0xB702)
+        own, ancestor = os.stat("/proc/self/ns/user"), os.fstat(parent)
+        require(
+            (info.st_dev, info.st_ino) != (own.st_dev, own.st_ino)
+            and (ancestor.st_dev, ancestor.st_ino) == (own.st_dev, own.st_ino)
+            and int.from_bytes(owner, sys.byteorder) == 0
+            and fcntl.ioctl(namespace, 0xB703) == 0x10000000
+            and not (base / "uid_map").read_text().strip()
+            and not (base / "gid_map").read_text().strip()
+            and live(),
+            "root_gateway_userns_changed",
+        )
+        for name, entries in (
+            ("uid_map", [(0, 0, 1), (uid, uid, 1)]),
+            ("gid_map", [(0, 0, 1), (uid, uid, 1), (broker_gid, broker_gid, 1)]),
+        ):
+            data = "".join(
+                f"{inside} {outside} {length}\n" for inside, outside, length in entries
+            ).encode()
+            fd = os.open(base / name, os.O_WRONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+            try:
+                require(
+                    os.write(fd, data) == len(data), "root_gateway_userns_map_unknown"
+                )
+            finally:
+                os.close(fd)
+            observed = [
+                tuple(map(int, row.split()))
+                for row in (base / name).read_text().splitlines()
+            ]
+            require(
+                sorted(observed) == sorted(entries), "root_gateway_userns_map_unknown"
+            )
+        current = os.stat(base / "ns/user")
+        require(
+            live() and (current.st_dev, current.st_ino) == (info.st_dev, info.st_ino),
+            "root_gateway_userns_changed",
+        )
+        return {"dev": info.st_dev, "ino": info.st_ino}
     finally:
         for fd in (parent, namespace, pidfd):
             if fd is not None:

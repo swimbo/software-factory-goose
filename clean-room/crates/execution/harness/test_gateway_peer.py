@@ -530,6 +530,17 @@ class GatewayPeerTests(unittest.TestCase):
             ):
                 root.stage_gateway_exec()
 
+    def test_gateway_userns_pin_matches_reviewed_source_and_refuses_changed_bytes(self):
+        helper = Path(root.__file__).with_name("linux_gateway_userns_bootstrap.py")
+        self.assertEqual(
+            hashlib.sha256(helper.read_bytes()).hexdigest(), root.GATEWAY_USERNS_SHA256
+        )
+        with patch.object(root, "protected", return_value=b"changed source"):
+            with self.assertRaisesRegex(
+                root.SupervisorRefused, "root_gateway_exec_changed"
+            ):
+                root.stage_gateway_userns()
+
     @unittest.skipUnless(sys.platform == "linux", "Linux memfd required")
     def test_gateway_exec_stage_is_sealed_and_close_on_exec(self):
         helper = Path(root.__file__).with_name("linux_gateway_exec.py")

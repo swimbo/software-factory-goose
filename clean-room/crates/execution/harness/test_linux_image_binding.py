@@ -22,6 +22,7 @@ class LinuxImageBindingTests(unittest.TestCase):
                 "linux_service_guard.py",
                 "linux_gateway_socket.py",
                 "linux_gateway_exec.py",
+                "linux_gateway_userns_bootstrap.py",
             ):
 
                 def changed(path):
