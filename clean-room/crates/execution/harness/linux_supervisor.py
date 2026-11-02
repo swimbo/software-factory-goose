@@ -28,6 +28,7 @@ import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from linux_runner import (
@@ -42,7 +43,7 @@ from linux_runner import (
 )
 from protected_goose_runtime import sha
 from linux_goose_runtime import LINUX_GOOSE_BYTES, LINUX_GOOSE_SHA256
-from protected_spending_control import _decode, _ext4, _no_acl
+from protected_spending_control import ControlRefused, _decode, _ext4, _no_acl
 from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
@@ -2404,6 +2405,68 @@ class RootSupervisor:
             if type(gate_fd) is int and gate_fd >= 0:
                 os.close(gate_fd)
 
+    def _verify_gateway_launch(self, case, grant, pid, ticks, scope):
+        """Check the released direct child; caller holds current authority/guard.
+
+        This is a point-in-time launch/namespace check, not an egress fence.
+        Non-reaping child inspection preserves the launcher's Popen ownership.
+        """
+        with gateway_bind_lock(case):
+            try:
+                prepared = _decode(protected(case / "gateway-prepared.json", 0o600))
+                attached = _decode(protected(case / "gateway-attached.json", 0o600))
+                userns = _decode(protected(case / "gateway-userns.json", 0o600))
+                released = _decode(protected(case / "gateway-released.json", 0o600))
+                intent = _decode(protected(case / "gateway-release-intent.json", 0o600))
+            except (OSError, ValueError, ControlRefused):
+                raise SupervisorRefused("root_gateway_launch_unqualified") from None
+            grant_sha256 = sha(grant)
+            expected = {
+                "grant_sha256": grant_sha256,
+                "scope_sha256": scope,
+                "gateway_uid": self.cfg["gateway_uid"],
+            }
+            require(
+                type(prepared) is dict
+                and set(prepared)
+                == {
+                    "grant_sha256",
+                    "child",
+                    "gate_dev",
+                    "gate_ino",
+                    "deadline_ms",
+                    "namespace",
+                }
+                and prepared["grant_sha256"] == grant_sha256
+                and type(attached) is dict
+                and set(attached) == {"intent", "child"}
+                and attached["intent"] == expected
+                and attached["child"] == prepared["child"]
+                and type(prepared["child"]) is dict
+                and prepared["child"].get("pid") == pid
+                and prepared["child"].get("ticks") == ticks
+                and type(userns) is dict
+                and set(userns)
+                == {"grant_sha256", "scope_sha256", "pid", "ticks", "namespace"}
+                and prepared["namespace"] == userns
+                and userns["grant_sha256"] == grant_sha256
+                and userns["scope_sha256"] == scope
+                and userns["pid"] == pid
+                and userns["ticks"] == ticks
+                and intent
+                == released
+                == {"grant_sha256": grant_sha256, "prepared_sha256": sha(prepared)},
+                "root_gateway_launch_changed",
+            )
+            inspect_prepared_gateway(grant, prepared["child"], self.cfg["gateway_uid"])
+            inspect_gateway_user_namespace(
+                SimpleNamespace(pid=pid),
+                ticks,
+                self.cfg["gateway_uid"],
+                grant["broker_uid"],
+                userns["namespace"],
+            )
+
     def gateway_peer_v1(self, body):
         """Recheck an authenticated broker's kernel-reported gateway peer."""
         require(
@@ -2415,7 +2478,7 @@ class RootSupervisor:
             and _integer(body["start_ticks"], 1, 2**63 - 1),
             "root_gateway_peer_invalid",
         )
-        require(self.cfg.get("schema") in (3, 4), "root_gateway_peer_unconfigured")
+        require(self.cfg.get("schema") == 4, "root_gateway_peer_unconfigured")
         self.scope_preimage_v2(
             {"attempt": body["attempt"], "scope_sha256": body["scope_sha256"]}
         )
@@ -2433,6 +2496,9 @@ class RootSupervisor:
                 ready["owner_pid"] == os.getpid()
                 and ready["owner_ticks"] == _ticks(os.getpid()),
                 "root_gateway_guard_owner_changed",
+            )
+            self._verify_gateway_launch(
+                case, grant, body["pid"], body["start_ticks"], body["scope_sha256"]
             )
             inspect_gateway_peer(
                 grant,

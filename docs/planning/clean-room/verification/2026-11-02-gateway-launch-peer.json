@@ -1,0 +1,43 @@
+{
+  "actual_root_prepare_attach_release": true,
+  "actual_namespace_mapping_and_inspection": true,
+  "actual_cgroup_attachment_and_fence": true,
+  "child_killed_and_joined": true,
+  "matching_leaf_removed": true,
+  "launched_gateway_peer_verified": true,
+  "unlaunched_same_binary_descendant_denied": true,
+  "legacy_attribute_check_accepts_descendant": true,
+  "peer_verification_preserves_launch_records": true,
+  "unfiltered_namespace_syscall_controls": true,
+  "filtered_namespace_changes_denied": true,
+  "filtered_descendant_namespace_changes_denied": true,
+  "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-f954589f82bcdcd1dcbeb297719ca67d5ad74df3bf70a7549e578c78da896851.scope/fixture-17afdd7f3a1e427db1562558e29540e4397434583e7a4bb2b03b070cbcc61ab2",
+  "controller_cgroup": "0::/system.slice/docker-f954589f82bcdcd1dcbeb297719ca67d5ad74df3bf70a7549e578c78da896851.scope",
+  "gateway_pid": 1610491,
+  "gateway_start_ticks": 249959673,
+  "gateway_executable_sha256": "d746734e7c322c6ffe488d668ab32459879db229145c83fc4d2bc4682088e3e6",
+  "synthetic_authority_guard_and_socket_binding": true,
+  "production_cleanup_qualified": false,
+  "production_admission": false,
+  "paid_calls": 0,
+  "source_sha256": {
+    "linux_supervisor.py": "fd7fd9886e2d08889c6d1400b541d93830ac9db3f4ac22a66e6e79d33c66a1e3",
+    "harness_gateway_root_attachment_replay.py": "565060b390513a70de46172fb40f932442acb0b12ae4ea4af001612ec79fc787"
+  },
+  "owned_attempt_cgroup_absent": true,
+  "fixture_socket_absent": true,
+  "independent_retirement_check": {
+    "host": "hermes-control",
+    "exact_cgroup_absent": true,
+    "exact_gateway_pid_absent": true,
+    "exact_container_absent": true
+  },
+  "verification_scope": "Native Root launch receipt and kernel-helper discrimination with synthetic authority; not full broker RPC or production admission.",
+  "configured_harness": {
+    "run": 278,
+    "passed": 271,
+    "skipped": 7
+  },
+  "review_run": "gateway-launch-peer-213wrfnb",
+  "production_supervisor_sha256_matches_native": true
+}

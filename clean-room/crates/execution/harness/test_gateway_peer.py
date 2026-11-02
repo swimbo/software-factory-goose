@@ -1216,14 +1216,16 @@ class GatewayPeerTests(unittest.TestCase):
                 with self.assertRaises(root.SupervisorRefused):
                     root.inspect_gateway_peer(grant, 123, 99, 2007, digest)
 
-    def test_root_check_requires_v3_current_scope_guard_and_kernel_validation(self):
+    def test_root_check_requires_released_launch_current_scope_and_kernel_validation(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as directory:
             case = Path(directory)
-            grant = {"attempt_id": "run_" + "a" * 64}
+            grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
             (case / "grant.json").write_text(json.dumps(grant))
             backend = object.__new__(root.RootSupervisor)
             backend.cfg = {
-                "schema": 3,
+                "schema": 4,
                 "gateway_uid": 2007,
                 "gateway_executable_sha256": "b" * 64,
             }
@@ -1240,15 +1242,67 @@ class GatewayPeerTests(unittest.TestCase):
                 "pid": 123,
                 "start_ticks": 99,
             }
+            child = {
+                "path": "/sys/fs/cgroup/public.slice/gateway",
+                "dev": 1,
+                "ino": 2,
+                "pid": 123,
+                "ticks": 99,
+            }
+            userns = {
+                "grant_sha256": root.sha(grant),
+                "scope_sha256": "c" * 64,
+                "pid": 123,
+                "ticks": 99,
+                "namespace": {"dev": 3, "ino": 4},
+            }
+            prepared = {
+                "grant_sha256": root.sha(grant),
+                "child": child,
+                "gate_dev": 5,
+                "gate_ino": 6,
+                "deadline_ms": 7,
+                "namespace": userns,
+            }
+            release = {
+                "grant_sha256": root.sha(grant),
+                "prepared_sha256": root.sha(prepared),
+            }
+            records = {
+                "gateway-userns.json": userns,
+                "gateway-prepared.json": prepared,
+                "gateway-attached.json": {
+                    "intent": {
+                        "grant_sha256": root.sha(grant),
+                        "scope_sha256": "c" * 64,
+                        "gateway_uid": 2007,
+                    },
+                    "child": child,
+                },
+                "gateway-released.json": release,
+                "gateway-release-intent.json": release,
+            }
             with (
                 patch.object(
                     root, "protected", side_effect=lambda p, *_: p.read_bytes()
                 ),
+                patch.object(
+                    root,
+                    "gateway_bind_lock",
+                    side_effect=lambda _: contextlib.nullcontext(),
+                ),
                 patch.object(root, "check_guard") as guard,
                 patch.object(root, "inspect_gateway_peer") as inspect,
+                patch.object(root, "inspect_prepared_gateway"),
+                patch.object(root, "inspect_gateway_user_namespace") as namespace,
                 patch.object(root, "_ticks", return_value=44),
             ):
                 guard.return_value = {"owner_pid": os.getpid(), "owner_ticks": 44}
+                with self.assertRaises(root.SupervisorRefused):
+                    backend.gateway_peer_v1(body)
+                inspect.assert_not_called()
+                for name, value in records.items():
+                    (case / name).write_text(json.dumps(value))
                 self.assertEqual(
                     backend.gateway_peer_v1(body),
                     {
@@ -1259,19 +1313,50 @@ class GatewayPeerTests(unittest.TestCase):
                     },
                 )
                 inspect.assert_called_once_with(grant, 123, 99, 2007, "b" * 64)
-                guard.assert_called_once_with(backend, grant)
-                self.assertEqual(backend._current.call_count, 2)
-                backend.cfg["schema"] = 2
+                for change in ({"pid": 124}, {"start_ticks": 100}):
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.gateway_peer_v1(body | change)
+                for name, value in records.items():
+                    (case / name).write_text("{}")
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.gateway_peer_v1(body)
+                    (case / name).write_text(json.dumps(value))
+                stale_cases = []
+                stale = json.loads(json.dumps(records))
+                stale["gateway-attached.json"]["intent"]["scope_sha256"] = "d" * 64
+                stale_cases.append(stale)
+                stale = json.loads(json.dumps(records))
+                for name in ("gateway-released.json", "gateway-release-intent.json"):
+                    stale[name]["prepared_sha256"] = "d" * 64
+                stale_cases.append(stale)
+                stale = json.loads(json.dumps(records))
+                stale["gateway-userns.json"]["scope_sha256"] = "d" * 64
+                stale["gateway-prepared.json"]["namespace"] = stale["gateway-userns.json"]
+                for name in ("gateway-released.json", "gateway-release-intent.json"):
+                    stale[name]["prepared_sha256"] = root.sha(stale["gateway-prepared.json"])
+                stale_cases.append(stale)
+                for stale in stale_cases:
+                    for name, value in stale.items():
+                        (case / name).write_text(json.dumps(value))
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.gateway_peer_v1(body)
+                for name, value in records.items():
+                    (case / name).write_text(json.dumps(value))
+                namespace.side_effect = root.SupervisorRefused("namespace changed")
                 with self.assertRaises(root.SupervisorRefused):
                     backend.gateway_peer_v1(body)
-                backend.cfg["schema"] = 3
+                namespace.side_effect = None
+                for schema in (2, 3):
+                    backend.cfg["schema"] = schema
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.gateway_peer_v1(body)
+                backend.cfg["schema"] = 4
                 guard.return_value = {"owner_pid": os.getpid(), "owner_ticks": 45}
                 with self.assertRaises(root.SupervisorRefused):
                     backend.gateway_peer_v1(body)
-                self.assertEqual(inspect.call_count, 1)
                 guard.side_effect = root.SupervisorRefused("guard lost")
                 with self.assertRaises(root.SupervisorRefused):
                     backend.gateway_peer_v1(body)
-                self.assertEqual(inspect.call_count, 1)
                 with self.assertRaises(root.SupervisorRefused):
                     backend.gateway_peer_v1(body | {"pid": True})
+                self.assertEqual(inspect.call_count, 1)

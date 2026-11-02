@@ -150,6 +150,34 @@ def main():
                     break
                 assert time.monotonic() < deadline, "gateway did not exec"
                 time.sleep(0.01)
+            before = {p.name: p.read_bytes() for p in case.glob("*.json")}
+            backend._verify_gateway_launch(
+                case, grant, child.pid, attached["ticks"], "c" * 64
+            )
+            root.inspect_gateway_peer(
+                grant,
+                child.pid,
+                attached["ticks"],
+                2007,
+                backend.cfg["gateway_executable_sha256"],
+            )
+            family = [
+                int(pid) for pid in (group / "gateway/cgroup.procs").read_text().split()
+            ]
+            descendants = [pid for pid in family if pid != child.pid]
+            assert descendants, "holding descendant missing"
+            for pid in descendants:
+                ticks = root._ticks(pid)
+                root.inspect_gateway_peer(
+                    grant, pid, ticks, 2007, backend.cfg["gateway_executable_sha256"]
+                )
+                try:
+                    backend._verify_gateway_launch(case, grant, pid, ticks, "c" * 64)
+                except root.SupervisorRefused:
+                    pass
+                else:
+                    raise AssertionError("unlaunched descendant admitted as gateway")
+            assert before == {p.name: p.read_bytes() for p in case.glob("*.json")}
             backend._fence_execution(grant)
             assert child.wait(timeout=5) == -signal.SIGKILL
             assert "populated 0" in (group / "cgroup.events").read_text().splitlines()
@@ -162,6 +190,10 @@ def main():
                 "actual_cgroup_attachment_and_fence": True,
                 "child_killed_and_joined": True,
                 "matching_leaf_removed": True,
+                "launched_gateway_peer_verified": True,
+                "unlaunched_same_binary_descendant_denied": True,
+                "legacy_attribute_check_accepts_descendant": True,
+                "peer_verification_preserves_launch_records": True,
                 "unfiltered_namespace_syscall_controls": True,
                 "filtered_namespace_changes_denied": True,
                 "filtered_descendant_namespace_changes_denied": True,
