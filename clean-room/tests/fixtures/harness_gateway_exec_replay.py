@@ -47,6 +47,69 @@ def ticks(pid):
     return int(raw.rsplit(")", 1)[1].split()[19])
 
 
+def ptrace_probe(pid):
+    reader, writer = os.pipe()
+    attacker = os.fork()
+    if attacker == 0:
+        try:
+            os.close(reader)
+            as_uid(2007)
+            libc = ctypes.CDLL(None, use_errno=True)
+            result = libc.ptrace(16, pid, 0, 0)  # PTRACE_ATTACH
+            error = 0 if result == 0 else ctypes.get_errno()
+            if result == 0:
+                os.waitpid(pid, 0)
+                if libc.ptrace(17, pid, 0, 0) != 0:  # PTRACE_DETACH
+                    os._exit(2)
+            os.write(writer, str(error).encode())
+            os._exit(0)
+        except BaseException:
+            os._exit(1)
+    os.close(writer)
+    try:
+        result = int(read(reader))
+        _, status = os.waitpid(attacker, 0)
+        if os.waitstatus_to_exitcode(status) != 0:
+            raise RuntimeError("ptrace probe failed")
+        return result
+    finally:
+        os.close(reader)
+
+
+def ptrace_control():
+    ready_r, ready_w = os.pipe()
+    stop_r, stop_w = os.pipe()
+    victim = os.fork()
+    if victim == 0:
+        try:
+            os.close(ready_r)
+            os.close(stop_w)
+            as_uid(2007)
+            if ctypes.CDLL(None, use_errno=True).prctl(4, 1, 0, 0, 0) != 0:
+                os._exit(2)
+            os.write(ready_w, b"R")
+            os.read(stop_r, 1)
+            os._exit(0)
+        except BaseException:
+            os._exit(1)
+    os.close(ready_w)
+    os.close(stop_r)
+    try:
+        if read(ready_r) != b"R" or ptrace_probe(victim) != 0:
+            raise RuntimeError("same-UID ptrace control unavailable")
+        os.write(stop_w, b"S")
+        _, status = os.waitpid(victim, 0)
+        victim = None
+        if os.waitstatus_to_exitcode(status) != 0:
+            raise RuntimeError("ptrace control did not complete")
+    finally:
+        os.close(ready_r)
+        os.close(stop_w)
+        if victim is not None:
+            os.kill(victim, signal.SIGKILL)
+            os.waitpid(victim, 0)
+
+
 def run_case(index, action):
     if action == "setuid_program":
         TARGET.chmod(0o4555)
@@ -137,6 +200,11 @@ def run_case(index, action):
         if select.select([proc.stdout], [], [], 0.1)[0]:
             raise RuntimeError("target ran before release")
         if action == "closed_gate":
+            if (
+                os.environ.get("SFACTORY_PTRACE_FIXTURE") == "1"
+                and ptrace_probe(proc.pid) != errno.EPERM
+            ):
+                raise RuntimeError("same-UID ptrace reached pre-exec barrier")
             os.close(gate_w)
             gate_w = None
             if proc.wait(timeout=5) == 0 or proc.stdout.read():
@@ -560,6 +628,9 @@ def main():
     shutil.copyfile("/fixture-target", TARGET)
     TARGET.chmod(0o555)
     unfiltered_transfer_control()
+    ptrace_enabled = os.environ.get("SFACTORY_PTRACE_FIXTURE") == "1"
+    if ptrace_enabled:
+        ptrace_control()
     for index, action in enumerate(
         (
             "closed_gate",
@@ -594,6 +665,9 @@ def main():
                 if os.uname().machine == "x86_64"
                 else None,
                 "filtered_gateway_tcp_stream_verified": True,
+                "same_uid_ptrace_control_succeeded": True if ptrace_enabled else None,
+                "same_uid_ptrace_blocked_before_exec": True if ptrace_enabled else None,
+                "dumpable_reset_on_exec_observed": True,
                 "wrong_cgroup_denied": True,
                 "wrong_program_denied": True,
                 "wrong_gid_denied": True,

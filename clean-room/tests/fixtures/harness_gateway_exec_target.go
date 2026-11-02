@@ -38,6 +38,10 @@ func main() {
 	fd := flag.Int("socket-fd", -1, "")
 	path := flag.String("socket-path", "", "")
 	flag.Parse()
+	value, _, dumpErr := syscall.Syscall6(syscall.SYS_PRCTL, 3, 0, 0, 0, 0, 0)
+	if dumpErr != 0 || value != 1 {
+		os.Exit(21)
+	}
 	if !transferDenied(*fd) {
 		os.Exit(11)
 	}

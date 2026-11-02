@@ -337,6 +337,11 @@ def run(config):
         )
     require(len(os.fsencode(config["socket_path"])) < 108)
     require(ctypes.CDLL(None, use_errno=True).prctl(38, 1, 0, 0, 0) == 0)
+    # Protect the pre-exec barrier from same-UID inspection. Linux resets this
+    # on a normal exec, so the gateway bootstrap still needs its own custody
+    # boundary before any production admission.
+    libc = ctypes.CDLL(None, use_errno=True)
+    require(libc.prctl(4, 0, 0, 0, 0) == 0 and libc.prctl(3, 0, 0, 0, 0) == 0)
     check_identity(config, cgroup=False)
     check_program(config["program_fd"], config["program_sha256"])
     check_socket(config)

@@ -1,0 +1,9 @@
+# Gateway pre-exec dumpability
+
+The pinned pre-exec helper now sets and verifies `PR_SET_DUMPABLE=0` before it signals readiness. This narrows the same-UID inspection window while the helper is at its gate; it does not establish custody after the gateway executes. Linux normally resets dumpability during an ordinary `execve`, as described by [execve(2)](https://man7.org/linux/man-pages/man2/execve.2.html) and [PR_SET_DUMPABLE(2)](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html).
+
+In a fresh, network-disabled x86-64 fixture, the host's Yama ptrace scope was 0. The fixture disabled Docker's outer seccomp and AppArmor profiles, dropped capabilities, and retained no-new-privileges; the gateway itself still installed the candidate filter. A same-UID sibling successfully attached to a dumpable control, but received EPERM against the gated helper. After ordinary exec, the synthetic Go target observed dumpability reset to 1. A separate default-Docker-profile replay passed, as did a native PID1 guarded-cgroup rehearsal. These tests do not prove that an external process can duplicate a gateway socket descriptor, nor do they prove safety from privileged processes or after exec.
+
+The production bootstrap still needs a verified post-exec and same-UID isolation boundary before socket custody, egress fencing or handed-socket cleanup can be qualified. The configured production Bifrost route and ARM64 were not exercised. No production admission or paid call occurred.
+
+Helper SHA-256: `5ead7644c07a62548d9e36b5058a0d1262119b3cbffacae098da505217e75aba`. Supervisor SHA-256: `072f4534771df3046c22b39c2be9d18efedd3ce20a4b5db058364c6840c901aa`. Ptrace fixture SHA-256: `c7ab202b501d9ede1490737001847cd44edd4c17c8112ed7bc3926872b3e5dc3`. Synthetic target source SHA-256: `0ee6f42e011346444a0383c494b14fc8284bc4063a451e938cf05cea3fc823d2`.
