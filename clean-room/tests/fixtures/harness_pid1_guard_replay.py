@@ -48,6 +48,32 @@ def snapshot(library, unit):
         return manager.snapshot(unit)
 
 
+def terminal_snapshot(library, unit):
+    # InvocationID can disappear when PID1 unloads a successful transient unit.
+    # Read its terminal properties without requiring a live invocation identifier.
+    with guard.SystemdManager(library, digest(library)) as manager:
+        path = manager._call(
+            "LoadUnit", lambda message: manager._basic(message, "s", unit)
+        )
+        return {
+            "ActiveState": manager._property(
+                path, "org.freedesktop.systemd1.Unit", "ActiveState", "s"
+            ),
+            "SubState": manager._property(
+                path, "org.freedesktop.systemd1.Unit", "SubState", "s"
+            ),
+            "MainPID": manager._property(
+                path, "org.freedesktop.systemd1.Service", "MainPID", "u"
+            ),
+            "ControlGroup": manager._property(
+                path, "org.freedesktop.systemd1.Service", "ControlGroup", "s"
+            ),
+            "Result": manager._property(
+                path, "org.freedesktop.systemd1.Service", "Result", "s"
+            ),
+        }
+
+
 def kill_service_group(library, identity):
     assert identity["ActiveState"] == "active" and identity["MainPID"] > 1
     process = Path("/sys/fs/cgroup") / identity["ControlGroup"].lstrip("/")
@@ -426,6 +452,7 @@ def controller(
     parent = None
     guard_ready = None
     gateway = None
+    guard_stopped = False
     try:
         with guard.SystemdManager(
             controller_library, digest(controller_library)
@@ -539,6 +566,23 @@ def controller(
         assert (saved / "execution-fenced.json").exists() and (
             saved / "cleanup.json"
         ).exists()
+        # Keep the exact slice and fixture owner available until PID1 has run
+        # ExecStopPost. Retiring the slice here races that second cleanup pass.
+        if fault == "owner-loss":
+            deadline = time.monotonic() + 35
+            while True:
+                final_guard = terminal_snapshot(controller_library, guard_ready["unit"])
+                if final_guard["ActiveState"] in ("inactive", "failed"):
+                    break
+                assert time.monotonic() < deadline, "guard stop-post did not finish"
+                time.sleep(0.05)
+            assert final_guard["ActiveState"] == "inactive", final_guard
+            assert (
+                final_guard["MainPID"] == 0
+                and not final_guard["ControlGroup"]
+                and final_guard["Result"] == "success"
+            )
+            guard_stopped = True
         result = {
             "schema": 1,
             "component_only": True,
@@ -580,7 +624,7 @@ def controller(
         os.close(notification)
         # Unknown queued work retains its frozen cgroup and evidence.
         retained = state / attempt["attempt_id"] / "grant.json"
-        if retained.exists():
+        if retained.exists() and (fault != "owner-loss" or guard_stopped):
             retire_worker_slice(configuration, json.loads(retained.read_bytes()), group)
         with contextlib.suppress(ProcessLookupError):
             os.kill(owner, signal.SIGKILL)
