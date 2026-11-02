@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import sqlite3
 import subprocess
@@ -346,6 +347,8 @@ def inside():
             base.require(time.monotonic() < deadline, "broker did not exit")
             time.sleep(0.05)
         result = json.loads(result_path.read_text())
+        base.require(processes["gateway"].poll() is None, "listener stopped before broker settled")
+        processes["gateway"].send_signal(signal.SIGTERM)
         base.require(processes["gateway"].wait(timeout=10) == 0, "Bifrost gateway exit failed")
         base.require(base.actor(2005, lambda: base.post(base.WALLET, "begin", call))[0] == 409,
                      "wallet allowed repeated begin")
@@ -394,6 +397,7 @@ def inside():
                               "wallet_actual": True, "root_scope_methods_actual": True,
                               "root_constructor_and_registry_synthetic": True,
                               "real_broker_and_capture": True, "actual_bifrost_handler": True,
+                              "private_listener_joined_and_cancelled": True,
                               "provider_authorizer_route_and_charge_bounds_synthetic": True,
                               "wallet_begin_replay_after_completion_denied": True,
                               "task_cap_denied_with_daily_headroom": True,
