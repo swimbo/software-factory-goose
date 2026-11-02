@@ -103,6 +103,73 @@ def kill_service_main(library, identity):
             manager.lib.sd_bus_message_unref(message)
 
 
+def start_gateway_peer(library, python, group, base):
+    """Start one fixture-only sibling and child in the existing attempt slice."""
+    unit = (
+        "sfactoryguard"
+        + hashlib.sha256((str(base) + "/gateway-peer").encode()).hexdigest()
+        + ".service"
+    )
+    code = "import subprocess,sys,time;subprocess.Popen([sys.executable,'-c','import time;time.sleep(90)']);time.sleep(90)"
+    argv = [python, "-I", "-B", "-c", code]
+    props = guard.service_policy(argv, [python, "-c", "pass"], 60000000)
+    props = [
+        (
+            key,
+            kind,
+            group.name
+            if key == "Slice"
+            else ("nobody" if key == "User" else "nogroup")
+            if key in ("User", "Group")
+            else value,
+        )
+        for key, kind, value in props
+        if key != "ExecStopPost"
+    ]
+    with guard.SystemdManager(library, digest(library)) as manager:
+
+        def build(message):
+            manager._basic(message, "s", unit)
+            manager._basic(message, "s", "fail")
+            manager._properties(message, props)
+            manager._open(message, "a", "(sa(sv))")
+            manager._end(message)
+
+        manager._call("StartTransientUnit", build)
+    deadline = time.monotonic() + 4
+    while True:
+        try:
+            identity = snapshot(library, unit)
+            pid = identity["MainPID"]
+            children = (
+                (Path("/proc") / str(pid) / "task" / str(pid) / "children")
+                .read_text()
+                .split()
+            )
+            if identity["ActiveState"] == "active" and pid > 1 and len(children) == 1:
+                child = int(children[0])
+                break
+        except (OSError, guard.GuardRefused):
+            pass
+        assert time.monotonic() < deadline, "gateway peer readiness unknown"
+        time.sleep(0.02)
+    assert identity["ControlGroup"].startswith("/" + group.name + "/")
+    for process in (pid, child):
+        fields = dict(
+            line.split(":", 1)
+            for line in (Path("/proc") / str(process) / "status")
+            .read_text()
+            .splitlines()
+            if ":" in line
+        )
+        assert (
+            fields["Uid"].split() == ["65534"] * 4
+            and fields["NoNewPrivs"].strip() == "1"
+        )
+        assert guard._process_group(process) == identity["ControlGroup"]
+    return identity, [(pid, product._ticks(pid)), (child, product._ticks(child))]
+
+
 def owner_server(path, notify, allow):
     os.setgroups([])
     os.setgid(OWNER_UID)
@@ -192,7 +259,9 @@ def supervisor_main(configuration):
         time.sleep(1)
 
 
-def controller(base, host_python, host_library, controller_library, fault):
+def controller(
+    base, host_python, host_library, controller_library, fault, gateway_peer=False
+):
     assert os.geteuid() == 0 and base.is_absolute()
     assert str(base).startswith("/var/lib/sfactory-harness/qualification-")
     assert (base / MARKER).read_text() == MARKER + "\n"
@@ -343,6 +412,7 @@ def controller(base, host_python, host_library, controller_library, fault):
     started = None
     parent = None
     guard_ready = None
+    gateway = None
     try:
         with guard.SystemdManager(
             controller_library, digest(controller_library)
@@ -394,6 +464,8 @@ def controller(base, host_python, host_library, controller_library, fault):
         assert limits["memory.max"] == "268435456" and limits["pids.max"] == "32"
         quota, period = map(int, limits["cpu.max"].split())
         assert quota == period
+        if gateway_peer:
+            gateway = start_gateway_peer(controller_library, host_python, group, base)
         if fault == "owner-loss":
             kill_service_group(controller_library, parent)
         elif fault == "guard-crash":
@@ -436,6 +508,16 @@ def controller(base, host_python, host_library, controller_library, fault):
             assert product._owner_alive(guard_ready["pid"], guard_ready["ticks"])
         assert "populated 0" in (group / "cgroup.events").read_text().splitlines()
         assert (group / "cgroup.freeze").read_text().strip() == "1"
+        if gateway_peer:
+            assert all(
+                not product._owner_alive(pid, ticks) for pid, ticks in gateway[1]
+            )
+            observed_gateway = snapshot(controller_library, gateway[0]["Id"])
+            assert observed_gateway["InvocationID"] == gateway[0]["InvocationID"]
+            assert (
+                observed_gateway["MainPID"] == 0
+                and observed_gateway["ActiveState"] != "active"
+            )
         os.write(release, b"A")
         deadline = time.monotonic() + 5
         while not (saved / "owner-revoked.json").exists():
@@ -457,6 +539,7 @@ def controller(base, host_python, host_library, controller_library, fault):
             "lease_expired_with_live_supervisor": fault == "lease-expiry",
             "guard_cgroup_limits": limits,
             "exact_worker_fenced_and_removed": True,
+            "fixture_gateway_peer_and_child_fenced": gateway_peer,
             "synthetic_owner_revocation_acknowledged": True,
             "synthetic_catalog_registry_owner": True,
             "production_admission": False,
@@ -466,6 +549,7 @@ def controller(base, host_python, host_library, controller_library, fault):
             "guard_unit": guard_ready["unit"],
             "supervisor_unit": unit,
             "owned_worker_slice": group.name,
+            "fixture_gateway_unit": gateway[0]["Id"] if gateway else None,
             "source_sha256": {
                 p.name: digest(p)
                 for p in (Path(product.__file__), Path(guard.__file__), Path(__file__))
@@ -510,6 +594,7 @@ def main():
     parser.add_argument("--host-python")
     parser.add_argument("--host-library")
     parser.add_argument("--controller-library")
+    parser.add_argument("--gateway-peer", action="store_true")
     parser.add_argument(
         "--fault",
         choices=("owner-loss", "guard-crash", "lease-expiry"),
@@ -532,6 +617,7 @@ def main():
             args.host_library,
             args.controller_library,
             args.fault,
+            args.gateway_peer,
         )
 
 

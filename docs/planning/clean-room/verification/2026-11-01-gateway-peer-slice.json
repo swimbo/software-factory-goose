@@ -1,0 +1,80 @@
+{
+  "actual_gateway_exercised": false,
+  "additional_frozen_slice": {
+    "name": "sfactoryharness0e3c6276816a4d7da1c13de30429d1e3f1b482d0370444ecbdb099e9c6e2c4dc.slice",
+    "observation": "frozen and empty; preserved",
+    "ownership": "not independently established"
+  },
+  "candidate_enabled": false,
+  "component": "shared_attempt_slice_gateway_peer_fence",
+  "failed_first_setup": {
+    "observation": "frozen and empty; synthetic owner revocation receipt absent; preserved",
+    "owned_slice": "sfactoryharnessfa2419ebc9474167ba72d203a0186807d09874bc0b174ae88d6a8071e57a2611.slice",
+    "reason": "systemd could not resolve fixture numeric UID; process did not start",
+    "stage": {
+      "base": "/var/lib/sfactory-harness/qualification-3833af1f924d45eba77e1986c5d9b804",
+      "child_dev": 66306,
+      "child_ino": 19298703,
+      "parent_created": false,
+      "parent_dev": 66306,
+      "parent_ino": 19295428,
+      "stage": "/home/bo/sfactory-pid1-guard-20261101-amolp93m"
+    }
+  },
+  "fixture_sha256": "3dc8e7ae88d327165cd2dc793798fa9b393d0dd337993fef122e3947939c6f9c",
+  "incomplete_guard_crash_fixture": {
+    "base": "/var/lib/sfactory-harness/qualification-4378dcf1deb54ed4aea422ef50461bda",
+    "case_state": "unverified, preserved",
+    "controller_observation": "timed out; named container and controller process subsequently absent",
+    "gateway_peer_reached": false,
+    "guard_cleanup_final_state": "failed; MainPID=0, ControlPID=0, ControlGroup empty",
+    "guard_cleanup_unit": "sfactoryguard9ae29819dfabff8866fb8ff7c68ea4b30e954d3624a61d0c9432103cd902115b.service",
+    "provision_observation": "timed out; provision process later ended and prepared source was verified",
+    "stage": "/home/bo/sfactory-pid1-guard-20261101-2nc2trvo",
+    "supervisor_unit": "sfactoryguard448357daec89afd5f0dd595878494fa5237dc601d62ce9a3721a655176f96211.service"
+  },
+  "live_attempts": 0,
+  "paid_calls": 0,
+  "production_admission": false,
+  "schema": 1,
+  "success_independent_observation": {
+    "attempt_slice_absent": true,
+    "controller_absent": true,
+    "guard_peer_supervisor_terminal_and_empty": true,
+    "worker_container_absent": true
+  },
+  "successful_owner_loss_fixture": {
+    "actual_pid1_guard": true,
+    "actual_root_constructor_prepare_start": true,
+    "candidate_enabled": false,
+    "component_only": true,
+    "entire_supervisor_group_killed": true,
+    "exact_worker_fenced_and_removed": true,
+    "fault": "owner-loss",
+    "fixture_gateway_peer_and_child_fenced": true,
+    "fixture_gateway_unit": "sfactoryguard14bcdc2c967565393a758e25000f603cf80f078f658d657cc21f2cd50856ccc1.service",
+    "guard_alive_after_supervisor_group_loss": true,
+    "guard_cgroup_limits": {
+      "cpu.max": "100000 100000",
+      "memory.max": "268435456",
+      "pids.max": "32"
+    },
+    "guard_exec_stop_post_cleanup": false,
+    "guard_unit": "sfactoryguardf7f34f4cd1642fb22c44110a1623cbc683281e69c8679a8e520cbbc8d1487cb7.service",
+    "lease_expired_with_live_supervisor": false,
+    "live_attempts": 0,
+    "native_long_relay_path_tests": 2,
+    "owned_worker_slice": "sfactoryharness4c691f9deb9e4931a28aad81c3a398a4b38a44e851004857af7bc627fdd75725.slice",
+    "paid_calls": 0,
+    "production_admission": false,
+    "schema": 1,
+    "source_sha256": {
+      "harness_pid1_guard_replay.py": "3dc8e7ae88d327165cd2dc793798fa9b393d0dd337993fef122e3947939c6f9c",
+      "linux_service_guard.py": "de7013238e9a0755917db607d79d498797824ec1b8c95009a9a4f24bd737774e",
+      "linux_supervisor.py": "d023201258014559bddb32eeff91e110c17bdcdac87ac7ef19435c470d7783ad"
+    },
+    "supervisor_unit": "sfactoryguarde3d86a9e807477c352ddffdb5376af4232ccbe9eee7e019903c4ccd3e11ada75.service",
+    "synthetic_catalog_registry_owner": true,
+    "synthetic_owner_revocation_acknowledged": true
+  }
+}

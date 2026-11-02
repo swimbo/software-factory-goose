@@ -1,0 +1,7 @@
+# Gateway peer in the attempt slice
+
+In a fresh native PID1 fixture, the real Root supervisor started the worker and its guard. A separate `nobody` service and its child were then placed inside the same attempt slice with `NoNewPrivileges`; they represented a blocked gateway process, not Bifrost. After the whole supervisor group was killed, the real guard froze and emptied the slice, both peer processes stopped executing, and synthetic wallet revocation acknowledged. Independent observation found the exact worker container and slice absent and the three owned services terminal with no remaining PIDs or control groups. The [receipt](2026-11-01-gateway-peer-slice.json) records the fixture boundaries and identities.
+
+An earlier setup failed because systemd could not resolve the fixture's numeric UID. Its exact owned slice remains frozen and empty; the synthetic owner-revocation receipt is absent, so its state was preserved. A subsequent guard-crash setup timed out and its supervisor failed before the gateway peer started. Its cleanup observer is terminal; its case remains unverified and preserved. A separately observed frozen, empty slice has not been independently attributed and was also left untouched.
+
+The successful test proves only the existing kernel fence for processes already inside the owned slice. It does not implement or qualify the production gateway launcher, prove the real Bifrost process is confined there, or establish provider charge bounds. No paid attempts ran and the candidate remains disabled.

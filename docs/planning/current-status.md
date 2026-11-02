@@ -20,6 +20,8 @@ The resumed source checkpoint adds a broker-only, read-only wallet verification 
 
 [Physical-call admission ordering](clean-room/verification/2026-11-01-physical-admission-ordering.md) now prevents concurrent calls from reaching the sequenced broker check out of order. A cancelled wait or queued call at capture sealing remains fail-closed. The full Go schema suite and native fixtures passed; provider inputs remain synthetic.
 
+A [native owner-loss fixture](clean-room/verification/2026-11-01-gateway-peer-slice.md) also fenced a separate unprivileged gateway-like process and child already inside the worker's attempt slice. This is not a Bifrost launcher or production egress proof. One earlier failed fixture retains its frozen, empty slice without a synthetic owner-revocation receipt; a later guard-crash setup and an unattributed frozen slice remain preserved for reconciliation.
+
 - Protected spending authority, one-use gateway acquisition, durable capture and independent settlement RPC have component and restart proofs. These do not establish the full production path.
 - An [isolated joined fixture](clean-room/verification/2026-11-01-wallet-root-gateway-join.md) now exercises the durable wallet, real Root scope methods, protected broker, actual Bifrost handler, capture and collector together. Root construction, registry, route, provider, authorizer and bounds are synthetic; production admission remains unqualified.
 - The same isolated chain now [tests task and daily reservation ceilings separately](clean-room/verification/2026-11-01-joined-cap.md) against the real journal, with synthetic opening balances and bounds. The hosted all-path charge envelope remains unproven.
