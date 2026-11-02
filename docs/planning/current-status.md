@@ -1,6 +1,6 @@
 # Current status
 
-Updated: 2026-11-01 (America/New_York). **Paused at the user's request.**
+Updated: 2026-11-02 (America/New_York). **Active; resumed at the user's request.**
 
 ## Objective and gates
 
@@ -36,7 +36,7 @@ The new [Root bound-socket primitive](clean-room/verification/2026-11-01-root-ga
 
 The [bind/cleanup fence](clean-room/verification/2026-11-01-gateway-bind-cleanup-fence.md) serializes schema 4 binding and cleanup across processes and fences execution before cleanup. [Absence reconciliation](clean-room/verification/2026-11-01-gateway-bind-absence.md) handles an intent when no handoff receipt or socket exists; [created-socket cleanup](clean-room/verification/2026-11-01-gateway-created-cleanup.md) also handles a matching, durably recorded inode before handoff. Ambiguous creation or any bound/handoff receipt remains unresolved. The exact socket-helper source is pinned to the cleanup pathname contract and loaded only for binding, so cleanup-only startup does not depend on that helper. Cleanup after gateway handoff or process launch remains unimplemented.
 
-**Paused work in progress:** A source-only gateway pre-exec barrier and synthetic Linux fixture are now in the checkout. The helper checks identity, executable, socket, owner and cgroup information and waits for a release before executing a gateway; its source is included in both profile fingerprints. An earlier version passed a network-isolated cross-UID fixture including denial when its controller died before release. The final socket-type check has not yet been replayed in that native fixture. The fixture did not test actual cgroup migration, and the helper is not connected to a Root launcher or production Bifrost bootstrap. Production route and credential custody, post-release owner loss and descendant cleanup remain unqualified. Resume by completing and testing that integration, not by enabling the candidate.
+**Work in progress:** A source-only gateway pre-exec barrier and synthetic Linux fixture are now in the checkout. The helper checks identity, executable, socket, owner and cgroup information and waits for a release before executing a gateway; its source is included in both profile fingerprints. An earlier version passed a network-isolated cross-UID fixture including denial when its controller died before release. The final socket-type check passed its [native fixture replay](clean-room/verification/2026-11-02-gateway-exec-barrier.md), including a non-stream-socket rejection. The fixture did not test actual cgroup migration, and the helper is not connected to a Root launcher or production Bifrost bootstrap. Production route and credential custody, post-release owner loss and descendant cleanup remain unqualified. Resume by completing and testing that integration, not by enabling the candidate.
 
 - Protected spending authority, one-use gateway acquisition, durable capture and independent settlement RPC have component and restart proofs. These do not establish the full production path.
 - An [isolated joined fixture](clean-room/verification/2026-11-01-wallet-root-gateway-join.md) now exercises the durable wallet, real Root scope methods, protected broker, actual Bifrost handler, capture and collector together. Root construction, registry, route, provider, authorizer and bounds are synthetic; production admission remains unqualified.
@@ -94,4 +94,4 @@ The protected gateway cancels a stalled response read at the shorter Root deadli
 4. Freeze the representative 20-task suite and both variants against identical models, route configuration, budgets, tariff and independent acceptance checks. Run three repeats per task/variant: **120 total attempts**. Respect the aggregate daily cap across days.
 5. Require every safety regression to pass, no decline in accepted-task count, at least **10% lower median audited usage-rated cost per accepted task**, and no more than **10% higher median completion time**. Missing evidence or a failed gate leaves Phase 11A incomplete and the baseline retained. Keep the candidate disabled until the complete gate passes.
 
-Work is paused. Preserve all ledgers, failed-attempt evidence and isolated stages. Paid calls and activation remain subject to the unresolved bounds and launch gates above.
+Work has resumed. Preserve all ledgers, failed-attempt evidence and isolated stages. Paid calls and activation remain subject to the unresolved bounds and launch gates above.

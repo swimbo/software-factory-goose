@@ -41,7 +41,10 @@ def run_case(index, action):
     if action == "setuid_program":
         TARGET.chmod(0o4555)
     name = ROOT / ((str(index) * 64) + ".sock")
-    bound = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    kind = (
+        socket.SOCK_SEQPACKET if action == "wrong_socket_type" else socket.SOCK_STREAM
+    )
+    bound = socket.socket(socket.AF_UNIX, kind)
     bound.bind(str(name))
     os.chmod(name, 0o660)
     os.chown(name, 2007, 2005)
@@ -110,12 +113,17 @@ def run_case(index, action):
             "expired",
             "setuid_program",
             "wrong_socket",
+            "wrong_socket_type",
         ):
             if ready or proc.wait(timeout=5) == 0:
                 raise RuntimeError("changed program or identity accepted")
             return
         if ready != b"R":
-            raise RuntimeError("barrier did not become ready")
+            proc.wait(timeout=5)
+            raise RuntimeError(
+                f"barrier did not become ready: {action}: "
+                f"{proc.stderr.read().decode(errors='replace')}"
+            )
         if select.select([proc.stdout], [], [], 0.1)[0]:
             raise RuntimeError("target ran before release")
         if action == "closed_gate":
@@ -182,7 +190,7 @@ def owner_loss_case():
     if controller == 0:
         try:
             os.close(notify_r)
-            name = ROOT / ("9" * 64 + ".sock")
+            name = ROOT / ("a" * 64 + ".sock")
             bound = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             bound.bind(str(name))
             os.chmod(name, 0o660)
@@ -295,6 +303,7 @@ def main():
             "expired",
             "setuid_program",
             "wrong_socket",
+            "wrong_socket_type",
         ),
         1,
     ):
@@ -310,6 +319,7 @@ def main():
                 "expired_deadline_denied": True,
                 "setuid_program_denied": True,
                 "wrong_socket_denied": True,
+                "wrong_socket_type_denied": True,
                 "released_exec_uid_verified": True,
                 "owner_loss_before_release_denied": True,
                 "actual_cgroup_migration_tested": False,
