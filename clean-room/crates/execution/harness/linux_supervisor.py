@@ -62,6 +62,86 @@ def require(value, reason):
         raise SupervisorRefused(reason)
 
 
+def inspect_gateway_peer(grant, pid, start_ticks, uid, executable_sha256):
+    """Check a kernel-reported peer; this is not a launch or egress fence."""
+    require(
+        _integer(pid, 2, 2**31 - 1)
+        and _integer(start_ticks, 1, 2**63 - 1)
+        and _integer(uid, 1, 2**31 - 1)
+        and _digest(executable_sha256),
+        "root_gateway_peer_invalid",
+    )
+    base = Path("/proc") / str(pid)
+    ticks = _ticks(pid)
+    require(ticks == start_ticks, "root_gateway_peer_changed")
+    path = grant["cgroup_path"].removeprefix("/sys/fs/cgroup")
+
+    def snapshot():
+        fields = dict(
+            line.split(":", 1)
+            for line in (base / "status").read_text().splitlines()
+            if ":" in line
+        )
+        group = (base / "cgroup").read_text().strip().splitlines()
+        require(
+            fields.get("Uid", "").split() == [str(uid)] * 4
+            and fields.get("NoNewPrivs", "").strip() == "1"
+            and all(
+                int(fields.get(key, "-1").strip(), 16) == 0
+                for key in ("CapInh", "CapPrm", "CapEff", "CapAmb")
+            )
+            and len(group) == 1
+            and group[0].startswith("0::")
+            and (group[0][3:] == path or group[0][3:].startswith(path + "/")),
+            "root_gateway_peer_changed",
+        )
+        return fields["Uid"], fields["NoNewPrivs"], tuple(group)
+
+    before = snapshot()
+    fd = os.open(base / "exe", os.O_RDONLY | os.O_CLOEXEC)
+    try:
+        info = os.fstat(fd)
+        require(
+            stat.S_ISREG(info.st_mode)
+            and info.st_uid == 0
+            and info.st_mode & 0o022 == 0
+            and 0 < info.st_size <= 536870912,
+            "root_gateway_executable_changed",
+        )
+        digest = hashlib.sha256()
+        remaining = info.st_size
+        while remaining:
+            block = os.read(fd, min(65536, remaining))
+            require(bool(block), "root_gateway_executable_changed")
+            digest.update(block)
+            remaining -= len(block)
+        require(not os.read(fd, 1), "root_gateway_executable_changed")
+        final = os.stat(base / "exe")
+        require(
+            digest.hexdigest() == executable_sha256
+            and (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+            == (final.st_dev, final.st_ino, final.st_size, final.st_mtime_ns)
+            and _owner_alive(pid, ticks)
+            and snapshot() == before,
+            "root_gateway_peer_changed",
+        )
+    finally:
+        os.close(fd)
+
+
+def require_broker_pid_namespace(pid):
+    """The broker's SO_PEERCRED PID and Root's /proc must use one namespace."""
+    require(_integer(pid, 2, 2**31 - 1), "root_broker_pid_namespace_changed")
+    proc_pid = int(Path("/proc/self/stat").read_text().split(" ", 1)[0])
+    require(proc_pid == os.getpid(), "root_broker_pid_namespace_changed")
+    broker = os.stat(Path("/proc") / str(pid) / "ns/pid")
+    own = os.stat("/proc/self/ns/pid")
+    require(
+        (broker.st_dev, broker.st_ino) == (own.st_dev, own.st_ino),
+        "root_broker_pid_namespace_changed",
+    )
+
+
 def factory_scope_digest(scope):
     """Reproduce the wallet's ordered Rust scope encoding; grants no authority."""
     fields = (
@@ -643,37 +723,43 @@ class RootSupervisor:
         )
         self.configuration = Path(configuration)
         self.cfg = _decode(protected(self.configuration, 0o600))
+        fields = {
+            "schema",
+            "recipe",
+            "runtime_root",
+            "catalog_root",
+            "catalog_sha256",
+            "state_root",
+            "socket_path",
+            "goose",
+            "worker_program",
+            "worker_program_sha256",
+            "worker_image",
+            "owner_socket",
+            "owner_service_uid",
+            "registry_gate",
+            "registry_gate_sha256",
+            "python",
+            "python_sha256",
+            "docker",
+            "docker_sha256",
+            "empty_docker_config",
+            "guard_program",
+            "guard_program_sha256",
+            "supervisor_program",
+            "supervisor_program_sha256",
+            "systemd_library",
+            "systemd_library_sha256",
+        }
         require(
-            set(self.cfg)
-            == {
-                "schema",
-                "recipe",
-                "runtime_root",
-                "catalog_root",
-                "catalog_sha256",
-                "state_root",
-                "socket_path",
-                "goose",
-                "worker_program",
-                "worker_program_sha256",
-                "worker_image",
-                "owner_socket",
-                "owner_service_uid",
-                "registry_gate",
-                "registry_gate_sha256",
-                "python",
-                "python_sha256",
-                "docker",
-                "docker_sha256",
-                "empty_docker_config",
-                "guard_program",
-                "guard_program_sha256",
-                "supervisor_program",
-                "supervisor_program_sha256",
-                "systemd_library",
-                "systemd_library_sha256",
-            }
-            and self.cfg["schema"] == 2
+            (
+                set(self.cfg) == fields
+                and self.cfg["schema"] == 2
+                or set(self.cfg)
+                == fields | {"gateway_uid", "gateway_executable_sha256"}
+                and self.cfg["schema"] == 3
+            )
+            and type(self.cfg["schema"]) is int
             and self.cfg["worker_image"] == WORKER_IMAGE,
             "root_configuration_changed",
         )
@@ -708,6 +794,18 @@ class RootSupervisor:
             not in (0, self.recipe["broker_uid"], self.recipe["worker_uid"]),
             "root_role_alias",
         )
+        if self.cfg["schema"] == 3:
+            require(
+                _integer(self.cfg["gateway_uid"], 1, 2**31 - 1)
+                and self.cfg["gateway_uid"]
+                not in (
+                    self.recipe["broker_uid"],
+                    self.recipe["worker_uid"],
+                    self.cfg["owner_service_uid"],
+                )
+                and _digest(self.cfg["gateway_executable_sha256"]),
+                "root_gateway_identity_invalid",
+            )
         self.runtime, self.catalog, self.state = (
             Path(self.cfg[k]) for k in ("runtime_root", "catalog_root", "state_root")
         )
@@ -991,6 +1089,52 @@ class RootSupervisor:
                 arguments_sha256=body["arguments_sha256"],
                 allowed=True,
             )
+
+    def gateway_peer_v1(self, body):
+        """Recheck an authenticated broker's kernel-reported gateway peer."""
+        require(
+            type(body) is dict
+            and set(body) == {"attempt", "scope_sha256", "pid", "start_ticks"}
+            and type(body["attempt"]) is dict
+            and _digest(body["scope_sha256"])
+            and _integer(body["pid"], 2, 2**31 - 1)
+            and _integer(body["start_ticks"], 1, 2**63 - 1),
+            "root_gateway_peer_invalid",
+        )
+        require(self.cfg.get("schema") == 3, "root_gateway_peer_unconfigured")
+        self.scope_preimage_v2(
+            {"attempt": body["attempt"], "scope_sha256": body["scope_sha256"]}
+        )
+        with self.gate.admission(), self.guard:
+            case = self._case(body["attempt"]["attempt_id"])
+            grant = _decode(protected(case / "grant.json", 0o600))
+            self._current(grant)
+            require(
+                self._saved_scope(grant) == body["scope_sha256"],
+                "root_gateway_peer_changed",
+            )
+            self._kernel_scope(grant, empty=False)
+            ready = check_guard(self, grant)
+            require(
+                ready["owner_pid"] == os.getpid()
+                and ready["owner_ticks"] == _ticks(os.getpid()),
+                "root_gateway_guard_owner_changed",
+            )
+            inspect_gateway_peer(
+                grant,
+                body["pid"],
+                body["start_ticks"],
+                self.cfg["gateway_uid"],
+                self.cfg["gateway_executable_sha256"],
+            )
+            self._current(grant)
+            self._kernel_scope(grant, empty=False)
+            return {
+                "verified": True,
+                "pid": body["pid"],
+                "start_ticks": body["start_ticks"],
+                "scope_sha256": body["scope_sha256"],
+            }
 
     def close(self, body):
         require(set(body) == {"attempt", "scope_sha256"}, "root_close_changed")
@@ -1544,10 +1688,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             import struct
 
-            uid = struct.unpack(
+            peer_pid, uid, _ = struct.unpack(
                 "3i",
                 self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12),
-            )[1]
+            )
             require(
                 uid == self.server.backend.recipe["broker_uid"], "root_caller_denied"
             )
@@ -1558,6 +1702,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 in (
                     "admit",
                     "scope_preimage_v2",
+                    "gateway_peer_v1",
                     "authorize_tool",
                     "close",
                     "prepare",
@@ -1568,6 +1713,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 ),
                 "root_method_denied",
             )
+            if method == "gateway_peer_v1":
+                require_broker_pid_namespace(peer_pid)
             lengths = self.headers.get_all("Content-Length", [])
             require(
                 len(lengths) == 1

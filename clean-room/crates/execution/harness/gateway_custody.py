@@ -62,6 +62,19 @@ def encoded(value):
     return raw
 
 
+def gateway_peer_ticks(pid):
+    """Unknown process identity is usable only by non-live rehearsal."""
+    from linux_supervisor import _ticks
+
+    try:
+        proc_pid = int(Path("/proc/self/stat").read_text().split(" ", 1)[0])
+        if proc_pid != os.getpid():
+            return None
+        return _ticks(pid)
+    except (OSError, ValueError, IndexError):
+        return None
+
+
 class GatewayAcquisitionAuthority:
     """Only the trusted broker arms a reserved call; there is no arm RPC.
 
@@ -136,16 +149,16 @@ class GatewayAcquisitionAuthority:
         with self.lock:
             self.arm(binding, call)
             self.roots[payload_sha256(binding)].extend(
-                (copy.deepcopy(scope), root_deadline_ms, verify, 0)
+                (copy.deepcopy(scope), root_deadline_ms, verify, 0, None)
             )
 
     def acquire(self, uid, body):
         return self._acquire(uid, body, version=1)
 
-    def acquire_v2(self, uid, body):
-        return self._acquire(uid, body, version=2)
+    def acquire_v2(self, uid, body, *, pid=None, start_ticks=None):
+        return self._acquire(uid, body, version=2, pid=pid, start_ticks=start_ticks)
 
-    def _acquire(self, uid, body, *, version):
+    def _acquire(self, uid, body, *, version, pid=None, start_ticks=None):
         require(
             uid == self.uid and _keys(body, ("binding", "call")), "gateway_role_denied"
         )
@@ -161,7 +174,14 @@ class GatewayAcquisitionAuthority:
                 and encoded(state[0]) == encoded(body["binding"])
                 and encoded(state[1]) == encoded(body["call"])
                 and state[2] == "armed"
-                and len(state) == (3 if version == 1 else 7),
+                and len(state) == (3 if version == 1 else 8)
+                and (
+                    (pid is None and start_ticks is None)
+                    or (
+                        _integer(pid, 2, 2**31 - 1)
+                        and (start_ticks is None or _integer(start_ticks, 1, 2**63 - 1))
+                    )
+                ),
                 "gateway_root_unavailable",
             )
             state[2] = "unknown"
@@ -179,6 +199,8 @@ class GatewayAcquisitionAuthority:
             except Exception:
                 raise ControlRefused("gateway_acquisition_unknown") from None
             state[2] = "acquired"
+            if version == 2:
+                state[7] = (pid, start_ticks)
             result = {"root_sha256": key, "acquired": True}
             if version == 2:
                 result.update(
@@ -186,7 +208,7 @@ class GatewayAcquisitionAuthority:
                 )
             return result
 
-    def verify_physical_v2(self, uid, body):
+    def verify_physical_v2(self, uid, body, *, pid=None, start_ticks=None):
         require(
             uid == self.uid
             and _keys(body, ("binding", "call", "physical_sequence", "physical_sha256"))
@@ -201,19 +223,23 @@ class GatewayAcquisitionAuthority:
             state = self.roots.get(key)
             require(
                 state is not None
-                and len(state) == 7
+                and len(state) == 8
                 and encoded(state[0]) == encoded(body["binding"])
                 and encoded(state[1]) == encoded(body["call"])
                 and state[2] == "acquired"
                 and callable(state[5])
-                and state[6] == body["physical_sequence"],
+                and state[6] == body["physical_sequence"]
+                and state[7] == (pid, start_ticks),
                 "gateway_physical_verification_denied",
             )
             # Consume this sequence before either protected read. An unknown or
             # lost acknowledgement can never authorize the same dispatch again.
             state[6] += 1
             try:
-                require(state[5]() is True, "gateway_physical_verification_unknown")
+                require(
+                    state[5](pid, start_ticks) is True,
+                    "gateway_physical_verification_unknown",
+                )
             except Exception:
                 state[2] = "failed"
                 raise ControlRefused("gateway_physical_verification_unknown") from None
@@ -224,15 +250,15 @@ class GatewayAcquisitionAuthority:
                 "physical_sha256": body["physical_sha256"],
             }
 
-    def dispatch(self, uid, method, body):
+    def dispatch(self, uid, method, body, *, pid=None, start_ticks=None):
         require(
             method in ("acquire", "acquire_v2", "verify_physical_v2"),
             "gateway_method_denied",
         )
         if method == "verify_physical_v2":
-            return self.verify_physical_v2(uid, body)
+            return self.verify_physical_v2(uid, body, pid=pid, start_ticks=start_ticks)
         return (
-            self.acquire_v2(uid, body)
+            self.acquire_v2(uid, body, pid=pid, start_ticks=start_ticks)
             if method == "acquire_v2"
             else self.acquire(uid, body)
         )
@@ -656,7 +682,7 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            _, uid, _ = struct.unpack(
+            pid, uid, _ = struct.unpack(
                 "3i",
                 self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12),
             )
@@ -690,7 +716,13 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
             raw = self.rfile.read(int(lengths[0]))
             require(len(raw) == int(lengths[0]), "custody_request_unknown")
             body = _decode(raw)
-            value = self.server.backend.dispatch(uid, method, body)
+            if self.server.prefix == "/gateway/":
+                start_ticks = gateway_peer_ticks(pid)
+                value = self.server.backend.dispatch(
+                    uid, method, body, pid=pid, start_ticks=start_ticks
+                )
+            else:
+                value = self.server.backend.dispatch(uid, method, body)
             output, code = encoded(value).encode(), 200
         except Exception:
             output, code = b'{"error":"custody_refused"}', 400

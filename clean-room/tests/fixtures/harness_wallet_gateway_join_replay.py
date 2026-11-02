@@ -192,7 +192,7 @@ def open_broker(attempt, grant, call, request, card, binding):
                      "Root lease deadline mismatch")
         client = PrivateGatewayClient(EXCHANGE, gateway_uid=2007, broker_uid=2005, owner=base.OWNER)
         transport = ProtectedGatewayTransport(journal, authority, client, route_sha256=ROUTE,
-                                              tariff_sha256=card.sha256(), mode="live",
+                                              tariff_sha256=card.sha256(), mode="rehearsal",
                                               scope_client=root_client)
         base.require(journal("reserve", call) == "Reserved", "wallet reservation denied")
         response = transport.exchange_reserved(attempt, grant, call, request)
@@ -295,7 +295,7 @@ def inside():
         code, scope_hash = base.post(base.WALLET, "admit_attempt", scope)
         base.require(code == 200 and scope_hash == factory_scope_digest(scope), "wallet scope differs")
         attempt = {"attempt_id": ATTEMPT, "task_id": "public-fixture", "variant": "baseline", "repeat": 0,
-                   "budget_owner": base.OWNER, "route": ROUTE, "mode": "live",
+                   "budget_owner": base.OWNER, "route": ROUTE, "mode": "rehearsal",
                    "cost_basis": "audited_usage_rated", "tariff_sha256": card.sha256()}
         admission = {"attempt_id": ATTEMPT, "status": "allowed", "authority_receipt_sha256": "3" * 64}
         grant = {"attempt_id": ATTEMPT, "owner": base.OWNER, "route_sha256": ROUTE,
@@ -389,7 +389,7 @@ def inside():
             "captured physical usage or audit differs",
         )
         base.require(result["root_deadline_ms"] == lease_expiry, "Root deadline lost")
-        print(base.canonical({"schema": 1, "component": "wallet_root_broker_bifrost_capture_join",
+        print(base.canonical({"schema": 1, "component": "wallet_root_broker_bifrost_capture_join", "mode": "rehearsal",
                               "wallet_actual": True, "root_scope_methods_actual": True,
                               "root_constructor_and_registry_synthetic": True,
                               "real_broker_and_capture": True, "actual_bifrost_handler": True,

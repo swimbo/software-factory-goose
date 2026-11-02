@@ -196,6 +196,32 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 )
             self.assertEqual(begin.call_count, 1)
 
+    def test_physical_confirmation_requires_same_kernel_peer(self):
+        scope, root, call, authority, _, _ = self.fixture()
+        check = Mock(return_value=True)
+        authority.arm_v2(root, call, scope, 1000, verify=check)
+        authority.acquire_v2(
+            2007, {"binding": root, "call": call}, pid=123, start_ticks=99
+        )
+        request = {
+            "binding": root,
+            "call": call,
+            "physical_sequence": 0,
+            "physical_sha256": "c" * 64,
+        }
+        for pid in (None, 124):
+            with self.subTest(pid=pid), self.assertRaises(ControlRefused):
+                authority.verify_physical_v2(2007, request, pid=pid, start_ticks=99)
+        with self.assertRaises(ControlRefused):
+            authority.verify_physical_v2(2007, request, pid=123, start_ticks=100)
+        check.assert_not_called()
+        self.assertTrue(
+            authority.verify_physical_v2(2007, request, pid=123, start_ticks=99)[
+                "verified"
+            ]
+        )
+        check.assert_called_once_with(123, 99)
+
     def test_changed_scope_route_or_tariff_never_arms(self):
         scope, root, call, authority, begin, opened = self.fixture()
         for value in (
@@ -259,7 +285,10 @@ class GatewayScopeV2Tests(unittest.TestCase):
 
             frame = json.loads(raw)
             ack = authority.acquire_v2(
-                2007, {"binding": frame["binding"], "call": frame["call"]}
+                2007,
+                {"binding": frame["binding"], "call": frame["call"]},
+                pid=123,
+                start_ticks=99,
             )
             self.assertEqual(ack["scope"], scope)
             self.assertEqual(ack["root_deadline_ms"], 1000)
@@ -271,6 +300,8 @@ class GatewayScopeV2Tests(unittest.TestCase):
                     "physical_sequence": 0,
                     "physical_sha256": "c" * 64,
                 },
+                pid=123,
+                start_ticks=99,
             )
             self.assertTrue(verified["verified"])
             return {
@@ -325,25 +356,74 @@ class GatewayScopeV2Tests(unittest.TestCase):
             ):
                 root_client._request.return_value = changed
                 with self.subTest(changed=changed):
-                    self.assertFalse(verify())
+                    self.assertFalse(verify(None, None))
             root_client._request.return_value = initial
             transport.journal.return_value = False
             before = root_client._request.call_count
-            self.assertFalse(verify())
+            self.assertFalse(verify(None, None))
             self.assertEqual(root_client._request.call_count, before)
             transport.journal.return_value = True
         with (
             patch("gateway_transport.os.geteuid", return_value=2005),
             patch("gateway_transport.time.time_ns", return_value=1_000_000_000),
         ):
-            self.assertFalse(verify())
+            self.assertFalse(verify(None, None))
+        # A live confirmation must ask Root about the kernel peer, not a
+        # process identity carried in a model-controlled request.
+        authority.roots.clear()
+        transport.mode = "live"
+        attempt["mode"] = "live"
+        transport.journal.return_value = True
+        root_client._request.side_effect = lambda path, value: (
+            initial
+            if path.endswith("scope_preimage_v2")
+            else {
+                "verified": True,
+                "pid": value["pid"],
+                "start_ticks": value["start_ticks"],
+                "scope_sha256": value["scope_sha256"],
+            }
+        )
+        with (
+            patch("gateway_transport.os.geteuid", return_value=2005),
+            patch("gateway_transport.time.time_ns", return_value=500_000_000),
+        ):
+            self.assertEqual(
+                transport.exchange_reserved(attempt, grant, call, request)["sse"],
+                b"data: [DONE]\n\n",
+            )
+            live_verify = authority.roots[payload_sha256(root)][5]
+            self.assertFalse(live_verify(None, None))
+            root_client._request.side_effect = (
+                lambda path, value: initial
+                if path.endswith("scope_preimage_v2")
+                else {
+                    "verified": True,
+                    "pid": 124,
+                    "start_ticks": value["start_ticks"],
+                    "scope_sha256": value["scope_sha256"],
+                }
+            )
+            self.assertFalse(live_verify(123, 99))
+            root_client._request.side_effect = (
+                lambda path, value: initial
+                if path.endswith("scope_preimage_v2")
+                else {
+                    "verified": True,
+                    "pid": value["pid"],
+                    "start_ticks": 100,
+                    "scope_sha256": value["scope_sha256"],
+                }
+            )
+            self.assertFalse(live_verify(123, 99))
+        root_client._request.side_effect = None
         transport.mode = "live"
         attempt["mode"] = "live"
         transport._scope_client = None
         with patch("gateway_transport.os.geteuid", return_value=2005):
             with self.assertRaisesRegex(ControlRefused, "gateway_scope_required"):
                 transport.exchange_reserved(attempt, grant, call, request)
-        self.assertEqual(begin.call_count, 1)
+        self.assertEqual(begin.call_count, 2)
 
 
 if __name__ == "__main__":

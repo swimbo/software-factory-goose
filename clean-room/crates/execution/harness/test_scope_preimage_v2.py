@@ -51,6 +51,18 @@ class ScopePreimageTests(unittest.TestCase):
             self.assertEqual(client("scope_preimage_v2", {}), {"schema": 2})
         client._request.assert_called_once_with("/harness-launch/scope_preimage_v2", {})
 
+    def test_gateway_peer_check_client_remains_broker_only(self):
+        client = object.__new__(linux_runner.PrivateRootSupervisorClient)
+        client.broker_uid = 2005
+        client._request = Mock(return_value={"verified": True})
+        with patch.object(linux_runner.os, "geteuid", return_value=2001):
+            with self.assertRaises(linux_runner.LinuxRunnerRefused):
+                client("gateway_peer_v1", {})
+        client._request.assert_not_called()
+        with patch.object(linux_runner.os, "geteuid", return_value=2005):
+            self.assertEqual(client("gateway_peer_v1", {}), {"verified": True})
+        client._request.assert_called_once_with("/harness-launch/gateway_peer_v1", {})
+
     def test_legacy_rust_digest_and_optional_null(self):
         value = legacy_scope()
         expected = "fbba1cce5b33e3a6fbe52dffd6b04f1b586ba9c9f183d9e04bd8ab93ce8229a7"

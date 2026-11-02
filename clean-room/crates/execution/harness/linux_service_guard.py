@@ -482,7 +482,7 @@ def _binding(supervisor):
 
     cfg = supervisor.cfg
     require(
-        cfg["schema"] == 2
+        cfg["schema"] in (2, 3)
         and cfg["guard_program"] == str(Path(__file__).resolve())
         and cfg["supervisor_program"]
         == str(Path(__file__).with_name("linux_supervisor.py").resolve()),

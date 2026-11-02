@@ -212,10 +212,16 @@ class ProtectedGatewayTransport:
             saved_scope = copy.deepcopy(preimage["scope"])
             root_deadline = preimage["root_deadline_ms"]
             journal = self.journal
+            live = self.mode == "live"
 
-            def verify_inflight():
+            def verify_inflight(peer_pid, peer_ticks):
                 # No reservation or retry is created by this check. The gateway
                 # must still be fenced if authority is lost after the check.
+                if live and not (
+                    _integer(peer_pid, 2, 2**31 - 1)
+                    and _integer(peer_ticks, 1, 2**63 - 1)
+                ):
+                    return False
                 if journal("verify_inflight", copy.deepcopy(saved_call)) is not True:
                     return False
                 current = scope_client(
@@ -225,7 +231,7 @@ class ProtectedGatewayTransport:
                         "scope_sha256": saved_call["scope_sha256"],
                     },
                 )
-                return (
+                valid = (
                     _keys(
                         current, ("schema", "scope_sha256", "scope", "root_deadline_ms")
                     )
@@ -236,6 +242,27 @@ class ProtectedGatewayTransport:
                     and canonical(current["scope"]) == canonical(saved_scope)
                     and type(current["root_deadline_ms"]) is int
                     and current["root_deadline_ms"] >= root_deadline
+                    and time.time_ns() // 1000000 < min(root_deadline, expiry)
+                )
+                if not valid or not live:
+                    return valid
+                peer = scope_client(
+                    "gateway_peer_v1",
+                    {
+                        "attempt": copy.deepcopy(saved_attempt),
+                        "scope_sha256": saved_call["scope_sha256"],
+                        "pid": peer_pid,
+                        "start_ticks": peer_ticks,
+                    },
+                )
+                return (
+                    _keys(peer, ("verified", "pid", "start_ticks", "scope_sha256"))
+                    and peer["verified"] is True
+                    and type(peer["pid"]) is int
+                    and peer["pid"] == peer_pid
+                    and type(peer["start_ticks"]) is int
+                    and peer["start_ticks"] == peer_ticks
+                    and peer["scope_sha256"] == saved_call["scope_sha256"]
                     and time.time_ns() // 1000000 < min(root_deadline, expiry)
                 )
 
