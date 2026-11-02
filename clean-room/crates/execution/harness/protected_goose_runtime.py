@@ -68,6 +68,7 @@ def profile_fingerprints(
         "linux_runner.py",
         "linux_supervisor.py",
         "linux_gateway_socket.py",
+        "linux_gateway_exec.py",
         "factory_harness.py",
         "harness_mcp.py",
         "harness_session.py",
