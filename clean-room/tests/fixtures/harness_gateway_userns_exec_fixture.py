@@ -11,9 +11,14 @@ import select
 import signal
 import socket
 import struct
+import sys
 import time
+from types import SimpleNamespace
 
 from harness_apparmor_ptrace_fixture import attack, run_victim
+
+sys.path.insert(0, "/fixture/harness")
+import linux_supervisor as root
 
 ROOT = Path("/var/lib/sfactory-harness/gw")
 TARGET = Path("/var/lib/sfactory-harness/fixture-target")
@@ -148,6 +153,25 @@ def case(index, mode):
         os.write(gate_w, b"G")
         if read(out_r) != b"exec-ready\n":
             raise RuntimeError("gateway target self-tests failed")
+        namespace = os.stat(proc / "ns/user")
+        identity = {"dev": namespace.st_dev, "ino": namespace.st_ino}
+        child_ref, child_ticks = SimpleNamespace(pid=child), ticks(child)
+        root.inspect_gateway_user_namespace(
+            child_ref, child_ticks, 2007, 2005, identity
+        )
+        for bad_uid, bad_gid, bad_identity in (
+            (2007, 2005, identity | {"ino": identity["ino"] + 1}),
+            (2007, 2006, identity),
+            (2006, 2005, identity),
+        ):
+            try:
+                root.inspect_gateway_user_namespace(
+                    child_ref, child_ticks, bad_uid, bad_gid, bad_identity
+                )
+            except root.SupervisorRefused:
+                pass
+            else:
+                raise RuntimeError("namespace verifier accepted substituted identity")
         fd = None
         for entry in (proc / "fd").iterdir():
             try:
@@ -228,6 +252,7 @@ def main():
                 "post_readiness_socket_replacement_denied": True,
                 "same_uid_ptrace_pidfd_denied": True,
                 "broker_peer_identity_verified": True,
+                "root_userns_inspection_verified": True,
                 "production_admission": False,
                 "paid_calls": 0,
             }

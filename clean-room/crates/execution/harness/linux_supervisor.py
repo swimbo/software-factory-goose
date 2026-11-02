@@ -165,6 +165,98 @@ def require_no_socket_copy(identity):
         )
 
 
+def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
+    """Inspect a pinned child namespace; this alone grants no launch authority.
+
+    The trusted launcher must create and pin the namespace before untrusted
+    code executes. This check cannot establish that no other process joined it.
+    """
+    require(
+        _integer(process.pid, 2, 2**31 - 1)
+        and _integer(ticks, 1)
+        and _integer(uid, 1, 2**31 - 1)
+        and _integer(broker_gid, 1, 2**31 - 1)
+        and uid != broker_gid
+        and type(identity) is dict
+        and set(identity) == {"dev", "ino"}
+        and _integer(identity["dev"], 1)
+        and _integer(identity["ino"], 1)
+        and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
+        "root_gateway_userns_invalid",
+    )
+    pid = process.pid
+    base = Path("/proc") / str(pid)
+    pidfd = os.pidfd_open(pid, 0)
+    namespace = parent = None
+    try:
+
+        def live():
+            try:
+                exited = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+            except ChildProcessError:
+                raise SupervisorRefused("root_gateway_userns_changed") from None
+            return exited is None and _ticks(pid) == ticks
+
+        require(live(), "root_gateway_userns_changed")
+        namespace = os.open(base / "ns/user", os.O_RDONLY | os.O_CLOEXEC)
+        info = os.fstat(namespace)
+        owner = bytearray(4)
+        fcntl.ioctl(namespace, 0xB704, owner, True)  # NS_GET_OWNER_UID
+        parent = fcntl.ioctl(namespace, 0xB702)  # NS_GET_PARENT
+        own = os.stat("/proc/self/ns/user")
+        ancestor = os.fstat(parent)
+        require(
+            (info.st_dev, info.st_ino) == (identity["dev"], identity["ino"])
+            and (info.st_dev, info.st_ino) != (own.st_dev, own.st_ino)
+            and (ancestor.st_dev, ancestor.st_ino) == (own.st_dev, own.st_ino)
+            and int.from_bytes(owner, sys.byteorder) == 0
+            and fcntl.ioctl(namespace, 0xB703) == 0x10000000,  # NS_GET_NSTYPE
+            "root_gateway_userns_changed",
+        )
+
+        def mappings(name):
+            rows = (base / name).read_text().splitlines()
+            require(len(rows) <= 3, "root_gateway_userns_changed")
+            try:
+                result = [tuple(int(value) for value in row.split()) for row in rows]
+            except ValueError:
+                raise SupervisorRefused("root_gateway_userns_changed") from None
+            require(all(len(row) == 3 for row in result), "root_gateway_userns_changed")
+            return sorted(result)
+
+        fields = dict(
+            line.split(":", 1)
+            for line in (base / "status").read_text().splitlines()
+            if ":" in line
+        )
+        require(
+            mappings("uid_map") == sorted([(0, 0, 1), (uid, uid, 1)])
+            and mappings("gid_map")
+            == sorted([(0, 0, 1), (uid, uid, 1), (broker_gid, broker_gid, 1)])
+            and fields.get("PPid", "").strip() == str(os.getpid())
+            and fields.get("Uid", "").split() == [str(uid)] * 4
+            and fields.get("Gid", "").split() == [str(uid)] * 4
+            and fields.get("Groups", "").split() == []
+            and fields.get("NoNewPrivs", "").strip() == "1"
+            and fields.get("Seccomp", "").strip() == "2"
+            and all(
+                int(fields.get(key, "-1").strip(), 16) == 0
+                for key in ("CapInh", "CapPrm", "CapEff", "CapAmb")
+            )
+            and live(),
+            "root_gateway_userns_changed",
+        )
+        current = os.stat(base / "ns/user")
+        require(
+            (current.st_dev, current.st_ino) == (info.st_dev, info.st_ino) and live(),
+            "root_gateway_userns_changed",
+        )
+    finally:
+        for fd in (parent, namespace, pidfd):
+            if fd is not None:
+                os.close(fd)
+
+
 def attach_gateway_child(grant, process, uid, *, on_created):
     """Move an unreaped, gated direct child into a fresh attempt-cgroup leaf.
 

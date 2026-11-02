@@ -50,6 +50,8 @@ A separate [user-namespace experiment](clean-room/verification/2026-11-02-gatewa
 
 A subsequent [user-namespace replay](clean-room/verification/2026-11-02-gateway-userns-exec-replay.md) exercised the real pre-exec helper and filtered synthetic Go target with same-UID attack controls. It also refused socket replacement after readiness. The controller and mapping were synthetic, and the real Root launcher, production route, custody and failure lifecycle remain unqualified.
 
+The supervisor now has a private [user-namespace inspection primitive](clean-room/verification/2026-11-02-root-gateway-userns-inspection.md), verified against the synthetic native gateway and substituted identity/map controls. The launcher does not yet create or pin that namespace or call the check; the inspection is point-in-time and does not establish lifetime custody.
+
 The pre-exec helper now installs a [candidate descriptor-transfer filter](clean-room/verification/2026-11-02-gateway-transfer-filter.md). Synthetic x86-64 Linux controls, descendant and PID1 tests passed. A [filtered Bifrost and wallet rehearsal](clean-room/verification/2026-11-02-bifrost-wallet-filter-join.json) joined the actual handler, wallet, Root scope, broker and capture with a synthetic route and provider. ARM64 execution, the configured production route and exclusive UID or external descriptor custody remain open. Handed-socket cleanup remains denied.
 
 The preparation path now [records closure of its own socket copy](clean-room/verification/2026-11-02-gateway-parent-socket-closure.md) and binds that evidence to the attached child. It checks the supervisor descriptor table, not possible socket transfers to other processes, so handed-socket cleanup remains denied.
