@@ -399,6 +399,7 @@ def inside():
                               "real_broker_and_capture": True, "actual_bifrost_handler": True,
                               "private_listener_joined_and_cancelled": True,
                               "inherited_listener_handoff": True,
+                              "gateway_listens_on_bound_socket": True,
                               "provider_authorizer_route_and_charge_bounds_synthetic": True,
                               "wallet_begin_replay_after_completion_denied": True,
                               "task_cap_denied_with_daily_headroom": True,

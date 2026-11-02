@@ -1,0 +1,11 @@
+# Gateway listen identity and bound-socket activation
+
+An isolated Linux cross-UID experiment found that a socket already listening when Root passes it to the gateway retains Root's `SO_PEERCRED` identity at the broker. With Root binding but the gateway UID calling `listen`, the broker instead observed the gateway UID and PID. This matters because the existing broker rejects a gateway peer with the wrong UID; a Root-listening launch would fail admission.
+
+Bifrost `30a0f17` adds activation of a bound, non-listening Unix stream socket under the gateway's real and effective UID. It checks the descriptor type and kernel address, refuses an already-listening socket and consumes the supplied descriptor after activation. Root must close its own descriptor after handoff and protect the socket pathname. This source does not itself create the production socket, launch the gateway, establish route or spending authority, or fence descendants.
+
+In a network-disabled container, the actual Go activation was exercised across an `exec`: Root bound the socket, UID 2007 activated it, and a UID 2005 broker observed UID 2007 and the gateway child PID. The negative control, with Root calling `listen`, produced peer UID 0. A separate fresh wallet rehearsal activated a bound socket and passed one synthetic provider call through the wallet, Root scope checks, broker, Bifrost handler, capture and settlement. That joined rehearsal created the bound socket within its synthetic gateway process; it was not the production Root launch. Its gateway test binary SHA-256 was `95affbcf86833dbf09736c595e21eb14dee219870cd712c03cdeeaae74db2801`.
+
+Bound-socket, inherited-listener, listener and protocol tests passed under Go's race detector. Eight installer tests and Ruff passed, and the exact pinned preimage was reconstructed with the updated files. The isolated fixture stage is `/home/bo/sfactory-wallet-listener-Wlvaz9Wy` on `hermes-control`. The cross-UID fixture uses synthetic sockets and temporary directories; no production resources or credentials were mounted.
+
+Actual Root launch and pathname custody, production route and billing bounds, live pidfd binding, owner/daemon/host loss and process/descendant cleanup remain unqualified. No paid inference or candidate activation occurred; the benchmark remains at 0/120.
