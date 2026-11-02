@@ -1,0 +1,10 @@
+# Disposable test profile; intentionally broad outside ptrace and not for production.
+abi <abi/4.0>,
+profile sfactory-ptrace-fixture flags=(attach_disconnected) {
+  file,
+  network,
+  capability,
+  signal,
+  ptrace (read, readby, trace),
+  deny ptrace (tracedby),
+}
