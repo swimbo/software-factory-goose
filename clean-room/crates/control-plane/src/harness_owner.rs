@@ -130,7 +130,7 @@ impl HarnessOwnerBinding {
                     "harness receipt basis changed"
                 );
             }
-            "reserve" | "begin" | "claim_receipts" | "admit_day" | "revoke" => {}
+            "reserve" | "begin" | "verify_inflight" | "claim_receipts" | "admit_day" | "revoke" => {}
             _ => anyhow::bail!("harness method denied"),
         }
         Ok(())
@@ -260,7 +260,7 @@ impl crate::harness_spending_ingress::Journal for HarnessJournalBackend {
                 value.as_str(),
                 Some("Denied" | "Reserved" | "Unknown" | "Complete")
             ),
-            "begin" => value == serde_json::Value::Bool(true),
+            "begin" | "verify_inflight" => value == serde_json::Value::Bool(true),
             "admit_attempt" => {
                 serde_json::from_value::<crate::harness_spending::AttemptScope>(body)
                     .ok()
@@ -352,7 +352,7 @@ mod tests {
         );
     }
     #[tokio::test]
-    async fn sdk_discovery_binds_only_the_eight_guarded_owner_handlers() {
+    async fn sdk_discovery_binds_only_the_nine_guarded_owner_handlers() {
         use http_body_util::BodyExt;
         let configured = if cfg!(feature = "registry-sidecar") {
             Some(binding())
@@ -410,6 +410,7 @@ mod tests {
                 "admit_day",
                 "reserve",
                 "begin",
+                "verify_inflight",
                 "claim_receipts",
                 "complete",
                 "revoke"

@@ -86,7 +86,7 @@ impl Policy {
         }
         match method {
             "initialize" | "admit_attempt" | "admit_day" | "revoke" => uid == self.root_uid,
-            "reserve" | "begin" => uid == self.broker_uid,
+            "reserve" | "begin" | "verify_inflight" => uid == self.broker_uid,
             "claim_receipts" | "complete" => uid == self.collector_uid,
             _ => false,
         }
@@ -172,6 +172,7 @@ async fn dispatch<J: Journal>(
         "/spending/revoke" => "revoke",
         "/spending/reserve" => "reserve",
         "/spending/begin" => "begin",
+        "/spending/verify_inflight" => "verify_inflight",
         "/spending/claim_receipts" => "claim_receipts",
         "/spending/complete" => "complete",
         _ => return Err(Refused::new(404, "spending method unavailable")),
@@ -204,7 +205,7 @@ async fn dispatch<J: Journal>(
         "admit_attempt" => decode::<AttemptScope>(&raw)?,
         "admit_day" => decode::<DayInventory>(&raw)?,
         "revoke" => decode::<String>(&raw)?,
-        "reserve" | "begin" => decode::<Call>(&raw)?,
+        "reserve" | "begin" | "verify_inflight" => decode::<Call>(&raw)?,
         "claim_receipts" => decode::<GenerationClaim>(&raw)?,
         "complete" => decode::<CollectorReceipt>(&raw)?,
         _ => return Err(Refused::new(404, "spending method unavailable")),
@@ -309,6 +310,7 @@ impl Journal for PrivateUnixJournal {
                 | "revoke"
                 | "reserve"
                 | "begin"
+                | "verify_inflight"
                 | "claim_receipts"
                 | "complete"
         ) {
@@ -548,6 +550,20 @@ mod tests {
     fn identity_configuration_cannot_alias_roles_or_encode_owner_paths() {
         assert!(Policy::new(1000, 1000, 1002, 1003, "factory".into()).is_err());
         assert!(Policy::new(1000, 1001, 1002, 1003, "../other".into()).is_err());
+    }
+    #[tokio::test]
+    async fn inflight_verification_is_broker_only_and_strictly_typed() {
+        let backend = Arc::new(Backend(AtomicUsize::new(0)));
+        let app = scoped_router(policy(), backend.clone());
+        for uid in [None, Some(0), Some(1000), Some(1002), Some(1003), Some(1999)] {
+            assert_eq!(request(app.clone(), uid, "verify_inflight", &call_body()).await, StatusCode::FORBIDDEN);
+        }
+        for invalid in ["{}".to_owned(), call_body().replacen('{', "{\"owner\":\"other\",", 1)] {
+            assert_eq!(request(app.clone(), Some(1001), "verify_inflight", &invalid).await, StatusCode::BAD_REQUEST);
+        }
+        assert_eq!(backend.0.load(Ordering::SeqCst), 0);
+        assert_eq!(request(app, Some(1001), "verify_inflight", &call_body()).await, StatusCode::OK);
+        assert_eq!(backend.0.load(Ordering::SeqCst), 1);
     }
     #[tokio::test]
     async fn typed_inputs_reject_duplicate_fields_unknown_keys_and_oversize_before_journal() {

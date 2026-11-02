@@ -549,6 +549,24 @@ impl State {
         r.stage = Stage::Unknown;
         Ok(())
     }
+    // A point-in-time check only: it creates no permit, reservation, or retry
+    // authority and cannot close the race between this check and network I/O.
+    fn verify_inflight(&self, owner: &str, call: &Call, now: u64) -> Result<(), TerminalError> {
+        self.check(owner)?;
+        let scope = self.scope(&call.scope_sha256)?;
+        if !scope.live(now) || self.revoked.contains(&call.scope_sha256) {
+            return Err(err(409, "attempt unavailable"));
+        }
+        let r = self
+            .records
+            .iter()
+            .find(|r| r.call.call_id == call.call_id)
+            .ok_or_else(|| err(404, "call not reserved"))?;
+        if r.call != *call || r.stage != Stage::Unknown || r.day != now / DAY_MS {
+            return Err(err(409, "dispatch unavailable or ambiguous"));
+        }
+        Ok(())
+    }
     fn validate_claim(&self, claim: &GenerationClaim) -> Result<(), TerminalError> {
         let r = self
             .records
@@ -813,6 +831,18 @@ impl HarnessSpending {
         Ok(Json(true))
     }
     #[handler]
+    async fn verify_inflight(
+        &self,
+        ctx: ObjectContext<'_>,
+        call: Json<Call>,
+    ) -> HandlerResult<Json<bool>> {
+        let _admission = enter_registry()?;
+        let s = load(&ctx).await?;
+        let now = ctx.run(now_ms).await?;
+        s.verify_inflight(ctx.key(), &call.0, now)?;
+        Ok(Json(true))
+    }
+    #[handler]
     async fn claim_receipts(
         &self,
         ctx: ObjectContext<'_>,
@@ -1043,6 +1073,60 @@ mod tests {
         assert_eq!(s.task_totals["task"], 300_000); // No refund from actual cost.
         s.reserve("factory", &call(&s, "task", 1), 104).unwrap();
         assert_eq!(s.day_totals[&0], 600_000);
+    }
+    #[test]
+    fn verify_inflight_requires_exact_live_unknown_without_mutation() {
+        let mut s = State::new("factory", bootstrap(), 100).unwrap();
+        let c = call(&s, "task", 0);
+        assert!(s.verify_inflight("factory", &c, 101).is_err());
+        s.reserve("factory", &c, 101).unwrap();
+        assert!(s.verify_inflight("factory", &c, 101).is_err());
+        s.begin("factory", &c, 102).unwrap();
+        let before = s.clone();
+        assert!(s.verify_inflight("factory", &c, 103).is_ok());
+        let restored: State = serde_json::from_slice(&serde_json::to_vec(&s).unwrap()).unwrap();
+        assert!(restored.verify_inflight("factory", &c, 103).is_ok());
+        assert!(s.verify_inflight("other", &c, 103).is_err());
+        for changed in [
+            Call { call_id: "missing".into(), ..c.clone() },
+            Call { request_sha256: "8".repeat(64), ..c.clone() },
+            Call { scope_sha256: "9".repeat(64), ..c.clone() },
+            Call { sequence: 1, ..c.clone() },
+            Call { request_bytes: c.request_bytes + 1, ..c.clone() },
+            Call { output_tokens: c.output_tokens - 1, ..c.clone() },
+        ] {
+            assert!(s.verify_inflight("factory", &changed, 103).is_err());
+        }
+        assert!(s.verify_inflight("factory", &c, DAY_MS + 1).is_err());
+        assert!(s.verify_inflight("factory", &c, 99).is_err());
+        assert_eq!(s, before);
+        let mut expiring = bootstrap();
+        expiring.scopes[0].expires_at_ms = 1000;
+        let mut expiring = State::new("factory", expiring, 100).unwrap();
+        let expiring_call = call(&expiring, "task", 0);
+        expiring.reserve("factory", &expiring_call, 101).unwrap();
+        expiring.begin("factory", &expiring_call, 102).unwrap();
+        let snapshot = expiring.clone();
+        assert!(expiring.verify_inflight("factory", &expiring_call, 1000).is_err());
+        assert_eq!(expiring, snapshot);
+        let mut revoked = s.clone();
+        revoked.revoke("factory", &c.scope_sha256).unwrap();
+        let snapshot = revoked.clone();
+        assert!(revoked.verify_inflight("factory", &c, 103).is_err());
+        assert_eq!(revoked, snapshot);
+        let receipt = receipt(&s, &c);
+        claim(&mut s, &receipt);
+        s.complete("factory", &receipt).unwrap();
+        let completed = s.clone();
+        assert!(s.verify_inflight("factory", &c, 104).is_err());
+        assert_eq!(s, completed);
+        let mut b = bootstrap();
+        b.opening_tasks.insert("task".into(), 750_000);
+        let mut denied = State::new("factory", b, 100).unwrap();
+        assert_eq!(denied.reserve("factory", &c, 101).unwrap(), Stage::Denied);
+        let snapshot = denied.clone();
+        assert!(denied.verify_inflight("factory", &c, 102).is_err());
+        assert_eq!(denied, snapshot);
     }
     #[test]
     fn daily_across_tasks_task_across_days_no_default_reset() {
