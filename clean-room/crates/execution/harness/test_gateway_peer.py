@@ -22,6 +22,99 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_root_launch_composes_bind_prepare_and_one_release(self):
+        backend = object.__new__(root.RootSupervisor)
+        grant = {"public": "fixture"}
+        bound = Mock()
+        child = Mock()
+        reader, writer = os.pipe()
+        attached = {"pid": 456}
+        backend._bind_gateway_socket = Mock(return_value=(bound, {"public": True}))
+        backend._prepare_gateway = Mock(return_value=(child, writer, attached))
+
+        def release(actual_grant, actual_child, fd):
+            self.assertEqual((actual_grant, actual_child, fd), (grant, child, writer))
+            os.close(fd)
+
+        backend._release_gateway = Mock(side_effect=release)
+        backend.revoke = Mock()
+        try:
+            self.assertEqual(backend._launch_gateway(grant, 99), (child, attached))
+            backend._bind_gateway_socket.assert_called_once_with(grant)
+            backend._prepare_gateway.assert_called_once_with(grant, bound, 99)
+            backend._release_gateway.assert_called_once()
+            backend.revoke.assert_not_called()
+            child.wait.assert_not_called()
+        finally:
+            os.close(reader)
+
+    def test_root_launch_revokes_and_joins_after_unknown_release(self):
+        backend = object.__new__(root.RootSupervisor)
+        grant = {"public": "fixture"}
+        bound = Mock()
+        child = Mock()
+        reader, writer = os.pipe()
+        backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+        backend._prepare_gateway = Mock(return_value=(child, writer, {"pid": 456}))
+
+        def release(_, __, fd):
+            os.close(fd)
+            raise OSError("public release failure")
+
+        backend._release_gateway = Mock(side_effect=release)
+        backend.revoke = Mock()
+        try:
+            with self.assertRaisesRegex(OSError, "public release failure"):
+                backend._launch_gateway(grant, 99)
+            backend.revoke.assert_called_once_with({"grant": grant})
+            child.wait.assert_called_once_with(timeout=5)
+            self.assertEqual(os.read(reader, 1), b"")
+        finally:
+            os.close(reader)
+
+    def test_root_launch_reports_unknown_cleanup_without_rearming(self):
+        backend = object.__new__(root.RootSupervisor)
+        grant = {"public": "fixture"}
+        bound = Mock()
+        backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+        backend._prepare_gateway = Mock(side_effect=OSError("public failure"))
+        backend._release_gateway = Mock()
+        backend.revoke = Mock(side_effect=OSError("public cleanup failure"))
+        with self.assertRaisesRegex(
+            root.SupervisorRefused, "root_gateway_launch_cleanup_unknown"
+        ):
+            backend._launch_gateway(grant, 99)
+        bound.close.assert_called_once()
+        backend.revoke.assert_called_once_with({"grant": grant})
+        backend._release_gateway.assert_not_called()
+
+    def test_root_launch_does_not_claim_cleanup_when_child_will_not_join(self):
+        backend = object.__new__(root.RootSupervisor)
+        grant = {"public": "fixture"}
+        bound = Mock()
+        child = Mock()
+        child.wait.side_effect = subprocess.TimeoutExpired("public-child", 5)
+        reader, writer = os.pipe()
+        backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+        backend._prepare_gateway = Mock(return_value=(child, writer, {"pid": 456}))
+
+        def release(_, __, fd):
+            os.close(fd)
+            raise OSError("public release failure")
+
+        backend._release_gateway = Mock(side_effect=release)
+        backend.revoke = Mock()
+        try:
+            with self.assertRaisesRegex(
+                root.SupervisorRefused, "root_gateway_launch_join_unknown"
+            ):
+                backend._launch_gateway(grant, 99)
+            backend.revoke.assert_called_once_with({"grant": grant})
+            child.wait.assert_called_once_with(timeout=5)
+            self.assertEqual(os.read(reader, 1), b"")
+        finally:
+            os.close(reader)
+
     def release_fixture(self, case, gate):
         grant = {
             "attempt_id": "run_" + "a" * 64,

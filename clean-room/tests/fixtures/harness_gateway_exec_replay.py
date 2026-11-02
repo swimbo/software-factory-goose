@@ -364,6 +364,8 @@ def prepare_case(refuse=False, release=False):
             return result
 
         backend._attach_gateway = Mock(side_effect=attach)
+        backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+        backend.revoke = Mock()
         if refuse:
             backend._attach_gateway.side_effect = product.SupervisorRefused(
                 "fixture attachment refused"
@@ -413,13 +415,11 @@ def prepare_case(refuse=False, release=False):
                     ):
                         raise RuntimeError("refused child not joined")
                     return
-                process, gate, _ = backend._prepare_gateway(grant, bound, program)
                 if release:
-                    product_result = backend._release_gateway(grant, process, gate)
-                    if (
-                        not (case / "gateway-released.json").exists()
-                        or not product_result
-                    ):
+                    process, _ = backend._launch_gateway(grant, program)
+                    backend._bind_gateway_socket.assert_called_once_with(grant)
+                    backend.revoke.assert_not_called()
+                    if not (case / "gateway-released.json").exists():
                         raise RuntimeError("release not durably acknowledged")
                     peer_r, peer_w = os.pipe()
                     broker = os.fork()
@@ -468,6 +468,7 @@ def prepare_case(refuse=False, release=False):
                             "released gateway peer or completion changed"
                         )
                     return
+                process, gate, _ = backend._prepare_gateway(grant, bound, program)
             os.close(gate)
             if (
                 process.wait(timeout=5) == 0

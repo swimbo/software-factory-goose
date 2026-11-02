@@ -1648,6 +1648,45 @@ class RootSupervisor:
                         bound.close()
                     raise
 
+    def _launch_gateway(self, grant, program_fd):
+        """Privately bind, prepare and release one gateway under Root authority.
+
+        The returned Popen must stay owned and joined by the future production
+        lifecycle. This method does not establish gateway readiness, route or
+        spending authority, and is not exposed as a public launch entry point.
+        """
+        bound = process = gate_fd = None
+        try:
+            bound, _ = self._bind_gateway_socket(grant)
+            process, gate_fd, attached = self._prepare_gateway(grant, bound, program_fd)
+            bound = None  # _prepare_gateway owns and closes the socket.
+            release_fd = gate_fd
+            gate_fd = None  # _release_gateway consumes the descriptor on all paths.
+            self._release_gateway(grant, process, release_fd)
+            return process, attached
+        except BaseException as error:
+            if bound is not None:
+                bound.close()
+            if gate_fd is not None:
+                os.close(gate_fd)
+            try:
+                # Revoke fences the attempt first and separately attempts wallet
+                # revocation even if daemon or socket cleanup remains unknown.
+                self.revoke({"grant": grant})
+            except Exception as cleanup_error:
+                raise SupervisorRefused(
+                    "root_gateway_launch_cleanup_unknown"
+                ) from cleanup_error
+            finally:
+                if process is not None:
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        raise SupervisorRefused(
+                            "root_gateway_launch_join_unknown"
+                        ) from error
+            raise
+
     def _prepare_gateway(self, grant, bound_socket, program_fd):
         """Start and attach a gated child; return its still-closed release gate.
 
