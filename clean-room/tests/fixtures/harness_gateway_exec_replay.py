@@ -289,9 +289,9 @@ def owner_loss_case():
             os.waitpid(child_pid, 0)
 
 
-def prepare_case(refuse=False):
+def prepare_case(refuse=False, release=False):
     """Exercise the real spawn path with explicitly synthetic Root seams."""
-    suffix = "c" if refuse else "b"
+    suffix = "c" if refuse else "d" if release else "b"
     case = Path("/var/lib/sfactory-harness/prepare-" + suffix)
     case.mkdir(mode=0o700)
     group = Path("/sys/fs/cgroup" + Path("/proc/self/cgroup").read_text().strip()[3:])
@@ -344,15 +344,26 @@ def prepare_case(refuse=False):
         backend._current = Mock(return_value=case)
         backend._saved_scope = Mock(return_value="c" * 64)
         backend._kernel_scope = Mock()
-        backend._attach_gateway = Mock(
-            side_effect=lambda _, child: {
+
+        def attach(_, child):
+            result = {
                 "path": str(group) + "/gateway",
                 "dev": group_info.st_dev,
                 "ino": group_info.st_ino,
                 "pid": child.pid,
                 "ticks": ticks(child.pid),
             }
-        )
+            leaf_intent = {
+                "grant_sha256": product.sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+            }
+            product.store(
+                case / "gateway-attached.json", {"intent": leaf_intent, "child": result}
+            )
+            return result
+
+        backend._attach_gateway = Mock(side_effect=attach)
         if refuse:
             backend._attach_gateway.side_effect = product.SupervisorRefused(
                 "fixture attachment refused"
@@ -385,6 +396,7 @@ def prepare_case(refuse=False):
                     },
                 ),
                 patch.object(product.subprocess, "Popen", side_effect=record_spawn),
+                patch.object(product, "inspect_prepared_gateway"),
             ):
                 if refuse:
                     try:
@@ -402,6 +414,60 @@ def prepare_case(refuse=False):
                         raise RuntimeError("refused child not joined")
                     return
                 process, gate, _ = backend._prepare_gateway(grant, bound, program)
+                if release:
+                    product_result = backend._release_gateway(grant, process, gate)
+                    if (
+                        not (case / "gateway-released.json").exists()
+                        or not product_result
+                    ):
+                        raise RuntimeError("release not durably acknowledged")
+                    peer_r, peer_w = os.pipe()
+                    broker = os.fork()
+                    if broker == 0:
+                        try:
+                            os.close(peer_r)
+                            as_uid(2005)
+                            deadline = time.monotonic() + 5
+                            while True:
+                                try:
+                                    with socket.socket(
+                                        socket.AF_UNIX, socket.SOCK_STREAM
+                                    ) as client:
+                                        client.connect(str(name))
+                                        pid, uid, _ = struct.unpack(
+                                            "3i",
+                                            client.getsockopt(
+                                                socket.SOL_SOCKET,
+                                                socket.SO_PEERCRED,
+                                                12,
+                                            ),
+                                        )
+                                        os.write(
+                                            peer_w,
+                                            json.dumps(
+                                                {"pid": pid, "uid": uid}
+                                            ).encode(),
+                                        )
+                                    os._exit(0)
+                                except ConnectionRefusedError:
+                                    if time.monotonic() >= deadline:
+                                        raise
+                                    time.sleep(0.02)
+                        except BaseException:
+                            os._exit(1)
+                    os.close(peer_w)
+                    peer = json.loads(read(peer_r))
+                    os.close(peer_r)
+                    _, result = os.waitpid(broker, 0)
+                    if (
+                        os.waitstatus_to_exitcode(result) != 0
+                        or peer != {"pid": process.pid, "uid": 2007}
+                        or process.wait(timeout=5) != 0
+                    ):
+                        raise RuntimeError(
+                            "released gateway peer or completion changed"
+                        )
+                    return
             os.close(gate)
             if (
                 process.wait(timeout=5) == 0
@@ -441,6 +507,7 @@ def main():
     owner_loss_case()
     prepare_case()
     prepare_case(refuse=True)
+    prepare_case(release=True)
     print(
         json.dumps(
             {
@@ -456,6 +523,7 @@ def main():
                 "owner_loss_before_release_denied": True,
                 "root_prepare_spawn_closed_gate_verified": True,
                 "root_prepare_attachment_failure_child_joined": True,
+                "root_release_target_peer_verified": True,
                 "actual_cgroup_migration_tested": False,
                 "fixture_only": True,
                 "paid_calls": 0,

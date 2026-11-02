@@ -22,6 +22,214 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def release_fixture(self, case, gate):
+        grant = {
+            "attempt_id": "run_" + "a" * 64,
+            "broker_uid": 2005,
+            "cgroup_path": "/sys/fs/cgroup/public.slice",
+            "cgroup_dev": 1,
+            "cgroup_ino": 2,
+            "expires_at_ms": time.time_ns() // 1000000 + 12000,
+        }
+        backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {"schema": 4, "gateway_uid": 2007}
+        backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+        backend.guard = threading.Lock()
+        backend._saved = Mock(return_value=case)
+        backend._current = Mock(return_value=case)
+        backend._saved_scope = Mock(return_value="c" * 64)
+        backend._kernel_scope = Mock()
+        child = {
+            "path": grant["cgroup_path"] + "/gateway",
+            "dev": 3,
+            "ino": 4,
+            "pid": 456,
+            "ticks": 789,
+        }
+        intent = {
+            "grant_sha256": root.sha(grant),
+            "scope_sha256": "c" * 64,
+            "gateway_uid": 2007,
+        }
+        info = os.fstat(gate)
+        prepared = {
+            "grant_sha256": root.sha(grant),
+            "child": child,
+            "gate_dev": info.st_dev,
+            "gate_ino": info.st_ino,
+            "deadline_ms": grant["expires_at_ms"],
+        }
+        (case / "gateway-prepared.json").write_text(json.dumps(prepared))
+        (case / "gateway-attached.json").write_text(
+            json.dumps({"intent": intent, "child": child})
+        )
+        return backend, grant, SimpleNamespace(pid=456), prepared
+
+    def test_root_release_is_one_use_and_binds_gate_and_child(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            reader, writer = os.pipe()
+            duplicate = os.dup(writer)
+            backend, grant, process, prepared = self.release_fixture(case, writer)
+            guard = {"owner_pid": os.getpid(), "owner_ticks": 123}
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(root, "check_guard", return_value=guard) as check,
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "inspect_prepared_gateway") as inspect,
+                ):
+                    result = backend._release_gateway(grant, process, writer)
+                    self.assertEqual(os.read(reader, 1), b"G")
+                    self.assertEqual(
+                        result,
+                        {
+                            "grant_sha256": root.sha(grant),
+                            "prepared_sha256": root.sha(prepared),
+                        },
+                    )
+                    self.assertEqual(check.call_count, 2)
+                    self.assertEqual(inspect.call_count, 2)
+                    self.assertEqual(
+                        json.loads((case / "gateway-released.json").read_text()), result
+                    )
+                    with self.assertRaises(FileExistsError):
+                        backend._release_gateway(grant, process, duplicate)
+                    self.assertEqual(os.read(reader, 1), b"")
+            finally:
+                os.close(reader)
+
+    def test_root_release_refuses_changed_gate_and_guard_loss_after_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            reader, writer = os.pipe()
+            other_reader, other_writer = os.pipe()
+            backend, grant, process, _ = self.release_fixture(case, writer)
+            guard = {"owner_pid": os.getpid(), "owner_ticks": 123}
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(root, "check_guard", return_value=guard) as check,
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "inspect_prepared_gateway") as inspect,
+                ):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "root_gateway_gate_changed"
+                    ):
+                        backend._release_gateway(grant, process, other_writer)
+                    self.assertFalse((case / "gateway-release-intent.json").exists())
+                    inspect.assert_not_called()
+                    check.side_effect = [guard, root.SupervisorRefused("guard lost")]
+                    with self.assertRaisesRegex(root.SupervisorRefused, "guard lost"):
+                        backend._release_gateway(grant, process, writer)
+                    self.assertTrue((case / "gateway-release-intent.json").exists())
+                    self.assertFalse((case / "gateway-released.json").exists())
+                    self.assertEqual(os.read(reader, 1), b"")
+            finally:
+                os.close(reader)
+                os.close(other_reader)
+
+    def test_root_release_accepts_unsigned_64_bit_pipe_inode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            reader, writer = os.pipe()
+            backend, grant, process, prepared = self.release_fixture(case, writer)
+            prepared["gate_ino"] = 2**63 + 123
+            (case / "gateway-prepared.json").write_text(json.dumps(prepared))
+            original_fstat = os.fstat
+
+            def gate_info(fd):
+                info = original_fstat(fd)
+                if fd != writer:
+                    return info
+                return SimpleNamespace(
+                    st_mode=info.st_mode,
+                    st_dev=info.st_dev,
+                    st_ino=prepared["gate_ino"],
+                )
+
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(
+                        root,
+                        "check_guard",
+                        return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                    ),
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(root, "inspect_prepared_gateway"),
+                    patch.object(root.os, "fstat", side_effect=gate_info),
+                ):
+                    backend._release_gateway(grant, process, writer)
+                    self.assertEqual(os.read(reader, 1), b"G")
+            finally:
+                os.close(reader)
+
+    def test_root_release_rechecks_gate_after_final_child_inspection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            reader, writer = os.pipe()
+            other_reader, other_writer = os.pipe()
+            backend, grant, process, _ = self.release_fixture(case, writer)
+            checks = 0
+
+            def replace_after_check(*_):
+                nonlocal checks
+                checks += 1
+                if checks == 2:
+                    os.dup2(other_writer, writer, inheritable=False)
+
+            try:
+                with (
+                    patch.object(
+                        root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                    ),
+                    patch.object(
+                        root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                    ),
+                    patch.object(
+                        root,
+                        "check_guard",
+                        return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                    ),
+                    patch.object(root, "_ticks", return_value=123),
+                    patch.object(
+                        root,
+                        "inspect_prepared_gateway",
+                        side_effect=replace_after_check,
+                    ),
+                ):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "root_gateway_gate_changed"
+                    ):
+                        backend._release_gateway(grant, process, writer)
+                self.assertTrue((case / "gateway-release-intent.json").exists())
+                self.assertFalse((case / "gateway-released.json").exists())
+                self.assertEqual(os.read(reader, 1), b"")
+                os.close(other_writer)
+                other_writer = None
+                self.assertEqual(os.read(other_reader, 1), b"")
+            finally:
+                os.close(reader)
+                os.close(other_reader)
+                if other_writer is not None:
+                    os.close(other_writer)
+
     def test_root_prepare_spawns_gated_child_and_never_releases_it(self):
         with (
             tempfile.TemporaryDirectory() as directory,

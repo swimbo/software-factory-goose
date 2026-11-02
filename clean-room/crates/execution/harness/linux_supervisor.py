@@ -365,6 +365,94 @@ def gateway_leaf_absent(grant):
         os.close(fd)
 
 
+def inspect_prepared_gateway(grant, child, uid):
+    """Check a direct, unreaped gated child and its exact live cgroup leaf."""
+    require(
+        type(child) is dict
+        and set(child) == {"path", "dev", "ino", "pid", "ticks"}
+        and child["path"] == grant["cgroup_path"] + "/gateway"
+        and _integer(child["pid"], 2, 2**31 - 1)
+        and _integer(child["ticks"], 1)
+        and _integer(child["dev"], 1)
+        and _integer(child["ino"], 1)
+        and _integer(uid, 1, 2**31 - 1)
+        and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
+        "root_gateway_prepared_child_changed",
+    )
+    pid = child["pid"]
+    fd = os.pidfd_open(pid, 0)
+    parent = leaf = None
+    try:
+        try:
+            exited = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        except ChildProcessError:
+            raise SupervisorRefused("root_gateway_prepared_child_changed") from None
+        base = Path("/proc") / str(pid)
+        fields = dict(
+            line.split(":", 1)
+            for line in (base / "status").read_text().splitlines()
+            if ":" in line
+        )
+        membership = (base / "cgroup").read_text().strip().splitlines()
+        require(
+            exited is None
+            and _ticks(pid) == child["ticks"]
+            and fields.get("PPid", "").strip() == str(os.getpid())
+            and fields.get("Uid", "").split() == [str(uid)] * 4
+            and fields.get("Gid", "").split() == [str(uid)] * 4
+            and fields.get("NoNewPrivs", "").strip() == "1"
+            and all(
+                int(fields.get(k, "-1").strip(), 16) == 0
+                for k in ("CapInh", "CapPrm", "CapEff", "CapAmb")
+            )
+            and membership == ["0::" + child["path"].removeprefix("/sys/fs/cgroup")],
+            "root_gateway_prepared_child_changed",
+        )
+        parent = os.open(
+            grant["cgroup_path"],
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        )
+        info = os.fstat(parent)
+        require(
+            info.st_uid == 0
+            and not info.st_mode & 0o022
+            and (info.st_dev, info.st_ino)
+            == (grant["cgroup_dev"], grant["cgroup_ino"]),
+            "root_gateway_prepared_scope_changed",
+        )
+        for name, expected in (("cgroup.freeze", b"0"), ("cgroup.events", b"frozen 0")):
+            control = os.open(
+                name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent
+            )
+            try:
+                raw = os.read(control, 4097)
+            finally:
+                os.close(control)
+            require(
+                len(raw) <= 4096 and expected in raw.strip().splitlines(),
+                "root_gateway_prepared_scope_changed",
+            )
+        leaf = os.open(
+            "gateway",
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+            dir_fd=parent,
+        )
+        info = os.fstat(leaf)
+        named = os.stat("gateway", dir_fd=parent, follow_symlinks=False)
+        require(
+            info.st_uid == 0
+            and not info.st_mode & 0o022
+            and (info.st_dev, info.st_ino) == (child["dev"], child["ino"])
+            and (named.st_dev, named.st_ino) == (info.st_dev, info.st_ino)
+            and _ticks(pid) == child["ticks"],
+            "root_gateway_prepared_scope_changed",
+        )
+    finally:
+        for descriptor in (leaf, parent, fd):
+            if descriptor is not None:
+                os.close(descriptor)
+
+
 @contextmanager
 def gateway_socket_parent(attempt_id):
     """Hold Root-owned, non-writable ext4 ancestors during socket operations."""
@@ -1688,6 +1776,7 @@ class RootSupervisor:
                     "child": attached,
                     "gate_dev": gate_info.st_dev,
                     "gate_ino": gate_info.st_ino,
+                    "deadline_ms": deadline,
                 },
             )
             transferred = True
@@ -1799,6 +1888,108 @@ class RootSupervisor:
                     {"intent": intent, "child": attached},
                 )
                 return attached
+
+    def _release_gateway(self, grant, process, gate_fd):
+        """Consume one prepared gate after rechecking Root and guard authority.
+
+        The caller owns the Popen object without concurrent waits. This private
+        method consumes gate_fd on every path; unknown results require fencing
+        and reconciliation, never another release or inference retry.
+        """
+        try:
+            require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+            with self.gate.admission(), self.guard:
+                case = self._saved(grant)
+                with gateway_bind_lock(case):
+                    case = self._current(grant)
+                    scope = self._saved_scope(grant)
+                    self._kernel_scope(grant, empty=False)
+                    ready = check_guard(self, grant)
+                    require(
+                        ready["owner_pid"] == os.getpid()
+                        and ready["owner_ticks"] == _ticks(os.getpid()),
+                        "root_gateway_guard_owner_changed",
+                    )
+                    prepared = _decode(protected(case / "gateway-prepared.json", 0o600))
+                    attached = _decode(protected(case / "gateway-attached.json", 0o600))
+                    intent = {
+                        "grant_sha256": sha(grant),
+                        "scope_sha256": scope,
+                        "gateway_uid": self.cfg["gateway_uid"],
+                    }
+                    require(
+                        type(prepared) is dict
+                        and set(prepared)
+                        == {
+                            "grant_sha256",
+                            "child",
+                            "gate_dev",
+                            "gate_ino",
+                            "deadline_ms",
+                        }
+                        and prepared["grant_sha256"] == sha(grant)
+                        and type(attached) is dict
+                        and set(attached) == {"intent", "child"}
+                        and attached["intent"] == intent
+                        and attached["child"] == prepared["child"]
+                        and type(prepared["child"]) is dict
+                        and prepared["child"].get("pid") == process.pid
+                        and _integer(prepared["deadline_ms"], 1)
+                        and prepared["deadline_ms"] <= grant["expires_at_ms"]
+                        and time.time_ns() // 1000000 < prepared["deadline_ms"]
+                        and _integer(prepared["gate_dev"], 0, 2**64 - 1)
+                        and _integer(prepared["gate_ino"], 1, 2**64 - 1)
+                        and _integer(gate_fd, 3, 1048575),
+                        "root_gateway_prepared_receipt_changed",
+                    )
+                    info = os.fstat(gate_fd)
+                    require(
+                        stat.S_ISFIFO(info.st_mode)
+                        and (info.st_dev, info.st_ino)
+                        == (prepared["gate_dev"], prepared["gate_ino"])
+                        and fcntl.fcntl(gate_fd, fcntl.F_GETFL) & os.O_ACCMODE
+                        == os.O_WRONLY
+                        and not os.get_inheritable(gate_fd),
+                        "root_gateway_gate_changed",
+                    )
+                    inspect_prepared_gateway(
+                        grant, prepared["child"], self.cfg["gateway_uid"]
+                    )
+                    release = {
+                        "grant_sha256": sha(grant),
+                        "prepared_sha256": sha(prepared),
+                    }
+                    store(case / "gateway-release-intent.json", release)
+                    self._current(grant)
+                    self._kernel_scope(grant, empty=False)
+                    ready = check_guard(self, grant)
+                    require(
+                        ready["owner_pid"] == os.getpid()
+                        and ready["owner_ticks"] == _ticks(os.getpid())
+                        and time.time_ns() // 1000000 < prepared["deadline_ms"],
+                        "root_gateway_guard_owner_changed",
+                    )
+                    inspect_prepared_gateway(
+                        grant, prepared["child"], self.cfg["gateway_uid"]
+                    )
+                    info = os.fstat(gate_fd)
+                    require(
+                        stat.S_ISFIFO(info.st_mode)
+                        and (info.st_dev, info.st_ino)
+                        == (prepared["gate_dev"], prepared["gate_ino"])
+                        and fcntl.fcntl(gate_fd, fcntl.F_GETFL) & os.O_ACCMODE
+                        == os.O_WRONLY
+                        and not os.get_inheritable(gate_fd),
+                        "root_gateway_gate_changed",
+                    )
+                    require(
+                        os.write(gate_fd, b"G") == 1, "root_gateway_release_unknown"
+                    )
+                    store(case / "gateway-released.json", release)
+                    return release
+        finally:
+            if type(gate_fd) is int and gate_fd >= 0:
+                os.close(gate_fd)
 
     def gateway_peer_v1(self, body):
         """Recheck an authenticated broker's kernel-reported gateway peer."""

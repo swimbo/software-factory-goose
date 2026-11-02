@@ -291,6 +291,17 @@ def start_gateway_barrier(python, grant, group, base):
         leaf_identity = (attached["dev"], attached["ino"])
         membership = (Path("/proc") / str(proc.pid) / "cgroup").read_text().strip()
         assert membership == "0::" + str(leaf).removeprefix("/sys/fs/cgroup")
+        product.inspect_prepared_gateway(grant, attached, 2007)
+        for changed, changed_uid in (
+            (attached, 2008),
+            (attached | {"ino": attached["ino"] + 1}, 2007),
+        ):
+            try:
+                product.inspect_prepared_gateway(grant, changed, changed_uid)
+            except product.SupervisorRefused:
+                pass
+            else:
+                raise RuntimeError("changed prepared child or leaf accepted")
         assert proc.poll() is None and os.write(gate_w, b"G") == 1
         os.close(gate_w)
         gate_w = None
