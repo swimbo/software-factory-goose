@@ -33,6 +33,18 @@ class GatewayPeerTests(unittest.TestCase):
         with patch.object(custody.Path, "read_text", side_effect=FileNotFoundError):
             self.assertIsNone(custody.gateway_peer_ticks(123))
 
+    def test_missing_socket_pidfd_never_creates_a_live_pin(self):
+        conn = Mock()
+        conn.getsockopt.side_effect = OSError("unsupported")
+        with (
+            patch.object(custody.sys, "platform", "linux"),
+            patch.object(
+                custody.os, "uname", return_value=SimpleNamespace(machine="x86_64")
+            ),
+        ):
+            self.assertIsNone(custody.gateway_socket_pidfd(conn, 123))
+        conn.getsockopt.assert_called_once()
+
     def test_broker_and_root_must_share_pid_namespace(self):
         with (
             patch.object(root.os, "stat") as stat_call,

@@ -1,6 +1,7 @@
 """Versioned scope handoff; fixtures do not establish native socket custody."""
 
 import copy
+import os
 import base64
 import time
 import unittest
@@ -220,7 +221,116 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 "verified"
             ]
         )
-        check.assert_called_once_with(123, 99)
+        check.assert_called_once_with(123, 99, False)
+
+    def test_peer_pin_liveness_and_retirement_are_fail_closed(self):
+        scope, root, call, authority, _, _ = self.fixture()
+        read_fd, write_fd = os.pipe()
+        try:
+            check = Mock(return_value=True)
+            authority.arm_v2(root, call, scope, 1000, verify=check)
+            authority.acquire_v2(
+                2007,
+                {"binding": root, "call": call},
+                pid=123,
+                start_ticks=99,
+                peer_fd=read_fd,
+            )
+            owned_fd = authority.roots[payload_sha256(root)][8]
+            self.assertNotEqual(owned_fd, read_fd)
+            request = {
+                "binding": root,
+                "call": call,
+                "physical_sequence": 0,
+                "physical_sha256": "c" * 64,
+            }
+            self.assertTrue(
+                authority.verify_physical_v2(2007, request, pid=123, start_ticks=99)[
+                    "verified"
+                ]
+            )
+            check.assert_called_once_with(123, 99, True)
+            os.write(write_fd, b"x")
+            with self.assertRaises(ControlRefused):
+                authority.verify_physical_v2(
+                    2007, request | {"physical_sequence": 1}, pid=123, start_ticks=99
+                )
+            authority.retire(root)
+            with self.assertRaises(OSError):
+                os.fstat(owned_fd)
+            with self.assertRaises(ControlRefused):
+                authority.verify_physical_v2(
+                    2007, request | {"physical_sequence": 1}, pid=123, start_ticks=99
+                )
+        finally:
+            os.close(read_fd)
+            os.close(write_fd)
+
+    def test_peer_exit_during_root_check_never_confirms(self):
+        scope, root, call, authority, _, _ = self.fixture()
+        read_fd, write_fd = os.pipe()
+        try:
+
+            def verify(*_):
+                os.write(write_fd, b"x")
+                return True
+
+            authority.arm_v2(root, call, scope, 1000, verify=verify)
+            authority.acquire_v2(
+                2007,
+                {"binding": root, "call": call},
+                pid=123,
+                start_ticks=99,
+                peer_fd=read_fd,
+            )
+            request = {
+                "binding": root,
+                "call": call,
+                "physical_sequence": 0,
+                "physical_sha256": "c" * 64,
+            }
+            for _ in range(2):
+                with self.assertRaises(ControlRefused):
+                    authority.verify_physical_v2(2007, request, pid=123, start_ticks=99)
+            authority.retire(root)
+        finally:
+            os.close(read_fd)
+            os.close(write_fd)
+
+    def test_failed_begin_and_pin_limit_do_not_leak_handles(self):
+        from unittest.mock import patch
+
+        read_fd, write_fd = os.pipe()
+        try:
+            scope, root, call, authority, begin, _ = self.fixture()
+            authority.arm_v2(root, call, scope, 1000, verify=Mock(return_value=True))
+            with (
+                patch("gateway_custody.MAX_PEER_PINS", 0),
+                self.assertRaises(ControlRefused),
+            ):
+                authority.acquire_v2(
+                    2007,
+                    {"binding": root, "call": call},
+                    pid=123,
+                    start_ticks=99,
+                    peer_fd=read_fd,
+                )
+            begin.assert_not_called()
+            begin.return_value = False
+            with self.assertRaises(ControlRefused):
+                authority.acquire_v2(
+                    2007,
+                    {"binding": root, "call": call},
+                    pid=123,
+                    start_ticks=99,
+                    peer_fd=read_fd,
+                )
+            self.assertIsNone(authority.roots[payload_sha256(root)][8])
+            self.assertEqual(authority.roots[payload_sha256(root)][2], "unknown")
+            authority.retire(root)
+        finally:
+            os.close(read_fd)
+            os.close(write_fd)
 
     def test_changed_scope_route_or_tariff_never_arms(self):
         scope, root, call, authority, begin, opened = self.fixture()
@@ -246,6 +356,9 @@ class GatewayScopeV2Tests(unittest.TestCase):
     def test_transport_reads_scope_from_root_before_arming_v2(self):
         from unittest.mock import patch
 
+        read_fd, write_fd = os.pipe()
+        self.addCleanup(os.close, read_fd)
+        self.addCleanup(os.close, write_fd)
         scope, root, call, authority, begin, _ = self.fixture()
         request = {"model": "auto", "messages": [], "tools": [], "max_tokens": 10}
         call["request_sha256"] = binding_digest(request)
@@ -289,6 +402,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 {"binding": frame["binding"], "call": frame["call"]},
                 pid=123,
                 start_ticks=99,
+                peer_fd=read_fd,
             )
             self.assertEqual(ack["scope"], scope)
             self.assertEqual(ack["root_deadline_ms"], 1000)
@@ -356,18 +470,18 @@ class GatewayScopeV2Tests(unittest.TestCase):
             ):
                 root_client._request.return_value = changed
                 with self.subTest(changed=changed):
-                    self.assertFalse(verify(None, None))
+                    self.assertFalse(verify(None, None, False))
             root_client._request.return_value = initial
             transport.journal.return_value = False
             before = root_client._request.call_count
-            self.assertFalse(verify(None, None))
+            self.assertFalse(verify(None, None, False))
             self.assertEqual(root_client._request.call_count, before)
             transport.journal.return_value = True
         with (
             patch("gateway_transport.os.geteuid", return_value=2005),
             patch("gateway_transport.time.time_ns", return_value=1_000_000_000),
         ):
-            self.assertFalse(verify(None, None))
+            self.assertFalse(verify(None, None, False))
         # A live confirmation must ask Root about the kernel peer, not a
         # process identity carried in a model-controlled request.
         authority.roots.clear()
@@ -393,7 +507,10 @@ class GatewayScopeV2Tests(unittest.TestCase):
                 b"data: [DONE]\n\n",
             )
             live_verify = authority.roots[payload_sha256(root)][5]
-            self.assertFalse(live_verify(None, None))
+            self.assertFalse(live_verify(None, None, False))
+            before = root_client._request.call_count
+            self.assertFalse(live_verify(123, 99, False))
+            self.assertEqual(root_client._request.call_count, before)
             root_client._request.side_effect = (
                 lambda path, value: initial
                 if path.endswith("scope_preimage_v2")
@@ -404,7 +521,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
                     "scope_sha256": value["scope_sha256"],
                 }
             )
-            self.assertFalse(live_verify(123, 99))
+            self.assertFalse(live_verify(123, 99, True))
             root_client._request.side_effect = (
                 lambda path, value: initial
                 if path.endswith("scope_preimage_v2")
@@ -415,7 +532,7 @@ class GatewayScopeV2Tests(unittest.TestCase):
                     "scope_sha256": value["scope_sha256"],
                 }
             )
-            self.assertFalse(live_verify(123, 99))
+            self.assertFalse(live_verify(123, 99, True))
         root_client._request.side_effect = None
         transport.mode = "live"
         attempt["mode"] = "live"
@@ -424,6 +541,35 @@ class GatewayScopeV2Tests(unittest.TestCase):
             with self.assertRaisesRegex(ControlRefused, "gateway_scope_required"):
                 transport.exchange_reserved(attempt, grant, call, request)
         self.assertEqual(begin.call_count, 2)
+        authority.roots.clear()
+        transport.mode, attempt["mode"], transport._scope_client = (
+            "rehearsal",
+            "rehearsal",
+            root_client,
+        )
+
+        def lost_send(method, raw, prefix, **kwargs):
+            import json
+
+            frame = json.loads(raw)
+            authority.acquire_v2(
+                2007,
+                {"binding": frame["binding"], "call": frame["call"]},
+                pid=123,
+                start_ticks=99,
+                peer_fd=read_fd,
+            )
+            raise OSError("lost gateway acknowledgement")
+
+        client._send = lost_send
+        with (
+            patch("gateway_transport.os.geteuid", return_value=2005),
+            patch("gateway_transport.time.time_ns", return_value=500_000_000),
+            self.assertRaises(ControlRefused),
+        ):
+            transport.exchange_reserved(attempt, grant, call, request)
+        self.assertEqual(authority.roots[payload_sha256(root)][2], "retired")
+        self.assertIsNone(authority.roots[payload_sha256(root)][8])
 
 
 if __name__ == "__main__":

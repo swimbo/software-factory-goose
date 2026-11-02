@@ -8,12 +8,14 @@ never reserves money, issues leases, dispatches inference or enables a candidate
 
 import copy
 import os
+import select
 from pathlib import Path
 import socket
 import socketserver
 import sqlite3
 import stat
 import struct
+import sys
 import threading
 import http.server
 
@@ -33,6 +35,7 @@ from usage_rating import UsageRatedCollector
 
 LIMIT = 65536
 MAX_ROOTS = 4096
+MAX_PEER_PINS = 64
 MAX_STORAGE = 128 * 1024 * 1024
 ROOT_KEYS = frozenset(CaptureBinding.__dataclass_fields__) - {
     "physical_manifest_sha256"
@@ -73,6 +76,48 @@ def gateway_peer_ticks(pid):
         return _ticks(pid)
     except (OSError, ValueError, IndexError):
         return None
+
+
+def gateway_socket_pidfd(conn, peer_pid):
+    """Linux SO_PEERPIDFD returns a handle to the connected socket's peer."""
+    if sys.platform != "linux" or os.uname().machine not in ("x86_64", "aarch64"):
+        return None
+    try:
+        fd = conn.getsockopt(socket.SOL_SOCKET, 77)  # Linux UAPI SO_PEERPIDFD
+        if type(fd) is not int or fd < 0:
+            return None
+        try:
+            os.set_inheritable(fd, False)
+            info = (Path("/proc/self/fdinfo") / str(fd)).read_text().splitlines()
+            pids = [
+                line.split(":", 1)[1].strip()
+                for line in info
+                if line.startswith("Pid:")
+            ]
+            if (
+                os.readlink("/proc/self/fd/" + str(fd)) != "anon_inode:[pidfd]"
+                or pids != [str(peer_pid)]
+                or not gateway_peer_alive(fd)
+            ):
+                os.close(fd)
+                return None
+        except Exception:
+            os.close(fd)
+            return None
+        return fd
+    except OSError:
+        return None
+
+
+def gateway_peer_alive(fd):
+    if type(fd) is not int or fd < 0:
+        return False
+    try:
+        poll = select.poll()
+        poll.register(fd, select.POLLIN | select.POLLHUP | select.POLLERR)
+        return not poll.poll(0)
+    except (OSError, ValueError):
+        return False
 
 
 class GatewayAcquisitionAuthority:
@@ -149,16 +194,18 @@ class GatewayAcquisitionAuthority:
         with self.lock:
             self.arm(binding, call)
             self.roots[payload_sha256(binding)].extend(
-                (copy.deepcopy(scope), root_deadline_ms, verify, 0, None)
+                (copy.deepcopy(scope), root_deadline_ms, verify, 0, None, None)
             )
 
     def acquire(self, uid, body):
         return self._acquire(uid, body, version=1)
 
-    def acquire_v2(self, uid, body, *, pid=None, start_ticks=None):
-        return self._acquire(uid, body, version=2, pid=pid, start_ticks=start_ticks)
+    def acquire_v2(self, uid, body, *, pid=None, start_ticks=None, peer_fd=None):
+        return self._acquire(
+            uid, body, version=2, pid=pid, start_ticks=start_ticks, peer_fd=peer_fd
+        )
 
-    def _acquire(self, uid, body, *, version, pid=None, start_ticks=None):
+    def _acquire(self, uid, body, *, version, pid=None, start_ticks=None, peer_fd=None):
         require(
             uid == self.uid and _keys(body, ("binding", "call")), "gateway_role_denied"
         )
@@ -174,7 +221,7 @@ class GatewayAcquisitionAuthority:
                 and encoded(state[0]) == encoded(body["binding"])
                 and encoded(state[1]) == encoded(body["call"])
                 and state[2] == "armed"
-                and len(state) == (3 if version == 1 else 8)
+                and len(state) == (3 if version == 1 else 9)
                 and (
                     (pid is None and start_ticks is None)
                     or (
@@ -184,6 +231,25 @@ class GatewayAcquisitionAuthority:
                 ),
                 "gateway_root_unavailable",
             )
+            if version == 2 and peer_fd is not None:
+                require(
+                    gateway_peer_alive(peer_fd)
+                    and sum(
+                        1
+                        for value in self.roots.values()
+                        if len(value) == 9 and value[8] is not None
+                    )
+                    < MAX_PEER_PINS,
+                    "gateway_peer_pin_unavailable",
+                )
+                try:
+                    state[8] = os.dup(peer_fd)
+                    os.set_inheritable(state[8], False)
+                except Exception:
+                    if state[8] is not None:
+                        os.close(state[8])
+                        state[8] = None
+                    raise ControlRefused("gateway_peer_pin_unavailable") from None
             state[2] = "unknown"
             try:
                 require(
@@ -197,6 +263,9 @@ class GatewayAcquisitionAuthority:
                     "gateway_capture_open_unknown",
                 )
             except Exception:
+                if version == 2 and state[8] is not None:
+                    os.close(state[8])
+                    state[8] = None
                 raise ControlRefused("gateway_acquisition_unknown") from None
             state[2] = "acquired"
             if version == 2:
@@ -223,7 +292,7 @@ class GatewayAcquisitionAuthority:
             state = self.roots.get(key)
             require(
                 state is not None
-                and len(state) == 8
+                and len(state) == 9
                 and encoded(state[0]) == encoded(body["binding"])
                 and encoded(state[1]) == encoded(body["call"])
                 and state[2] == "acquired"
@@ -236,9 +305,16 @@ class GatewayAcquisitionAuthority:
             # lost acknowledgement can never authorize the same dispatch again.
             state[6] += 1
             try:
+                pinned = state[8] is not None
                 require(
-                    state[5](pid, start_ticks) is True,
+                    not pinned or gateway_peer_alive(state[8]), "gateway_peer_exited"
+                )
+                require(
+                    state[5](pid, start_ticks, pinned) is True,
                     "gateway_physical_verification_unknown",
+                )
+                require(
+                    not pinned or gateway_peer_alive(state[8]), "gateway_peer_exited"
                 )
             except Exception:
                 state[2] = "failed"
@@ -250,7 +326,20 @@ class GatewayAcquisitionAuthority:
                 "physical_sha256": body["physical_sha256"],
             }
 
-    def dispatch(self, uid, method, body, *, pid=None, start_ticks=None):
+    def retire(self, binding):
+        key = payload_sha256(root_binding(binding))
+        with self.lock:
+            state = self.roots.get(key)
+            require(
+                state is not None and encoded(state[0]) == encoded(binding),
+                "gateway_root_unavailable",
+            )
+            state[2] = "retired"
+            if len(state) == 9 and state[8] is not None:
+                fd, state[8] = state[8], None
+                os.close(fd)
+
+    def dispatch(self, uid, method, body, *, pid=None, start_ticks=None, peer_fd=None):
         require(
             method in ("acquire", "acquire_v2", "verify_physical_v2"),
             "gateway_method_denied",
@@ -258,7 +347,9 @@ class GatewayAcquisitionAuthority:
         if method == "verify_physical_v2":
             return self.verify_physical_v2(uid, body, pid=pid, start_ticks=start_ticks)
         return (
-            self.acquire_v2(uid, body, pid=pid, start_ticks=start_ticks)
+            self.acquire_v2(
+                uid, body, pid=pid, start_ticks=start_ticks, peer_fd=peer_fd
+            )
             if method == "acquire_v2"
             else self.acquire(uid, body)
         )
@@ -681,6 +772,7 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
         self.connection.settimeout(5)
 
     def do_POST(self):
+        peer_fd = None
         try:
             pid, uid, _ = struct.unpack(
                 "3i",
@@ -718,14 +810,19 @@ class _CustodyHandler(http.server.BaseHTTPRequestHandler):
             body = _decode(raw)
             if self.server.prefix == "/gateway/":
                 start_ticks = gateway_peer_ticks(pid)
+                if method == "acquire_v2" and uid == self.server.backend.uid:
+                    peer_fd = gateway_socket_pidfd(self.connection, pid)
                 value = self.server.backend.dispatch(
-                    uid, method, body, pid=pid, start_ticks=start_ticks
+                    uid, method, body, pid=pid, start_ticks=start_ticks, peer_fd=peer_fd
                 )
             else:
                 value = self.server.backend.dispatch(uid, method, body)
             output, code = encoded(value).encode(), 200
         except Exception:
             output, code = b'{"error":"custody_refused"}', 400
+        finally:
+            if peer_fd is not None:
+                os.close(peer_fd)
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(output)))

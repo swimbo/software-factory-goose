@@ -202,7 +202,7 @@ def open_broker(attempt, grant, call, request, card, binding):
         base.require(verified_calls == 1, "physical wallet and Root verification missing")
         settlement = PrivateSettlementClient(base.SETTLEMENT, collector_uid=2006, broker_uid=2005,
                                              worker_uid=2001, owner=base.OWNER,
-                                             route_sha256=ROUTE, tariff_sha256=card.sha256())
+                                             route_sha256=ROUTE, tariff_sha256=card.sha256(), mode="rehearsal")
         receipt = settlement.settle(attempt, call, response)
         base.require(receipt["all_calls_complete"] is True and receipt["usage_rated_microusd"] == 1,
                      "captured usage did not settle")
@@ -283,7 +283,8 @@ def inside():
                      "daily_cap_microusd": 5_000_000,
                      "opening_tasks": {TASK: 649_999, DAY_FILL_TASK: 0, DAY_OVERFLOW_TASK: 0},
                      "opening_days": {str(now // 86_400_000): 4_149_998}, "scopes": []}
-        base.require(base.post(base.WALLET, "initialize", bootstrap)[0] == 200, "wallet initialize failed")
+        bootstrap_status = base.post(base.WALLET, "initialize", bootstrap)[0]
+        base.require(bootstrap_status == 200, f"wallet initialize failed status={bootstrap_status}")
         scope = {"task": TASK, "attempt": 1, "generation": GENERATION, "worker": "worker",
                  "lease_sha256": "d" * 64, "issued_at_ms": now, "expires_at_ms": scope_expiry,
                  "route": {"route_sha256": ROUTE, "review_sha256": REVIEW,
@@ -325,7 +326,7 @@ def inside():
                 raise RuntimeError("worker crossed the Root socket boundary")
         base.require(base.actor(2001, worker_root_denied), "worker reached Root socket")
         children["capture"] = base.open_capture(profile, card, ROUTE)
-        children["settler"] = base.open_settlement(profile, card, ROUTE)
+        children["settler"] = base.open_settlement(profile, card, ROUTE, mode="rehearsal")
         children["broker"] = open_broker(attempt, grant, call, request, card, binding)
         processes["gateway"] = launch_gateway()
         result_path = Path(base.GATEWAY).parent / "result.json"

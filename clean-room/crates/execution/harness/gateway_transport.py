@@ -214,11 +214,12 @@ class ProtectedGatewayTransport:
             journal = self.journal
             live = self.mode == "live"
 
-            def verify_inflight(peer_pid, peer_ticks):
+            def verify_inflight(peer_pid, peer_ticks, peer_pinned):
                 # No reservation or retry is created by this check. The gateway
                 # must still be fenced if authority is lost after the check.
                 if live and not (
-                    _integer(peer_pid, 2, 2**31 - 1)
+                    peer_pinned is True
+                    and _integer(peer_pid, 2, 2**31 - 1)
                     and _integer(peer_ticks, 1, 2**63 - 1)
                 ):
                     return False
@@ -273,6 +274,9 @@ class ProtectedGatewayTransport:
                 root_deadline,
                 verify=verify_inflight,
             )
-        return self.client.exchange(
-            root, copy.deepcopy(call), copy.deepcopy(request), expiry
-        )
+        try:
+            return self.client.exchange(
+                root, copy.deepcopy(call), copy.deepcopy(request), expiry
+            )
+        finally:
+            self.acquisition.retire(root)

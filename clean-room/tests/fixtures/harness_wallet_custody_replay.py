@@ -338,7 +338,7 @@ def open_gateway(records, *, reserve):
     return fork_service(2005, "gateway", run)
 
 
-def open_settlement(profile, card, route):
+def open_settlement(profile, card, route, *, mode="live"):
     def run(write):
         from gateway_custody import PrivateCustodyServer
         from physical_settlement import ProtectedUsageSettlement
@@ -349,7 +349,7 @@ def open_settlement(profile, card, route):
         authority = PrivateCollectorClient(WALLET, service_uid=2004, collector_uid=2006,
                                            broker_uid=2005, worker_uid=2001, owner=OWNER)
         collector = PhysicalUsageCollector(source, authority, card, card.sha256(),
-                                           (profile,), ("answer", "fallback"))
+                                           (profile,), ("answer", "fallback"), mode=mode)
         backend = ProtectedUsageSettlement(collector, broker_uid=2005, worker_uid=2001,
                                             route_sha256=route)
         server = PrivateCustodyServer(SETTLEMENT, backend, service_uid=2006,
