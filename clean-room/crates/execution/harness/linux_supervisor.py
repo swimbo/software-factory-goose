@@ -1559,6 +1559,101 @@ class RootSupervisor:
                         bound.close()
                     raise
 
+    def _attach_gateway(self, grant, process):
+        """Attach a gated child under current authority; never release its gate.
+
+        The caller owns the child and must close its gate and fence the attempt
+        on any failure or unknown result. Production invocation is not exposed.
+        """
+        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        with self.gate.admission(), self.guard:
+            case = self._saved(grant)
+            with gateway_bind_lock(case):
+                case = self._current(grant)
+                scope = self._saved_scope(grant)
+                self._kernel_scope(grant, empty=False)
+                ready = check_guard(self, grant)
+                require(
+                    ready["owner_pid"] == os.getpid()
+                    and ready["owner_ticks"] == _ticks(os.getpid()),
+                    "root_gateway_guard_owner_changed",
+                )
+                socket_intent = {
+                    "grant_sha256": sha(grant),
+                    "scope_sha256": scope,
+                    "gateway_uid": self.cfg["gateway_uid"],
+                    "broker_gid": grant["broker_uid"],
+                }
+                bound = _decode(protected(case / "gateway-bound.json", 0o600))
+                created_socket = _decode(
+                    protected(case / "gateway-created.json", 0o600)
+                )
+                require(
+                    type(bound) is dict
+                    and set(bound) == {"intent", "socket"}
+                    and bound == created_socket
+                    and bound["intent"] == socket_intent
+                    and type(bound["socket"]) is dict
+                    and set(bound["socket"]) == {"path", "dev", "ino"}
+                    and bound["socket"]["path"]
+                    == "/var/lib/sfactory-harness/gw/"
+                    + grant["attempt_id"][4:]
+                    + ".sock"
+                    and _integer(bound["socket"]["dev"], 1)
+                    and _integer(bound["socket"]["ino"], 1),
+                    "root_gateway_bound_receipt_changed",
+                )
+                intent = {
+                    "grant_sha256": sha(grant),
+                    "scope_sha256": scope,
+                    "gateway_uid": self.cfg["gateway_uid"],
+                }
+                store(case / "gateway-leaf-intent.json", intent)
+                created = None
+
+                def record_leaf(identity):
+                    nonlocal created
+                    require(
+                        created is None
+                        and type(identity) is dict
+                        and set(identity) == {"path", "dev", "ino"}
+                        and identity["path"] == grant["cgroup_path"] + "/gateway"
+                        and _integer(identity["dev"], 1)
+                        and _integer(identity["ino"], 1),
+                        "root_gateway_leaf_identity_changed",
+                    )
+                    store(
+                        case / "gateway-leaf-created.json",
+                        {"intent": intent, "leaf": identity},
+                    )
+                    created = copy.deepcopy(identity)
+
+                attached = attach_gateway_child(
+                    grant, process, self.cfg["gateway_uid"], on_created=record_leaf
+                )
+                require(
+                    created is not None
+                    and type(attached) is dict
+                    and set(attached) == {"path", "dev", "ino", "pid", "ticks"}
+                    and {k: attached[k] for k in ("path", "dev", "ino")} == created
+                    and attached["pid"] == process.pid
+                    and _integer(attached["ticks"], 1),
+                    "root_gateway_attach_unknown",
+                )
+                self._current(grant)
+                self._kernel_scope(grant, empty=False)
+                ready = check_guard(self, grant)
+                require(
+                    ready["owner_pid"] == os.getpid()
+                    and ready["owner_ticks"] == _ticks(os.getpid()),
+                    "root_gateway_guard_owner_changed",
+                )
+                store(
+                    case / "gateway-attached.json",
+                    {"intent": intent, "child": attached},
+                )
+                return attached
+
     def gateway_peer_v1(self, body):
         """Recheck an authenticated broker's kernel-reported gateway peer."""
         require(

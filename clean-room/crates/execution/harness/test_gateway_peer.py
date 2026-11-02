@@ -205,6 +205,152 @@ class GatewayPeerTests(unittest.TestCase):
                         backend._current(grant)
                     path.unlink()
 
+    def test_root_attaches_only_after_bound_socket_and_persists_leaf_before_move(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            grant = {
+                "attempt_id": "run_" + "a" * 64,
+                "broker_uid": 2005,
+                "cgroup_path": "/sys/fs/cgroup/public.slice",
+            }
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            guard = {"owner_pid": os.getpid(), "owner_ticks": 123}
+            intent = {
+                "grant_sha256": root.sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            socket_identity = {
+                "path": "/var/lib/sfactory-harness/gw/" + "a" * 64 + ".sock",
+                "dev": 1,
+                "ino": 2,
+            }
+            bound = {"intent": intent, "socket": socket_identity}
+            leaf = {"path": grant["cgroup_path"] + "/gateway", "dev": 3, "ino": 4}
+            child = SimpleNamespace(pid=456)
+            attached = leaf | {"pid": child.pid, "ticks": 789}
+
+            def move(actual_grant, actual_process, uid, *, on_created):
+                self.assertEqual(
+                    (actual_grant, actual_process, uid), (grant, child, 2007)
+                )
+                self.assertTrue((case / "gateway-leaf-intent.json").exists())
+                on_created(leaf)
+                self.assertEqual(
+                    json.loads((case / "gateway-leaf-created.json").read_text())[
+                        "leaf"
+                    ],
+                    leaf,
+                )
+                return attached
+
+            with (
+                patch.object(
+                    root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
+                patch.object(
+                    root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                ),
+                patch.object(root, "check_guard", return_value=guard) as check,
+                patch.object(root, "_ticks", return_value=123),
+                patch.object(root, "attach_gateway_child", side_effect=move) as attach,
+            ):
+                for name in ("gateway-created.json", "gateway-bound.json"):
+                    (case / name).write_text(json.dumps(bound))
+                self.assertEqual(backend._attach_gateway(grant, child), attached)
+                self.assertEqual(check.call_count, 2)
+                self.assertEqual(
+                    json.loads((case / "gateway-attached.json").read_text())["child"],
+                    attached,
+                )
+                with self.assertRaises(FileExistsError):
+                    backend._attach_gateway(grant, child)
+                attach.assert_called_once()
+
+    def test_root_attach_refuses_changed_bound_socket_and_lost_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            grant = {
+                "attempt_id": "run_" + "a" * 64,
+                "broker_uid": 2005,
+                "cgroup_path": "/sys/fs/cgroup/public.slice",
+            }
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            with (
+                patch.object(
+                    root, "gateway_bind_lock", return_value=contextlib.nullcontext()
+                ),
+                patch.object(
+                    root, "protected", side_effect=lambda p, *_: p.read_bytes()
+                ),
+                patch.object(
+                    root,
+                    "check_guard",
+                    return_value={"owner_pid": os.getpid(), "owner_ticks": 123},
+                ) as check,
+                patch.object(root, "_ticks", return_value=123),
+                patch.object(root, "attach_gateway_child") as attach,
+            ):
+                (case / "gateway-created.json").write_text("{}")
+                (case / "gateway-bound.json").write_text("{}")
+                with self.assertRaisesRegex(
+                    root.SupervisorRefused, "root_gateway_bound_receipt_changed"
+                ):
+                    backend._attach_gateway(grant, SimpleNamespace(pid=456))
+                self.assertFalse((case / "gateway-leaf-intent.json").exists())
+                check.side_effect = root.SupervisorRefused("guard lost")
+                with self.assertRaisesRegex(root.SupervisorRefused, "guard lost"):
+                    backend._attach_gateway(grant, SimpleNamespace(pid=456))
+                attach.assert_not_called()
+                intent = {
+                    "grant_sha256": root.sha(grant),
+                    "scope_sha256": "c" * 64,
+                    "gateway_uid": 2007,
+                    "broker_gid": 2005,
+                }
+                bound = {
+                    "intent": intent,
+                    "socket": {
+                        "path": "/var/lib/sfactory-harness/gw/" + "a" * 64 + ".sock",
+                        "dev": 1,
+                        "ino": 2,
+                    },
+                }
+                for name in ("gateway-created.json", "gateway-bound.json"):
+                    (case / name).write_text(json.dumps(bound))
+                leaf = {"path": grant["cgroup_path"] + "/gateway", "dev": 3, "ino": 4}
+
+                def move(*args, on_created):
+                    on_created(leaf)
+                    return leaf | {"pid": 456, "ticks": 789}
+
+                attach.side_effect = move
+                check.side_effect = [
+                    {"owner_pid": os.getpid(), "owner_ticks": 123},
+                    root.SupervisorRefused("guard lost after move"),
+                ]
+                with self.assertRaisesRegex(
+                    root.SupervisorRefused, "guard lost after move"
+                ):
+                    backend._attach_gateway(grant, SimpleNamespace(pid=456))
+                self.assertTrue((case / "gateway-leaf-created.json").exists())
+                self.assertFalse((case / "gateway-attached.json").exists())
+
     def test_root_bound_socket_requires_current_guard_and_one_use_intent(self):
         with tempfile.TemporaryDirectory() as directory:
             case = Path(directory)
