@@ -56,6 +56,7 @@ MOUNT_TARGETS = {
 GATEWAY_SOCKET_SHA256 = (
     "61f27706562c229da7fe704c1b5e6e3620d2f62fb82cfff4ea188c45d4813567"
 )
+GATEWAY_EXEC_SHA256 = "0f25e4b3206115469b188594250a837eb7ad1194d9715372b4f69d1bb65d34b5"
 
 
 class SupervisorRefused(LinuxRunnerRefused):
@@ -108,6 +109,42 @@ def load_gateway_socket(expected):
     binder = namespace.get("bind_gateway_socket")
     require(callable(binder), "root_gateway_socket_invalid")
     return binder
+
+
+def stage_gateway_exec():
+    """Pin the reviewed pre-exec helper in an immutable anonymous descriptor.
+
+    A future launcher must pass this descriptor explicitly and execute it via
+    /proc/self/fd; this function neither creates a process nor grants authority.
+    """
+    path = Path(__file__).with_name("linux_gateway_exec.py")
+    source = protected(path, 0o444, expected=GATEWAY_EXEC_SHA256)
+    require(
+        hashlib.sha256(source).hexdigest() == GATEWAY_EXEC_SHA256,
+        "root_gateway_exec_changed",
+    )
+    fd = os.memfd_create("sfactory-gateway-exec", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING)
+    try:
+        remaining = memoryview(source)
+        while remaining:
+            written = os.write(fd, remaining)
+            require(written > 0, "root_gateway_exec_stage_failed")
+            remaining = remaining[written:]
+        seals = (
+            fcntl.F_SEAL_WRITE
+            | fcntl.F_SEAL_GROW
+            | fcntl.F_SEAL_SHRINK
+            | fcntl.F_SEAL_SEAL
+        )
+        fcntl.fcntl(fd, fcntl.F_ADD_SEALS, seals)
+        require(
+            fcntl.fcntl(fd, fcntl.F_GET_SEALS) == seals, "root_gateway_exec_seal_failed"
+        )
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
 
 
 @contextmanager

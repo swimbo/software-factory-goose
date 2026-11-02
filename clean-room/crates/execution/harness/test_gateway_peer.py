@@ -1,6 +1,7 @@
 """Root gateway process checks; synthetic proc files do not prove Linux custody."""
 
 import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -21,6 +22,49 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_gateway_exec_pin_matches_reviewed_source_and_refuses_changed_bytes(self):
+        helper = Path(root.__file__).with_name("linux_gateway_exec.py")
+        self.assertEqual(
+            hashlib.sha256(helper.read_bytes()).hexdigest(), root.GATEWAY_EXEC_SHA256
+        )
+        with patch.object(root, "protected", return_value=b"changed source"):
+            with self.assertRaisesRegex(
+                root.SupervisorRefused, "root_gateway_exec_changed"
+            ):
+                root.stage_gateway_exec()
+
+    @unittest.skipUnless(sys.platform == "linux", "Linux memfd required")
+    def test_gateway_exec_stage_is_sealed_and_close_on_exec(self):
+        helper = Path(root.__file__).with_name("linux_gateway_exec.py")
+        source = helper.read_bytes()
+        with patch.object(root, "protected", return_value=source) as protected:
+            fd = root.stage_gateway_exec()
+        try:
+            self.assertEqual(os.read(fd, len(source) + 1), source)
+            self.assertFalse(os.get_inheritable(fd))
+            self.assertEqual(
+                protected.call_args.kwargs["expected"], root.GATEWAY_EXEC_SHA256
+            )
+            with self.assertRaises(PermissionError):
+                os.write(fd, b"changed")
+            with self.assertRaises(PermissionError):
+                os.ftruncate(fd, 0)
+            with self.assertRaises(PermissionError):
+                fcntl.fcntl(fd, fcntl.F_ADD_SEALS, 0)
+            child = subprocess.run(
+                [sys.executable, "-I", "-B", f"/proc/self/fd/{fd}", "{}"],
+                pass_fds=(fd,),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=5,
+                check=False,
+            )
+            self.assertNotEqual(child.returncode, 0)
+            self.assertEqual(child.stderr.strip(), b"gateway_exec_refused")
+        finally:
+            os.close(fd)
+
     def test_remove_unhanded_socket_checks_inode_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "socket"
