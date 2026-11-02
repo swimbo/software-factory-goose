@@ -1,0 +1,49 @@
+{
+  "actual_pid1_guard": true,
+  "actual_root_constructor_prepare_start": true,
+  "barrier_owner": "isolated controller container, not production Root supervisor",
+  "candidate_enabled": false,
+  "component_only": true,
+  "earlier_failed_attempt": {
+    "attempt_slice": "sfactoryharnessb4e35582c96146849bf9a66b9e4a08e7582385ac267948d8ac89ca0d80c29dd5.slice",
+    "reason": "host Python lacked libexpat in controller container before barrier readiness",
+    "retained": "frozen and empty; no synthetic owner-revocation receipt"
+  },
+  "entire_supervisor_group_killed": true,
+  "exact_worker_fenced_and_removed": true,
+  "fault": "owner-loss",
+  "fixture_gateway_barrier_migrated_and_fenced": true,
+  "fixture_gateway_peer_and_child_fenced": false,
+  "fixture_gateway_unit": null,
+  "gateway_target_sha256": "6ae42c2c7715a838fb522205342d018dff6d35e33be738451fad42f436ee1b97",
+  "guard_alive_after_supervisor_group_loss": true,
+  "guard_cgroup_limits": {
+    "cpu.max": "100000 100000",
+    "memory.max": "268435456",
+    "pids.max": "32"
+  },
+  "guard_exec_stop_post_cleanup": false,
+  "guard_unit": "sfactoryguarda0d92f7f8c516e044ed8bf1c25fdbfec2f7c4f5a0ce19f680c969a7a3b38c76d.service",
+  "lease_expired_with_live_supervisor": false,
+  "live_attempts": 0,
+  "native_long_relay_path_tests": 2,
+  "owned_worker_slice": "sfactoryharness9bf00878a515486b982ea10152aff9210da3924a11ae47d2978e8e0038d03827.slice",
+  "paid_calls": 0,
+  "production_admission": false,
+  "production_gateway_launched": false,
+  "provider_charge_bounds_proven": false,
+  "root_configuration_schema": 4,
+  "schema": 1,
+  "socket_storage": "controller-private tmpfs",
+  "source_sha256": {
+    "harness_pid1_guard_replay.py": "85ed759188bad906edd827b9dc75a022e5cacc697f3e92bc6ad369b25332e769",
+    "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+    "linux_supervisor.py": "6ab2ac63347718c3d7c640d5ce86bbcfb25799461beb6aea10aebb9c3932d427"
+  },
+  "supervisor_unit": "sfactoryguard1a4e5e1238c911eadeca64ff6767d359ad8c2866c748e737b450253c523d8437.service",
+  "synthetic_catalog_registry_owner": true,
+  "synthetic_owner_revocation_acknowledged": true,
+  "verification_date": "2026-11-02",
+  "worker_container_absent_after_fixture": true,
+  "worker_slice_absent_after_fixture": true
+}

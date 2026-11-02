@@ -20,6 +20,7 @@ import shutil
 import signal
 import socket
 import struct
+import subprocess
 import sys
 import time
 
@@ -196,6 +197,91 @@ def start_gateway_peer(library, python, group, base):
     return identity, [(pid, product._ticks(pid)), (child, product._ticks(child))]
 
 
+def start_gateway_barrier(python, group, base):
+    """Move a gated synthetic gateway into the fixture's actual attempt slice."""
+    helper = product.stage_gateway_exec()
+    target = base / "source/clean-room/tests/fixtures/harness_gateway_exec_target"
+    program = os.open(target, os.O_RDONLY | os.O_CLOEXEC)
+    socket_path = Path("/var/lib/sfactory-harness/gw") / (
+        hashlib.sha256(str(base).encode()).hexdigest() + ".sock"
+    )
+    bound = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    gate_r, gate_w = os.pipe()
+    ready_r, ready_w = os.pipe()
+    leaf = group / "fixture-gateway"
+    proc = None
+    leaf_identity = None
+    try:
+        bound.bind(str(socket_path))
+        os.chmod(socket_path, 0o660)
+        os.chown(socket_path, 2007, 2005)
+        sock_info, group_info = socket_path.lstat(), group.stat()
+        config = {
+            "gateway_uid": 2007,
+            "gateway_gid": 2007,
+            "broker_gid": 2005,
+            "owner_pid": os.getpid(),
+            "owner_ticks": product._ticks(os.getpid()),
+            "boot_id": Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
+            "cgroup_path": str(group),
+            "cgroup_dev": group_info.st_dev,
+            "cgroup_ino": group_info.st_ino,
+            "socket_path": str(socket_path),
+            "socket_fd": bound.fileno(),
+            "socket_dev": sock_info.st_dev,
+            "socket_ino": sock_info.st_ino,
+            "program_fd": program,
+            "program_sha256": digest(target),
+            "gate_fd": gate_r,
+            "ready_fd": ready_w,
+            "deadline_ms": time.time_ns() // 1000000 + 15000,
+        }
+        proc = subprocess.Popen(
+            [python, "-I", "-B", f"/proc/self/fd/{helper}", json.dumps(config)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            pass_fds=(helper, program, bound.fileno(), gate_r, ready_w),
+            user=2007,
+            group=2007,
+            extra_groups=[],
+            env={},
+            start_new_session=True,
+        )
+        os.close(gate_r)
+        gate_r = None
+        os.close(ready_w)
+        ready_w = None
+        ready = select.select([ready_r], [], [], 5)[0] and os.read(ready_r, 1) == b"R"
+        if not ready:
+            if proc.poll() is not None:
+                raise RuntimeError(proc.stderr.read().decode(errors="replace"))
+            raise RuntimeError("gateway barrier readiness timeout")
+        assert proc.poll() is None
+        os.mkdir(leaf, 0o755)
+        info = leaf.stat()
+        leaf_identity = (info.st_dev, info.st_ino)
+        (leaf / "cgroup.procs").write_text(str(proc.pid))
+        membership = (Path("/proc") / str(proc.pid) / "cgroup").read_text().strip()
+        assert membership == "0::" + str(leaf).removeprefix("/sys/fs/cgroup")
+        assert proc.poll() is None and os.write(gate_w, b"G") == 1
+        os.close(gate_w)
+        gate_w = None
+        assert select.select([proc.stdout], [], [], 5)[0]
+        assert proc.stdout.readline() == b"exec-ready\n"
+        return proc, leaf, leaf_identity
+    except BaseException:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+        raise
+    finally:
+        for fd in (helper, program, gate_r, gate_w, ready_r, ready_w):
+            if fd is not None:
+                os.close(fd)
+        bound.close()
+
+
 def owner_server(path, notify, allow):
     os.setgroups([])
     os.setgid(OWNER_UID)
@@ -293,6 +379,7 @@ def controller(
     fault,
     gateway_peer=False,
     schema_four=False,
+    gateway_barrier=False,
 ):
     assert os.geteuid() == 0 and base.is_absolute()
     assert str(base).startswith("/var/lib/sfactory-harness/qualification-")
@@ -452,6 +539,7 @@ def controller(
     parent = None
     guard_ready = None
     gateway = None
+    barrier = None
     guard_stopped = False
     try:
         with guard.SystemdManager(
@@ -506,6 +594,10 @@ def controller(
         assert quota == period
         if gateway_peer:
             gateway = start_gateway_peer(controller_library, host_python, group, base)
+        if gateway_barrier:
+            # The controller runs in an isolated container; host_python is for
+            # PID1 services on the host and lacks libraries inside that image.
+            barrier = start_gateway_barrier(sys.executable, group, base)
         if fault == "owner-loss":
             kill_service_group(controller_library, parent)
         elif fault == "guard-crash":
@@ -558,6 +650,8 @@ def controller(
                 observed_gateway["MainPID"] == 0
                 and observed_gateway["ActiveState"] != "active"
             )
+        if gateway_barrier:
+            assert barrier[0].wait(timeout=5) == -signal.SIGKILL
         os.write(release, b"A")
         deadline = time.monotonic() + 5
         while not (saved / "owner-revoked.json").exists():
@@ -597,6 +691,7 @@ def controller(
             "guard_cgroup_limits": limits,
             "exact_worker_fenced_and_removed": True,
             "fixture_gateway_peer_and_child_fenced": gateway_peer,
+            "fixture_gateway_barrier_migrated_and_fenced": gateway_barrier,
             "synthetic_owner_revocation_acknowledged": True,
             "synthetic_catalog_registry_owner": True,
             "production_admission": False,
@@ -622,6 +717,20 @@ def controller(
             kill_service_group(controller_library, parent)
         os.close(release)
         os.close(notification)
+        if barrier is not None:
+            process, leaf, leaf_identity = barrier
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+            process.stdout.close()
+            process.stderr.close()
+            info = leaf.stat()
+            if (
+                guard_stopped
+                and (info.st_dev, info.st_ino) == leaf_identity
+                and "populated 0" in (leaf / "cgroup.events").read_text().splitlines()
+            ):
+                leaf.rmdir()
         # Unknown queued work retains its frozen cgroup and evidence.
         retained = state / attempt["attempt_id"] / "grant.json"
         if retained.exists() and (fault != "owner-loss" or guard_stopped):
@@ -653,6 +762,7 @@ def main():
     parser.add_argument("--controller-library")
     parser.add_argument("--gateway-peer", action="store_true")
     parser.add_argument("--schema-four", action="store_true")
+    parser.add_argument("--gateway-barrier", action="store_true")
     parser.add_argument(
         "--fault",
         choices=("owner-loss", "guard-crash", "lease-expiry"),
@@ -677,6 +787,7 @@ def main():
             args.fault,
             args.gateway_peer,
             args.schema_four,
+            args.gateway_barrier,
         )
 
 
