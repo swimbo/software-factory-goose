@@ -1,0 +1,43 @@
+{
+  "actual_cgroup_attachment_and_fence": true,
+  "actual_namespace_mapping_and_inspection": true,
+  "actual_root_prepare_attach_release": true,
+  "candidate_enabled": false,
+  "child_killed_and_joined": true,
+  "controller_cgroup": "0::/system.slice/docker-8315563287c9af220d92657a4fe3234aa7b726db7ec414ccba2bbe4a2ba1adb2.scope",
+  "fixture_socket_absent": true,
+  "gateway_executable_sha256": "ecd0da432d94fef9fa41f5fc52192a375cc7f67fc8e1327cf4ea6924751c6220",
+  "gateway_pid": 1528242,
+  "gateway_start_ticks": 249574419,
+  "harness_tests": {
+    "passed": 271,
+    "run": 278,
+    "skipped": 7
+  },
+  "independent_retirement": {
+    "attempt_cgroup_absent": true,
+    "container_absent": true,
+    "controller_cgroup_absent": true,
+    "gateway_identity_absent": true
+  },
+  "live_attempts": 0,
+  "matching_leaf_removed": true,
+  "owned_attempt_cgroup": "/sys/fs/cgroup/system.slice/docker-8315563287c9af220d92657a4fe3234aa7b726db7ec414ccba2bbe4a2ba1adb2.scope/fixture-22c0c17fa991426d9e0ec7858c49d486ba7ae3c6216842b9aac83e40f8684395",
+  "owned_attempt_cgroup_absent": true,
+  "paid_calls": 0,
+  "production_admission": false,
+  "production_cleanup_qualified": false,
+  "source_sha256": {
+    "harness_gateway_root_attachment_replay.py": "5feabcfd7149428a1aa0b66c00a6ef79ee4ca467ac14d8383447c69dcb1fce9b",
+    "linux_supervisor.py": "89a72662a60bb8dd9ba68c0b309425d4db28d83d192568fa89ed491a67622c05"
+  },
+  "stage": {
+    "container_name": "sfactory-root-attachment-1eo0r4s7",
+    "image": "sha256:893d9cf783d732690c84fd3d5ee1a34d4a2b01a4ce570c1ec92d087438c0c01a",
+    "source_archive_sha256": "90b8cef0de3883e5279c8e9a1366bb4e24ae39f6ace8917eb3ef575981f1c344",
+    "stage": "/home/bo/sfactory-root-attachment-1eo0r4s7"
+  },
+  "synthetic_authority_guard_and_socket_binding": true,
+  "target_build": "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local go build -trimpath",
+  "target_source_sha256": "0ee6f42e011346444a0383c494b14fc8284bc4063a451e938cf05cea3fc823d2"
+}
