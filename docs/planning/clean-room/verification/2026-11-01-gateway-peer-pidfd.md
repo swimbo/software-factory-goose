@@ -1,0 +1,12 @@
+# Socket peer lifetime checkpoint
+
+Factory source commit `175598d` retains a kernel-derived socket peer pidfd for the exchange and requires it for live physical confirmation. The broker checks peer identity, polls the handle before and after the Root check, denies an exited peer, bounds retained handles and retires them after the exchange. An unavailable handle fails closed for live use. Linux added `SO_PEERPIDFD` to obtain a pidfd for a connected socket peer ([kernel change](https://lists.openwall.net/linux-kernel/2023/03/16/869)).
+
+## Evidence
+
+- The configured Python harness ran **240 tests: 234 passed, six skipped**. Ruff and `git diff --check` passed.
+- An unprivileged Linux fixture obtained a real socket-derived pidfd, verified the same-UID peer and its start time, then observed exit. This fixture is not cross-UID or production admission.
+- In separate network-disabled containers, an actual cross-UID socket and the factory acquisition authority verified the peer, rejected physical confirmation after the gateway exited, and retired the retained handle. Wallet begin, capture and Root callback were synthetic. With the restricted capability set, Root's separate executable inspection failed with `EACCES`; adding `CAP_SYS_PTRACE` inside a separate isolated container made that check pass. Both containers and their owned children exited. This is not authority to grant that capability in production; the evaluator isolation and minimum capability scope still need proof.
+- A fresh [joined rehearsal receipt](2026-11-01-peer-pidfd-joined-rehearsal.json) covers the real wallet, Root scope methods, broker, Bifrost handler, capture and collector with synthetic route, provider, authorizer and bounds. An earlier fixture failed settlement because its collector/client mode did not match rehearsal mode; both were corrected and the fresh run passed. Its chroot does not expose the `/proc` entries needed for the pidfd path, so the join does **not** qualify live peer pinning or production launch.
+
+No paid inference, production admission, deployment or candidate activation occurred. The hosted all-path charge envelope, production gateway bootstrap/custody, supervisor and descendant loss fencing, cross-user inspection isolation, and actual joined live path remain open. Point-in-time checks and pidfd lifetime checks do not themselves fence network access after authority loss. Preserve the previously documented frozen fixture slices until their ownership and recovery are resolved.
