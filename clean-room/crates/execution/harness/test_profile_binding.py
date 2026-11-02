@@ -23,6 +23,9 @@ class ProfileBinding(unittest.TestCase):
     def test_scope_digest_source_is_bound_in_both_profiles(self):
         self.check_source("linux_supervisor.py")
 
+    def test_gateway_socket_source_is_bound_in_both_profiles(self):
+        self.check_source("linux_gateway_socket.py")
+
     def test_scope_client_source_is_bound_in_both_profiles(self):
         self.check_source("linux_runner.py")
 

@@ -20,6 +20,7 @@ class LinuxImageBindingTests(unittest.TestCase):
                 "linux_worker_image.py",
                 "linux-worker.Dockerfile",
                 "linux_service_guard.py",
+                "linux_gateway_socket.py",
             ):
 
                 def changed(path):

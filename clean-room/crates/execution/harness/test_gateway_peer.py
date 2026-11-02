@@ -16,6 +16,78 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_root_bound_socket_requires_current_guard_and_one_use_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            sock = Mock()
+            identity = {"path": "/public-fixture.sock", "dev": 1, "ino": 2}
+            ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
+            with (
+                patch.object(
+                    root, "bind_gateway_socket", return_value=(sock, identity)
+                ) as bind,
+                patch.object(root, "check_guard", return_value=ready) as guard,
+                patch.object(root, "_ticks", return_value=44),
+            ):
+                backend.cfg["schema"] = 3
+                with self.assertRaises(root.SupervisorRefused):
+                    backend._bind_gateway_socket(grant)
+                bind.assert_not_called()
+                backend.cfg["schema"] = 4
+                guard.return_value = {"owner_pid": os.getpid(), "owner_ticks": 45}
+                with self.assertRaises(root.SupervisorRefused):
+                    backend._bind_gateway_socket(grant)
+                bind.assert_not_called()
+                self.assertFalse((case / "gateway-bind-intent.json").exists())
+                guard.return_value = ready
+                actual, receipt = backend._bind_gateway_socket(grant)
+                self.assertIs(actual, sock)
+                self.assertEqual(receipt["socket"], identity)
+                bind.assert_called_once_with("a" * 64, 2007, 2005)
+                self.assertEqual(backend._current.call_count, 3)
+                self.assertEqual(
+                    json.loads((case / "gateway-bound.json").read_text()), receipt
+                )
+                with self.assertRaises(FileExistsError):
+                    backend._bind_gateway_socket(grant)
+                bind.assert_called_once()
+
+    def test_root_bound_socket_closes_and_keeps_intent_when_guard_is_lost(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            grant = {"attempt_id": "run_" + "a" * 64, "broker_uid": 2005}
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 4, "gateway_uid": 2007}
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.Lock()
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._kernel_scope = Mock()
+            sock = Mock()
+            ready = {"owner_pid": os.getpid(), "owner_ticks": 44}
+            with (
+                patch.object(root, "bind_gateway_socket", return_value=(sock, {})),
+                patch.object(
+                    root,
+                    "check_guard",
+                    side_effect=[ready, root.SupervisorRefused("guard lost")],
+                ),
+                patch.object(root, "_ticks", return_value=44),
+            ):
+                with self.assertRaises(root.SupervisorRefused):
+                    backend._bind_gateway_socket(grant)
+                sock.close.assert_called_once_with()
+                self.assertTrue((case / "gateway-bind-intent.json").is_file())
+                self.assertFalse((case / "gateway-bound.json").exists())
+
     def test_broker_proc_namespace_and_missing_peer_fail_closed(self):
         with (
             patch.object(

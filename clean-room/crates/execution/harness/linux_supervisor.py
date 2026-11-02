@@ -42,6 +42,7 @@ from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
 from linux_service_guard import start_guard, check_guard
+from linux_gateway_socket import bind_gateway_socket
 
 MOUNT_TARGETS = {
     "goose": "/goose",
@@ -758,6 +759,10 @@ class RootSupervisor:
                 or set(self.cfg)
                 == fields | {"gateway_uid", "gateway_executable_sha256"}
                 and self.cfg["schema"] == 3
+                or set(self.cfg)
+                == fields
+                | {"gateway_uid", "gateway_executable_sha256", "gateway_socket_sha256"}
+                and self.cfg["schema"] == 4
             )
             and type(self.cfg["schema"]) is int
             and self.cfg["worker_image"] == WORKER_IMAGE,
@@ -794,7 +799,7 @@ class RootSupervisor:
             not in (0, self.recipe["broker_uid"], self.recipe["worker_uid"]),
             "root_role_alias",
         )
-        if self.cfg["schema"] == 3:
+        if self.cfg["schema"] in (3, 4):
             require(
                 _integer(self.cfg["gateway_uid"], 1, 2**31 - 1)
                 and self.cfg["gateway_uid"]
@@ -805,6 +810,16 @@ class RootSupervisor:
                 )
                 and _digest(self.cfg["gateway_executable_sha256"]),
                 "root_gateway_identity_invalid",
+            )
+        if self.cfg["schema"] == 4:
+            require(
+                _digest(self.cfg["gateway_socket_sha256"]),
+                "root_gateway_socket_digest_invalid",
+            )
+            protected(
+                Path(__file__).with_name("linux_gateway_socket.py"),
+                0o444,
+                expected=self.cfg["gateway_socket_sha256"],
             )
         self.runtime, self.catalog, self.state = (
             Path(self.cfg[k]) for k in ("runtime_root", "catalog_root", "state_root")
@@ -1090,6 +1105,49 @@ class RootSupervisor:
                 allowed=True,
             )
 
+    def _bind_gateway_socket(self, grant):
+        """Bind once under the current grant; this does not launch a gateway."""
+        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        with self.gate.admission(), self.guard:
+            case = self._current(grant)
+            scope_sha256 = self._saved_scope(grant)
+            self._kernel_scope(grant, empty=False)
+            ready = check_guard(self, grant)
+            require(
+                ready["owner_pid"] == os.getpid()
+                and ready["owner_ticks"] == _ticks(os.getpid()),
+                "root_gateway_guard_owner_changed",
+            )
+            intent = {
+                "grant_sha256": sha(grant),
+                "scope_sha256": scope_sha256,
+                "gateway_uid": self.cfg["gateway_uid"],
+                "broker_gid": grant["broker_uid"],
+            }
+            store(case / "gateway-bind-intent.json", intent)
+            bound = None
+            try:
+                bound, identity = bind_gateway_socket(
+                    grant["attempt_id"][4:],
+                    self.cfg["gateway_uid"],
+                    grant["broker_uid"],
+                )
+                self._current(grant)
+                self._kernel_scope(grant, empty=False)
+                ready = check_guard(self, grant)
+                require(
+                    ready["owner_pid"] == os.getpid()
+                    and ready["owner_ticks"] == _ticks(os.getpid()),
+                    "root_gateway_guard_owner_changed",
+                )
+                receipt = {"intent": intent, "socket": identity}
+                store(case / "gateway-bound.json", receipt)
+                return bound, receipt
+            except BaseException:
+                if bound is not None:
+                    bound.close()
+                raise
+
     def gateway_peer_v1(self, body):
         """Recheck an authenticated broker's kernel-reported gateway peer."""
         require(
@@ -1101,7 +1159,7 @@ class RootSupervisor:
             and _integer(body["start_ticks"], 1, 2**63 - 1),
             "root_gateway_peer_invalid",
         )
-        require(self.cfg.get("schema") == 3, "root_gateway_peer_unconfigured")
+        require(self.cfg.get("schema") in (3, 4), "root_gateway_peer_unconfigured")
         self.scope_preimage_v2(
             {"attempt": body["attempt"], "scope_sha256": body["scope_sha256"]}
         )
