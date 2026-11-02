@@ -39,7 +39,7 @@ from linux_runner import (
 )
 from protected_goose_runtime import sha
 from linux_goose_runtime import LINUX_GOOSE_BYTES, LINUX_GOOSE_SHA256
-from protected_spending_control import _decode, _no_acl
+from protected_spending_control import _decode, _ext4, _no_acl
 from factory_harness import canonical
 
 from linux_worker_image import WORKER_IMAGE
@@ -53,6 +53,9 @@ MOUNT_TARGETS = {
     "prompt": "/factory/prompt.txt",
     "relay": "/gate/relay.sock",
 }
+GATEWAY_SOCKET_SHA256 = (
+    "80d24595613219b7cd3e9645cc3179d710f3c982ac2c858ccb3b6059798aa488"
+)
 
 
 class SupervisorRefused(LinuxRunnerRefused):
@@ -97,7 +100,7 @@ def gateway_bind_lock(case):
 
 def load_gateway_socket(expected):
     """Load only bytes verified against the Root-owned socket-helper digest."""
-    require(_digest(expected), "root_gateway_socket_digest_invalid")
+    require(expected == GATEWAY_SOCKET_SHA256, "root_gateway_socket_digest_invalid")
     path = Path(__file__).with_name("linux_gateway_socket.py")
     source = protected(path, 0o444, expected=expected)
     namespace = {"__name__": "root_gateway_socket", "__file__": str(path)}
@@ -105,6 +108,45 @@ def load_gateway_socket(expected):
     binder = namespace.get("bind_gateway_socket")
     require(callable(binder), "root_gateway_socket_invalid")
     return binder
+
+
+def gateway_socket_absent(attempt_id):
+    """Read-only absence check beneath Root-owned, non-writable ext4 parents."""
+    require(
+        isinstance(attempt_id, str)
+        and re.fullmatch(r"run_[0-9a-f]{64}", attempt_id) is not None,
+        "root_gateway_attempt_invalid",
+    )
+    parent = Path("/var/lib/sfactory-harness/gw")
+    descriptors = []
+    try:
+        fd = os.open("/", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        descriptors.append(fd)
+        for part in (*parent.parts[1:], None):
+            info = os.fstat(fd)
+            require(
+                stat.S_ISDIR(info.st_mode)
+                and info.st_uid == 0
+                and not info.st_mode & 0o022,
+                "root_gateway_parent_changed",
+            )
+            _ext4(fd)
+            _no_acl(fd)
+            if part is not None:
+                fd = os.open(
+                    part,
+                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    dir_fd=fd,
+                )
+                descriptors.append(fd)
+        try:
+            os.stat(attempt_id[4:] + ".sock", dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return True
+        return False
+    finally:
+        for fd in reversed(descriptors):
+            os.close(fd)
 
 
 def inspect_gateway_peer(grant, pid, start_ticks, uid, executable_sha256):
@@ -857,7 +899,7 @@ class RootSupervisor:
             )
         if self.cfg["schema"] == 4:
             require(
-                _digest(self.cfg["gateway_socket_sha256"]),
+                self.cfg["gateway_socket_sha256"] == GATEWAY_SOCKET_SHA256,
                 "root_gateway_socket_digest_invalid",
             )
             if not cleanup_only:
@@ -1566,9 +1608,37 @@ class RootSupervisor:
         if self.cfg.get("schema") == 4:
             with gateway_bind_lock(case):
                 require(
-                    not os.path.lexists(case / "gateway-bind-intent.json"),
+                    not os.path.lexists(case / "gateway-bound.json"),
                     "root_gateway_cleanup_unqualified",
                 )
+                intent_path = case / "gateway-bind-intent.json"
+                if os.path.lexists(intent_path):
+                    intent = _decode(protected(intent_path, 0o600))
+                    expected = {
+                        "grant_sha256": sha(grant),
+                        "scope_sha256": self._saved_scope(grant),
+                        "gateway_uid": self.cfg["gateway_uid"],
+                        "broker_gid": grant["broker_uid"],
+                    }
+                    require(intent == expected, "root_gateway_bind_intent_changed")
+                    require(
+                        gateway_socket_absent(grant["attempt_id"]),
+                        "root_gateway_cleanup_unqualified",
+                    )
+                    receipt = {
+                        "grant_sha256": sha(grant),
+                        "state": "absent_before_handoff",
+                    }
+                    path = case / "gateway-absent.json"
+                    if not os.path.lexists(path):
+                        try:
+                            store(path, receipt)
+                        except FileExistsError:
+                            pass
+                    require(
+                        _decode(protected(path, 0o600)) == receipt,
+                        "root_gateway_absence_receipt_changed",
+                    )
                 return self._cleanup_after_fence(grant, case)
         return self._cleanup_after_fence(grant, case)
 

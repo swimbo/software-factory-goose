@@ -20,6 +20,16 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_gateway_absence_check_refuses_invalid_or_unreadable_path(self):
+        with patch.object(
+            root.os, "open", side_effect=PermissionError("fixture denied")
+        ) as open_path:
+            with self.assertRaises(root.SupervisorRefused):
+                root.gateway_socket_absent("run_bad")
+            open_path.assert_not_called()
+            with self.assertRaises(PermissionError):
+                root.gateway_socket_absent("run_" + "a" * 64)
+
     def test_supervisor_import_does_not_require_socket_helper_for_cleanup(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "harness"
@@ -50,13 +60,20 @@ class GatewayPeerTests(unittest.TestCase):
 
     def test_gateway_socket_loader_requires_digest_and_verified_source(self):
         source = b"def bind_gateway_socket(*args):\n    return args\n"
+        helper = Path(root.__file__).with_name("linux_gateway_socket.py")
+        self.assertEqual(
+            hashlib.sha256(helper.read_bytes()).hexdigest(), root.GATEWAY_SOCKET_SHA256
+        )
         with patch.object(root, "protected", return_value=source) as verified:
-            with self.assertRaises(root.SupervisorRefused):
-                root.load_gateway_socket("invalid")
+            for invalid in ("invalid", "a" * 64):
+                with self.assertRaises(root.SupervisorRefused):
+                    root.load_gateway_socket(invalid)
             verified.assert_not_called()
-            binder = root.load_gateway_socket("a" * 64)
+            binder = root.load_gateway_socket(root.GATEWAY_SOCKET_SHA256)
             self.assertEqual(binder(1, 2, 3), (1, 2, 3))
-            self.assertEqual(verified.call_args.kwargs["expected"], "a" * 64)
+            self.assertEqual(
+                verified.call_args.kwargs["expected"], root.GATEWAY_SOCKET_SHA256
+            )
             self.assertEqual(verified.call_args.args[1], 0o444)
 
     def test_gateway_bind_lock_refuses_a_competing_holder(self):

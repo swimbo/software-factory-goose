@@ -250,7 +250,7 @@ class CleanupOutcomeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root, case, grant = self.make(d)
             root.cfg = {"schema": 4}
-            (case / "gateway-bind-intent.json").write_text("{}")
+            (case / "gateway-bound.json").write_text("{}")
             with patch(
                 "linux_supervisor.gateway_bind_lock",
                 return_value=contextlib.nullcontext(),
@@ -262,6 +262,125 @@ class CleanupOutcomeTests(unittest.TestCase):
             root._fence_execution.assert_called_once_with(grant)
             root._docker.assert_not_called()
             self.assertFalse((case / "cleanup.json").exists())
+
+    def test_unhanded_bind_intent_can_reconcile_only_when_socket_absent(self):
+        import contextlib
+        import json
+        import tempfile
+        from unittest.mock import Mock, patch
+        from linux_supervisor import sha
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            grant["broker_uid"] = 2005
+            root.cfg = {"schema": 4, "gateway_uid": 2007}
+            root._saved_scope = Mock(return_value="c" * 64)
+            intent = {
+                "grant_sha256": sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            (case / "gateway-bind-intent.json").write_text(json.dumps(intent))
+            with (
+                patch(
+                    "linux_supervisor.gateway_bind_lock",
+                    return_value=contextlib.nullcontext(),
+                ),
+                patch(
+                    "linux_supervisor.protected",
+                    side_effect=lambda p, *a, **k: p.read_bytes(),
+                ),
+                patch(
+                    "linux_supervisor.gateway_socket_absent", return_value=False
+                ) as absent,
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_cleanup_unqualified"
+                ):
+                    root._cleanup(grant)
+                self.assertFalse((case / "gateway-absent.json").exists())
+                root._docker.assert_not_called()
+                absent.return_value = True
+                root._cleanup(grant)
+                root._cleanup(grant)
+            self.assertEqual(
+                json.loads((case / "gateway-absent.json").read_text()),
+                {"grant_sha256": sha(grant), "state": "absent_before_handoff"},
+            )
+            self.assertTrue((case / "cleanup.json").is_file())
+
+    def test_mismatched_bind_intent_never_reconciles(self):
+        import contextlib
+        import tempfile
+        from unittest.mock import Mock, patch
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            grant["broker_uid"] = 2005
+            root.cfg = {"schema": 4, "gateway_uid": 2007}
+            root._saved_scope = Mock(return_value="c" * 64)
+            (case / "gateway-bind-intent.json").write_text("{}")
+            with (
+                patch(
+                    "linux_supervisor.gateway_bind_lock",
+                    return_value=contextlib.nullcontext(),
+                ),
+                patch(
+                    "linux_supervisor.protected",
+                    side_effect=lambda p, *a, **k: p.read_bytes(),
+                ),
+                patch("linux_supervisor.gateway_socket_absent") as absent,
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_bind_intent_changed"
+                ):
+                    root._cleanup(grant)
+                absent.assert_not_called()
+                self.assertFalse((case / "cleanup.json").exists())
+
+    def test_reconciliation_rechecks_absence_after_daemon_failure(self):
+        import contextlib
+        import json
+        import tempfile
+        from unittest.mock import Mock, patch
+        from linux_supervisor import sha
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            grant["broker_uid"] = 2005
+            root.cfg = {"schema": 4, "gateway_uid": 2007}
+            root._saved_scope = Mock(return_value="c" * 64)
+            intent = {
+                "grant_sha256": sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+                "broker_gid": 2005,
+            }
+            (case / "gateway-bind-intent.json").write_text(json.dumps(intent))
+            root._docker.side_effect = OSError("fixture daemon unavailable")
+            with (
+                patch(
+                    "linux_supervisor.gateway_bind_lock",
+                    return_value=contextlib.nullcontext(),
+                ),
+                patch(
+                    "linux_supervisor.protected",
+                    side_effect=lambda p, *a, **k: p.read_bytes(),
+                ),
+                patch(
+                    "linux_supervisor.gateway_socket_absent", side_effect=[True, False]
+                ),
+            ):
+                with self.assertRaises(OSError):
+                    root._cleanup(grant)
+                self.assertTrue((case / "gateway-absent.json").is_file())
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_cleanup_unqualified"
+                ):
+                    root._cleanup(grant)
+            self.assertFalse((case / "cleanup.json").exists())
+            root._docker.assert_called_once()
 
     def test_concurrent_gateway_bind_cannot_claim_cleanup(self):
         import tempfile
