@@ -1,0 +1,86 @@
+{
+  "observed_at_utc": "2026-11-02T23:40:05.566122+00:00",
+  "database_mode": "read-only transaction",
+  "host": "hermes-control",
+  "factory_key_name": "software-factory-goose-int-loop-c085b7e",
+  "factory_key_active": 1,
+  "allow_all_providers": 0,
+  "routes": [
+    {
+      "expression": "model == \"auto\" && complexity_tier == \"COMPLEX\"",
+      "fallbacks": null,
+      "provider": "ollama-cloud",
+      "model": "deepseek-v4-pro:0813"
+    },
+    {
+      "expression": "model == \"auto\" && complexity_tier == \"MEDIUM\"",
+      "fallbacks": null,
+      "provider": "ollama-cloud",
+      "model": "deepseek-v4.1-flash:1017"
+    },
+    {
+      "expression": "model == \"auto\"",
+      "fallbacks": null,
+      "provider": "ollama-cloud",
+      "model": "deepseek-v4.1-flash:1017"
+    }
+  ],
+  "classifier_policy": {
+    "semantic": {
+      "provider": "vercel-classifier",
+      "embedding_model": "openai/text-embedding-3-small",
+      "model": null,
+      "count_toward_budgets": true,
+      "timeout": "2s",
+      "fallback": "llm",
+      "message_history_count": 2,
+      "vector_store": "embedded"
+    },
+    "llm": {
+      "provider": "vercel-classifier",
+      "embedding_model": null,
+      "model": "openai/gpt-6-luna",
+      "count_toward_budgets": true,
+      "timeout": "6s",
+      "fallback": null,
+      "message_history_count": 6,
+      "vector_store": null
+    }
+  },
+  "complexity_semantic_config_sha256": "f55ab299411861b1e7bdc35e7c92326d605d4bc838dffc04ead06bdecb832f14",
+  "providers": [
+    {
+      "provider": "ollama-cloud",
+      "base_url": "https://ollama.com",
+      "max_retries": 0,
+      "base_provider": "openai",
+      "classifier_profile": null
+    },
+    {
+      "provider": "vercel-classifier",
+      "base_url": "http://pinproxy:9086",
+      "max_retries": 0,
+      "base_provider": "openai",
+      "classifier_profile": "luna-v1"
+    }
+  ],
+  "client_policy": {
+    "enforce_auth_on_inference": 1,
+    "allow_direct_keys": 0,
+    "mcp_disable_auto_tool_inject": 0,
+    "enable_logging": 1,
+    "disable_content_logging": 0,
+    "dump_errors_in_console_logs": 0
+  },
+  "mcp_client_count": 0,
+  "enabled_custom_plugin_count": 0,
+  "schema": 1,
+  "purpose": "production bootstrap dependency discovery; not a route admission attestation",
+  "bifrost_source_checkpoint": "30a0f170f4fdab8ae516170fea0d3f534f6b3bda",
+  "credential_values_selected": false,
+  "credential_file_to_key_association_verified": false,
+  "proxy_physical_upstream_qualified": false,
+  "provider_charge_envelope_established": false,
+  "production_admission": false,
+  "paid_calls": 0
+}
