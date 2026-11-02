@@ -1,0 +1,47 @@
+{
+  "actual_pid1_guard": true,
+  "actual_root_constructor_prepare_start": true,
+  "candidate_enabled": false,
+  "changed_uid_and_cgroup_refused_before_creation": true,
+  "component_only": true,
+  "durable_leaf_intent_and_inode_receipt": true,
+  "entire_supervisor_group_killed": true,
+  "exact_worker_fenced_and_removed": true,
+  "failed_fixture": {
+    "reason": "fixture gateway UID differed from protected schema 4 configuration; guard refused cleanup",
+    "slice": "sfactoryharnessec8f4a3a85d24bad9bb672bf4d473b933fad7df1623743979626b001c1e120a2.slice",
+    "state": "frozen and empty; recorded leaf and fixture receipts preserved"
+  },
+  "fault": "owner-loss",
+  "fixture_gateway_barrier_migrated_and_fenced": true,
+  "fixture_gateway_peer_and_child_fenced": false,
+  "fixture_gateway_unit": null,
+  "guard_alive_after_supervisor_group_loss": true,
+  "guard_cgroup_limits": {
+    "cpu.max": "100000 100000",
+    "memory.max": "268435456",
+    "pids.max": "32"
+  },
+  "guard_exec_stop_post_cleanup": false,
+  "guard_removed_recorded_leaf_after_fence": true,
+  "guard_unit": "sfactoryguardcfa57347906cce29bf8da84a6037c349547d3df0be55bd1d8c608eccfdc7c47b.service",
+  "lease_expired_with_live_supervisor": false,
+  "live_attempts": 0,
+  "native_long_relay_path_tests": 2,
+  "owned_worker_slice": "sfactoryharness136eef238cc745c5ae5f8fb465428018ffe873854d1a4a62a30eb39b45c17645.slice",
+  "paid_calls": 0,
+  "production_admission": false,
+  "production_gateway_launched": false,
+  "provider_charge_bounds_proven": false,
+  "schema": 1,
+  "source_sha256": {
+    "harness_pid1_guard_replay.py": "1573147d5c9da0f574ca8de1acf7b6460abfece13bfb94a42303dbe05eb13e74",
+    "linux_service_guard.py": "53f938b7d507ea33506d417256f2b0736296f8784063d1bd850436bb2713623b",
+    "linux_supervisor.py": "721644e6a750ef3600b1b0efbef653ec272e8e0adf95f6b2cda47e0304b3308c"
+  },
+  "supervisor_unit": "sfactoryguardc3adf0758fae546f95a9ed7847b6d7f58c7eba6aee816b3bac304323ce91f296.service",
+  "synthetic_catalog_registry_owner": true,
+  "synthetic_owner_revocation_acknowledged": true,
+  "verification_date": "2026-11-02",
+  "worker_slice_absent_after_fixture": true
+}

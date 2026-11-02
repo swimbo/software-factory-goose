@@ -257,18 +257,36 @@ def start_gateway_barrier(python, grant, group, base):
                 raise RuntimeError(proc.stderr.read().decode(errors="replace"))
             raise RuntimeError("gateway barrier readiness timeout")
         assert proc.poll() is None
+        case = base / "case/state" / grant["attempt_id"]
+        scope = json.loads((case / "owner-scope.json").read_bytes())["scope_sha256"]
+        intent = {
+            "grant_sha256": product.sha(grant),
+            "scope_sha256": scope,
+            "gateway_uid": 2007,
+        }
+        product.store(case / "gateway-leaf-intent.json", intent)
+
+        def record_leaf(identity):
+            product.store(
+                case / "gateway-leaf-created.json", {"intent": intent, "leaf": identity}
+            )
+
         for changed_grant, changed_uid in (
             (grant, 2008),
             (grant | {"cgroup_ino": grant["cgroup_ino"] + 1}, 2007),
         ):
             try:
-                product.attach_gateway_child(changed_grant, proc, changed_uid)
+                product.attach_gateway_child(
+                    changed_grant, proc, changed_uid, on_created=record_leaf
+                )
             except product.SupervisorRefused:
                 pass
             else:
                 raise RuntimeError("changed child or cgroup accepted")
             assert not (group / "gateway").exists()
-        attached = product.attach_gateway_child(grant, proc, 2007)
+        attached = product.attach_gateway_child(
+            grant, proc, 2007, on_created=record_leaf
+        )
         leaf = Path(attached["path"])
         leaf_identity = (attached["dev"], attached["ino"])
         membership = (Path("/proc") / str(proc.pid) / "cgroup").read_text().strip()
@@ -537,7 +555,7 @@ def controller(
     if schema_four:
         config.update(
             schema=4,
-            gateway_uid=700005,
+            gateway_uid=2007,
             gateway_executable_sha256="a" * 64,
             gateway_socket_sha256=product.GATEWAY_SOCKET_SHA256,
         )
@@ -666,6 +684,9 @@ def controller(
         while not (saved / "owner-revoked.json").exists():
             assert time.monotonic() < deadline
             time.sleep(0.02)
+        while not (saved / "cleanup.json").exists():
+            assert time.monotonic() < deadline, "guard cleanup did not complete"
+            time.sleep(0.02)
         assert (saved / "execution-fenced.json").exists() and (
             saved / "cleanup.json"
         ).exists()
@@ -733,13 +754,8 @@ def controller(
                 process.wait(timeout=5)
             process.stdout.close()
             process.stderr.close()
-            info = leaf.stat()
-            if (
-                guard_stopped
-                and (info.st_dev, info.st_ino) == leaf_identity
-                and "populated 0" in (leaf / "cgroup.events").read_text().splitlines()
-            ):
-                leaf.rmdir()
+            if guard_stopped:
+                assert not leaf.exists(), "guard did not reconcile the gateway leaf"
         # Unknown queued work retains its frozen cgroup and evidence.
         retained = state / attempt["attempt_id"] / "grant.json"
         if retained.exists() and (fault != "owner-loss" or guard_stopped):

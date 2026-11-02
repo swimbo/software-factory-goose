@@ -148,7 +148,7 @@ def stage_gateway_exec():
         raise
 
 
-def attach_gateway_child(grant, process, uid):
+def attach_gateway_child(grant, process, uid, *, on_created):
     """Move an unreaped, gated direct child into a fresh attempt-cgroup leaf.
 
     The caller must hold the bind lock, current grant and guard, retain the
@@ -169,6 +169,7 @@ def attach_gateway_child(grant, process, uid):
         and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
         "root_gateway_attach_invalid",
     )
+    require(callable(on_created), "root_gateway_attach_invalid")
     require(
         Path("/proc/sys/kernel/random/boot_id").read_text().strip() == grant["boot_id"],
         "root_gateway_attach_boot_changed",
@@ -226,6 +227,9 @@ def attach_gateway_child(grant, process, uid):
             leaf.st_uid == 0 and not leaf.st_mode & 0o022,
             "root_gateway_attach_leaf_changed",
         )
+        # Persist the exact inode before a process may enter the leaf. A crash
+        # before this acknowledgement leaves creation ambiguous and retained.
+        on_created({"path": path + "/gateway", "dev": leaf.st_dev, "ino": leaf.st_ino})
         check_child()
         control = os.open(
             "cgroup.procs", os.O_WRONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=leaf_fd
@@ -259,6 +263,105 @@ def attach_gateway_child(grant, process, uid):
         for fd in (leaf_fd, pidfd, parent_fd):
             if fd is not None:
                 os.close(fd)
+
+
+def remove_fenced_gateway_leaf(grant, identity):
+    """Remove only the recorded, empty leaf beneath the frozen grant cgroup."""
+    path = grant["cgroup_path"]
+    require(
+        type(identity) is dict
+        and set(identity) == {"path", "dev", "ino"}
+        and identity["path"] == path + "/gateway"
+        and _integer(identity["dev"], 1)
+        and _integer(identity["ino"], 1)
+        and Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        == grant["boot_id"],
+        "root_gateway_leaf_identity_changed",
+    )
+    parent = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    leaf = None
+    try:
+        info = os.fstat(parent)
+        require(
+            info.st_uid == 0
+            and not info.st_mode & 0o022
+            and (info.st_dev, info.st_ino)
+            == (grant["cgroup_dev"], grant["cgroup_ino"]),
+            "root_gateway_leaf_scope_changed",
+        )
+        for name, expected in (
+            ("cgroup.freeze", b"1"),
+            ("cgroup.events", b"populated 0"),
+        ):
+            control = os.open(
+                name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent
+            )
+            try:
+                raw = os.read(control, 4097)
+            finally:
+                os.close(control)
+            require(
+                len(raw) <= 4096 and expected in raw.strip().splitlines(),
+                "root_gateway_leaf_not_fenced",
+            )
+        try:
+            leaf = os.open(
+                "gateway",
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                dir_fd=parent,
+            )
+        except FileNotFoundError:
+            return
+        info = os.fstat(leaf)
+        require(
+            info.st_uid == 0
+            and not info.st_mode & 0o022
+            and (info.st_dev, info.st_ino) == (identity["dev"], identity["ino"]),
+            "root_gateway_leaf_identity_changed",
+        )
+        named = os.stat("gateway", dir_fd=parent, follow_symlinks=False)
+        require(
+            (named.st_dev, named.st_ino) == (info.st_dev, info.st_ino),
+            "root_gateway_leaf_identity_changed",
+        )
+        os.rmdir("gateway", dir_fd=parent)
+        try:
+            os.stat("gateway", dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            return
+        raise SupervisorRefused("root_gateway_leaf_cleanup_unknown")
+    finally:
+        if leaf is not None:
+            os.close(leaf)
+        os.close(parent)
+
+
+def gateway_leaf_absent(grant):
+    """Check absence only within the current boot and pinned cgroup inode."""
+    require(
+        Path("/proc/sys/kernel/random/boot_id").read_text().strip() == grant["boot_id"],
+        "root_gateway_leaf_scope_changed",
+    )
+    fd = os.open(
+        grant["cgroup_path"],
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+    )
+    try:
+        info = os.fstat(fd)
+        require(
+            info.st_uid == 0
+            and not info.st_mode & 0o022
+            and (info.st_dev, info.st_ino)
+            == (grant["cgroup_dev"], grant["cgroup_ino"]),
+            "root_gateway_leaf_scope_changed",
+        )
+        try:
+            os.stat("gateway", dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return True
+        return False
+    finally:
+        os.close(fd)
 
 
 @contextmanager
@@ -1872,6 +1975,38 @@ class RootSupervisor:
                         _decode(protected(path, 0o600)) == receipt,
                         "root_gateway_absence_receipt_changed",
                     )
+                leaf_intent_path = case / "gateway-leaf-intent.json"
+                leaf_created_path = case / "gateway-leaf-created.json"
+                require(
+                    not os.path.lexists(leaf_created_path)
+                    or os.path.lexists(leaf_intent_path),
+                    "root_gateway_leaf_intent_changed",
+                )
+                if os.path.lexists(leaf_intent_path):
+                    leaf_intent = _decode(protected(leaf_intent_path, 0o600))
+                    require(
+                        leaf_intent
+                        == {
+                            "grant_sha256": sha(grant),
+                            "scope_sha256": self._saved_scope(grant),
+                            "gateway_uid": self.cfg["gateway_uid"],
+                        },
+                        "root_gateway_leaf_intent_changed",
+                    )
+                    if os.path.lexists(leaf_created_path):
+                        created = _decode(protected(leaf_created_path, 0o600))
+                        require(
+                            type(created) is dict
+                            and set(created) == {"intent", "leaf"}
+                            and created["intent"] == leaf_intent,
+                            "root_gateway_leaf_receipt_changed",
+                        )
+                        remove_fenced_gateway_leaf(grant, created["leaf"])
+                    else:
+                        require(
+                            gateway_leaf_absent(grant),
+                            "root_gateway_leaf_cleanup_unqualified",
+                        )
                 return self._cleanup_after_fence(grant, case)
         return self._cleanup_after_fence(grant, case)
 

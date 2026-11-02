@@ -263,6 +263,65 @@ class CleanupOutcomeTests(unittest.TestCase):
             root._docker.assert_not_called()
             self.assertFalse((case / "cleanup.json").exists())
 
+    def test_gateway_leaf_cleanup_requires_durable_matching_receipts(self):
+        import contextlib
+        import json
+        import tempfile
+        from unittest.mock import Mock, patch
+        from linux_supervisor import sha
+
+        with tempfile.TemporaryDirectory() as d:
+            root, case, grant = self.make(d)
+            root.cfg = {"schema": 4, "gateway_uid": 2007}
+            root._saved_scope = Mock(return_value="c" * 64)
+            intent = {
+                "grant_sha256": sha(grant),
+                "scope_sha256": "c" * 64,
+                "gateway_uid": 2007,
+            }
+            leaf = {"path": "/public-fixture/gateway", "dev": 1, "ino": 2}
+            intent_path = case / "gateway-leaf-intent.json"
+            created_path = case / "gateway-leaf-created.json"
+            with (
+                patch(
+                    "linux_supervisor.gateway_bind_lock",
+                    return_value=contextlib.nullcontext(),
+                ),
+                patch(
+                    "linux_supervisor.protected",
+                    side_effect=lambda p, *a, **k: p.read_bytes(),
+                ),
+                patch(
+                    "linux_supervisor.gateway_leaf_absent", return_value=False
+                ) as absent,
+                patch("linux_supervisor.remove_fenced_gateway_leaf") as remove,
+            ):
+                created_path.write_text(json.dumps({"intent": intent, "leaf": leaf}))
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_leaf_intent_changed"
+                ):
+                    root._cleanup(grant)
+                created_path.unlink()
+                intent_path.write_text(json.dumps(intent))
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_leaf_cleanup_unqualified"
+                ):
+                    root._cleanup(grant)
+                absent.assert_called_once_with(grant)
+                self.assertFalse((case / "cleanup.json").exists())
+                created_path.write_text(
+                    json.dumps({"intent": intent | {"gateway_uid": 2008}, "leaf": leaf})
+                )
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_gateway_leaf_receipt_changed"
+                ):
+                    root._cleanup(grant)
+                remove.assert_not_called()
+                created_path.write_text(json.dumps({"intent": intent, "leaf": leaf}))
+                root._cleanup(grant)
+                remove.assert_called_once_with(grant, leaf)
+                self.assertTrue((case / "cleanup.json").is_file())
+
     def test_unhanded_bind_intent_can_reconcile_only_when_socket_absent(self):
         import contextlib
         import json
