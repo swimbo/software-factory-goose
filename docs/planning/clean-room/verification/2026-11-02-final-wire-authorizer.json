@@ -1,0 +1,215 @@
+{
+  "date_local": "2026-11-02",
+  "scope": "source-only reviewed chat/embedding predicates and immutable owner limits; synthetic provider and charge evidence",
+  "bifrost_commit": "e7e985e76d0b0c5dd0c52402eb85d7fc28553c68",
+  "bifrost_branch": "codex/remaining-source-audit-20261031",
+  "source_sha256": {
+    "engine/transport/factory_gateway_exchange_native_test.go": "155027ae0d78092d4ddb0b909b332fb4bf12679badcd500455ff3593570e23fc",
+    "engine/transport/factory_gateway_wire.go": "43499c146848c57f31defa6cad92f0aa7369e098dea51b4b5193730f56676951",
+    "engine/transport/factory_gateway_wire_test.go": "409cde91850b00fd960cfb8d202a3915e2264cf9b6e324434baff922826bb863",
+    "engine/transport/factory_owner_scope_context.go": "2f649420441bfb47b25942734ed09db737cad225e8dd705df59cc6a710cfaf06",
+    "engine/transport/factory_owner_scope_context_test.go": "a149d573f4909c256e81aaf4e754852f33a8b4bd6dbf2b86806907f6d8807ad7",
+    "engine/transport/factory_physical.go": "62aea4f697218f641a7853ce532e819969c19261ea6a28bfc4ba21c8cf949f4c",
+    "engine/transport/factory_physical_headers_test.go": "3ab66a19c442add7625d83288b38e843774f15eb4df91e56bb1e922792775598",
+    "engine/transport/factory_physical_http_test.go": "8d7f1034c0ddcb072a0fd69f5c9f36b66659f8e2ae9cd15b2b5f2b31f3fd3148",
+    "engine/transport/patch_factory_gateway_exchange.py": "7fefc025bec89969116810552f8940f37a609786369c6f84dcf40d3baf90decf",
+    "engine/transport/patch_factory_physical.py": "81c6f8014bc33d8bd9e4a2778b807e6b4ab0dbfb51367e6fe9e9a572138e25fb",
+    "engine/transport/test_patch_factory_gateway_exchange.py": "eaaa808cb120760f63139a6e0ee1ce60a8642c539cb06343f7490146538122cf"
+  },
+  "source_composition": {
+    "published_file_count": 1925,
+    "published_tree_sha256": "e0937d2b3a92c56e683113550db7875bf8edfb8d824f5d8ed82310d4f527060d",
+    "native_checkpoint_tree_sha256": "977f3438a9630401d0dfcf298ae4384f85bbdd05cb014bcfc0fe21b1cbb31e5c",
+    "native_to_published_difference": [
+      "transports/bifrost-http/server/factory_gateway_wire_test.go"
+    ],
+    "difference_reason": "test-only stream-usage strengthening after review; production and native-fixture sources unchanged",
+    "final_remote_manifest_exact_match": true,
+    "native_binary_sha256": "f7c1f270185fd62a4d8478536ba2ee6e227f3ad5b02a4feb53544637f82afbd8"
+  },
+  "verification": {
+    "core_schemas_full_race": {
+      "exit_code": 0,
+      "seconds": 14.5
+    },
+    "handlers_full_race": {
+      "exit_code": 0,
+      "seconds": 95.893,
+      "test_timeout_seconds": 300,
+      "initial_90_second_package_timeout_not_counted_as_pass": true
+    },
+    "factory_selected_race": {
+      "packages": [
+        "core/providers/utils",
+        "transports/bifrost-http/server",
+        "transports/bifrost-http/handlers"
+      ],
+      "exit_code": 0,
+      "wire_test_groups": 8,
+      "manual_fixture_skips_in_host_suite": "seven exchange cases separately executed below; other manual fixture skips are not passes"
+    },
+    "native_cases": [
+      {
+        "test": "TestFactoryGatewayWireRejectsMutatedOwnerCallLimit",
+        "exit_code": 0,
+        "elapsed_seconds": 8.529,
+        "output_sha256": "f944980bd8361ce37bcedff086eececdafbf720971112e76e5fe3ffed787046e"
+      },
+      {
+        "test": "TestFactoryGatewaySyntheticNativeJoinV2",
+        "exit_code": 0,
+        "elapsed_seconds": 4.384,
+        "output_sha256": "3b52fa5c1a1e7b005f43553592e0d47dafe87c4dd6ec5fe65fb97a9c6a325033"
+      },
+      {
+        "test": "TestFactoryGatewaySyntheticNativeJoin",
+        "exit_code": 0,
+        "elapsed_seconds": 3.575,
+        "output_sha256": "c8c607557731840645f57410cc4570e03e9e49b0d8f941f382c70237bbfd5a11"
+      },
+      {
+        "test": "TestFactoryGatewayRootDeadlineInterruptsStream",
+        "exit_code": 0,
+        "elapsed_seconds": 7.989,
+        "output_sha256": "80576db010941de0cf4f88049e9f8710e84914a7e7e6d51fca6c7d191148f36e"
+      },
+      {
+        "test": "TestFactoryGatewayCloseErrorRefusesCapture",
+        "exit_code": 0,
+        "elapsed_seconds": 7.868,
+        "output_sha256": "7be7ca90651d0b8b15a98d1b0e15b9bbc668c6bdf45a158a94bbced34719b6e2"
+      },
+      {
+        "test": "TestFactoryGatewayInvalidResponseBlockedClose",
+        "exit_code": 0,
+        "elapsed_seconds": 7.981,
+        "output_sha256": "0c0e966df01afc6d0ba9e9434c12bc0df5c1a56de62b689cb5e0015de242ab6e"
+      },
+      {
+        "test": "TestFactoryGatewayRootDeadlineInterruptsBlockedRouter",
+        "exit_code": 0,
+        "elapsed_seconds": 7.91,
+        "output_sha256": "0b7aacd6f624dd28fa779b4aa2eabcbcd6d3a65db9335cfdfbaa266be798fc28"
+      }
+    ],
+    "native_boundaries": {
+      "network": "none",
+      "filesystem": "read-only container root plus dedicated ext4 fixture chroot",
+      "actor_uids": [
+        2005,
+        2007,
+        2008
+      ],
+      "go_owner_and_wire_authorizer": "actual",
+      "broker_capture_route_provider_and_charge_bounds": "synthetic",
+      "wallet_and_production_root_launcher": "not exercised",
+      "procfs_absent": "race runtime warned that executable symbolization may be incomplete; assertions and race instrumentation ran",
+      "owned_fixture_containers_absent_after_completion": true
+    },
+    "installer_python_tests": {
+      "passed": 10,
+      "exit_code": 0
+    },
+    "ruff": {
+      "exit_code": 0
+    },
+    "physical_installer": {
+      "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-wire-final-physical-h5xu5itf",
+      "original_pinned_inputs_verified": true,
+      "installed": true,
+      "replay_refused_without_changes": true,
+      "copied_core_helpers_match_current_source": true,
+      "physical_hook_sha256": "5f41304d3a4c17349e0f2b01258038f8d81dea58d0a2989d65bf630aba71d04f"
+    },
+    "exchange_installer": {
+      "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-wire-published-install-g9yacl5h",
+      "exact_preimage_sha256": "c8c067ead7c82c56ac961c16fe5ecae252cd89d3f50a313b5f7e18026e9a0900",
+      "post_install_tree_sha256": "e0937d2b3a92c56e683113550db7875bf8edfb8d824f5d8ed82310d4f527060d",
+      "installed": true,
+      "altered_wire_refused_before_writes": true,
+      "replay_refused_without_changes": true,
+      "difference_from_native_checkpoint": [
+        "transports/bifrost-http/server/factory_gateway_wire_test.go"
+      ]
+    },
+    "stream_guard_mutation": {
+      "old_test_survived_removed_missing_options_guard": true,
+      "new_matching_stream_test_failed_same_mutant": "stream without requested usage admitted",
+      "real_source_passed_strengthened_test": true,
+      "production_source_changed_for_review_fix": false
+    }
+  },
+  "broader_qualification_failures": {
+    "full_core_utils_race": {
+      "exit_code": 1,
+      "test": "TestFasthttpVersionIsConsistentAcrossModules",
+      "reason": "local fasthttp replacement conflicts with upstream-only guard",
+      "same_failure_reproduced_on_unchanged_retained_stage": true
+    },
+    "full_server_race": {
+      "exit_code": 1,
+      "setup_failures": 9,
+      "reasons": [
+        "explicit public worker/interpreter qualification inputs required",
+        "pricing fixture files absent at expected paths"
+      ],
+      "not_counted_as_pass": true
+    }
+  },
+  "review": {
+    "status": "complete",
+    "initial_verdict": "Ready with fixes",
+    "run_id": "20261102-215421-56fa672d",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261102-215421-56fa672d",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "api-contract",
+      "reliability",
+      "adversarial"
+    ],
+    "applied_findings": [
+      {
+        "id": 1,
+        "title": "Exercise missing stream usage with matching transport mode",
+        "disposition": "applied inline and mutation-verified"
+      }
+    ],
+    "unresolved_unit_findings": [],
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: transport unavailable pre-egress, route Internal error)"
+    },
+    "simplification": {
+      "applied": 0,
+      "low_value_suggestions_rejected": 4
+    }
+  },
+  "newly_traced_remaining_path": {
+    "source": "plugins/routing/llmclassify.go",
+    "source_sha256": "5fd2d5472e415a92521ded118f9a26b1105470f345158acc4a326137a312d9cb",
+    "function": "runClassifierCompletion",
+    "behavior": "conditional chat-to-Responses fallback",
+    "current_profile": "Responses API refused; separate reviewed profile and output-bound support required, preserving retained route"
+  },
+  "remaining_before_live": [
+    "reviewed policy-to-charge-contract correspondence and supported all-path provider bounds",
+    "reviewed Responses fallback profile and output contract",
+    "real retained-route production bootstrap, warmup ownership and broker/capture integration",
+    "credential/plugin/log-sink custody and egress fencing",
+    "NUC production launcher cleanup/recovery and preserved-fixture reconciliation",
+    "complete safety qualification including existing source/dependency/test-input failures",
+    "120 live paired attempts and independent acceptance/delivery gates"
+  ],
+  "production_admission": false,
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "required_attempts": 120,
+  "candidate_enabled": false,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task_including_all_six_attempts": 750000
+  }
+}

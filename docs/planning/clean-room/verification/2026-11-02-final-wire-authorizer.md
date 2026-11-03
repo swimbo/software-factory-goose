@@ -1,0 +1,19 @@
+# Reviewed final-wire authorization
+
+Bifrost `e7e985e`: source-only integration toward the retained gateway. No paid inference, production policy, production launch or candidate activation is established here. Benchmark remains 0/120; $5 per UTC day and $0.75 per permanent task remain binding.
+
+The concrete OpenAI-compatible authorizer checks a separately approved policy digest, the verified v2 owner scope, exact component charge inventory, endpoint/model/API selectors, request hash and byte limits, the reviewed output field, stream/usage requirements and noncredential header selectors. Embeddings require an explicit no-output-billing evidence reference. Text/function-only requests are supported; remote media and provider-hosted tools are refused. It never reserves, sends, retries or refunds; the existing owner protocol performs sequenced broker confirmation and enforces counts.
+
+The actual HTTP transport now supplies bounded, copied final headers to the callback. This closes a URI/body-only gap for `x-classifier-profile`. Standard authorization headers remain ephemeral; header values are excluded from stored capture records. Existing `BeginFactoryPhysical` callers keep their API.
+
+A read-only context getter exposes only the original live v2 owner's immutable scope and component metadata. Native regression showed that mutating returned component `MaxCalls` could otherwise reach physical verification with a count not priced by the frozen policy. The callback now compares the Go owner's acquisition-time ID, role, provider, model and count to that policy before returning a permit. No second counter owner was added.
+
+The original retained Go stage had stale protocol/completion artifacts and a missing handler test helper. The new disposable stage is reconciled against every file in the exact installer-produced tree. The physical installer is also checked against original pinned core inputs, and its generated header hook matches the tested bytes. Altered wire artifacts and installer replay are refused before changes.
+
+Seven distinct-UID, network-none ext4 native cases pass: v1 compatibility, v2 success, mutated-count refusal before physical verification and four stream/router failure cases. The broker/capture responses, route, provider and charge evidence are synthetic. Full core-schema and full handler race suites pass; the companion JSON records final verification and source identities. Broader qualification is not green: the utility suite's fasthttp-replacement consistency check also fails on the unchanged retained stage; the full server suite needs explicit public-worker inputs and missing pricing fixtures. An initial full handler run exhausted its 90-second package deadline; the bounded five-minute rerun passed in 95.893 seconds. These are not counted as passing production regressions.
+
+The wire policy must be protected and independently approved together with its referenced charge contract. Matching digests and component totals do not derive byte/output/call limits from the Rust charge-review preimage or prove provider tokenization, reasoning, fees or classifier-proxy bounds. Those correspondences, real retained-route bootstrap/warmup ownership, credential/plugin/log custody, egress fencing and full production cleanup/recovery remain required before live admission.
+
+Independent review found one masked stream-usage negative control. Removing the required-options guard passed the old test; the strengthened matching-stream test rejects that same mutant, and the real source passes. The review fix changes tests only.
+
+The qualified routing source also contains a conditional chat-to-Responses classifier fallback (`plugins/routing/llmclassify.go::runClassifierCompletion`). This chat/embedding profile refuses Responses calls. A separately reviewed Responses profile and output-bound contract remain required; the retained fallback must not be silently removed or replaced.
