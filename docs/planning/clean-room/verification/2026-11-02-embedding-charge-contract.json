@@ -1,0 +1,73 @@
+{
+  "scope": "source-only reviewed embedding charge arithmetic and schema; fictional provider inputs",
+  "date_local": "2026-11-02",
+  "source_sha256": {
+    "clean-room/crates/control-plane/src/harness_charge_bounds.rs": "0f6d116871820d3f3f86768d33f22d9bd7ade1249cb488b87c72bbfde8f425e7",
+    "clean-room/crates/control-plane/tests/fixtures/legacy-chat-charge-review.json": "37e1a6d7ffd7f6b7c3e84104cbcf5d8f1c07c9619d10661a69519fc994694267"
+  },
+  "verification": [
+    {
+      "command": "env CARGO_INCREMENTAL=0 cargo test --manifest-path clean-room/Cargo.toml -p control-plane --features restate --lib",
+      "exit_code": 0,
+      "passed": 288,
+      "failed": 0,
+      "ignored": 1,
+      "ignored_scope": "requires owned disposable Restate fixture and private Unix relay"
+    },
+    {
+      "command": "env CARGO_INCREMENTAL=0 cargo clippy --manifest-path clean-room/Cargo.toml -p control-plane --features restate --lib -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "rustfmt --edition 2024 --config skip_children=true --check clean-room/crates/control-plane/src/harness_charge_bounds.rs",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "charge_module_tests": 10,
+  "legacy_review_sha256": "b030c01140f22738d889ecc4fe19a6991ed6084a2aac7a684689aa0c6d324b78",
+  "review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "run_id": "20261103-020858-4b351b51",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-020858-4b351b51",
+    "reviewers": [
+      "correctness",
+      "project-standards",
+      "testing",
+      "maintainability",
+      "api-contract",
+      "reliability",
+      "adversarial"
+    ],
+    "actionable_findings": [],
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: transport unavailable pre-egress, route Internal error)"
+    }
+  },
+  "production_admission": false,
+  "live_benchmark_attempts": 0,
+  "required_attempts": 120,
+  "candidate_enabled": false,
+  "caps_microusd": {
+    "utc_day": 5000000,
+    "permanent_task": 750000
+  },
+  "remaining": [
+    "supported affordable pre-dispatch all-path provider bounds",
+    "final-wire endpoint/model/contract enforcement",
+    "retained-route production bootstrap and warmup ownership",
+    "credential/plugin/log-sink custody",
+    "production launcher containment and full cleanup/recovery",
+    "120-attempt paired benchmark and independent delivery acceptance"
+  ],
+  "simplification": {
+    "lenses": 5,
+    "changes": 0,
+    "proof_tests_preserved": true
+  }
+}
