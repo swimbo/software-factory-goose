@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-11-03T15:14:38.134625+00:00",
+  "status": "no_supported_affordable_all_path_predispatch_envelope_established",
+  "public_fetches": {
+    "ollama_openapi": {
+      "url": "https://docs.ollama.com/openapi.yaml",
+      "exit_code": 0,
+      "bytes": 87400,
+      "sha256": "d8e08be41dd858c933c32bef5ee8d0c5faf7d7462069a49b368731cfbceaab03",
+      "paths": [
+        "/v1/systemone",
+        "/api/generate",
+        "/api/chat",
+        "/api/embed",
+        "/api/tags",
+        "/api/ps",
+        "/api/show",
+        "/api/create",
+        "/api/blobs/{digest}",
+        "/api/copy",
+        "/api/pull",
+        "/api/push",
+        "/api/delete",
+        "/api/version",
+        "/api/usage",
+        "/api/balance"
+      ]
+    },
+    "ollama_flash": {
+      "url": "https://ollama.com/library/deepseek-v4.1-flash:1017",
+      "exit_code": 56,
+      "error": "curl: (56) The requested URL returned error: 404\n"
+    },
+    "ollama_pro": {
+      "url": "https://ollama.com/library/deepseek-v4-pro:0813",
+      "exit_code": 56,
+      "error": "curl: (56) The requested URL returned error: 404\n"
+    },
+    "vercel_models": {
+      "url": "https://ai-gateway.vercel.sh/v1/models",
+      "exit_code": 0,
+      "bytes": 563358,
+      "sha256": "556a37800c24ff195bbf6190113c64e1c89717eda8add571c661248f38f8b333",
+      "selected_models": [
+        {
+          "id": "openai/gpt-6-luna",
+          "type": "language",
+          "context_window": 1050000,
+          "max_tokens": 128000
+        },
+        {
+          "id": "openai/text-embedding-3-small",
+          "type": "embedding",
+          "context_window": 0,
+          "max_tokens": 0
+        }
+      ]
+    }
+  },
+  "exact_cloud_metadata": [
+    {
+      "model": "deepseek-v4-pro:0813",
+      "exit_code": 0,
+      "endpoint": "https://ollama.com/api/show",
+      "bytes": 476,
+      "sha256": "9903a36d08d149fd63dbf08d794e7f8dc530bcc9930f250c55ff433c0ee7750f",
+      "fields": [
+        "capabilities",
+        "details",
+        "model_info",
+        "modified_at",
+        "thinking"
+      ],
+      "model_info": {
+        "deepseek4.context_length": 1048576,
+        "deepseek4.embedding_length": 4096,
+        "general.architecture": "deepseek4",
+        "general.parameter_count": 1650497936906
+      },
+      "parameters": null,
+      "template_present": false,
+      "raw_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-ollama-show-c67ggxsg/deepseek-v4-pro-0813.json"
+    },
+    {
+      "model": "deepseek-v4.1-flash:1017",
+      "exit_code": 0,
+      "endpoint": "https://ollama.com/api/show",
+      "bytes": 497,
+      "sha256": "6232bbc0f39a8edd34f52f8fc76f6b0f99a84e95be2f044bd7764da95dcc04f9",
+      "fields": [
+        "capabilities",
+        "details",
+        "model_info",
+        "modified_at",
+        "thinking"
+      ],
+      "model_info": {
+        "deepseek_v41.context_length": 1048576,
+        "deepseek_v41.embedding_length": 0,
+        "general.architecture": "deepseek_v41",
+        "general.parameter_count": 763205315794
+      },
+      "parameters": null,
+      "template_present": false,
+      "raw_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-ollama-show-c67ggxsg/deepseek-v4.1-flash-1017.json"
+    }
+  ],
+  "cloud_tags": {
+    "url": "https://ollama.com/api/tags",
+    "exit_code": 0,
+    "bytes": 7443,
+    "sha256": "59d62340a6d36b9ca57057c96a96ea6e87a2e49c786a0f950d211da793e66230",
+    "models": [
+      {
+        "name": "deepseek-v4.1-flash:1017",
+        "model": "deepseek-v4.1-flash:1017",
+        "modified_at": "2026-10-17T03:00:00-07:00",
+        "size": 486723007816,
+        "digest": "7f8e880bc207",
+        "details": {
+          "parent_model": "",
+          "format": "",
+          "family": "",
+          "families": null,
+          "parameter_size": "",
+          "quantization_level": ""
+        },
+        "capabilities": [
+          "completion",
+          "thinking",
+          "tools",
+          "vision"
+        ]
+      },
+      {
+        "name": "deepseek-v4-pro:0813",
+        "model": "deepseek-v4-pro:0813",
+        "modified_at": "2026-08-13T08:00:00-07:00",
+        "size": 892744322880,
+        "digest": "db976f1eacdd",
+        "details": {
+          "parent_model": "",
+          "format": "",
+          "family": "",
+          "families": null,
+          "parameter_size": "",
+          "quantization_level": ""
+        },
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking"
+        ]
+      }
+    ],
+    "raw_path": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-ollama-tags-wj8zugma/tags.json"
+  },
+  "observations": [
+    {
+      "url": "https://docs.ollama.com/api/openai-compatibility",
+      "finding": "max_tokens listed as supported; context-size customization described for local created models, not a smaller retained hosted input contract"
+    },
+    {
+      "url": "https://docs.ollama.com/api/anthropic-compatibility",
+      "finding": "token-count endpoint unsupported; separate Anthropic thinking budget not enforced; does not invalidate OpenAI max_tokens support"
+    },
+    {
+      "url": "https://ollama.com/pricing",
+      "finding": "peak Flash input/output USD0.30/1.20 per million; Pro USD1.32/3.96; Enterprise user/key cost budgets lack documented required hard in-flight/permanent-task contract"
+    },
+    {
+      "url": "https://vercel.com/docs/ai-gateway/observability-and-spend/budgets",
+      "finding": "official docs explicitly call budgets soft caps; request crossing limit still completes"
+    },
+    {
+      "url": "https://vercel.com/ai-gateway/models/gpt-6-luna",
+      "finding": "generated-token cap includes reasoning; does not itself bound rendered input"
+    },
+    {
+      "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+      "finding": "listed endpoints provide models/chat/embeddings; no same-route no-inference token counter established"
+    }
+  ],
+  "conservative_full_context_arithmetic": {
+    "basis": "illustration using public advertised context and peak uncached input tariff, not invoice or complete fee envelope",
+    "pro_input_tokens": 1048576,
+    "pro_input_usd_per_million": "1.32",
+    "pro_input_charge_microusd_rounded_up": 1384121,
+    "permanent_task_cap_microusd": 750000,
+    "passes_permanent_task_cap": false
+  },
+  "remaining_evidence": [
+    "supported request-specific input count or rendered/tokenized input ceiling for exact hosted route",
+    "supported billed output/reasoning limits on actual wire APIs",
+    "hidden upstream attempt/retry and non-token fee disposition",
+    "reviewed correspondence through classifier pinproxy upstream",
+    "account-specific hard budget semantics if proposed as alternative"
+  ],
+  "candidate_enabled": false,
+  "benchmark_attempts": 0,
+  "paid_inference_calls": 0,
+  "authenticated_calls": 0,
+  "external_messages": 0,
+  "route_and_permissions_changed": false,
+  "tls_verification": true,
+  "initial_python_tls_failure_preserved_at": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-provider-recheck-qlnofjxw/result.json",
+  "next_action": "continue source/runtime qualification; retain paid-dispatch denial until supported all-path evidence exists"
+}
