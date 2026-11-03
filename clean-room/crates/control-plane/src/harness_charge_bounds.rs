@@ -89,6 +89,102 @@ pub struct ReviewedEmbeddingComponent {
     pub contract: ReviewedEmbeddingContract,
 }
 
+/// Responses has a distinct endpoint and output-limit field from chat.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewedResponsesApi {
+    Responses,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewedResponsesOutputLimitField {
+    MaxOutputTokens,
+}
+
+/// Protected review of all billable input, output (including reasoning), and
+/// fixed fees. Rates cover cache surcharges and proxy/routing markups. The
+/// final-wire predicate must enforce the reviewed request and max_output_tokens;
+/// these arithmetic assertions are not provider evidence or fallback permission.
+/// This type cannot be supplied to the chat-only GatewayClient contract.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedResponsesContract {
+    pub api: ReviewedResponsesApi,
+    pub model: String,
+    pub review_digest: String,
+    pub reviewed_at_ms: u64,
+    pub valid_until_ms: u64,
+    pub input_microusd_per_million: u64,
+    pub output_microusd_per_million: u64,
+    pub max_billable_input_tokens: u64,
+    pub max_billable_output_tokens: u64,
+    pub fixed_call_microusd: u64,
+    pub max_request_bytes: usize,
+    pub output_limit_field: ReviewedResponsesOutputLimitField,
+}
+
+impl ReviewedResponsesContract {
+    pub fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.model.is_empty()
+                && self.model.len() <= 256
+                && self.model.bytes().all(|b| b.is_ascii_graphic())
+                && digest(&self.review_digest)
+                && self.reviewed_at_ms < self.valid_until_ms
+                && (1..=1024 * 1024).contains(&self.max_request_bytes),
+            "invalid reviewed Responses contract"
+        );
+        anyhow::ensure!(
+            (1..=(1_u64 << 53)).contains(&self.upper_bound_microusd()?),
+            "Responses reservation outside exact integer conversion range"
+        );
+        Ok(())
+    }
+
+    /// Separately round the full reviewed input and output maxima upwards.
+    /// A smaller requested output never refunds or reduces the reservation.
+    pub fn upper_bound_microusd(&self) -> anyhow::Result<u64> {
+        anyhow::ensure!(
+            self.input_microusd_per_million > 0 && self.output_microusd_per_million > 0,
+            "missing Responses token price"
+        );
+        anyhow::ensure!(
+            (1..u64::MAX).contains(&self.max_billable_input_tokens)
+                && (1..u64::MAX).contains(&self.max_billable_output_tokens),
+            "missing or unbounded Responses billable token maximum"
+        );
+        let cost = |tokens: u64, rate: u64| -> anyhow::Result<u128> {
+            let product = u128::from(tokens)
+                .checked_mul(u128::from(rate))
+                .ok_or_else(|| anyhow::anyhow!("Responses price multiplication overflow"))?;
+            Ok(product
+                .checked_add(999_999)
+                .ok_or_else(|| anyhow::anyhow!("Responses price rounding overflow"))?
+                / 1_000_000)
+        };
+        let total = cost(
+            self.max_billable_input_tokens,
+            self.input_microusd_per_million,
+        )?
+        .checked_add(cost(
+            self.max_billable_output_tokens,
+            self.output_microusd_per_million,
+        )?)
+        .and_then(|v| v.checked_add(u128::from(self.fixed_call_microusd)))
+        .ok_or_else(|| anyhow::anyhow!("Responses price total overflow"))?;
+        Ok(u64::try_from(total)?)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedResponsesComponent {
+    pub id: String,
+    pub max_physical_attempts: u32,
+    pub contract: ReviewedResponsesContract,
+}
+
 /// Protected configuration, never accepted from worker/model JSON. Expected
 /// components come independently from the frozen route's complete path inventory.
 /// Price maxima include cache surcharges, reasoning, routing and fixed fees, as
@@ -106,6 +202,8 @@ pub struct RouteReview {
     pub components: Vec<ReviewedComponent>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub embedding_components: Vec<ReviewedEmbeddingComponent>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub responses_components: Vec<ReviewedResponsesComponent>,
 }
 
 fn digest(s: &str) -> bool {
@@ -148,12 +246,16 @@ impl RouteReview {
             .iter()
             .map(|c| c.id.as_str())
             .chain(self.embedding_components.iter().map(|c| c.id.as_str()))
+            .chain(self.responses_components.iter().map(|c| c.id.as_str()))
             .collect();
         anyhow::ensure!(
             !expected.is_empty()
                 && expected.len() <= 32
                 && expected.len() == expected_components.len()
-                && actual.len() == self.components.len() + self.embedding_components.len()
+                && actual.len()
+                    == self.components.len()
+                        + self.embedding_components.len()
+                        + self.responses_components.len()
                 && expected == actual
                 && expected.iter().all(|s| name(s)),
             "incomplete physical path coverage"
@@ -203,6 +305,16 @@ impl RouteReview {
             )?;
         }
         for component in &self.embedding_components {
+            component.contract.validate()?;
+            include(
+                &component.id,
+                component.max_physical_attempts,
+                component.contract.reviewed_at_ms,
+                component.contract.valid_until_ms,
+                component.contract.upper_bound_microusd()?,
+            )?;
+        }
+        for component in &self.responses_components {
             component.contract.validate()?;
             include(
                 &component.id,
@@ -295,6 +407,7 @@ mod tests {
             max_output_tokens: 100,
             components: vec![component("answer", 2), component("fallback", 1)],
             embedding_components: vec![],
+            responses_components: vec![],
         }
     }
     #[test]
@@ -402,6 +515,209 @@ mod tests {
         value
     }
 
+    fn responses_review_json() -> serde_json::Value {
+        let mut value = embedding_review_json();
+        value["responses_components"] = serde_json::json!([{
+            "id": "classifier_responses", "max_physical_attempts": 2,
+            "contract": {
+                "api": "responses", "model": "fixture/responses",
+                "review_digest": "a".repeat(64),
+                "reviewed_at_ms": 10, "valid_until_ms": 100,
+                "input_microusd_per_million": 300_001,
+                "output_microusd_per_million": 600_001,
+                "max_billable_input_tokens": 3, "max_billable_output_tokens": 3,
+                "fixed_call_microusd": 3, "max_request_bytes": 4096,
+                "output_limit_field": "max_output_tokens"
+            }
+        }]);
+        value
+    }
+
+    #[test]
+    fn responses_input_output_and_fees_join_the_same_permanent_task_cap() {
+        let r: RouteReview = serde_json::from_value(responses_review_json()).unwrap();
+        let b = r
+            .route_bound(
+                &[
+                    "answer",
+                    "fallback",
+                    "semantic_embedding",
+                    "classifier_responses",
+                ],
+                30,
+            )
+            .unwrap();
+        // Separately rounded input/output are 1 + 2, plus 3 fixed microUSD,
+        // across two physical attempts. All three API families reserve together.
+        assert_eq!(
+            b.components
+                .iter()
+                .map(|c| c.max_charge_microusd)
+                .collect::<Vec<_>>(),
+            vec![842, 421, 6, 12]
+        );
+        assert_eq!(minimum_permanent_reservation(&b, 6, 1).unwrap(), 7_686);
+        let mut fractional = r;
+        let contract = &mut fractional.responses_components[0].contract;
+        contract.max_billable_input_tokens = 1;
+        contract.max_billable_output_tokens = 1;
+        contract.input_microusd_per_million = 1;
+        contract.output_microusd_per_million = 1;
+        contract.fixed_call_microusd = 0;
+        assert_eq!(contract.upper_bound_microusd().unwrap(), 2);
+        let fractional_bound = fractional
+            .route_bound(
+                &[
+                    "answer",
+                    "fallback",
+                    "semantic_embedding",
+                    "classifier_responses",
+                ],
+                30,
+            )
+            .unwrap();
+        assert_eq!(fractional_bound.components[3].max_charge_microusd, 4);
+    }
+
+    #[test]
+    fn responses_schema_is_endpoint_specific_and_requires_complete_review() {
+        let value = responses_review_json();
+        let contract = value["responses_components"][0]["contract"].clone();
+        assert!(serde_json::from_value::<ReviewedModelContract>(contract.clone()).is_err());
+        assert!(serde_json::from_value::<ReviewedEmbeddingContract>(contract.clone()).is_err());
+        assert!(
+            serde_json::from_value::<ReviewedResponsesContract>(
+                serde_json::to_value(component("answer", 1).contract).unwrap()
+            )
+            .is_err()
+        );
+        for (field, replacement) in [
+            ("api", serde_json::json!("chat_completions")),
+            (
+                "output_limit_field",
+                serde_json::json!("max_completion_tokens"),
+            ),
+            ("output_limit_field", serde_json::json!("max_tokens")),
+            ("unknown_fee", serde_json::json!(0)),
+        ] {
+            let mut invalid = contract.clone();
+            invalid[field] = replacement;
+            assert!(
+                serde_json::from_value::<ReviewedResponsesContract>(invalid).is_err(),
+                "{field}"
+            );
+        }
+        for field in contract.as_object().unwrap().keys() {
+            let mut missing = contract.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(
+                serde_json::from_value::<ReviewedResponsesContract>(missing).is_err(),
+                "{field}"
+            );
+        }
+    }
+
+    #[test]
+    fn responses_rejects_unbounded_prices_tokens_and_invalid_review() {
+        for (field, value) in [
+            ("model", serde_json::json!("bad model")),
+            ("review_digest", serde_json::json!("unknown")),
+            ("input_microusd_per_million", serde_json::json!(0)),
+            ("output_microusd_per_million", serde_json::json!(0)),
+            ("max_billable_input_tokens", serde_json::json!(0)),
+            ("max_billable_input_tokens", serde_json::json!(u64::MAX)),
+            ("max_billable_output_tokens", serde_json::json!(0)),
+            ("max_billable_output_tokens", serde_json::json!(u64::MAX)),
+            ("fixed_call_microusd", serde_json::json!(u64::MAX)),
+            ("fixed_call_microusd", serde_json::json!(1_u64 << 53)),
+            ("max_request_bytes", serde_json::json!(0)),
+            ("max_request_bytes", serde_json::json!(1024 * 1024 + 1)),
+            ("reviewed_at_ms", serde_json::json!(100)),
+        ] {
+            let mut value_json = responses_review_json();
+            value_json["responses_components"][0]["contract"][field] = value;
+            let r: RouteReview = serde_json::from_value(value_json).unwrap();
+            assert!(
+                r.responses_components[0].contract.validate().is_err(),
+                "{field}"
+            );
+        }
+        let mut r: RouteReview = serde_json::from_value(responses_review_json()).unwrap();
+        let contract = &mut r.responses_components[0].contract;
+        contract.max_billable_input_tokens = u64::MAX - 1;
+        contract.input_microusd_per_million = u64::MAX;
+        assert!(contract.upper_bound_microusd().is_err());
+        let mut invalid: RouteReview = serde_json::from_value(responses_review_json()).unwrap();
+        invalid.responses_components[0].contract.review_digest = "unknown".into();
+        assert_eq!(
+            invalid
+                .route_bound(
+                    &[
+                        "answer",
+                        "fallback",
+                        "semantic_embedding",
+                        "classifier_responses"
+                    ],
+                    30,
+                )
+                .unwrap_err()
+                .to_string(),
+            "invalid reviewed Responses contract"
+        );
+    }
+
+    #[test]
+    fn responses_inventory_attempts_interval_and_proof_are_bound() {
+        let r: RouteReview = serde_json::from_value(responses_review_json()).unwrap();
+        let expected = [
+            "answer",
+            "fallback",
+            "semantic_embedding",
+            "classifier_responses",
+        ];
+        assert!(r.route_bound(&expected[..3], 30).is_err());
+        let original = r.route_bound(&expected, 30).unwrap();
+        let mut changed = r.clone();
+        changed.responses_components[0].contract.review_digest = "b".repeat(64);
+        assert_ne!(
+            original.review_sha256,
+            changed.route_bound(&expected, 30).unwrap().review_sha256
+        );
+        changed = r.clone();
+        changed.responses_components[0]
+            .contract
+            .max_billable_output_tokens = 4;
+        assert_ne!(
+            original.review_sha256,
+            changed.route_bound(&expected, 30).unwrap().review_sha256
+        );
+        for attempts in [0, 28] {
+            changed = r.clone();
+            changed.responses_components[0].max_physical_attempts = attempts;
+            assert!(changed.route_bound(&expected, 30).is_err());
+        }
+        for duplicate in ["answer", "semantic_embedding"] {
+            changed = r.clone();
+            changed.responses_components[0].id = duplicate.into();
+            assert!(changed.route_bound(&expected, 30).is_err());
+        }
+        changed = r.clone();
+        changed.responses_components[0].contract.valid_until_ms = 80;
+        assert!(changed.route_bound(&expected, 30).is_err());
+        changed = r.clone();
+        changed.responses_components[0].contract.reviewed_at_ms = 25;
+        assert!(changed.route_bound(&expected, 30).is_err());
+        changed = r;
+        changed.responses_components[0].contract.fixed_call_microusd = 400_000;
+        assert_eq!(
+            changed.route_bound(&expected, 30).unwrap_err().to_string(),
+            "logical call exceeds permanent task cap"
+        );
+        changed.responses_components[0].max_physical_attempts = 1;
+        let bound = changed.route_bound(&expected, 30).unwrap();
+        assert!(minimum_permanent_reservation(&bound, 6, 1).is_err());
+    }
+
     #[test]
     fn embedding_input_and_fixed_fees_join_the_same_permanent_task_cap() {
         let r: RouteReview = serde_json::from_value(embedding_review_json()).unwrap();
@@ -416,6 +732,24 @@ mod tests {
             vec![842, 421, 6]
         );
         assert_eq!(minimum_permanent_reservation(&b, 6, 1).unwrap(), 7_614);
+    }
+
+    #[test]
+    fn embedding_review_bytes_and_wallet_binding_remain_stable() {
+        let value = embedding_review_json();
+        let r: RouteReview = serde_json::from_value(value.clone()).unwrap();
+        let raw = serde_json::to_string(&r).unwrap();
+        assert!(!raw.contains("responses_components"));
+        assert_eq!(
+            r.route_bound(&["answer", "fallback", "semantic_embedding"], 30)
+                .unwrap()
+                .review_sha256,
+            "b9b5ef4726b2e41c9ea81cd393d38a1c80011b37da40e00c1e13aaeb9adee1e0"
+        );
+        let mut explicit_empty = value;
+        explicit_empty["responses_components"] = serde_json::json!([]);
+        let explicit_empty: RouteReview = serde_json::from_value(explicit_empty).unwrap();
+        assert_eq!(serde_json::to_string(&explicit_empty).unwrap(), raw);
     }
     #[test]
     fn embedding_schema_cannot_be_used_as_a_chat_contract() {

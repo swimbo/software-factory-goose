@@ -1,0 +1,149 @@
+{
+  "date": "2026-11-02",
+  "scope": "Source-only reviewed Responses charge model and offline converter characterization; not provider attestation or production admission",
+  "converter_characterization": {
+    "bifrost_commit": "e7e985e76d0b0c5dd0c52402eb85d7fc28553c68",
+    "host": "hermes-control",
+    "stage": "/home/bo/sfactory-gateway-wire-20261102",
+    "go": "1.27.2",
+    "race": true,
+    "test": "TestFactoryRetainedClassifierResponsesCharacterization",
+    "result": "PASS",
+    "package_seconds": 1.141,
+    "canonical_source_files_verified": 1925,
+    "canonical_source_unchanged": true,
+    "overlay_test_sha256": "211062c24ca6f741d555569ecae16e345bfb6cac3f6e2a4b0d85ec43e27e3a3e",
+    "synthetic_body": {
+      "model": "openai/gpt-6-luna",
+      "max_output_tokens": 512,
+      "input": [
+        {
+          "type": "message",
+          "role": "system",
+          "content": "classify complexity"
+        },
+        {
+          "type": "message",
+          "role": "user",
+          "content": "synthetic input"
+        }
+      ]
+    },
+    "omitted_fields": [
+      "temperature",
+      "max_tokens",
+      "max_completion_tokens",
+      "store",
+      "background",
+      "tools",
+      "previous_response_id",
+      "service_tier"
+    ],
+    "limitations": [
+      "Public synthetic strings; actual schema and OpenAI converters, no provider call",
+      "Converter output is not complete transport/proxy final-wire attestation",
+      "Omitted store/background fields do not establish upstream storage/background behavior"
+    ],
+    "overlay_test_source": "package openai\nimport (\n \"encoding/json\"\n \"testing\"\n \"github.com/maximhq/bifrost/core/schemas\"\n)\nfunc TestFactoryRetainedClassifierResponsesCharacterization(t *testing.T) {\n system,user := \"classify complexity\", \"synthetic input\"\n limit,temp := 512,0.0\n chat := &schemas.BifrostChatRequest{Provider:schemas.ModelProvider(\"vercel-classifier\"),Model:\"openai/gpt-6-luna\",Input:[]schemas.ChatMessage{\n {Role:schemas.ChatMessageRoleSystem,Content:&schemas.ChatMessageContent{ContentStr:&system}},\n {Role:schemas.ChatMessageRoleUser,Content:&schemas.ChatMessageContent{ContentStr:&user}},\n },Params:&schemas.ChatParameters{Temperature:&temp,MaxCompletionTokens:&limit}}\n response := chat.ToResponsesRequest()\n response.Params.Temperature=nil\n wire:=ToOpenAIResponsesRequest(nil,response)\n body,err:=json.Marshal(wire);if err!=nil {t.Fatal(err)}\n var fields map[string]json.RawMessage\n if err=json.Unmarshal(body,&fields);err!=nil {t.Fatal(err)}\n if string(fields[\"model\"])!=`\"openai/gpt-6-luna\"` || string(fields[\"max_output_tokens\"])!=\"512\" {t.Fatalf(\"model or cap changed: %s\",body)}\n for _,key:=range []string{\"temperature\",\"max_tokens\",\"max_completion_tokens\",\"store\",\"background\",\"tools\",\"previous_response_id\",\"service_tier\"} {if _,ok:=fields[key];ok {t.Fatalf(\"unexpected field %s: %s\",key,body)}}\n t.Logf(\"synthetic converter output: %s\",body)\n}\n"
+  },
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "rust_verification": {
+    "red": {
+      "test": "harness_charge_bounds::tests::responses_input_output_and_fees_join_the_same_permanent_task_cap",
+      "result": "FAILED as expected before implementation",
+      "exit_code": 101,
+      "reason": "unknown field responses_components"
+    },
+    "charge_bound_tests": {
+      "passed": 15,
+      "failed": 0
+    },
+    "control_plane_lib": {
+      "features": [
+        "restate"
+      ],
+      "passed": 293,
+      "failed": 0,
+      "ignored": 1,
+      "seconds": 16.37,
+      "ignored_reason": "requires owned disposable Restate fixture and private Unix relay"
+    },
+    "clippy": {
+      "scope": "control-plane --features restate --lib --tests",
+      "warnings": "deny",
+      "result": "PASS"
+    },
+    "format": {
+      "scope": "harness_charge_bounds.rs",
+      "result": "PASS"
+    },
+    "legacy_chat_binding": "b030c01140f22738d889ecc4fe19a6991ed6084a2aac7a684689aa0c6d324b78",
+    "legacy_embedding_binding": "b9b5ef4726b2e41c9ea81cd393d38a1c80011b37da40e00c1e13aaeb9adee1e0",
+    "final_after_review_followup": {
+      "control_plane_lib_passed": 293,
+      "control_plane_lib_failed": 0,
+      "control_plane_lib_ignored": 1,
+      "control_plane_lib_seconds": 6.01,
+      "strict_clippy_lib_and_tests": "PASS",
+      "scoped_rustfmt": "PASS",
+      "source_sha256": "b33db4ec07f504f27d78cdb176168d83b506e9ca8e505f13408b2764330fd3b8"
+    }
+  },
+  "simplification": {
+    "result": "complete",
+    "lenses": [
+      "reuse",
+      "quality",
+      "efficiency",
+      "test_value",
+      "comments"
+    ],
+    "findings": 0,
+    "edits": 0
+  },
+  "code_review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "run_id": "20261102-232601-4ea4b11a",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261102-232601-4ea4b11a",
+    "reviewers": [
+      "correctness",
+      "project-standards",
+      "testing",
+      "maintainability",
+      "security",
+      "api-contract",
+      "adversarial"
+    ],
+    "findings": [],
+    "testing_gaps": [
+      "The Responses rounding fixture uses input 0.900003 and output 1.800003 microUSD, whose separately rounded sum and rounded combined sum both equal 3. Add a case with both terms below one microUSD and a combined value at most one (for example one token at rate 1 for each), asserting two microUSD before fees/attempts; this distinguishes the documented separate-rounding guarantee from under-reserving aggregate rounding.",
+      "Responses invalid-model, invalid-review-digest, missing-price and exact-integer-range cases call contract.validate() directly. Add at least one invalid-evidence case through RouteReview::route_bound with a complete expected inventory, so omission of contract validation at the reservation entry point cannot silently retain green tests."
+    ],
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: Claude route transport unavailable before egress: Internal error; no other eligible installed target)"
+    },
+    "followup": "Both testing gaps closed by strengthening existing tests; both corresponding mutants fail at the intended assertions."
+  },
+  "mutation_controls": {
+    "results": [
+      {
+        "mutant": "combined_rounding",
+        "test": "responses_input_output_and_fees_join_the_same_permanent_task_cap",
+        "exit_code": 101,
+        "rejected_by_runtime_assertion": true,
+        "output": "   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)\nwarning: unused variable: `cost`\n   --> crates/control-plane/src/harness_charge_bounds.rs:157:13\n    |\n157 |         let cost = |tokens: u64, rate: u64| -> anyhow::Result<u128> {\n    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_cost`\n    |\n    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default\n\nwarning: `control-plane` (lib test) generated 1 warning (run `cargo fix --lib -p control-plane --tests` to apply 1 suggestion)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 33.62s\n     Running unittests src/lib.rs (target/debug/deps/control_plane-3f412d37fd9843a3)\n\nrunning 1 test\ntest harness_charge_bounds::tests::responses_input_output_and_fees_join_the_same_permanent_task_cap ... FAILED\n\nfailures:\n\n---- harness_charge_bounds::tests::responses_input_output_and_fees_join_the_same_permanent_task_cap stdout ----\n\nthread 'harness_charge_bounds::tests::responses_input_output_and_fees_join_the_same_permanent_task_cap' (58210803) panicked at crates/control-plane/src/harness_charge_bounds.rs:560:9:\nassertion `left == right` failed\n  left: 1\n right: 2\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    harness_charge_bounds::tests::responses_input_output_and_fees_join_the_same_permanent_task_cap\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 293 filtered out; finished in 0.00s\n\nerror: test failed, to rerun pass `-p control-plane --lib`\n"
+      },
+      {
+        "mutant": "skipped_response_review_validation",
+        "test": "responses_rejects_unbounded_prices_tokens_and_invalid_review",
+        "exit_code": 101,
+        "rejected_by_runtime_assertion": true,
+        "output": "   Compiling control-plane v0.1.0 (/Users/bo/code/software-factory-goose/clean-room/crates/control-plane)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 19.08s\n     Running unittests src/lib.rs (target/debug/deps/control_plane-3f412d37fd9843a3)\n\nrunning 1 test\ntest harness_charge_bounds::tests::responses_rejects_unbounded_prices_tokens_and_invalid_review ... FAILED\n\nfailures:\n\n---- harness_charge_bounds::tests::responses_rejects_unbounded_prices_tokens_and_invalid_review stdout ----\n\nthread 'harness_charge_bounds::tests::responses_rejects_unbounded_prices_tokens_and_invalid_review' (58237246) panicked at crates/control-plane/src/harness_charge_bounds.rs:662:18:\ncalled `Result::unwrap_err()` on an `Ok` value: RouteBound { route_sha256: \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", review_sha256: \"eb83c60d8d4640500935894791efd416ee7bbf829d1aa4dfb1f055924ce48e21\", usage_tariff_sha256: Some(\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"), valid_from_ms: 20, valid_until_ms: 90, max_request_bytes: 4096, max_output_tokens: 100, components: [ChargeBound { id: \"answer\", max_charge_microusd: 842 }, ChargeBound { id: \"fallback\", max_charge_microusd: 421 }, ChargeBound { id: \"semantic_embedding\", max_charge_microusd: 6 }, ChargeBound { id: \"classifier_responses\", max_charge_microusd: 12 }] }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    harness_charge_bounds::tests::responses_rejects_unbounded_prices_tokens_and_invalid_review\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 293 filtered out; finished in 0.01s\n\nerror: test failed, to rerun pass `-p control-plane --lib`\n"
+      }
+    ],
+    "restored_source_sha256": "b33db4ec07f504f27d78cdb176168d83b506e9ca8e505f13408b2764330fd3b8"
+  }
+}
