@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "purpose": "scoped provider/account/catalog/client configuration join; not full production bootstrap",
+  "source_base": "6c0738c6392b5c33645fe4f1439493a02ef72576",
+  "source_files_sha256": {
+    "factory_gateway_account.go": "be0f765ca9489857da0d6e63b086f04a064ff218ec5eda44a229299d58708523",
+    "factory_gateway_account_test.go": "7057dcce9d91eb38da14dc0c7c843ea492f8ea0143bf3346e7fa560a2551c0c3",
+    "patch_factory_gateway_exchange.py": "a1df4f8b270a9f2cd5d4a08b7fce989b85991906daffe5b0d8d282681870e997"
+  },
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-scoped-config-installed-qeh5fywe/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "4c44686aef623df2a9cc7bfec4bd3c596ac3e4f5a93551adf5beb37d5bd80707",
+    "source_files": 1927,
+    "changed_composed_files": [
+      "transports/bifrost-http/lib/factory_gateway_account.go",
+      "transports/bifrost-http/lib/factory_gateway_account_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true
+  },
+  "nuc_stage": "/home/bo/sfactory-scoped-config-installed-JjLGxa",
+  "red_before_implementation": {
+    "path": "/home/bo/sfactory-scoped-config-5QjC0x/red.log",
+    "exit_code": 1,
+    "reason": "undefined LoadFactoryGatewayConfig before production implementation"
+  },
+  "focused_race": {
+    "path": "/home/bo/sfactory-scoped-config-5QjC0x/green.log",
+    "seconds": 9.043,
+    "exit_code": 0
+  },
+  "full_lib_race": {
+    "working_directory": "/home/bo/sfactory-scoped-config-installed-JjLGxa/source/transports",
+    "environment_cleared": true,
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gomod",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "command": "go test -race -count=1 -timeout=240s ./bifrost-http/lib",
+    "exit_code": 0,
+    "seconds": 113.618
+  },
+  "catalog_binding_mutation": {
+    "change": "omit only catalog.ReplaceKeyConfig(snapshot) via Go overlay",
+    "overlay": "/home/bo/sfactory-scoped-config-installed-JjLGxa/account-catalog-binding-mutant-overlay.json",
+    "canonical_source_modified": false,
+    "exit_code": 1,
+    "seconds": 0.746,
+    "runtime_assertion": "catalog/account reviewed key binding differs"
+  },
+  "core_join": {
+    "metadata_and_credentials": "public disposable SQLite fixtures",
+    "mandatory_owner_before_construction_in_protected_child": true,
+    "sdk_aliases": [
+      "ollama-cloud",
+      "vercel-classifier"
+    ],
+    "unrelated_sdk_absent": true,
+    "startup_http": 0,
+    "baseline_final_http": 2,
+    "protected_final_http": 0,
+    "through_shutdown": true,
+    "catalog_configuration_and_core_joined": true,
+    "governance_routing_mcp_initialized": false
+  },
+  "post_test_source_manifest_matches": true,
+  "installer_tests": 13,
+  "corrupt_artifact_and_replay_refused_before_changes": true,
+  "ruff": "passed",
+  "gofmt": "passed",
+  "shared_configuration_modified": false,
+  "retained_provider_paid_calls": 0,
+  "benchmark_attempts": 0,
+  "production_admission": false,
+  "next_governance_integration": {
+    "source": "governance/store.go",
+    "sha256": "9d6c58943ec20a8a89d3bf62faa45f04a603a745313a1163d4404544e1375b5e",
+    "ordinary_non_nil_store_path_bulk_loads_virtual_keys": true,
+    "filtered_governance_config_alone_prevents_bulk_load": false,
+    "scoped_initialization_not_implemented": true
+  },
+  "source_checkpoint": "de691910e8137cb5ec30d148213f8d0be1d3d68a",
+  "source_remote_sha_verified": true,
+  "review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-014136-14515152",
+    "run_id": "20261103-014136-14515152",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "adversarial-reviewer"
+    ],
+    "findings": 0,
+    "testing_gaps": 0,
+    "peer_outcome": "in-process-fallback",
+    "peer_content_egress": false
+  },
+  "simplification": {
+    "edits": 0,
+    "lenses": [
+      "reuse",
+      "quality",
+      "efficiency",
+      "comments"
+    ]
+  }
+}
