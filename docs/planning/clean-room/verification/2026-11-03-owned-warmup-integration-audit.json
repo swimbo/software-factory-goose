@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "purpose": "owned semantic warmup integration prerequisites; not live qualification",
+  "source_checkpoint": "b4a92955905105887c32a38f264d57afb7b999f8",
+  "source_hashes_match_installed_manifest": true,
+  "source_files_sha256": {
+    "plugins/routing/main.go": "a2fdd703ad384659443e1bcb4ae647fb047e3085d0b88e3730f7290ae20dad86",
+    "plugins/routing/embedding.go": "0a72ad9ea11d7b94b26501a7c8cf263ad82abfe5da1aed1037d9532452153ad2",
+    "plugins/routing/authorizedembedding.go": "440d7f84890fcdffb364b1d251ba9dc757b80e6ae9f1743e0c4db2ab5d469de5",
+    "plugins/routing/complexity/authorizedwarmup.go": "0810309fd5ddd72203eaeee5b68d889a2f74537799ad13eb51771aa323edb426",
+    "plugins/routing/complexity/authorizedwarmup_test.go": "564fc1110f90498f5a4f5802ba700673724166fd3f50f8cfb2f3ebcc6a2c6b90",
+    "plugins/routing/complexity/semanticclassifier_test.go": "7d8df28b689303b2a78710e16a2ed64cbeebf3994c0448c1bea4a439a990a54c",
+    "transports/bifrost-http/server/governed_embedding.go": "9118763c1956b58fbf93bd27f73604e4d863b2e1dda5d8ec2aa2f575e153354a",
+    "transports/bifrost-http/server/normalizer_embedding_policy.go": "14b75ed6822f27a8029b81a0384eca4f65b9bb253c661885c19f899366a2603a"
+  },
+  "metadata_observation": {
+    "observed_utc": "2026-11-03T06:08:55.049662+00:00",
+    "config_sha256": "f55ab299411861b1e7bdc35e7c92326d605d4bc838dffc04ead06bdecb832f14",
+    "stored_phrase_counts": {
+      "simple": 50,
+      "medium": 50,
+      "complex": 50
+    },
+    "phrase_values_exported": false
+  },
+  "qualification": {
+    "host": "hermes-control",
+    "working_directory": "/home/bo/sfactory-account-core-init-ufIp61/source/transports",
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gomod",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "environment_cleared": true,
+    "command": "go test -race -count=1 -timeout=180s github.com/maximhq/bifrost/plugins/routing/...",
+    "exit_code": 0,
+    "packages_seconds": {
+      "routing": 1.268,
+      "routing/complexity": 2.705,
+      "routing/rules": 1.176
+    },
+    "initial_command_failure": "Relative ../plugins/routing/... pattern reported outside-module setup failure; corrected to module import path, no source changes."
+  },
+  "scope_limits": [
+    "synthetic embedding adapters and grants",
+    "no production owner/capture/wallet warmup join",
+    "stored phrase count is not normalized corpus attestation",
+    "no provider input bound or batch support attestation"
+  ],
+  "production_admission": false,
+  "paid_calls": 0,
+  "benchmark_attempts": 0
+}
