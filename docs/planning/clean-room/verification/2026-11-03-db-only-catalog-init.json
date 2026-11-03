@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "purpose": "production DB-only catalog initialization primitive; not full bootstrap qualification",
+  "source_base": "b4a92955905105887c32a38f264d57afb7b999f8",
+  "source_files_sha256": {
+    "factory_gateway_catalog.go": "e7ef8cd2617fd2f59fed7f53df5bc2cd56ddb115267d48b7069f34b172bcca81",
+    "factory_gateway_catalog_test.go": "f57cdd511515c13ac648e120a16f5219728161ab37326633179ca787626e0b60",
+    "patch_factory_gateway_exchange.py": "6163f7dd0a41e05ad93b074d9053c64202c0b7afd1c25ed414bb0f27f14da512",
+    "test_patch_factory_gateway_exchange.py": "8b408e787935e9448d9ea23a12acad2eae148370eb95b0c71d769dadd88b3f28"
+  },
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-offline-catalog-installed-d89iqg49/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "dac6d520245487c1da787c47d61885e047d312b1156b16eaa707e8038265be56",
+    "source_files": 1927,
+    "changed_composed_files": [
+      "framework/modelcatalog/factory_gateway_catalog.go",
+      "framework/modelcatalog/factory_gateway_catalog_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true
+  },
+  "nuc_stage": "/home/bo/sfactory-offline-catalog-installed-7ejY7c",
+  "red_before_implementation": {
+    "path": "/home/bo/sfactory-offline-catalog-6zls7L/red.log",
+    "observed": "undefined InitFactoryGatewayFromExistingDB before source existed",
+    "exit_code": 1
+  },
+  "focused_race": {
+    "path": "/home/bo/sfactory-offline-catalog-6zls7L/final-focused.log",
+    "seconds": 9.057,
+    "exit_code": 0
+  },
+  "full_race": {
+    "working_directory": "/home/bo/sfactory-offline-catalog-installed-7ejY7c/source/transports",
+    "environment_cleared": true,
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gomod",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "command": "go test -race -count=1 -timeout=180s github.com/maximhq/bifrost/framework/modelcatalog/...",
+    "exit_code": 0,
+    "package_seconds": {
+      "modelcatalog": 9.968,
+      "datasheet": 1.501,
+      "keyconfig": 1.043,
+      "live": 1.039
+    }
+  },
+  "final_context_guard_mutation": {
+    "change": "remove only final ctx.Err refusal before publishing resolver",
+    "canonical_source_modified": false,
+    "overlay": "/home/bo/sfactory-offline-catalog-installed-7ejY7c/catalog-final-context-mutant-overlay.json",
+    "test": "TestFactoryGatewayCatalogRefusesIncompleteInitializationWithoutReplacingResolver/cancel-after-load",
+    "exit_code": 1,
+    "seconds": 0.879,
+    "runtime_assertion": "incomplete metadata initialization accepted"
+  },
+  "post_test_source_manifest_matches": true,
+  "installer_tests_passed": 13,
+  "ruff": "passed",
+  "gofmt": "passed",
+  "initial_fixture_diagnostic": "Wrong capability JSON tag supports_fast_mode; corrected fixture to supports_speed without product change; initial log preserved.",
+  "production_bootstrap_complete": false,
+  "retained_route_metadata_attested": false,
+  "provider_charge_bounds_established": false,
+  "paid_calls": 0,
+  "production_admission": false,
+  "benchmark_attempts": 0,
+  "source_checkpoint": "6c0738c6392b5c33645fe4f1439493a02ef72576",
+  "source_remote_sha_verified": true,
+  "review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-012049-96159824",
+    "run_id": "20261103-012049-96159824",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "adversarial-reviewer"
+    ],
+    "findings": 0,
+    "testing_gaps": 0,
+    "peer_outcome": "in-process-fallback",
+    "peer_content_egress": false
+  },
+  "simplification": {
+    "edits": 0,
+    "lenses": [
+      "reuse",
+      "quality",
+      "efficiency",
+      "comments"
+    ]
+  }
+}
