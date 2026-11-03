@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "purpose": "retained semantic startup dependency discovery; not production admission",
+  "host": "hermes-control",
+  "database_mode": "SQLite mode=ro, PRAGMA query_only=ON, transaction rolled back",
+  "observations": [
+    {
+      "observed_utc": "2026-11-03T06:05:57.250429+00:00",
+      "dimension_row_count": 1,
+      "dimension_entries": 1,
+      "expected_embedding_dimension": 1536,
+      "dimension_value_sha256": "55cf190bc49c4a0cd6f2d03a5b1f1a7f8321d43f4a817b6facbec4d8b6559e7a",
+      "generation_row_count": 1,
+      "generation_entries": 1,
+      "generation_value_sha256": "f4aa03f06781472fd696f496ea2e5b1870199abdf1c653f793807270088ff6b0",
+      "configured_vector_store_rows": 0
+    },
+    {
+      "observed_utc": "2026-11-03T06:06:09.126813+00:00",
+      "semantic_config_sha256": "f55ab299411861b1e7bdc35e7c92326d605d4bc838dffc04ead06bdecb832f14",
+      "vector_store": "embedded",
+      "provider": "vercel-classifier",
+      "embedding_model": "openai/text-embedding-3-small"
+    }
+  ],
+  "source_files_sha256": {
+    "plugins/routing/complexity/semanticclassifier.go": "d5d2f89940d8c43ad0e305a2dae50b491a7abd7a86a6c3b9a5861e513f80f92f",
+    "framework/vectorstore/chromem.go": "1afceec0ba549268eed7232d5dca4f8d29aaf040a58bee3d07282185a21a96d0",
+    "plugins/routing/complexity/generations.go": "ce1a9f64ee322f6a3fd37fcda42410d9c46e0afcb707577ee5d2e281606e6a40",
+    "plugins/routing/complexity/embeddingdimensions.go": "0c1856385d36e04ed3845cdcb8ebc1b3780ff6863ed542461ccc967f1f21eff2"
+  },
+  "source_scope": "reviewed candidate source; not attestation of currently running shared binary",
+  "vectors_or_prompts_read": false,
+  "credentials_read": false,
+  "namespace_api_invoked": false,
+  "provider_calls": 0,
+  "configuration_writes": 0,
+  "production_admission": false,
+  "benchmark_attempts": 0,
+  "source_manifest_match": "all four files match the b4a9295 account/core installed-source manifest"
+}
