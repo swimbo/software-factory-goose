@@ -1,0 +1,166 @@
+{
+  "status": "published_remote_verified",
+  "source_base": "de691910e8137cb5ec30d148213f8d0be1d3d68a",
+  "source_sha256": {
+    "factory_gateway_governance.go": "4e2329c55437c5f8536467b6411f415a733d4f73234c5fd90ade3cdb2bafd819",
+    "factory_gateway_governance_test.go": "ce6cbda8c7da29ccad2df040e058df0133d4dd2e54e9dd963bc5f55556a94d00",
+    "factory_gateway_store.go": "5c2f728d9cd1d70566d669f50c1980db3e4ea0db2e61b04d3b92fc2067db7955",
+    "factory_gateway_store_test.go": "74f28da665c8dbc2fbe164c072f24aadf8be7640df109cc40066fdfcb3f9d386",
+    "patch_factory_gateway_exchange.py": "0cc56494900bff00cf92ff78dc06ce7b8e76957a9f9ea374a839a2710c660fbf",
+    "test_patch_factory_gateway_exchange.py": "c89551125df6e0cb349e4fd98c81db2cd0b42b33b1fbabac11ceaaedb37208cd"
+  },
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-scoped-governance-installed-1mpzvdrj/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "1eae0adb9f0da9ba820426dea87abcc02efeb961da1c1b9795d1b41b30ea4246",
+    "source_files": 1931,
+    "changed_composed_files": [
+      "framework/configstore/factory_gateway_governance.go",
+      "framework/configstore/factory_gateway_governance_test.go",
+      "governance/factory_gateway_store.go",
+      "governance/factory_gateway_store_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true
+  },
+  "installer_tests": 16,
+  "nuc_stage": "/home/bo/sfactory-scoped-governance-final-VawVVk",
+  "candidate_enabled": false,
+  "benchmark_attempts": 0,
+  "paid_retained_provider_calls": 0,
+  "full_race": {
+    "state": "complete",
+    "pid": 2288941,
+    "start_ticks": "255070868",
+    "driver_pid": 2288940,
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-count=1",
+      "-timeout=600s",
+      "github.com/maximhq/bifrost/framework/configstore",
+      "github.com/maximhq/bifrost/plugins/governance"
+    ],
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOENV": "off",
+      "GOAUTH": "off",
+      "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+      "GOTMPDIR": "/home/bo/sfactory-dependency-restore-1rofjr1v/tmp",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "exit_code": 0,
+    "wall_seconds": 141.0813057553023
+  },
+  "global_constraint_mutation": {
+    "exit_code": 1,
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-count=1",
+      "-timeout=90s",
+      "-overlay=/home/bo/sfactory-scoped-governance-final-VawVVk/omit-global-constraints-overlay.json",
+      "github.com/maximhq/bifrost/plugins/governance",
+      "-run",
+      "^TestFactoryGatewayStoreEnforcesScopedSnapshot$"
+    ],
+    "output": "--- FAIL: TestFactoryGatewayStoreEnforcesScopedSnapshot (1.18s)\n    factory_gateway_store_test.go:106: \n        \tError Trace:\t/home/bo/sfactory-scoped-governance-final-VawVVk/source/governance/factory_gateway_store_test.go:106\n        \tError:      \t\"[{provider-budget provider ollama-cloud ollama-cloud ollama-cloud } {vk-budget vk selected selected  } {model-budget vk_model_config vk-model answer on ollama-cloud ollama-cloud answer} {pc-budget vk_provider_config 1 selected ollama-cloud }]\" should have 5 item(s), but has 4\n        \tTest:       \tTestFactoryGatewayStoreEnforcesScopedSnapshot\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/plugins/governance\t1.273s\nFAIL\n"
+  },
+  "source_commit": "873f5658481d7c771ab8b3107a74a8d7cf5d0be6",
+  "remote_sha_verified": true,
+  "review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "scope": {
+      "base": "de691910e8137cb5ec30d148213f8d0be1d3d68a",
+      "branch": "codex/remaining-source-audit-20261031",
+      "head_sha": "de691910e8137cb5ec30d148213f8d0be1d3d68a",
+      "pr_url": null,
+      "files_changed": 6
+    },
+    "intent": "Hydrate one reviewed unassigned principal with retained-route governance limits using metadata-only projections before one selected credential. Initialize actual LocalGovernanceStore without bulk virtual-key/MCP hydration or lifecycle activation, preserving absent permissions.",
+    "intent_confidence": "explicit",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "performance",
+      "reliability",
+      "adversarial"
+    ],
+    "findings": [],
+    "actionable_findings": [],
+    "triage_groups": [],
+    "pre_existing_findings": [],
+    "requirements_completeness": null,
+    "learnings": [],
+    "agent_native_gaps": [],
+    "deployment_notes": [],
+    "residual_risks": [],
+    "testing_gaps": [],
+    "coverage": {
+      "depth": "full",
+      "notes": [
+        "Full depth: helper252 executable non-test changed lines plus credential/authorization/money boundary.",
+        "Project standards: not run (no applicable standards files).",
+        "Two untracked fasthttp artifact files excluded from this review.",
+        "No REVIEW.md at review base; no plan discovered in missing docs/plans directory.",
+        "Parent authoritative installed-source complete race suites configstore59.415s/governance100.618s passed; mutation omitting global constraints failed with expected5actual4 budgets;16installer tests/Ruff/gofmt/diffcheck passed.",
+        "Source-only snapshot and actual store initialization do not establish complete production bootstrap, live provider bounds, owned warmup, custody or launch qualification.",
+        "adversarial lens: in-process fallback (cross-model peer not run: Claude acpx transport unavailable pre-egress, route Internal error; no other attested-different installed target)",
+        "All seven selected local reviewers returned valid full artifacts with no findings, residual risks or testing gaps.",
+        "Zero primary findings, zero semantic duplicates, zero malformed findings/returns, zero confidence suppressions, zero first_evidence backfills and zero mode-aware demotions.",
+        "Settlement suppression was not evaluated because no plan was discovered.",
+        "No validator selected: primary findings set is empty."
+      ],
+      "validator": {
+        "outcome": "empty-batch",
+        "confirmed": 0,
+        "rejected": 0,
+        "unresolved": 0,
+        "malformed": 0,
+        "failed": 0,
+        "shortcut_skipped": 0,
+        "reason": "No findings selected; no validator launch made."
+      },
+      "first_evidence_backfilled": 0,
+      "quote_gate_demotions": 0,
+      "suppressed_by_confidence": {},
+      "mode_aware_demotion_count": 0,
+      "failed_reviewers": [],
+      "review_policy": {
+        "sources": [],
+        "removed": 0,
+        "regraded": 0,
+        "not_applied": []
+      },
+      "compound_packs": {
+        "roots": [],
+        "errors": [],
+        "warnings": []
+      },
+      "settlement_suppression": "not evaluated; no discovered plan"
+    },
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: Claude acpx transport unavailable pre-egress, route Internal error; no other attested-different installed target)"
+    },
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-085603-1e121ee1",
+    "run_id": "20261103-085603-1e121ee1"
+  },
+  "simplification": {
+    "applied": 0,
+    "proof_tests_unchanged": true
+  }
+}
