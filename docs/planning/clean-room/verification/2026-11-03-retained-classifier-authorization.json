@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "purpose": "retained-principal classifier authorization prerequisite; no permission change",
+  "candidate_source_checkpoint": "de691910e8137cb5ec30d148213f8d0be1d3d68a",
+  "candidate_manifest_files": 1927,
+  "candidate_manifest_unchanged_after_runs": true,
+  "candidate_source_files_sha256": {
+    "governance/normalization_internal.go": "549a3f7f040c65a1637f1ac747a185603bc9ec1c2863e8cc8e504492b61b6374",
+    "governance/resolver.go": "a7fe56e5b7a86575340d7994af6042320d339b6e725d7277596f00c62073122d",
+    "governance/store.go": "9d6c58943ec20a8a89d3bf62faa45f04a603a745313a1163d4404544e1375b5e",
+    "governance/normalization_embedding_test.go": "03daae4d68bb34b1ca3ab212a404b3b4670de65998691950270858270f4e42d4"
+  },
+  "nuc_stage": "/home/bo/sfactory-governance-principal-qndtv8kd",
+  "database_mode": "SQLite mode=ro, PRAGMA query_only=ON, explicit read transaction rolled back",
+  "observations": [
+    {
+      "observed_utc": "2026-11-03T06:57:34.890551+00:00",
+      "key_name": "software-factory-goose-int-loop-c085b7e",
+      "matching_keys": 1,
+      "active": true,
+      "allow_all_providers": false,
+      "team_assigned": false,
+      "customer_assigned": false,
+      "virtual_key_rate_limit_attached": false,
+      "virtual_key_budget_count": 0,
+      "provider_associations": [
+        {
+          "provider": "ollama-cloud",
+          "allow_all_keys": false,
+          "key_reference_count": 1,
+          "provider_config_budget_count": 0
+        }
+      ]
+    },
+    {
+      "observed_utc": "2026-11-03T07:06:43.076078+00:00",
+      "unexpired": true,
+      "provider_model_policy": [
+        {
+          "provider": "ollama-cloud",
+          "allowed_models": [
+            "auto",
+            "deepseek-v4.1-flash:1017",
+            "deepseek-v4-pro:0813"
+          ],
+          "blacklisted_models": []
+        }
+      ]
+    }
+  ],
+  "native_characterization": {
+    "existing_explicit_grant_baseline": {
+      "exit_code": 0,
+      "seconds": 1.744,
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "github.com/maximhq/bifrost/plugins/governance",
+        "-run",
+        "^TestNormalizationEmbeddingKnownUsageAndFrozenTarget$"
+      ],
+      "output_sha256": "51bcfef3ea5e8bb7e9227b41a69a07ab8892406f8e3602132cbcd6a676da56ac"
+    },
+    "ollama_only_existing_quote_counterexample": {
+      "exit_code": 1,
+      "seconds": 0.738,
+      "command": [
+        "go",
+        "test",
+        "-overlay=/home/bo/sfactory-governance-principal-qndtv8kd/retained-provider-scope-overlay.json",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "github.com/maximhq/bifrost/plugins/governance",
+        "-run",
+        "^TestNormalizationEmbeddingKnownUsageAndFrozenTarget$"
+      ],
+      "output_sha256": "2d961fff75d6c2d0302b20bbeb83b595a4953c7621b38a61acfdf3be9484cc7b",
+      "status_code": 403,
+      "error_type": "policy_provider_blocked",
+      "overlay_sha256": "2e6389a3d92bd8d412c86e79d3329f2fd2fdbaf07980482a3d65c27e668b57f0",
+      "preserved_initial_fixture_source": "/home/bo/sfactory-governance-principal-qndtv8kd/ollama-only-initial-test.go"
+    },
+    "fresh_scope_answer_and_classifier_denial": {
+      "exit_code": 0,
+      "seconds": 2.421,
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-overlay=/home/bo/sfactory-governance-principal-qndtv8kd/retained-provider-scope-v3-overlay.json",
+        "github.com/maximhq/bifrost/plugins/governance",
+        "-run",
+        "^TestFactoryRetainedScope",
+        "-v"
+      ],
+      "output_sha256": "e7589f9b208bb400b5133d7b89dc41527e44d0a3647df380b21987a49a786c51",
+      "overlay_sha256": "888bbe3798de7307774f80f9140eba95680166ef64500ebb6045efd4861f52ca",
+      "answer_policy_allows": 2,
+      "classifier_endpoint_policy_denials": 3,
+      "governed_embedding_executor_calls": 0
+    },
+    "same_scope_plus_explicit_classifier_fixture_control": {
+      "exit_code": 0,
+      "seconds": 1.746,
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-overlay=/home/bo/sfactory-governance-principal-qndtv8kd/explicit-classifier-control-overlay.json",
+        "github.com/maximhq/bifrost/plugins/governance",
+        "-run",
+        "^TestNormalizationEmbeddingKnownUsageAndFrozenTarget$"
+      ],
+      "output_sha256": "af13bb09e3416f3ec5cbc3bc5e6b12c250c1bb67717eef9d184798a667983ee0",
+      "overlay_sha256": "539f7a2400bf9fa6e7f73e6efcbf6c867f6a872093f1e671be8154d192d5cfae",
+      "successful_embedding_executor_calls": 1
+    }
+  },
+  "initial_fixture_diagnostic": {
+    "path": "/home/bo/sfactory-governance-principal-qndtv8kd/answer-and-denial.log",
+    "exit_code": 1,
+    "reason": "Direct parent-context evaluation reused cached access; fresh child grant mirrors runGovernedInternalCall. Fixed only the disposable fixture; earlier logs/files retained."
+  },
+  "scope_limits": [
+    "Public synthetic credentials, prices, budgets and callbacks; not an exact production policy clone.",
+    "Only read-only scope metadata was observed on shared production state.",
+    "No claim that ordinary unprotected auto routing is broken.",
+    "No supported provider charge bound or valid production owner/capture path established.",
+    "Zero selected VK/provider budgets does not establish absence of global/model budgets or protected wallet caps."
+  ],
+  "credentials_selected": false,
+  "shared_permission_changes": 0,
+  "production_source_changes": 0,
+  "retained_provider_paid_calls": 0,
+  "benchmark_attempts": 0,
+  "production_admission": false,
+  "canonical_source_stage": "/home/bo/sfactory-scoped-config-installed-JjLGxa/source",
+  "working_directory": "/home/bo/sfactory-scoped-config-installed-JjLGxa/source/transports",
+  "environment_cleared": true,
+  "environment": {
+    "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+    "GOCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gocache",
+    "GOMODCACHE": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gomod",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOTOOLCHAIN": "local",
+    "GOMAXPROCS": "2"
+  }
+}
