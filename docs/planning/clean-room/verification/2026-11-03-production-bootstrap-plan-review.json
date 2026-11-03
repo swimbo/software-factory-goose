@@ -1,0 +1,100 @@
+{
+  "status": "complete",
+  "document_path": "/Users/bo/code/software-factory-goose/docs/plans/2026-11-03-production-gateway-bootstrap-plan.md",
+  "document_sha256": "320a3165c614085be5bc80d0dcec1353dfc9799e5d6022a8f86d1a76e2945904",
+  "document_sha256_before": "44db824af917a169398f7f006f77b31426ee8b22e773c8057964ee4536c32efc",
+  "reviewers": {
+    "coherence": {
+      "reviewer": "coherence",
+      "findings": [],
+      "residual_risks": [],
+      "deferred_questions": []
+    },
+    "feasibility": {
+      "reviewer": "feasibility",
+      "findings": [
+        {
+          "title": "Cold teardown can overwrite canonical usage",
+          "severity": "P2",
+          "section": "U1 - Construct the actual retained-route cold runtime",
+          "why_it_matters": "The proposed runtime attaches the real canonical RDB to the ordinary governance plugin and owns its close path. That plugin's Cleanup always calls UsageTracker.Cleanup, which dumps every loaded budget and rate limit even when no request or reset worker ran. The SQLite dump writes snapshot values directly. A cold runtime that loads usage, then closes after another canonical writer advances that same window, can overwrite the newer usage despite provider HTTP remaining zero. The proposed HTTP0-through-close regression does not detect that outcome, and following the historical close ordering without a cold lifecycle correction would undermine the requirement to preserve the caller's canonical store.",
+          "finding_type": "omission",
+          "autofix_class": "gated_auto",
+          "suggested_fix": "Require U1's cold teardown to leave canonical usage and policy untouched, and add a regression that advances an applicable budget/rate counter through another canonical writer after construction before closing the cold runtime. Explicitly permit the narrow governance lifecycle correction needed to prevent an unactivated cold instance from flushing its snapshot, while retaining final flushing after actual accounted usage.",
+          "confidence": 75,
+          "evidence": [
+            "R2. Cold construction uses the published DB-only catalog, scoped account/configuration and scoped governance store, with the actual canonical RDB retained for durable state. It produces no provider HTTP or shared policy mutation.",
+            "Actual cold construction initializes both retained SDKs, governor/router and approved rules with provider HTTP0 through close; unrelated provider/key/MCP hydration and content logging remain absent.",
+            "Cancelling construction and failure after each constructed component close/join owned resources and preserve the caller's canonical store; no reset/pricing/ledger activation is inferred from a successful cold object.",
+            "Source: composed governance/main.go:1529 Cleanup invokes tracker.Cleanup; tracker.go:444-449 always invokes DumpBudgets and DumpRateLimits; store.go:2858-2870 writes rate usage directly and store.go:2916-2935 writes budget current_usage under the same reset boundary."
+          ]
+        }
+      ],
+      "residual_risks": [],
+      "deferred_questions": []
+    },
+    "scope-guardian": {
+      "reviewer": "scope-guardian",
+      "findings": [],
+      "residual_risks": [],
+      "deferred_questions": []
+    },
+    "security-lens": {
+      "reviewer": "security-lens",
+      "findings": [],
+      "residual_risks": [],
+      "deferred_questions": []
+    },
+    "adversarial": {
+      "reviewer": "adversarial",
+      "findings": [],
+      "residual_risks": [],
+      "deferred_questions": []
+    }
+  },
+  "fixes_applied": 1,
+  "proposed_fixes_count": 0,
+  "decisions_count": 0,
+  "fyi_count": 0,
+  "remaining_findings": [],
+  "applied": [
+    {
+      "finding": {
+        "title": "Cold teardown can overwrite canonical usage",
+        "severity": "P2",
+        "section": "U1 - Construct the actual retained-route cold runtime",
+        "why_it_matters": "The proposed runtime attaches the real canonical RDB to the ordinary governance plugin and owns its close path. That plugin's Cleanup always calls UsageTracker.Cleanup, which dumps every loaded budget and rate limit even when no request or reset worker ran. The SQLite dump writes snapshot values directly. A cold runtime that loads usage, then closes after another canonical writer advances that same window, can overwrite the newer usage despite provider HTTP remaining zero. The proposed HTTP0-through-close regression does not detect that outcome, and following the historical close ordering without a cold lifecycle correction would undermine the requirement to preserve the caller's canonical store.",
+        "finding_type": "omission",
+        "autofix_class": "gated_auto",
+        "suggested_fix": "Require U1's cold teardown to leave canonical usage and policy untouched, and add a regression that advances an applicable budget/rate counter through another canonical writer after construction before closing the cold runtime. Explicitly permit the narrow governance lifecycle correction needed to prevent an unactivated cold instance from flushing its snapshot, while retaining final flushing after actual accounted usage.",
+        "confidence": 75,
+        "evidence": [
+          "R2. Cold construction uses the published DB-only catalog, scoped account/configuration and scoped governance store, with the actual canonical RDB retained for durable state. It produces no provider HTTP or shared policy mutation.",
+          "Actual cold construction initializes both retained SDKs, governor/router and approved rules with provider HTTP0 through close; unrelated provider/key/MCP hydration and content logging remain absent.",
+          "Cancelling construction and failure after each constructed component close/join owned resources and preserve the caller's canonical store; no reset/pricing/ledger activation is inferred from a successful cold object.",
+          "Source: composed governance/main.go:1529 Cleanup invokes tracker.Cleanup; tracker.go:444-449 always invokes DumpBudgets and DumpRateLimits; store.go:2858-2870 writes rate usage directly and store.go:2916-2935 writes budget current_usage under the same reset boundary."
+        ]
+      },
+      "disposition": "applied",
+      "authority": "Caller authorized drafting and technical corrections to implementation/verification satisfying existing R2 and U1 canonical-state preservation; product contract/settled decisions unchanged",
+      "independent_source_check": "governance tracker.Cleanup unconditionally invokes store.DumpBudgets and DumpRateLimits; SQLite per-row dump writes loaded usage values",
+      "practical_consequence": "An unactivated cold runtime can overwrite newer canonical budget/rate usage on shutdown.",
+      "change": "Require no cold teardown writes, add concurrent-canonical-writer regression, preserve active final flush; allow only narrow factory-governance lifecycle seam."
+    }
+  ],
+  "coverage": {
+    "local_reviewers_complete": 5,
+    "failed_reviewers": [],
+    "packs": [],
+    "peer_outcome": "in-process-fallback",
+    "adversarial": "transport unavailable pre-egress route Internal error",
+    "security-lens": "transport unavailable pre-egress route Internal error",
+    "whole-doc": "not run; transport unavailable pre-egress route Internal error"
+  },
+  "confidence": {
+    "outcome": "passed",
+    "thin_local_grounding_override": false,
+    "external_research_shape_override": false,
+    "reason": "Published exact scoped primitives and inspected production call paths plus three focused research/flow dossiers support units. Provider evidence remains explicit live hold, not assumed source readiness."
+  }
+}

@@ -180,6 +180,10 @@
     {
       "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
       "finding": "listed endpoints provide models/chat/embeddings; no same-route no-inference token counter established"
+    },
+    {
+      "url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/responses",
+      "finding": "Responses API features/parameters also do not document a no-inference input-token counter; this is not proof of absent private capabilities"
     }
   ],
   "conservative_full_context_arithmetic": {
@@ -205,5 +209,54 @@
   "route_and_permissions_changed": false,
   "tls_verification": true,
   "initial_python_tls_failure_preserved_at": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-provider-recheck-qlnofjxw/result.json",
-  "next_action": "continue source/runtime qualification; retain paid-dispatch denial until supported all-path evidence exists"
+  "next_action": "continue source/runtime qualification; retain paid-dispatch denial until supported all-path evidence exists",
+  "verbose_cloud_metadata": {
+    "results": [
+      {
+        "model": "deepseek-v4-pro:0813",
+        "verbose": true,
+        "exit_code": 0,
+        "bytes": 476,
+        "sha256": "9903a36d08d149fd63dbf08d794e7f8dc530bcc9930f250c55ff433c0ee7750f",
+        "fields": [
+          "capabilities",
+          "details",
+          "model_info",
+          "modified_at",
+          "thinking"
+        ],
+        "model_info_keys": [
+          "deepseek4.context_length",
+          "deepseek4.embedding_length",
+          "general.architecture",
+          "general.parameter_count"
+        ],
+        "template_present": false,
+        "renderer_present": false
+      },
+      {
+        "model": "deepseek-v4.1-flash:1017",
+        "verbose": true,
+        "exit_code": 0,
+        "bytes": 497,
+        "sha256": "6232bbc0f39a8edd34f52f8fc76f6b0f99a84e95be2f044bd7764da95dcc04f9",
+        "fields": [
+          "capabilities",
+          "details",
+          "model_info",
+          "modified_at",
+          "thinking"
+        ],
+        "model_info_keys": [
+          "deepseek_v41.context_length",
+          "deepseek_v41.embedding_length",
+          "general.architecture",
+          "general.parameter_count"
+        ],
+        "template_present": false,
+        "renderer_present": false
+      }
+    ],
+    "raw_directory": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-ollama-verbose-show-atkepfnb"
+  }
 }
