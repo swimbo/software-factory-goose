@@ -1,0 +1,319 @@
+{
+  "date": "2026-11-03",
+  "scope": "Source-only Responses wire predicate and capture completion; synthetic/offline qualification, not production admission",
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-responses-final-installed-ybn88ict/source",
+    "old_source_manifest_verified_files": 1925,
+    "old_pre_exchange_sha256": "c8c067ead7c82c56ac961c16fe5ecae252cd89d3f50a313b5f7e18026e9a0900",
+    "preimage_changes": {
+      "core/schemas/factory_physical.go": {
+        "before": "62aea4f697218f641a7853ce532e819969c19261ea6a28bfc4ba21c8cf949f4c",
+        "after": "4b25d40a53a1dbc902ddfb4a919a149c143ac74b3f3a4c0db057869a1dfe81c2"
+      },
+      "core/schemas/factory_physical_stream.go": {
+        "before": "b0916e3947b0a5d0789a24ac2b050b812e76919ab55a41af4c0145f837e2d09b",
+        "after": "1663d244f41bb7889725dc1655a02c73c8daa2cd5a78e2af49959f233ed1c117"
+      },
+      "core/providers/utils/factory_physical_http_test.go": {
+        "before": "8d7f1034c0ddcb072a0fd69f5c9f36b66659f8e2ae9cd15b2b5f2b31f3fd3148",
+        "after": "6aaadb8468e4d24ff4f37a512c9a2cba1ceed840edc9ce0f9c8258203142f386"
+      },
+      "core/schemas/factory_physical_test.go": {
+        "before": "3e39486854265b65a7cc82cc4aed88c5e9f84ce5cf36af05be78ad751656709d",
+        "after": "b689c3f17422fbb36020570adc96c6869f9c22d62f476632a9bdb5ad4f4f9dd7"
+      }
+    },
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "a2e53f7a388a821f4589e68a6ea92a99c6164c079a6125120e9a84e7946a4592",
+    "post_install_files": 1925,
+    "altered_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "physical_installer_exact_archive": {
+      "archive_sha256": "e909aef8ae299e9108cf7861d55269683f746422153aeb577b5d77e117efdf74",
+      "four_updated_artifacts_match": true,
+      "matching_stages": [
+        "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-responses-final-physical-up_0y993/core"
+      ]
+    }
+  },
+  "initial_red": [
+    {
+      "test": "TestFactoryPhysicalResponsesRequireTerminalCompletion",
+      "exit_code": 1,
+      "output": "--- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion (0.00s)\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/completed (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/incomplete (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/queued (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/in-progress (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/missing-status (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/wrong-object (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/missing-id (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/error (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/incomplete-details (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/background (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/stored (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/null-controls (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/duplicate-status (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/missing-output-usage (0.00s)\n        factory_physical_test.go:550: reviewed synchronous Responses admission refused factory physical dispatch unavailable\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/core/schemas\t0.028s\nFAIL\n"
+    },
+    {
+      "test": "TestFactoryGatewayWireResponsesProfile",
+      "exit_code": 1,
+      "output": "--- FAIL: TestFactoryGatewayWireResponsesProfile (0.00s)\n    factory_gateway_wire_test.go:291: reviewed Responses profile refused factory gateway wire review refused\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.083s\nFAIL\n"
+    }
+  ],
+  "additional_red": [
+    {
+      "case": "HTTP202 with completed Responses body",
+      "exit_code": 1,
+      "observed_assertion": "noncomplete Responses requested another permit",
+      "reason": "Generic 2xx completion disagreed with the actual OpenAI adapter HTTP200 rule"
+    },
+    {
+      "case": "status-alias and usage-alias",
+      "exit_code": 1,
+      "observed_assertion": "noncomplete Responses requested another permit",
+      "reason": "Struct case-insensitive control decoding and ambiguous usage casing admitted nonterminal/conflicting evidence; changed to canonical map validation"
+    }
+  ],
+  "pre_simplification_native": {
+    "source_tree_sha256": "d827c3a4291f2a4623e1581e54299f54cc8be6bcfa31c2bd4230b915831e6943",
+    "binary_sha256": "33dca78c399c179cf541902fc310dc42095f1e72fbec807dd565d217b727234b",
+    "passed": 9,
+    "raw_receipt": "/home/bo/sfactory-gateway-responses-final-b5gyHe/native-results.json",
+    "difference_to_final": "Only the two-line comment removal above responsesMatch; all executable source/tests unchanged"
+  },
+  "mutation_controls": [
+    {
+      "mutant": "missing-terminal-check",
+      "exit_code": 1,
+      "runtime_assertion_rejected": true,
+      "output": "--- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion (0.00s)\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/incomplete (0.00s)\n        factory_physical_test.go:569: noncomplete Responses requested another permit\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/core/schemas\t0.032s\nFAIL\n"
+    },
+    {
+      "mutant": "missing-output-cap",
+      "exit_code": 1,
+      "runtime_assertion_rejected": true,
+      "output": "--- FAIL: TestFactoryGatewayWireResponsesRejectsUnreviewedWork (0.00s)\n    factory_gateway_wire_test.go:325: unreviewed Responses accepted: {\"model\":\"fixture/model\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":\"public\"}],\"max_output_tokens\":17,\"store\":false}\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.083s\nFAIL\n"
+    },
+    {
+      "mutant": "missing-storage-control",
+      "exit_code": 1,
+      "runtime_assertion_rejected": true,
+      "output": "--- FAIL: TestFactoryGatewayWireActualClassifierResponsesConversion (0.11s)\n    factory_gateway_wire_test.go:393: implicit storage policy admitted\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.186s\nFAIL\n"
+    },
+    {
+      "mutant": "missing-usage-case-check",
+      "exit_code": 1,
+      "runtime_assertion_rejected": true,
+      "output": "--- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion (0.00s)\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/usage-alias (0.00s)\n        factory_physical_test.go:569: noncomplete Responses requested another permit\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/core/schemas\t0.030s\nFAIL\n"
+    },
+    {
+      "mutant": "missing-control-case-check",
+      "exit_code": 1,
+      "runtime_assertion_rejected": true,
+      "output": "--- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion (0.00s)\n    --- FAIL: TestFactoryPhysicalResponsesRequireTerminalCompletion/error-alias (0.00s)\n        factory_physical_test.go:569: noncomplete Responses requested another permit\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/core/schemas\t0.029s\nFAIL\n"
+    }
+  ],
+  "native_setup_failure": {
+    "binary_sha256": "33dca78c399c179cf541902fc310dc42095f1e72fbec807dd565d217b727234b",
+    "results": [
+      {
+        "test": "TestFactoryGatewayResponsesNativeJoinV2",
+        "container": "sf-responses-b5gyhe-0",
+        "exit_code": 2,
+        "container_absent_after": true,
+        "output": "python3: can't open file '/stage/native-chroot-linked.py': [Errno 13] Permission denied\n"
+      }
+    ]
+  },
+  "simplification": {
+    "completed": true,
+    "production_behavior_edits": 0,
+    "comment_findings_applied": 1,
+    "proof_tests_unchanged": true,
+    "change": "Removed two-line allowlist restatement above responsesMatch; final artifact repinned"
+  },
+  "retained_route_limitations": [
+    "The current classifier converter omits store; dedicated protected bootstrap must explicitly supply store=false. No shared behavior was changed.",
+    "No provider/proxy charge or storage guarantee follows from a request predicate. Independent provider-backed all-path bounds and charge-proof correspondence remain required.",
+    "Chat rejection remains unknown without reviewed billing disposition; no follow-up Responses physical permit is allowed by this change.",
+    "Production bootstrap, owned warmup, route/credential/plugin custody, lifetime egress fencing and launch/recovery remain unqualified.",
+    "fasthttp exact-derivative versus upstream policy remains undecided; full utility replacement guard is not counted as passing."
+  ],
+  "live_benchmark_attempts": 0,
+  "paid_provider_calls_in_this_checkpoint": 0,
+  "activation_performed": false,
+  "published_bifrost_commit": "e4331a36f661a0656fe6440e0babb47c6b73b79f",
+  "published_branch": "codex/remaining-source-audit-20261031",
+  "remote_sha_verified": true,
+  "final_qualification": [
+    {
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p",
+        "2",
+        "-race",
+        "-count=1",
+        "github.com/maximhq/bifrost/core/schemas"
+      ],
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/maximhq/bifrost/core/schemas\t14.332s\n"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p",
+        "2",
+        "-race",
+        "-count=1",
+        "-timeout=3m",
+        "./bifrost-http/server"
+      ],
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t62.212s\n"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p",
+        "2",
+        "-race",
+        "-count=1",
+        "-timeout=3m",
+        "-run",
+        "^TestFactory",
+        "github.com/maximhq/bifrost/core/providers/utils"
+      ],
+      "exit_code": 0,
+      "output": "ok  \tgithub.com/maximhq/bifrost/core/providers/utils\t3.061s\n"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p",
+        "2",
+        "-race",
+        "-c",
+        "-o",
+        "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/gateway-test",
+        "./bifrost-http/server"
+      ],
+      "exit_code": 0,
+      "output": ""
+    }
+  ],
+  "final_native": {
+    "binary_sha256": "15356457c5684d48f84334f9868d1d326fe34a3b39425ac47fb61888472c9cbe",
+    "results": [
+      {
+        "test": "TestFactoryGatewayResponsesNativeJoinV2",
+        "container": "sf-responses-r7ud3gy-0",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesNativeJoinV2\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesNativeJoinV2\n=== RUN   TestFactoryGatewayResponsesNativeJoinV2\n==46==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==46==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesNativeJoinV2\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesNativeJoinV2\n--- PASS: TestFactoryGatewayResponsesNativeJoinV2 (0.60s)\nPASS\n--- PASS: TestFactoryGatewayResponsesNativeJoinV2 (0.62s)\n--- PASS: TestFactoryGatewayResponsesNativeJoinV2 (0.52s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayResponsesNativeJoinV2 (0.43s)\nPASS\n--- PASS: TestFactoryGatewayResponsesNativeJoinV2 (1.71s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayResponsesIncompleteNativeJoinV2",
+        "container": "sf-responses-r7ud3gy-1",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesIncompleteNativeJoinV2\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesIncompleteNativeJoinV2\n=== RUN   TestFactoryGatewayResponsesIncompleteNativeJoinV2\n==48==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==48==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesIncompleteNativeJoinV2\n==60==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==60==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayResponsesIncompleteNativeJoinV2\n--- PASS: TestFactoryGatewayResponsesIncompleteNativeJoinV2 (0.59s)\nPASS\n--- PASS: TestFactoryGatewayResponsesIncompleteNativeJoinV2 (0.51s)\n--- PASS: TestFactoryGatewayResponsesIncompleteNativeJoinV2 (0.42s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayResponsesIncompleteNativeJoinV2 (5.00s)\nPASS\n--- PASS: TestFactoryGatewayResponsesIncompleteNativeJoinV2 (6.09s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewaySyntheticNativeJoinV2",
+        "container": "sf-responses-r7ud3gy-2",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoinV2\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoinV2\n=== RUN   TestFactoryGatewaySyntheticNativeJoinV2\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoinV2\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoinV2\n--- PASS: TestFactoryGatewaySyntheticNativeJoinV2 (0.60s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoinV2 (0.60s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoinV2 (0.52s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoinV2 (0.43s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoinV2 (1.69s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewaySyntheticNativeJoin",
+        "container": "sf-responses-r7ud3gy-3",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoin\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoin\n=== RUN   TestFactoryGatewaySyntheticNativeJoin\n==47==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==47==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoin\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==61==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewaySyntheticNativeJoin\n--- PASS: TestFactoryGatewaySyntheticNativeJoin (0.59s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoin (0.60s)\n--- PASS: TestFactoryGatewaySyntheticNativeJoin (0.51s)\nPASS\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoin (0.43s)\nPASS\n--- PASS: TestFactoryGatewaySyntheticNativeJoin (1.68s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayWireRejectsMutatedOwnerCallLimit",
+        "container": "sf-responses-r7ud3gy-4",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayWireRejectsMutatedOwnerCallLimit\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayWireRejectsMutatedOwnerCallLimit\n=== RUN   TestFactoryGatewayWireRejectsMutatedOwnerCallLimit\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayWireRejectsMutatedOwnerCallLimit\n==62==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==62==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayWireRejectsMutatedOwnerCallLimit\n--- PASS: TestFactoryGatewayWireRejectsMutatedOwnerCallLimit (0.51s)\n--- PASS: TestFactoryGatewayWireRejectsMutatedOwnerCallLimit (0.42s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayWireRejectsMutatedOwnerCallLimit (5.00s)\nPASS\n--- PASS: TestFactoryGatewayWireRejectsMutatedOwnerCallLimit (5.58s)\nPASS\n--- PASS: TestFactoryGatewayWireRejectsMutatedOwnerCallLimit (6.68s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayRootDeadlineInterruptsStream",
+        "container": "sf-responses-r7ud3gy-5",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsStream\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsStream\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsStream\n==46==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==46==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsStream\n==59==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==59==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsStream\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsStream (0.61s)\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsStream (1.49s)\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsStream (1.42s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsStream (5.00s)\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsStream (6.11s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayCloseErrorRefusesCapture",
+        "container": "sf-responses-r7ud3gy-6",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayCloseErrorRefusesCapture\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==19==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==19==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayCloseErrorRefusesCapture\n=== RUN   TestFactoryGatewayCloseErrorRefusesCapture\n==48==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==48==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayCloseErrorRefusesCapture\n==60==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==60==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayCloseErrorRefusesCapture\n--- PASS: TestFactoryGatewayCloseErrorRefusesCapture (0.61s)\nPASS\n--- PASS: TestFactoryGatewayCloseErrorRefusesCapture (0.52s)\n--- PASS: TestFactoryGatewayCloseErrorRefusesCapture (0.44s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayCloseErrorRefusesCapture (5.00s)\nPASS\n--- PASS: TestFactoryGatewayCloseErrorRefusesCapture (6.08s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayInvalidResponseBlockedClose",
+        "container": "sf-responses-r7ud3gy-7",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayInvalidResponseBlockedClose\n==23==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==23==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==22==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayInvalidResponseBlockedClose\n=== RUN   TestFactoryGatewayInvalidResponseBlockedClose\n==51==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==51==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayInvalidResponseBlockedClose\n==66==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==66==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayInvalidResponseBlockedClose\n--- PASS: TestFactoryGatewayInvalidResponseBlockedClose (0.58s)\nPASS\n--- PASS: TestFactoryGatewayInvalidResponseBlockedClose (2.50s)\n--- PASS: TestFactoryGatewayInvalidResponseBlockedClose (2.42s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayInvalidResponseBlockedClose (5.00s)\nPASS\n--- PASS: TestFactoryGatewayInvalidResponseBlockedClose (6.08s)\nPASS\n"
+      },
+      {
+        "test": "TestFactoryGatewayRootDeadlineInterruptsBlockedRouter",
+        "container": "sf-responses-r7ud3gy-8",
+        "exit_code": 0,
+        "container_absent_after": true,
+        "output": "==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==1==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsBlockedRouter\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==21==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==20==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsBlockedRouter\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsBlockedRouter\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==49==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsBlockedRouter\n==63==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==63==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryGatewayRootDeadlineInterruptsBlockedRouter\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsBlockedRouter (0.61s)\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsBlockedRouter (1.52s)\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsBlockedRouter (1.43s)\nPASS\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsBlockedRouter (5.00s)\nPASS\n--- PASS: TestFactoryGatewayRootDeadlineInterruptsBlockedRouter (6.10s)\nPASS\n"
+      }
+    ]
+  },
+  "final_source_files_verified_unchanged": 1925,
+  "owned_response_fixture_containers_remaining": 0,
+  "final_remote_stage": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY",
+  "decoder_probe": {
+    "exit_code": 0,
+    "output": "=== RUN   TestFactoryResponsesActualUnicodeDecoderProbe\n=== RUN   TestFactoryResponsesActualUnicodeDecoderProbe/status\n    factory_responses_decoder_probe_test.go:15: actual_status=\"completed\" actual_input=1 actual_output=2 captured_input=1 captured_output=2 terminal=true\n=== RUN   TestFactoryResponsesActualUnicodeDecoderProbe/usage-root\n    factory_responses_decoder_probe_test.go:15: actual_status=\"completed\" actual_input=1 actual_output=2 captured_input=1 captured_output=2 terminal=true\n=== RUN   TestFactoryResponsesActualUnicodeDecoderProbe/usage-counter\n    factory_responses_decoder_probe_test.go:15: actual_status=\"completed\" actual_input=1 actual_output=2 captured_input=1 captured_output=2 terminal=true\n--- PASS: TestFactoryResponsesActualUnicodeDecoderProbe (0.46s)\n    --- PASS: TestFactoryResponsesActualUnicodeDecoderProbe/status (0.46s)\n    --- PASS: TestFactoryResponsesActualUnicodeDecoderProbe/usage-root (0.00s)\n    --- PASS: TestFactoryResponsesActualUnicodeDecoderProbe/usage-counter (0.00s)\nPASS\nok  \tgithub.com/maximhq/bifrost/core/schemas\t1.482s\n",
+    "scope": "Actual BifrostResponsesResponse.UnmarshalJSON on pinned Linux amd64 Go1.27.2 race build; three Unicode alias candidates agree with capture. Not a universal Unicode or ARM64 proof.",
+    "source": "package schemas\nimport(\"testing\";\"strings\")\nfunc TestFactoryResponsesActualUnicodeDecoderProbe(t *testing.T){\n valid:=`{\"id\":\"fixture\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{\"input_tokens\":1,\"output_tokens\":2}}`\n for name,body:=range map[string]string{\n \"status\":strings.TrimSuffix(valid,\"}\")+`,\"\u017ftatus\":\"incomplete\"}`,\n \"usage-root\":strings.TrimSuffix(valid,\"}\")+`,\"u\u017fage\":{\"input_tokens\":1000,\"output_tokens\":1000}}`,\n \"usage-counter\":strings.Replace(valid,`\"input_tokens\":1`,`\"input_tokens\":1,\"input_token\u017f\":1000`,1),\n }{t.Run(name,func(t *testing.T){\n var actual BifrostResponsesResponse\n if err:=actual.UnmarshalJSON([]byte(body));err!=nil{t.Fatal(err)}\n if actual.Status==nil || actual.Usage==nil{t.Fatal(\"actual schema missing canonical evidence\")}\n usage,_,err:=factoryPhysicalUsage([]byte(body));if err!=nil{t.Fatal(err)}\n complete:=factoryPhysicalResponsesCompleted([]byte(body))\n t.Logf(\"actual_status=%q actual_input=%d actual_output=%d captured_input=%d captured_output=%d terminal=%v\",*actual.Status,actual.Usage.InputTokens,actual.Usage.OutputTokens,usage[\"usage.input_tokens\"],usage[\"usage.output_tokens\"],complete)\n if complete && (*actual.Status!=\"completed\" || int64(actual.Usage.InputTokens)!=usage[\"usage.input_tokens\"] || int64(actual.Usage.OutputTokens)!=usage[\"usage.output_tokens\"]){t.Fatal(\"capture disagrees with actual pinned decoder\")}\n })}\n}\n",
+    "source_sha256": "25b92b5f852605f899e13fe3eaee3e3b4d677e672003059dcfc9f67c22bd1c0b",
+    "canonical_source_unchanged": true,
+    "disposition": "Candidate mismatch disproved for the tested actual decoder; no speculative source guard added"
+  },
+  "code_review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "api-contract",
+      "reliability",
+      "adversarial"
+    ],
+    "findings": [],
+    "testing_gaps": [],
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-000920-94bc89ba",
+    "run_id": "20261103-000920-94bc89ba",
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: Claude route transport unavailable before egress: Internal error; no other eligible installed target)"
+    }
+  },
+  "preserved_setup_artifacts": [
+    {
+      "stage": "/home/bo/sfactory-gateway-responses-5Tfk8s",
+      "disposition": "Unused archive-copy stage with macOS tar metadata; replaced by a clean explicit-file archive, never production"
+    },
+    {
+      "stage": "/home/bo/sfactory-gateway-responses-clean-v576sN",
+      "disposition": "Superseded before canonical alias fix"
+    },
+    {
+      "stage": "/home/bo/sfactory-gateway-responses-final-b5gyHe",
+      "disposition": "Qualified executable source before comment cleanup; mutation and failed pre-test setup receipts retained"
+    }
+  ],
+  "unchanged_dependency_policy_failure": {
+    "exit_code": 1,
+    "output": "--- FAIL: TestFasthttpVersionIsConsistentAcrossModules (0.06s)\n    fasthttpreplace_test.go:188: transports/go.mod replaces github.com/valyala/fasthttp; use upstream without a replacement\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/core/providers/utils\t0.093s\nFAIL\n"
+  }
+}
