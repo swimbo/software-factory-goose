@@ -1,0 +1,114 @@
+{
+  "date": "2026-11-03",
+  "scope": "Actual retained account loader plus real core initialization and unowned dispatch on synthetic loopback providers; no production constructor or provider guarantee",
+  "production_behavior_changed": false,
+  "characterization_strategy": "Existing behavior characterization with a real SDK/loopback positive control and a production-owner-check mutation, not a fabricated implementation RED",
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-account-core-init-installed-w0mm1rol/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "ded0dd193368542c368f3c77404cb01fd912b714a9dafc482236d0fee18604d8",
+    "source_files": 1925,
+    "only_changed_composed_file": "transports/bifrost-http/lib/factory_gateway_account_test.go",
+    "production_source_unchanged": true,
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "new_test_sha256": "73132927e9a2fa2fd2e6d1ccf51f3549c650ffadbd493272338fe52752fa5226"
+  },
+  "full_library_race": {
+    "exit_code": 0,
+    "full_output_sha256": "16bdbc8cc11f5db964cf1d143df6b30b96bef12c06533025bea2a9564a3b3714",
+    "relevant_output": [
+      "=== RUN   TestFactoryGatewayAccountCoreInitBoundary",
+      "    factory_gateway_account_test.go:258: === RUN   TestFactoryGatewayAccountCoreInitBoundary",
+      "            factory_gateway_account_test.go:329: baseline: both retained providers initialized; initial HTTP=0, final HTTP=2",
+      "        --- PASS: TestFactoryGatewayAccountCoreInitBoundary (1.19s)",
+      "    factory_gateway_account_test.go:258: === RUN   TestFactoryGatewayAccountCoreInitBoundary",
+      "            factory_gateway_account_test.go:329: protected: both retained providers initialized; initial HTTP=0, final HTTP=0",
+      "        --- PASS: TestFactoryGatewayAccountCoreInitBoundary (0.75s)",
+      "--- PASS: TestFactoryGatewayAccountCoreInitBoundary (4.13s)",
+      "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t110.431s"
+    ],
+    "scope": "Full bifrost-http/lib race suite, production source e4331a3 with exact new test overlay",
+    "package_seconds": 110.431
+  },
+  "installed_focused_race": {
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p",
+      "2",
+      "-race",
+      "-run",
+      "^TestFactoryGatewayAccountCoreInitBoundary$",
+      "-v",
+      "-count=1",
+      "./bifrost-http/lib"
+    ],
+    "exit_code": 0,
+    "output": "=== RUN   TestFactoryGatewayAccountCoreInitBoundary\n    factory_gateway_account_test.go:258: === RUN   TestFactoryGatewayAccountCoreInitBoundary\n            factory_gateway_account_test.go:329: baseline: both retained providers initialized; initial HTTP=0, final HTTP=2\n        --- PASS: TestFactoryGatewayAccountCoreInitBoundary (1.16s)\n        PASS\n    factory_gateway_account_test.go:258: === RUN   TestFactoryGatewayAccountCoreInitBoundary\n            factory_gateway_account_test.go:329: protected: both retained providers initialized; initial HTTP=0, final HTTP=0\n        --- PASS: TestFactoryGatewayAccountCoreInitBoundary (0.74s)\n        PASS\n--- PASS: TestFactoryGatewayAccountCoreInitBoundary (4.08s)\nPASS\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t5.164s\n"
+  },
+  "owner_check_mutation": {
+    "exit_code": 1,
+    "runtime_assertion_rejected": true,
+    "output": "=== RUN   TestFactoryGatewayAccountCoreInitBoundary\n    factory_gateway_account_test.go:258: === RUN   TestFactoryGatewayAccountCoreInitBoundary\n            factory_gateway_account_test.go:329: baseline: both retained providers initialized; initial HTTP=0, final HTTP=2\n        --- PASS: TestFactoryGatewayAccountCoreInitBoundary (1.18s)\n        PASS\n    factory_gateway_account_test.go:256: protected core child: exit status 1 === RUN   TestFactoryGatewayAccountCoreInitBoundary\n            factory_gateway_account_test.go:314: unowned core call failed outside owner fence: HTTP=1 failure=<nil>\n        --- FAIL: TestFactoryGatewayAccountCoreInitBoundary (1.15s)\n        FAIL\n--- FAIL: TestFactoryGatewayAccountCoreInitBoundary (3.50s)\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t3.572s\nFAIL\n"
+  },
+  "modes": {
+    "baseline": {
+      "initialized_retained_sdks": 2,
+      "unrelated_sdk_initialized": false,
+      "startup_http": 0,
+      "final_http": 2
+    },
+    "protected": {
+      "require_owner_before_account_and_core": true,
+      "initialized_retained_sdks": 2,
+      "unrelated_sdk_initialized": false,
+      "startup_http": 0,
+      "final_http": 0,
+      "denial_cause": "factory physical dispatch unavailable"
+    }
+  },
+  "excluded_from_proof": [
+    "real configuration or credentials",
+    "model catalog",
+    "governance/routing/MCP plugins",
+    "semantic warmup and generation maintenance",
+    "private listener and real Root/wallet acquisition",
+    "lifetime credential/plugin custody and NUC failure cleanup"
+  ],
+  "preserved_diagnostic": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/account-core-init-wrapped-error-observation.json",
+  "diagnostic_note": "Initial test inspected the generic GetErrorString message; correct nested cause inspection established the intended owner boundary. No product fix was needed.",
+  "live_benchmark_attempts": 0,
+  "paid_retained_provider_calls": 0,
+  "activation_performed": false,
+  "published_bifrost_commit": "b4a92955905105887c32a38f264d57afb7b999f8",
+  "remote_sha_verified": true,
+  "final_remote_stage": "/home/bo/sfactory-account-core-init-ufIp61",
+  "published_and_overlay_source_files_verified_unchanged": 1925,
+  "code_review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "security",
+      "reliability",
+      "adversarial-reviewer"
+    ],
+    "findings": [],
+    "testing_gaps": [],
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-004549-a78dfd43",
+    "run_id": "20261103-004549-a78dfd43",
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: transport unavailable (pre-egress, route): Internal error)"
+    }
+  },
+  "simplification": {
+    "result": "complete",
+    "edits": 0,
+    "findings": 0,
+    "proof_test_preserved": true
+  }
+}
