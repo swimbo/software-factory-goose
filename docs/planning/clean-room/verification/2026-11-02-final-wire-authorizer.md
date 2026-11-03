@@ -17,3 +17,5 @@ The wire policy must be protected and independently approved together with its r
 Independent review found one masked stream-usage negative control. Removing the required-options guard passed the old test; the strengthened matching-stream test rejects that same mutant, and the real source passes. The review fix changes tests only.
 
 The qualified routing source also contains a conditional chat-to-Responses classifier fallback (`plugins/routing/llmclassify.go::runClassifierCompletion`). This chat/embedding profile refuses Responses calls. A separately reviewed Responses profile and output-bound contract remain required; the retained fallback must not be silently removed or replaced.
+
+[Configured qualification follow-up](2026-11-02-configured-source-qualification.md): the full server race suite subsequently passes with its existing public input variables supplied. The earlier failed checks are retained as historical receipts. The fasthttp policy conflict remains open.

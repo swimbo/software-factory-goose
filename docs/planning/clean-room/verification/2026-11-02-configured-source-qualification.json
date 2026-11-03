@@ -1,0 +1,101 @@
+{
+  "date_local": "2026-11-02",
+  "scope": "configured full-server qualification and native dependency diagnosis; no product source or production settings changed",
+  "bifrost_source_commit": "e7e985e76d0b0c5dd0c52402eb85d7fc28553c68",
+  "source_tree_sha256": "e0937d2b3a92c56e683113550db7875bf8edfb8d824f5d8ed82310d4f527060d",
+  "source_files_verified_unchanged": 1925,
+  "server_race_suite": {
+    "exit_code": 0,
+    "go_reported_seconds": 62.946,
+    "timeout": "3m",
+    "package": "./bifrost-http/server",
+    "toolchain": "Go1.27.2 linux/amd64",
+    "environment": "env -i with pinned offline module/build caches and explicit public inputs",
+    "public_inputs": {
+      "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+      "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+      "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+    },
+    "worker_python": "3.13.5",
+    "worker_sources_sha256": {
+      "attachment_policy.py": "c6f2827ceb07d0a240f1c6a78570f25d7ace13c4590b7ca4a2df8f8a7d442ec0",
+      "context_policy.py": "26bd04e630d545ca25761170e98cffd61ab107c2c1a9dc933b2baf539d87a287",
+      "documents.py": "1b4f48f18490dc7a26e19de43db0d538da9e844532895bbac78749ae993c8575",
+      "normalization_payloads.py": "5e073f0c1867669b25d12e1ad2d5b74e1d186d68812895c0d196451011d49932",
+      "normalization_worker.py": "2b5e9be03896f71a9261c2da67a792e14fe2f7e9a9cf11694299917fd6f89c2f",
+      "pdf_batches.py": "c66785c1210d41acf43b264f680cdcb50b44302f1ee51764e70c71c9f0411ea2",
+      "protocol_contract.py": "e6d44c0888dd6ec4f00cd1a0649486c9cb4f6841e6076b2dccfcf3c275d8aaef",
+      "runtime_budget.py": "097533ec07bc1021b4b0cce0942eb77a62e104415da0fa4aab224fd6fd37d077",
+      "test_documents.py": "01cbd382d07f0c1327e00467bfeab7e384dae1611e760b763c5b6ade3b9f8567"
+    },
+    "prior_nine_setup_failures_resolved_without_test_or_product_changes": true,
+    "provider_boundary": "local public fixtures; not real retained-route admission"
+  },
+  "native_fasthttp": {
+    "version": "v1.74.0",
+    "comparison": {
+      "official_zip_sha256": "fd9a063091f601f36b9184bcc9af81f9f9fb2d26e9ffbdb5a3a6d4cc9bc39098",
+      "changed_files": {
+        "http.go": {
+          "official_sha256": "9bfafe37c83a63c0b23345cb6e43df393e42108c33674d52a94c4f27529d161d",
+          "candidate_sha256": "dfab213923a1fee38fa569ce96c8ceb08e74ee3b898e8476b3cb93b6763c0af7"
+        },
+        "server.go": {
+          "official_sha256": "0377385675ae956ebf8aa822bb0e520f614e72c936c8879544e62be9fa6209ff",
+          "candidate_sha256": "7a66049e348862afeb8e8bf270128914eaf5b743b073a865bc9f1d2f3b22eb82"
+        }
+      },
+      "extra_files": {
+        "body_admission_test.go": "6f5181a0b8e50c41abbd361e9b4037f4e39d3b8a301d5fc0b1e9c50be2d50b91"
+      },
+      "missing_files": []
+    },
+    "reviewed_patch_sha256": "2d65df05f2cb8fbd80559a7e025ad280d7cdf11e51f1ba6ab940d9b6b3c3b05a",
+    "installer_sha256": "15523d85837a4012769417c635eb0badea59d847a4a7dc8ceac3e98968e71867",
+    "fresh_buffer_race_test": {
+      "test": "TestAdmittedRequestOwnsFreshBufferAcrossResets",
+      "exit_code": 0,
+      "go_reported_seconds": 1.015
+    },
+    "upstream_policy_test": {
+      "test": "TestFasthttpVersionIsConsistentAcrossModules",
+      "exit_code": 1,
+      "message": "transports/go.mod replaces github.com/valyala/fasthttp; use upstream without a replacement"
+    },
+    "unmodified_upstream_api_probe": {
+      "exit_code": 1,
+      "output": "# github.com/maximhq/bifrost/transports/bifrost-http/server [github.com/maximhq/bifrost/transports/bifrost-http/server.test]\nbifrost-http/server/native_ingress_profile.go:30:11: s.Server.RequestBodyAdmission undefined (type *fasthttp.Server has no field or method RequestBodyAdmission)\nbifrost-http/server/native_ingress_profile_test.go:25:16: s.Server.RequestBodyAdmission undefined (type *fasthttp.Server has no field or method RequestBodyAdmission)\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server [build failed]\nFAIL\n",
+      "purpose": "compile-only upstream API compatibility control; canonical module files unchanged"
+    },
+    "canonical_module_files_unchanged": true,
+    "policy_choice": "pending: exact pinned derivative integrity exception versus upstream ingress redesign",
+    "gate_status": "unresolved; no guard disabled or reclassified as passing",
+    "causal_chain": [
+      "engine/transport/patch_native_ingress.py:51-54 installs the native module replacement",
+      "transports/bifrost-http/server/native_ingress_profile.go:30 requires RequestBodyAdmission",
+      "core/providers/utils/fasthttpreplace_test.go:186-188 rejects the replacement"
+    ]
+  },
+  "history_search": {
+    "native_patch_commit": "5b055d7",
+    "github_connector": "repository search returned422 access/validation failure",
+    "gh_issue_and_pr_search": "no matching fasthttp issues or PRs returned"
+  },
+  "responses_followup": {
+    "routing_source_sha256": "5fd2d5472e415a92521ded118f9a26b1105470f345158acc4a326137a312d9cb",
+    "owner_physical_source_sha256": "62aea4f697218f641a7853ce532e819969c19261ea6a28bfc4ba21c8cf949f4c",
+    "finding": "conditional Responses fallback follows chat errors; noncomplete physical calls set sticky refused state, blocking later admission",
+    "next_requirement": "retain unknown-outcome fencing and establish supported rejection/billing disposition before claiming the fallback is qualified"
+  },
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "production_admission": false,
+  "remaining": [
+    "fasthttp production qualification policy",
+    "reviewed Responses/failure disposition and all-path provider bounds",
+    "real retained-route bootstrap, warmup and custody",
+    "NUC production containment/cleanup/recovery",
+    "120 paired live attempts and delivery acceptance"
+  ]
+}
