@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-03T00:13:44.086793+00:00",
+  "bifrost_commit": "a3d8d3b5b455a1da1de073866672bc0525e77eea",
+  "source_branch": "codex/remaining-source-audit-20261031",
+  "source_pushed": true,
+  "native_source_sha256": {
+    "core/schemas/secretvar.go": "d5530a5457dbc0ca777749ea0273d1b1cbfbbbd12c52c2a48e4414e961ffd60c",
+    "core/schemas/vault.go": "1aef820a0560bbbd0c99e6df74e7bd2825de05fc95ff9f5bb6a1628e545faab8",
+    "framework/configstore/rdb.go": "22fdd9446c4c47b25e8a96e74db2c4de27a1d4ece23cf7bf4231fcba64ac03c4",
+    "transports/bifrost-http/lib/account.go": "e801a1190d412dd2c80ee437b144e8bb36f2e5f36fd32f6bc6c591a517e338f6",
+    "transports/bifrost-http/lib/config.go": "95e119d6f801f12d6c715497780a077d2490333886d11eca4072fc63f53a2c80",
+    "transports/bifrost-http/lib/factory_gateway_account.go": "bf8c64980b8d4241082201d5e25e79ea838b54edf3a4fcedc60384321356faf8",
+    "transports/bifrost-http/lib/factory_gateway_account_test.go": "f0315c85f4aabf80d6c4a67ac11df3958175dd6cb55718a397e7bc09a4ab907d"
+  },
+  "focused_race": {
+    "command": "cd /home/bo/sfactory-gateway-composed-20261101-tlgy0o91/source/transports && env -i PATH=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin:/usr/bin:/bin GOCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gocache GOMODCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gomod GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOMAXPROCS=2 go test -mod=readonly -p 2 -race -v -run '^TestFactoryGatewayAccount' -count=1 -timeout=60s ./bifrost-http/lib",
+    "exit_code": 0,
+    "elapsed_seconds": 25.357233457965776,
+    "output": "=== RUN   TestFactoryGatewayAccountRetainsOnlyReviewedProviderChannels\n--- PASS: TestFactoryGatewayAccountRetainsOnlyReviewedProviderChannels (0.66s)\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/nil-store\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/missing-provider-pin\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-provider-pin\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/wrong-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/duplicate-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/unresolved-key\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-capture\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-request\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-response\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/retries\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/insecure-tls\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/disabled-key\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/blank-key\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/direct-keys\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/auth-off\n--- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels (10.08s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/nil-store (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/missing-provider-pin (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-provider-pin (0.66s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/wrong-reference (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/duplicate-reference (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-reference (0.64s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/unresolved-key (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-capture (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-request (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-response (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/retries (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/insecure-tls (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/disabled-key (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/blank-key (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/direct-keys (0.64s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/auth-off (0.62s)\n=== RUN   TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP\n--- PASS: TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP (0.63s)\n=== RUN   TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration\n--- PASS: TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration (0.62s)\n=== RUN   TestFactoryGatewayAccountRefusesResolvedEnvironmentKey\n--- PASS: TestFactoryGatewayAccountRefusesResolvedEnvironmentKey (0.62s)\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-direct\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-direct\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/missing\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/duplicate\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-auth\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-auth\n--- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy (3.76s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-direct (0.63s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-direct (0.63s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/missing (0.64s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/duplicate (0.62s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-auth (0.63s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-auth (0.62s)\nPASS\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t17.461s\n"
+  },
+  "full_library": {
+    "command": "cd /home/bo/sfactory-gateway-composed-20261101-tlgy0o91/source/transports && env -i PATH=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin:/usr/bin:/bin GOCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gocache GOMODCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gomod GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOMAXPROCS=2 go test -mod=readonly -p 2 -count=1 -timeout=90s ./bifrost-http/lib",
+    "exit_code": 0,
+    "elapsed_seconds": 24.789377791807055,
+    "output": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t18.427s\n"
+  },
+  "installer": {
+    "exact_preimage_sha256": "105202557a5cd19b3dcc61189982c2f7315c130fd43d8ee61d3867f8ad4dcfb5",
+    "installed": true,
+    "altered_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-account-exact-install-vagzyt4g",
+    "source_sha256": {
+      "factory_gateway_account.go": "bf8c64980b8d4241082201d5e25e79ea838b54edf3a4fcedc60384321356faf8",
+      "factory_gateway_account_test.go": "f0315c85f4aabf80d6c4a67ac11df3958175dd6cb55718a397e7bc09a4ab907d"
+    }
+  },
+  "python_installer_tests": {
+    "run": 9,
+    "passed": 9,
+    "ruff_passed": true
+  },
+  "resolver_red_before_fix": {
+    "exit_code": 1,
+    "output": "=== RUN   TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration\n    factory_gateway_account_test.go:182: resolver ran or external channel admitted: calls=1 accepted=true\n--- FAIL: TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration (0.16s)\n=== RUN   TestFactoryGatewayAccountRefusesResolvedEnvironmentKey\n    factory_gateway_account_test.go:190: environment-backed key admitted as DB-only channel\n--- FAIL: TestFactoryGatewayAccountRefusesResolvedEnvironmentKey (0.14s)\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t0.346s\nFAIL\n"
+  },
+  "bulk_read_mutation": {
+    "exit_code": 1,
+    "output": "=== RUN   TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP\n    factory_gateway_account_test.go:187: account construction read unrelated channels or performed HTTP\n--- FAIL: TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP (0.15s)\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t0.176s\nFAIL\n",
+    "isolated_overlay_only": true,
+    "expected_failure": "account construction read unrelated channels or performed HTTP"
+  },
+  "review": {
+    "status": "complete",
+    "run_id": "20261102-retained-account",
+    "lenses": 7,
+    "actionable_findings": 1,
+    "applied_findings": [
+      1
+    ],
+    "unresolved_findings": [],
+    "adversarial": "in-process fallback; Claude transport unavailable before egress"
+  },
+  "caller_requirements": [
+    "Protected stable SQLite state and independently reviewed key-ID hashes",
+    "Dedicated serialized bootstrap before workers or concurrent resolver/configuration installation",
+    "Separate full route, credential association, plugin/log-sink custody and final-wire authorizer qualification"
+  ],
+  "qualification_limits": [
+    "Only public SQLite fixtures exercised; no live credential values loaded",
+    "Account loader is not the complete production Bifrost constructor",
+    "No retained-route attestation, supported all-path charge envelope or production cleanup proof established"
+  ],
+  "production_admission": false,
+  "paid_calls": 0,
+  "live_attempts": 0,
+  "candidate_enabled": false,
+  "fixture_setup_failure_before_correction": {
+    "command": "cd /home/bo/sfactory-gateway-composed-20261101-tlgy0o91/source/transports && env -i PATH=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/toolchain/bin:/usr/bin:/bin GOCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gocache GOMODCACHE=/home/bo/sfactory-gateway-composed-20261101-tlgy0o91/gomod GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local GOMAXPROCS=2 go test -mod=readonly -p 2 -race -v -run '^TestFactoryGatewayAccount' -count=1 -timeout=60s ./bifrost-http/lib",
+    "exit_code": 1,
+    "elapsed_seconds": 24.451304291840643,
+    "output": "=== RUN   TestFactoryGatewayAccountRetainsOnlyReviewedProviderChannels\n--- PASS: TestFactoryGatewayAccountRetainsOnlyReviewedProviderChannels (0.68s)\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/nil-store\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/missing-provider-pin\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-provider-pin\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/wrong-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/duplicate-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-reference\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/unresolved-key\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-capture\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-request\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-response\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/retries\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/insecure-tls\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/disabled-key\n    factory_gateway_account_test.go:141: unreviewed account accepted\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/blank-key\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/direct-keys\n=== RUN   TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/auth-off\n--- FAIL: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels (10.02s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/nil-store (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/missing-provider-pin (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-provider-pin (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/wrong-reference (0.64s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/duplicate-reference (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/extra-reference (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/unresolved-key (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-capture (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-request (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/raw-response (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/retries (0.62s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/insecure-tls (0.62s)\n    --- FAIL: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/disabled-key (0.64s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/blank-key (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/direct-keys (0.63s)\n    --- PASS: TestFactoryGatewayAccountRefusesUnreviewedOrMissingChannels/auth-off (0.63s)\n=== RUN   TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP\n--- PASS: TestFactoryGatewayAccountLoadsNoUnrelatedRowsOrHTTP (0.62s)\n=== RUN   TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration\n--- PASS: TestFactoryGatewayAccountRefusesVaultResolverBeforeHydration (0.64s)\n=== RUN   TestFactoryGatewayAccountRefusesResolvedEnvironmentKey\n--- PASS: TestFactoryGatewayAccountRefusesResolvedEnvironmentKey (0.64s)\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/missing\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/duplicate\n    factory_gateway_account_test.go:232: NOT NULL constraint failed: config_client.created_at\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-auth\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-auth\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-direct\n=== RUN   TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-direct\n--- FAIL: TestFactoryGatewayAccountRequiresOneTypedClientPolicy (3.73s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/missing (0.62s)\n    --- FAIL: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/duplicate (0.62s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-auth (0.64s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-auth (0.62s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/text-direct (0.62s)\n    --- PASS: TestFactoryGatewayAccountRequiresOneTypedClientPolicy/null-direct (0.62s)\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t16.426s\nFAIL\n"
+  }
+}
