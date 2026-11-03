@@ -1,0 +1,266 @@
+{
+  "status": "published_remote_verified",
+  "user_policy": "exact pinned derivative with strict integrity exception; preserve ingress protections",
+  "native_tree_sha256": "a4fe9e22e8219e06028cbd1941ec97a25aced71380fab80e7b1f93c4a601aac0",
+  "native_files": 186,
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-fasthttp-integrity-installed-a7fi230x/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "cae83fbc685d56fc17c4992e42939f038cae80d32cfee740430a4e2617c9dc1d",
+    "source_files": 1932,
+    "changed_composed_files": [
+      "core/providers/utils/factory_fasthttp_integrity_test.go",
+      "core/providers/utils/fasthttpreplace_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "hardlinked_update_refused_before_writes": true
+  },
+  "installer_tests": 22,
+  "post_test_manifest": {
+    "files": 1932,
+    "post_test_manifest_matches": true
+  },
+  "artifacts": {
+    "factory_fasthttp_integrity_test.go": "9f5052942f83e26e52a6824764d96bc719ab076aa0328557a2545ea4fecbf7dc",
+    "factory_fasthttpreplace_test.go": "72dac5b5cde0b0d8bddf30d6896c2700f6b9a70af9a82d15c1c5a448e8a254b8"
+  },
+  "candidate_enabled": false,
+  "benchmark_attempts": 0,
+  "full-utils-race": {
+    "state": "complete",
+    "pid": 2314026,
+    "driver_pid": 2314025,
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-count=1",
+      "-timeout=600s",
+      "github.com/maximhq/bifrost/core/providers/utils"
+    ],
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOENV": "off",
+      "GOAUTH": "off",
+      "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+      "GOTMPDIR": "/home/bo/sfactory-dependency-restore-1rofjr1v/tmp",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "exit_code": 0,
+    "wall_seconds": 48.5183864091523
+  },
+  "native-admission-race": {
+    "state": "complete",
+    "pid": 2315170,
+    "driver_pid": 2314025,
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-count=1",
+      "-timeout=180s",
+      "-run",
+      "TestAdmittedRequestOwnsFreshBufferAcrossResets",
+      "."
+    ],
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOENV": "off",
+      "GOAUTH": "off",
+      "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+      "GOTMPDIR": "/home/bo/sfactory-dependency-restore-1rofjr1v/tmp",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2"
+    },
+    "exit_code": 0,
+    "wall_seconds": 6.224372637923807
+  },
+  "hardlink_regression": {
+    "before_fix": {
+      "test": "test_hardlinked_update_refused_before_any_write",
+      "exit_code": 1,
+      "failure": "ValueError not raised",
+      "outside_stage_alias_modified": true,
+      "target_link_count": 2
+    },
+    "fix": "require update target st_nlink == 1 before first write",
+    "after_fix": {
+      "installer_tests_passed": 22,
+      "full_tree_linked_target_refused_before_writes": true,
+      "outside_alias_unchanged": true,
+      "installed_source_sha256_unchanged": true
+    }
+  },
+  "source_commit": "db30a37ee6d122043260b80ba2f45e57db75b8e6",
+  "remote_sha_verified": true,
+  "review": {
+    "status": "complete",
+    "verdict": "Ready with fixes",
+    "scope": {
+      "base": "873f5658481d7c771ab8b3107a74a8d7cf5d0be6",
+      "branch": "codex/remaining-source-audit-20261031",
+      "head_sha": "873f5658481d7c771ab8b3107a74a8d7cf5d0be6",
+      "pr_url": null,
+      "files_changed": 4
+    },
+    "intent": "Retain the reviewed native fasthttp admission derivative while replacing a blanket replacement refusal with exact version, replacement-location and complete-tree integrity checks. Install the pinned guard update only after validating its old preimage, every new artifact and the complete source tree, preserving ingress protections and refusing source drift before writes.",
+    "intent_confidence": "explicit",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "adversarial"
+    ],
+    "findings": [
+      {
+        "#": 1,
+        "autofix_class": "manual",
+        "confidence": 75,
+        "evidence": [
+          "engine/transport/patch_factory_gateway_exchange.py:145 -- target.write_bytes(payload)",
+          "engine/transport/patch_factory_gateway_exchange.py:86 -- if not stat.S_ISREG(path.lstat().st_mode):",
+          "engine/transport/patch_factory_gateway_exchange.py:142 -- if _tree_digest(roots[\"core\"].parent) != SOURCE_SHA256:",
+          "Constructed sequence: hard-link the correctly pinned existing guard into a disposable stage from an original source tree; regular-file/type and byte/path digest checks pass because link count is not included; writing the update through either hard-link name changes the original source inode as well. This is specific to the new overwrite branch; the existing FILES path creates new targets with exclusive mode."
+        ],
+        "file": "engine/transport/patch_factory_gateway_exchange.py",
+        "first_evidence": "engine/transport/patch_factory_gateway_exchange.py:145 -- target.write_bytes(payload)",
+        "independent_reviewers": [
+          "adversarial"
+        ],
+        "line": 145,
+        "owner": "downstream-resolver",
+        "pre_existing": false,
+        "requires_verification": true,
+        "reviewers": [
+          "adversarial"
+        ],
+        "severity": "P2",
+        "suggested_fix": "Before collecting an UPDATES target for writing, require its lstat().st_nlink to equal 1 (and retain the existing regular-file/preimage checks). Add an installer fixture linking the update target to a file outside the stage, then assert refusal before writes and that the outside file and all new targets remain unchanged.",
+        "title": "Hard-linked stage overwrites its original guard",
+        "why_it_matters": "Installing into a disposable stage prepared with hard-linked source files also modifies the original guard outside that stage. The old guard remains a regular file with the exact pinned bytes, so baseline and full-tree validation accept it; the new in-place overwrite then truncates the shared inode. Rejecting multiply linked update targets before any write keeps the original source untouched while preserving ordinary copied-stage installation.",
+        "validation_status": "confirmed",
+        "validation_reason": "When the pinned update target is hard-linked to an outside file, _read (lines85-91) and _tree_digest (lines94-114) validate only type/content/path while the new target.write_bytes at line145 truncates the shared inode, so the diff newly exposes outside-stage modification; actual incidence was not independently measured under this read-only validation.",
+        "protected_subject": "data-loss"
+      }
+    ],
+    "actionable_findings": [
+      {
+        "#": 1,
+        "autofix_class": "manual",
+        "confidence": 75,
+        "evidence": [
+          "engine/transport/patch_factory_gateway_exchange.py:145 -- target.write_bytes(payload)",
+          "engine/transport/patch_factory_gateway_exchange.py:86 -- if not stat.S_ISREG(path.lstat().st_mode):",
+          "engine/transport/patch_factory_gateway_exchange.py:142 -- if _tree_digest(roots[\"core\"].parent) != SOURCE_SHA256:",
+          "Constructed sequence: hard-link the correctly pinned existing guard into a disposable stage from an original source tree; regular-file/type and byte/path digest checks pass because link count is not included; writing the update through either hard-link name changes the original source inode as well. This is specific to the new overwrite branch; the existing FILES path creates new targets with exclusive mode."
+        ],
+        "file": "engine/transport/patch_factory_gateway_exchange.py",
+        "first_evidence": "engine/transport/patch_factory_gateway_exchange.py:145 -- target.write_bytes(payload)",
+        "independent_reviewers": [
+          "adversarial"
+        ],
+        "line": 145,
+        "owner": "downstream-resolver",
+        "pre_existing": false,
+        "requires_verification": true,
+        "reviewers": [
+          "adversarial"
+        ],
+        "severity": "P2",
+        "suggested_fix": "Before collecting an UPDATES target for writing, require its lstat().st_nlink to equal 1 (and retain the existing regular-file/preimage checks). Add an installer fixture linking the update target to a file outside the stage, then assert refusal before writes and that the outside file and all new targets remain unchanged.",
+        "title": "Hard-linked stage overwrites its original guard",
+        "why_it_matters": "Installing into a disposable stage prepared with hard-linked source files also modifies the original guard outside that stage. The old guard remains a regular file with the exact pinned bytes, so baseline and full-tree validation accept it; the new in-place overwrite then truncates the shared inode. Rejecting multiply linked update targets before any write keeps the original source untouched while preserving ordinary copied-stage installation.",
+        "validation_status": "confirmed",
+        "validation_reason": "When the pinned update target is hard-linked to an outside file, _read (lines85-91) and _tree_digest (lines94-114) validate only type/content/path while the new target.write_bytes at line145 truncates the shared inode, so the diff newly exposes outside-stage modification; actual incidence was not independently measured under this read-only validation.",
+        "protected_subject": "data-loss"
+      }
+    ],
+    "triage_groups": [],
+    "pre_existing_findings": [],
+    "requirements_completeness": null,
+    "learnings": [],
+    "agent_native_gaps": [],
+    "deployment_notes": [],
+    "residual_risks": [],
+    "testing_gaps": [],
+    "coverage": {
+      "depth": "full",
+      "notes": [
+        "Full depth chosen for silent-pass dependency/admission integrity and source overwrite boundaries; helper reports13 executable non-test lines,647 total changed lines, no hard floor.",
+        "Project standards: not run (no applicable standards files).",
+        "No REVIEW.md at review base; no plan discovered in missing docs/plans directory.",
+        "Parent authoritative installed-source full utility race suite passed41.671s; native admitted-request buffer race regression passed1.015s; exact1932filemanifest unchanged.",
+        "21 installer tests, Ruff, gofmt and diffcheck pass; simplification five passes made no edits.",
+        "Original quoted-adjacent duplicate bypass failed runtime regression before token boundary correction; focused package race suite then passed1.756s.",
+        "This source qualification does not establish full production bootstrap, provider spending bounds, credential lifetime custody or NUC launch/recovery readiness.",
+        "All six selected local reviewers returned valid full artifacts; one adversarial finding retained for merge/validation.",
+        "adversarial lens: in-process fallback (cross-model peer not run: Claude acpx transport unavailable pre-egress, route Internal error; no other attested-different installed target)",
+        "One primary actionable P2 finding retained: hard-linked regular-file update targets can pass all byte/type checks and overwrite an original source inode outside the disposable stage.",
+        "No semantic duplicates, malformed findings/returns, confidence suppressions, or mode-aware demotions; one first_evidence backfilled from the full adversarial artifact.",
+        "Settlement suppression was not evaluated because no plan was discovered.",
+        "One actionable finding selected for independent validation; no cross-model corroboration shortcut is available.",
+        "Independent validator confirmed finding #1 as a data-loss defect; incidence was not independently measured during read-only validation.",
+        "Validation: 1 confirmed, 0 rejected, 0 unresolved, 0 malformed, 0 failed, 0 shortcut-skipped; the one-batch verdict file arrived within the bound.",
+        "No findings were applied; reject multiply linked update targets and add the outside-alias regression before publication."
+      ],
+      "validator": {
+        "outcome": "verdicts",
+        "confirmed": 1,
+        "rejected": 0,
+        "unresolved": 0,
+        "malformed": 0,
+        "failed": 0,
+        "shortcut_skipped": 0,
+        "protected_subject_reclassifications": 0
+      },
+      "first_evidence_backfilled": 1,
+      "quote_gate_demotions": 0,
+      "suppressed_by_confidence": {},
+      "mode_aware_demotion_count": 0,
+      "failed_reviewers": [],
+      "review_policy": {
+        "sources": [],
+        "removed": 0,
+        "regraded": 0,
+        "not_applied": []
+      },
+      "compound_packs": {
+        "roots": [],
+        "errors": [],
+        "warnings": []
+      },
+      "settlement_suppression": "not evaluated; no discovered plan"
+    },
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: Claude acpx transport unavailable pre-egress, route Internal error; no other attested-different installed target)"
+    },
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261103-090831-2ef821e6",
+    "run_id": "20261103-090831-2ef821e6"
+  },
+  "review_resolution": {
+    "applied": [
+      1
+    ],
+    "unresolved": [],
+    "verification": "22 installer tests, Ruff, exact source reconstruction and full-tree hardlink refusal; Go source unchanged from passing native stage"
+  },
+  "simplification": {
+    "applied": 0,
+    "proof_tests_unchanged": true
+  }
+}

@@ -1,0 +1,19 @@
+# Exact fasthttp derivative integrity exception
+
+The user selected the exact pinned derivative with a strict integrity exception, preserving native pre-body ingress admission. [Bifrost db30a37](https://github.com/swimbo/bifrost-local/commit/db30a37ee6d122043260b80ba2f45e57db75b8e6) is pushed and its remote SHA verified. Simplification made no edits. Six local review lenses completed; the sole actionable finding, the installer hardlink hazard, was confirmed and fixed with red/green evidence. The configured Claude route failed before content egress, so the local adversarial fallback supplied that lens. Review receipt: `20261103-090831-2ef821e6`.
+
+The replacement guard retains all existing version/parser/root/cancellation checks. Every fasthttp requirement must remain v1.74.0. Exactly one unqualified `github.com/valyala/fasthttp => ../fasthttp` replacement is required in transports/go.mod; replacements elsewhere, alternate locations, version-qualified directives and duplicates are refused. Original replacement clauses are counted before Go normalization can collapse identical duplicates.
+
+The complete 186-file native tree is pinned to SHA256 `a4fe9e22e8219e06028cbd1941ec97a25aced71380fab80e7b1f93c4a601aac0`. Modified, missing, extra, symlinked and nonregular entries are refused, including hidden files. The derivative remains byte-for-byte unchanged. Its reviewed upstream changes remain http.go, server.go and body_admission_test.go; no admission protection or API was removed.
+
+## Verification
+
+The original blanket replacement guard failed on the selected derivative. The new policy suite accepts the exact installed positive case and rejects alternate/duplicate/qualified replacement fixtures plus native tree tampering. A quoted old module immediately adjacent to the arrow exposed a real duplicate-count bypass; the failing runtime assertion was captured before token-boundary correction. The focused offline package race suite then passed in 1.756s. Only Windows skips the Unix FIFO fixture; integrity validation remains unconditional.
+
+The installer pins the old guard preimage and both replacement artifacts. It validates all payloads and the entire source before overwriting the verified old guard or creating any new target. Scratch tests first failed because the old installer left the guard unchanged and accepted an unpinned update. Review exposed an overwrite hazard when the old guard was hard-linked outside the disposable tree. The regression failed before the fix, and a separate control confirmed the outside alias was actually modified. The installer now refuses multiply linked update targets before writes. All 22 final installer tests pass, including that regression, corrupt update, source drift and replay refusal. A full-tree hardlink control also preserves both the stage and outside alias. Exact reconstruction changes only the existing guard and new helper, producing a 1,932-file tree with SHA256 `cae83fbc685d56fc17c4992e42939f038cae80d32cfee740430a4e2617c9dc1d`.
+
+On hermes-control, the full installed utility race suite passes in 41.671s, exit 0. The native `TestAdmittedRequestOwnsFreshBufferAcrossResets` regression passes under race in 1.015s, exit 0. Both run offline with readonly modules. All 1,932 source hashes match the manifest after execution. Existing server qualification remains scoped evidence for identical production source, not a new production launch result.
+
+Receipts are retained at `/home/bo/sfactory-fasthttp-integrity-final-HAftEZ` (full-utils-race and native-admission-race logs/status), with earlier policy red/green receipts at `/home/bo/fasthttp-integrity-bQRpew`. Native source was not modified for qualification.
+
+This closes the dependency-policy conflict, not the full production bootstrap, spending-bound, custody or launch/recovery gates. No paid retained-provider call, deployment or activation occurred. Candidate disabled; benchmark 0/120.
