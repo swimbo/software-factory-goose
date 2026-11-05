@@ -1,0 +1,1232 @@
+{
+  "schema": 1,
+  "status": "qualified_source_published",
+  "scope": "Acquired-owner retained runtime source qualification",
+  "bifrost_base": "b2ec550e021f635752eba2b233a34b98f8fed0a0",
+  "main_base": "c0d6f7eb8d66106a65b25e9e34d85f11a5330e92",
+  "installation": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-owned-exchange-installed-ze3bbm6h/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "e40b8d69bd457f0619c1911334bd3a76243a57ad9352aa365271c1614e794929",
+    "source_files": 1935,
+    "changed_composed_files": [
+      "transports/bifrost-http/lib/grant.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap_native_test.go",
+      "transports/bifrost-http/server/factory_gateway_exchange.go",
+      "transports/bifrost-http/server/factory_wallet_join_native_test.go",
+      "transports/bifrost-http/server/normalizer_startup.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "hardlinked_update_refused_before_writes": true
+  },
+  "full_race": {
+    "full_race": {
+      "state": "complete",
+      "pid": 3960188,
+      "start_ticks": "268602154",
+      "driver_pid": 3960187,
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=600s",
+        "github.com/maximhq/bifrost/transports/bifrost-http/server",
+        "github.com/maximhq/bifrost/transports/bifrost-http/lib",
+        "github.com/maximhq/bifrost/framework/configstore",
+        "github.com/maximhq/bifrost/plugins/governance",
+        "github.com/maximhq/bifrost/plugins/routing/..."
+      ],
+      "environment": {
+        "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+        "GOENV": "off",
+        "GOAUTH": "off",
+        "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+        "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+        "GOTMPDIR": "/tmp/oe4luqb13f",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTOOLCHAIN": "local",
+        "GOMAXPROCS": "2",
+        "TMPDIR": "/tmp/oe4luqb13f",
+        "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+        "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+        "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+      },
+      "exit_code": 0,
+      "wall_seconds": 241.56894204299897
+    },
+    "full_race_log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t102.761s\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t118.949s\nok  \tgithub.com/maximhq/bifrost/framework/configstore\t43.567s\nok  \tgithub.com/maximhq/bifrost/plugins/governance\t73.737s\nok  \tgithub.com/maximhq/bifrost/plugins/routing\t1.276s\nok  \tgithub.com/maximhq/bifrost/plugins/routing/complexity\t2.745s\nok  \tgithub.com/maximhq/bifrost/plugins/routing/rules\t1.170s\n",
+    "post_qualification_manifest": {
+      "files": 1935,
+      "post_qualification_manifest_matches": true
+    }
+  },
+  "final_server": {
+    "status": {
+      "state": "complete",
+      "pid": 4002602,
+      "start_ticks": "268885103",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=600s",
+        "github.com/maximhq/bifrost/transports/bifrost-http/server"
+      ],
+      "environment": {
+        "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+        "GOENV": "off",
+        "GOAUTH": "off",
+        "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+        "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+        "GOTMPDIR": "/tmp/ofqbhhemnu",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTOOLCHAIN": "local",
+        "GOMAXPROCS": "2",
+        "TMPDIR": "/tmp/ofqbhhemnu",
+        "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+        "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+        "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+      },
+      "exit_code": 0,
+      "wall_seconds": 138.88559289416298
+    },
+    "log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t99.826s\n",
+    "files": 1935,
+    "manifest_matches": true,
+    "symlinks": []
+  },
+  "native": {
+    "positive3": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-positive3",
+        "identity_case": "matching",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v2",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-positive3",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-positive3,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v2,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'matching'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "26e0f2e9b2cb984156ca1b1032b37e6f8a62c48a9c2721d278abc78043821157"
+        },
+        "container_id": "2c73a49a6a56cfec4e80a97694dbe7e2d621ee544490104bfa5b752c8cbe10dd",
+        "attach_pid": 3940112,
+        "start_ticks": "268513713",
+        "exit_code": 0,
+        "wall_seconds": 9.73421625001356
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T02:59:26.448823128Z",
+        "FinishedAt": "2026-11-05T02:59:35.91809438Z"
+      },
+      "log": "{\"actual_bifrost_handler\":true,\"actual_immutable_wire_authorizer\":true,\"actual_retained_runtime_and_governance\":true,\"altered_root_scope_denied\":true,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"26e0f2e9b2cb984156ca1b1032b37e6f8a62c48a9c2721d278abc78043821157\"},\"candidate_activation_performed\":false,\"component\":\"wallet_root_broker_bifrost_capture_join\",\"daily_cap_denied_with_task_headroom\":true,\"fixture_sha256\":{\"harness_wallet_custody_replay.py\":\"573cffb105fb7fb18518333457279c8c98c9a6dea80e37857fd026233d3dedf4\",\"wallet-gateway-join.py\":\"6c381dae669877d9926acad2d827b020581e972ff2368d55927170b1284f3428\"},\"gateway_listens_on_bound_socket\":true,\"harness_sha256\":{\"factory_harness.py\":\"78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81\",\"gateway_custody.py\":\"7a565ea7a69298e2b6f41ec11bc79ce660ff1c209f0b0ea9cf583e128d6a96f5\",\"gateway_transport.py\":\"37609693141367af53d24f29c8dd4dbef09fdecdca0f8a04687cd82484c771bf\",\"linux_runner.py\":\"3faa140d768438e28297a46a810af22166fbe3f00f90113f5d22de3b4f1a907b\",\"linux_supervisor.py\":\"fd7fd9886e2d08889c6d1400b541d93830ac9db3f4ac22a66e6e79d33c66a1e3\",\"physical_settlement.py\":\"c5d97e78ccafcf2ea0a9ba76b39b4b83013bc6c5ffe0009f9c56df91e78e4009\",\"physical_usage.py\":\"c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32\",\"protected_spending_control.py\":\"480588ac391c52c3a6c22a9d64f47b1e8b463305a066df4911209bb8a7aa6dec\",\"usage_rating.py\":\"0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a\"},\"inherited_listener_handoff\":true,\"live_attempts\":0,\"mode\":\"rehearsal\",\"owned_semantic_warmup_batches\":5,\"owner_and_principal_observed_per_callback\":true,\"paid_calls\":0,\"physical_scope_and_wallet_checks\":8,\"private_listener_joined_and_cancelled\":true,\"production_admission\":false,\"public_route_review_provider_and_charge_bounds_synthetic\":true,\"real_broker_and_capture\":true,\"retained_answer_calls\":1,\"retained_classifier_calls\":1,\"retained_embedding_calls\":6,\"root_constructor_and_registry_synthetic\":true,\"root_lease_deadline_observed\":true,\"root_scope_methods_actual\":true,\"schema\":1,\"settled_usage_rated_microusd\":31,\"task_cap_denied_with_daily_headroom\":true,\"wallet_actual\":true,\"wallet_begin_replay_after_completion_denied\":true,\"worker_root_socket_denied\":true}\n",
+      "receipts": [
+        {
+          "actual_bifrost_handler": true,
+          "actual_immutable_wire_authorizer": true,
+          "actual_retained_runtime_and_governance": true,
+          "altered_root_scope_denied": true,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "26e0f2e9b2cb984156ca1b1032b37e6f8a62c48a9c2721d278abc78043821157"
+          },
+          "candidate_activation_performed": false,
+          "component": "wallet_root_broker_bifrost_capture_join",
+          "daily_cap_denied_with_task_headroom": true,
+          "fixture_sha256": {
+            "harness_wallet_custody_replay.py": "573cffb105fb7fb18518333457279c8c98c9a6dea80e37857fd026233d3dedf4",
+            "wallet-gateway-join.py": "6c381dae669877d9926acad2d827b020581e972ff2368d55927170b1284f3428"
+          },
+          "gateway_listens_on_bound_socket": true,
+          "harness_sha256": {
+            "factory_harness.py": "78c58647cae398275ac95587b650ca75237aafbefe85de33dce2df664fbb8c81",
+            "gateway_custody.py": "7a565ea7a69298e2b6f41ec11bc79ce660ff1c209f0b0ea9cf583e128d6a96f5",
+            "gateway_transport.py": "37609693141367af53d24f29c8dd4dbef09fdecdca0f8a04687cd82484c771bf",
+            "linux_runner.py": "3faa140d768438e28297a46a810af22166fbe3f00f90113f5d22de3b4f1a907b",
+            "linux_supervisor.py": "fd7fd9886e2d08889c6d1400b541d93830ac9db3f4ac22a66e6e79d33c66a1e3",
+            "physical_settlement.py": "c5d97e78ccafcf2ea0a9ba76b39b4b83013bc6c5ffe0009f9c56df91e78e4009",
+            "physical_usage.py": "c1ed60cb04b5fb42b0ae7eed5c74e50f11ebe9bf132688446ef9e659ae7dbf32",
+            "protected_spending_control.py": "480588ac391c52c3a6c22a9d64f47b1e8b463305a066df4911209bb8a7aa6dec",
+            "usage_rating.py": "0a01de320b038596d5529747e3dbc289df718fd737398572af72c2da0c21212a"
+          },
+          "inherited_listener_handoff": true,
+          "live_attempts": 0,
+          "mode": "rehearsal",
+          "owned_semantic_warmup_batches": 5,
+          "owner_and_principal_observed_per_callback": true,
+          "paid_calls": 0,
+          "physical_scope_and_wallet_checks": 8,
+          "private_listener_joined_and_cancelled": true,
+          "production_admission": false,
+          "public_route_review_provider_and_charge_bounds_synthetic": true,
+          "real_broker_and_capture": true,
+          "retained_answer_calls": 1,
+          "retained_classifier_calls": 1,
+          "retained_embedding_calls": 6,
+          "root_constructor_and_registry_synthetic": true,
+          "root_lease_deadline_observed": true,
+          "root_scope_methods_actual": true,
+          "schema": 1,
+          "settled_usage_rated_microusd": 31,
+          "task_cap_denied_with_daily_headroom": true,
+          "wallet_actual": true,
+          "wallet_begin_replay_after_completion_denied": true,
+          "worker_root_socket_denied": true
+        }
+      ]
+    },
+    "credchanged3": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-credchanged3",
+        "identity_case": "changed_credential",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-credchanged3",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-credchanged3,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'changed_credential'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+        },
+        "container_id": "4d74e4f4685f753117ac7f66d89f5be541aee7ec60b488d58479b6b647f2e21c",
+        "attach_pid": 3955605,
+        "start_ticks": "268576321",
+        "exit_code": 0,
+        "wall_seconds": 8.709091987926513
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T03:09:52.539504486Z",
+        "FinishedAt": "2026-11-05T03:10:00.930433299Z"
+      },
+      "log": "{\"authority_and_provider_inputs_synthetic\":true,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7\"},\"component\":\"retained_runtime_identity_refusal\",\"context_cancelled\":true,\"fixture_sha256\":\"bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb\",\"gateway_poisoned\":true,\"identity_case\":\"changed_credential\",\"live_attempts\":0,\"mode\":\"rehearsal\",\"owner_acquisitions\":1,\"paid_calls\":0,\"production_admission\":false,\"provider_calls_after_identity_change\":0,\"repeated_begin_denied\":true,\"schema\":1,\"spent_allowance_not_restored\":true,\"successful_capture_absent\":true,\"unresolved_sequence_blocks_admission\":true,\"verified_physical_calls\":5}\n",
+      "receipts": [
+        {
+          "authority_and_provider_inputs_synthetic": true,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+          },
+          "component": "retained_runtime_identity_refusal",
+          "context_cancelled": true,
+          "fixture_sha256": "bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb",
+          "gateway_poisoned": true,
+          "identity_case": "changed_credential",
+          "live_attempts": 0,
+          "mode": "rehearsal",
+          "owner_acquisitions": 1,
+          "paid_calls": 0,
+          "production_admission": false,
+          "provider_calls_after_identity_change": 0,
+          "repeated_begin_denied": true,
+          "schema": 1,
+          "spent_allowance_not_restored": true,
+          "successful_capture_absent": true,
+          "unresolved_sequence_blocks_admission": true,
+          "verified_physical_calls": 5
+        }
+      ]
+    },
+    "credmissing1": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-credmissing1",
+        "identity_case": "missing_credential",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-credmissing1",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-credmissing1,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'missing_credential'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+        },
+        "container_id": "9168e7fcb8d9bc0512bfdaeaa29a1b2f9f1b578115b2f21963f44b5fe51f8cf9",
+        "attach_pid": 3957625,
+        "start_ticks": "268586401",
+        "exit_code": 0,
+        "wall_seconds": 8.615948045160621
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T03:11:33.337425747Z",
+        "FinishedAt": "2026-11-05T03:11:41.655400711Z"
+      },
+      "log": "{\"authority_and_provider_inputs_synthetic\":true,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7\"},\"component\":\"retained_runtime_identity_refusal\",\"context_cancelled\":true,\"fixture_sha256\":\"bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb\",\"gateway_poisoned\":true,\"identity_case\":\"missing_credential\",\"live_attempts\":0,\"mode\":\"rehearsal\",\"owner_acquisitions\":1,\"paid_calls\":0,\"production_admission\":false,\"provider_calls_after_identity_change\":0,\"repeated_begin_denied\":true,\"schema\":1,\"spent_allowance_not_restored\":true,\"successful_capture_absent\":true,\"unresolved_sequence_blocks_admission\":true,\"verified_physical_calls\":5}\n",
+      "receipts": [
+        {
+          "authority_and_provider_inputs_synthetic": true,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+          },
+          "component": "retained_runtime_identity_refusal",
+          "context_cancelled": true,
+          "fixture_sha256": "bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb",
+          "gateway_poisoned": true,
+          "identity_case": "missing_credential",
+          "live_attempts": 0,
+          "mode": "rehearsal",
+          "owner_acquisitions": 1,
+          "paid_calls": 0,
+          "production_admission": false,
+          "provider_calls_after_identity_change": 0,
+          "repeated_begin_denied": true,
+          "schema": 1,
+          "spent_allowance_not_restored": true,
+          "successful_capture_absent": true,
+          "unresolved_sequence_blocks_admission": true,
+          "verified_physical_calls": 5
+        }
+      ]
+    },
+    "userchanged1": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-userchanged1",
+        "identity_case": "changed_user",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-userchanged1",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-userchanged1,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'changed_user'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+        },
+        "container_id": "d5f5d250e281e5ebd29e21900406a18a9dcd7bfb292ac8c75d470de419d5bf7f",
+        "attach_pid": 3962407,
+        "start_ticks": "268610655",
+        "exit_code": 0,
+        "wall_seconds": 8.6590107078664
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T03:15:35.86631225Z",
+        "FinishedAt": "2026-11-05T03:15:44.237534534Z"
+      },
+      "log": "{\"authority_and_provider_inputs_synthetic\":true,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7\"},\"component\":\"retained_runtime_identity_refusal\",\"context_cancelled\":true,\"fixture_sha256\":\"bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb\",\"gateway_poisoned\":true,\"identity_case\":\"changed_user\",\"live_attempts\":0,\"mode\":\"rehearsal\",\"owner_acquisitions\":1,\"paid_calls\":0,\"production_admission\":false,\"provider_calls_after_identity_change\":0,\"repeated_begin_denied\":true,\"schema\":1,\"spent_allowance_not_restored\":true,\"successful_capture_absent\":true,\"unresolved_sequence_blocks_admission\":true,\"verified_physical_calls\":5}\n",
+      "receipts": [
+        {
+          "authority_and_provider_inputs_synthetic": true,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+          },
+          "component": "retained_runtime_identity_refusal",
+          "context_cancelled": true,
+          "fixture_sha256": "bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb",
+          "gateway_poisoned": true,
+          "identity_case": "changed_user",
+          "live_attempts": 0,
+          "mode": "rehearsal",
+          "owner_acquisitions": 1,
+          "paid_calls": 0,
+          "production_admission": false,
+          "provider_calls_after_identity_change": 0,
+          "repeated_begin_denied": true,
+          "schema": 1,
+          "spent_allowance_not_restored": true,
+          "successful_capture_absent": true,
+          "unresolved_sequence_blocks_admission": true,
+          "verified_physical_calls": 5
+        }
+      ]
+    },
+    "classrejected1": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-classrejected1",
+        "identity_case": "classifier_rejected",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-classrejected1",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-classrejected1,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v4,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'classifier_rejected'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+        },
+        "container_id": "5f9e2b3811a456e61ff2249ffe1122e00a044da85a7d670ca62349d1eb8344dc",
+        "attach_pid": 3976260,
+        "start_ticks": "268707788",
+        "exit_code": 0,
+        "wall_seconds": 8.550315191969275
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T03:31:47.195926016Z",
+        "FinishedAt": "2026-11-05T03:31:55.592211098Z"
+      },
+      "log": "{\"answer_http_calls\":0,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7\"},\"classifier_chat_calls\":1,\"component\":\"retained_classifier_rejection\",\"embedding_calls\":6,\"fixture_sha256\":\"bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb\",\"gateway_poisoned\":true,\"live_attempts\":0,\"mode\":\"rehearsal\",\"owner_acquisitions\":1,\"paid_calls\":0,\"production_admission\":false,\"public_route_review_provider_and_charge_bounds_synthetic\":true,\"repeated_begin_denied\":true,\"responses_http_calls\":0,\"schema\":1,\"spent_allowance_not_restored\":true,\"successful_capture_absent\":true,\"unresolved_sequence_blocks_admission\":true,\"verified_physical_calls\":7}\n",
+      "receipts": [
+        {
+          "answer_http_calls": 0,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "3e9f88a083387fbc72e1fb08ff2b96549e1f015e9b71db716d38a5410ae2fcf7"
+          },
+          "classifier_chat_calls": 1,
+          "component": "retained_classifier_rejection",
+          "embedding_calls": 6,
+          "fixture_sha256": "bae756af4eca9e18405be3eeaa440a6a9bffe972201a7e5f8118eb6f510792cb",
+          "gateway_poisoned": true,
+          "live_attempts": 0,
+          "mode": "rehearsal",
+          "owner_acquisitions": 1,
+          "paid_calls": 0,
+          "production_admission": false,
+          "public_route_review_provider_and_charge_bounds_synthetic": true,
+          "repeated_begin_denied": true,
+          "responses_http_calls": 0,
+          "schema": 1,
+          "spent_allowance_not_restored": true,
+          "successful_capture_absent": true,
+          "unresolved_sequence_blocks_admission": true,
+          "verified_physical_calls": 7
+        }
+      ]
+    },
+    "responses2": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-responses2",
+        "identity_case": "responses_executor",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-responses2",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-responses2,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'responses_executor'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "ef0b643d27bbe66f1456b5dc88b2639bd6aae82ab0c30882155af1b0f3170892"
+        },
+        "container_id": "47f06659196115bed0d2a39a5f261ffc7e565d0adb3198fb026febff38bb689d",
+        "attach_pid": 3998194,
+        "start_ticks": "268862444",
+        "exit_code": 0,
+        "wall_seconds": 11.049460649024695
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-05T03:57:33.775381561Z",
+        "FinishedAt": "2026-11-05T03:57:44.497432357Z"
+      },
+      "log": "{\"actual_governance_core_and_wire_authorizer\":true,\"actual_sdk_answer_stream_drained\":true,\"binary_sha256\":{\"restate-server\":\"a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db\",\"runtime\":\"218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe\",\"wallet-gateway-test\":\"ef0b643d27bbe66f1456b5dc88b2639bd6aae82ab0c30882155af1b0f3170892\"},\"complete_capture_independently_audited\":true,\"component\":\"owned_responses_executor_capture\",\"fixture_sha256\":\"f61563b37433dc0da00be0d12827632e0faa44cb027e2b9af911eea75402e9f0\",\"live_attempts\":0,\"logical_exchange_success\":false,\"mode\":\"rehearsal\",\"ordinary_handler_or_fallback_verified\":false,\"owner_acquisitions\":1,\"paid_calls\":0,\"production_admission\":false,\"public_route_review_provider_and_charge_bounds_synthetic\":true,\"repeated_begin_denied\":true,\"schema\":1,\"settled_usage_rated_microusd\":31,\"spent_allowance_not_restored\":true,\"store_false_on_wire\":true,\"verified_physical_calls\":7}\n",
+      "receipts": [
+        {
+          "actual_governance_core_and_wire_authorizer": true,
+          "actual_sdk_answer_stream_drained": true,
+          "binary_sha256": {
+            "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+            "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+            "wallet-gateway-test": "ef0b643d27bbe66f1456b5dc88b2639bd6aae82ab0c30882155af1b0f3170892"
+          },
+          "complete_capture_independently_audited": true,
+          "component": "owned_responses_executor_capture",
+          "fixture_sha256": "f61563b37433dc0da00be0d12827632e0faa44cb027e2b9af911eea75402e9f0",
+          "live_attempts": 0,
+          "logical_exchange_success": false,
+          "mode": "rehearsal",
+          "ordinary_handler_or_fallback_verified": false,
+          "owner_acquisitions": 1,
+          "paid_calls": 0,
+          "production_admission": false,
+          "public_route_review_provider_and_charge_bounds_synthetic": true,
+          "repeated_begin_denied": true,
+          "schema": 1,
+          "settled_usage_rated_microusd": 31,
+          "spent_allowance_not_restored": true,
+          "store_false_on_wire": true,
+          "verified_physical_calls": 7
+        }
+      ]
+    },
+    "mutantcancel2": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-mutantcancel2",
+        "identity_case": "changed_credential",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-mutantcancel2",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-mutantcancel2,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'changed_credential'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "4267a164bc16b6cbc03a42c1ecb004f7f6c22a98d2a72897a3d30ecb61694131"
+        },
+        "container_id": "9dd24c21fa92ee720040f408b6a7808944fd7206a5b739b064dac50a49f6db47",
+        "attach_pid": 4001576,
+        "start_ticks": "268882453",
+        "exit_code": 1,
+        "wall_seconds": 7.895659465808421
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-05T04:00:53.892888869Z",
+        "FinishedAt": "2026-11-05T04:01:01.311698409Z"
+      },
+      "log": "Traceback (most recent call last):\n  File \"/opt/wallet-gateway-join.py\", line 744, in <module>\n    inside()\n  File \"/opt/wallet-gateway-join.py\", line 582, in inside\n    base.require(processes[\"gateway\"].wait(timeout=10) == 0,\n  File \"/opt/harness_wallet_custody_replay.py\", line 56, in require\n    raise RuntimeError(reason)\nRuntimeError: identity refusal assertions failed\n"
+    },
+    "mutantstore1": {
+      "status": {
+        "state": "complete",
+        "container_name": "sfactory-owned-wallet-rehearsal-tpp126x6-mutantstore1",
+        "identity_case": "responses_executor",
+        "source_snapshot": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5",
+        "create_command": [
+          "docker",
+          "create",
+          "--name",
+          "sfactory-owned-wallet-rehearsal-tpp126x6-mutantstore1",
+          "--network=none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=KILL",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=SYS_CHROOT",
+          "--security-opt=no-new-privileges",
+          "--pids-limit=512",
+          "--memory=1g",
+          "--cpus=2",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-mutantstore1,dst=/fixture",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/source-v5,dst=/source,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "--mount",
+          "type=bind,src=/proc/sys/kernel/random/boot_id,dst=/fixture/proc/sys/kernel/random/boot_id,readonly",
+          "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import pathlib,os,runpy,sys;root=pathlib.Path('/fixture');\nfor p in [root]+list(root.rglob('*')):\n if not p.is_symlink() and not str(p).startswith('/fixture/dev/') and not str(p).startswith('/fixture/proc/'):\n  os.chown(p,0,0)\nos.chmod(root,0o755)\nsys.argv=['fixture', '--rootfs', '/fixture', '--identity-case', 'responses_executor'];runpy.run_path('/source/clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py',run_name='__main__')"
+        ],
+        "binaries": {
+          "runtime": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+          "restate-server": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+          "wallet-gateway-test": "d63f7f19eb1679a79881b0eefe0b1192183ff574513188081994992dd889a080"
+        },
+        "container_id": "05a54ac73019eb11f32e5da07510c21ede2693175411cd8b571371566aca6cee",
+        "attach_pid": 4001570,
+        "start_ticks": "268882453",
+        "exit_code": 1,
+        "wall_seconds": 8.172808723058552
+      },
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-05T04:00:53.868901922Z",
+        "FinishedAt": "2026-11-05T04:01:01.875355722Z"
+      },
+      "log": "Traceback (most recent call last):\n  File \"/opt/wallet-gateway-join.py\", line 744, in <module>\n    inside()\n  File \"/opt/wallet-gateway-join.py\", line 473, in inside\n    base.require(processes[\"gateway\"].returncode == 0, \"Bifrost gateway failed\")\n  File \"/opt/harness_wallet_custody_replay.py\", line 56, in require\n    raise RuntimeError(reason)\nRuntimeError: Bifrost gateway failed\n"
+    }
+  },
+  "changed_artifacts": [
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_bootstrap.go",
+      "sha256": "5e4196828773344b4e37f64520415c3cc5574140f5d8240aeada9af08bc28245"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_exchange.go",
+      "sha256": "409de495339c6554205b0e475279bd1eab9affc436baa5fbf012a369764f9588"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_bootstrap_native_test.go",
+      "sha256": "d60178a2ea54931c0dc06d5fe4a137cf8c70e68fa5748a8bfcb2d7745b4739ae"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_wallet_join_native_test.go",
+      "sha256": "fd8e7d47bfe13d202f46a20cb944ba42595c2fe0b949aa2b601e2bd834c3d55e"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_grant.go",
+      "sha256": "dbdb17335ac712a50cc1bf381fa14d4deb065fc60dfe1db0842efe78d4df856c"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_normalizer_startup.go",
+      "sha256": "398bae4371fe7f6d87927effc0992f1af4df50aacc3f240b4bd6e5463c229681"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/patch_factory_gateway_exchange.py",
+      "sha256": "f49e32d22f66677631ab1c7263668fbcbbdbd7c9b0abcbcafc581fa43fd1c521"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/test_patch_factory_gateway_exchange.py",
+      "sha256": "643c1f07dca399a372bb9ac7c957140d13fe3f8bcf3ba099445e08bc14188855"
+    }
+  ],
+  "mutant_gateway_logs": {
+    "mutantcancel2": "==184==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==184==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryWalletJoinedGateway\n    factory_wallet_join_native_test.go:353: actual routing diagnostics: []\n    factory_wallet_join_native_test.go:355: actual classifier diagnostics: ; HTTP error: <nil>\n    factory_wallet_join_native_test.go:356: actual handler grant access=true identity=true virtual_key=true reviewed_credential=true\n    factory_wallet_join_native_test.go:357: actual owned listener result err=factory gateway exchange unavailable ctx=<nil> poisoned=true provider_calls=5 embeddings=5 classifiers=0 answers=0 owner_observed=5 failure=\n    factory_wallet_join_native_test.go:372: changed owned authentication did not cancel before new physical work: cancelled_before_handler=false cancelled_after=true calls=5 embeddings=5 classifier=0 answers=0\n--- FAIL: TestFactoryWalletJoinedGateway (3.19s)\nFAIL\n\n",
+    "mutantstore1": "==184==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n==184==WARNING: reading executable name failed with errno 2, some stack frames may not be symbolized\n=== RUN   TestFactoryWalletJoinedGateway\n    factory_wallet_join_native_test.go:326: actual owned Responses executor failed: actual Responses admission/execution: failed to execute HTTP request to provider API calls=5 embeddings=5 responses=0 owner=6 wire=wire refusal=factory gateway wire review refused uri=http://127.0.0.1:39553/v1/responses model=\"openai/gpt-6-luna\" fields=[model max_output_tokens store input] max_tokens=null max_completion_tokens=null header_names=[authorization content-type user-agent] headers_match=true response_stream=false json_stream=null stream_options=null message_roles=[] messages_valid=false framed_hash_matches=true\n--- FAIL: TestFactoryWalletJoinedGateway (3.82s)\nFAIL\n\n"
+  },
+  "boundaries": [
+    "Production implementation unchanged since v11 ordinary eight-call success; later binary versions change tests only. Final server suite covers final e40 tree; other six complete suites cover identical production and unchanged package files.",
+    "Native matching case uses source-v2; identity/refusal cases source-v4; final Responses and mutants source-v5. Binary and fixture hashes identify each observation.",
+    "Public provider/charge reviews and Root constructor/registry are synthetic; actual public Root start and standalone executable remain to be completed.",
+    "No successful automatic Responses fallback claimed: dispatched classifier 400 remains unknown and permits no Responses HTTP or answer. Direct Responses executor probe is separately labeled, includes a real SDK answer to satisfy unchanged complete-capture guard.",
+    "All fixture resources and failed stages preserved. No paid inference, production permissions, deployment, activation or promotion. Candidate disabled; benchmark 0/120.",
+    "No second successful exchange in the same runtime was exercised; repeated activation/warmup and fresh owner grant reuse need explicit complete-join coverage."
+  ],
+  "installer_unittest": {
+    "tests": 24,
+    "exit_code": 0
+  },
+  "counterfactual_builds": {
+    "base-v15": {
+      "manifest.json": {
+        "fixture": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports/bifrost-http/server/factory_wallet_join_native_test.go",
+        "fixture_sha256": "fd8e7d47bfe13d202f46a20cb944ba42595c2fe0b949aa2b601e2bd834c3d55e",
+        "name": "base-v15"
+      },
+      "build-command.json": {
+        "argv": [
+          "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin/go",
+          "test",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-c",
+          "-o",
+          "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-v15.test",
+          "./bifrost-http/server"
+        ],
+        "cwd": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports",
+        "environment_overrides": {
+          "GOAUTH": "off",
+          "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+          "GOENV": "off",
+          "GOMAXPROCS": "2",
+          "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTOOLCHAIN": "local",
+          "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin"
+        }
+      },
+      "build-pid.json": {
+        "pid": 3994710,
+        "start_ticks": 268839534,
+        "started_unix_ns": 1793850824606586608
+      },
+      "build-status.json": {
+        "binary": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-v15.test",
+        "binary_sha256": "ef0b643d27bbe66f1456b5dc88b2639bd6aae82ab0c30882155af1b0f3170892",
+        "elapsed_ms": 13188,
+        "exit_code": 0,
+        "name": "base-v15",
+        "pid": 3994710,
+        "start_ticks": 268839534
+      },
+      "log": ""
+    },
+    "no-cancel-v15": {
+      "manifest.json": {
+        "fixture": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports/bifrost-http/server/factory_wallet_join_native_test.go",
+        "fixture_sha256": "fd8e7d47bfe13d202f46a20cb944ba42595c2fe0b949aa2b601e2bd834c3d55e",
+        "mutant_sha256": "3efb8724c3d7f2fbe964d4b92d1f89994e687286030871560f07f8cef974f25e",
+        "name": "no-cancel-v15",
+        "original": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports/bifrost-http/lib/grant.go",
+        "overlay": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-cancel-v15/overlay.json",
+        "overlay_sha256": "4d7a4c493d16e699b644943e64ec87fecadd02a518ca8923b39873a04fd89306",
+        "post_build_original_sha256": "dbdb17335ac712a50cc1bf381fa14d4deb065fc60dfe1db0842efe78d4df856c",
+        "post_build_original_unchanged": true,
+        "preimage_sha256": "dbdb17335ac712a50cc1bf381fa14d4deb065fc60dfe1db0842efe78d4df856c",
+        "removed_line": "bifrostCtx.Root().Cancel()",
+        "removed_line_count": 1,
+        "replacement": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-cancel-v15/grant.go"
+      },
+      "build-command.json": {
+        "argv": [
+          "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin/go",
+          "test",
+          "-overlay=/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-cancel-v15/overlay.json",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-c",
+          "-o",
+          "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-no-cancel-v15.test",
+          "./bifrost-http/server"
+        ],
+        "cwd": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports",
+        "environment_overrides": {
+          "GOAUTH": "off",
+          "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+          "GOENV": "off",
+          "GOMAXPROCS": "2",
+          "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTOOLCHAIN": "local",
+          "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin"
+        }
+      },
+      "build-pid.json": {
+        "pid": 3995086,
+        "start_ticks": 268840871,
+        "started_unix_ns": 1793850837975676999
+      },
+      "build-status.json": {
+        "binary": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-no-cancel-v15.test",
+        "binary_sha256": "4267a164bc16b6cbc03a42c1ecb004f7f6c22a98d2a72897a3d30ecb61694131",
+        "elapsed_ms": 13677,
+        "exit_code": 0,
+        "name": "no-cancel-v15",
+        "pid": 3995086,
+        "start_ticks": 268840871
+      },
+      "log": ""
+    },
+    "no-store-v15": {
+      "manifest.json": {
+        "fixture": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports/bifrost-http/server/factory_wallet_join_native_test.go",
+        "fixture_sha256": "fd8e7d47bfe13d202f46a20cb944ba42595c2fe0b949aa2b601e2bd834c3d55e",
+        "mutant_sha256": "a0e921151746ea612d4d8866743baf50acd29aba9e5784189668a536f4e69c01",
+        "name": "no-store-v15",
+        "original": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports/bifrost-http/server/factory_gateway_bootstrap.go",
+        "overlay": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-store-v15/overlay.json",
+        "overlay_sha256": "e973b6603b3470a123b1d98096e31a88f49a186becf90b4ab2d19b116658bde0",
+        "post_build_original_sha256": "5e4196828773344b4e37f64520415c3cc5574140f5d8240aeada9af08bc28245",
+        "post_build_original_unchanged": true,
+        "preimage_sha256": "5e4196828773344b4e37f64520415c3cc5574140f5d8240aeada9af08bc28245",
+        "removed_line": "copy.Params.Store = schemas.Ptr(false)",
+        "removed_line_count": 1,
+        "replacement": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-store-v15/factory_gateway_bootstrap.go"
+      },
+      "build-command.json": {
+        "argv": [
+          "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin/go",
+          "test",
+          "-overlay=/home/bo/sfactory-owned-exchange-worker-DOsVGi/mutants/no-store-v15/overlay.json",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-c",
+          "-o",
+          "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-no-store-v15.test",
+          "./bifrost-http/server"
+        ],
+        "cwd": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/source/transports",
+        "environment_overrides": {
+          "GOAUTH": "off",
+          "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+          "GOENV": "off",
+          "GOMAXPROCS": "2",
+          "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTOOLCHAIN": "local",
+          "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin"
+        }
+      },
+      "build-pid.json": {
+        "pid": 3995324,
+        "start_ticks": 268842257,
+        "started_unix_ns": 1793850851833086552
+      },
+      "build-status.json": {
+        "binary": "/home/bo/sfactory-owned-exchange-worker-DOsVGi/owned-wallet-no-store-v15.test",
+        "binary_sha256": "d63f7f19eb1679a79881b0eefe0b1192183ff574513188081994992dd889a080",
+        "elapsed_ms": 13199,
+        "exit_code": 0,
+        "name": "no-store-v15",
+        "pid": 3995324,
+        "start_ticks": 268842257
+      },
+      "log": ""
+    }
+  },
+  "simplification": {
+    "status": "complete",
+    "mode": "pipeline",
+    "passes": [
+      "reuse",
+      "quality",
+      "efficiency",
+      "test-value",
+      "comments"
+    ],
+    "scope": [
+      "companion eight staged files",
+      "main single wallet gateway fixture"
+    ],
+    "applied": {
+      "reuse": 0,
+      "quality": 0,
+      "efficiency": 0,
+      "tests": 0,
+      "comments": 0
+    },
+    "skipped": 1,
+    "skipped_findings": [
+      {
+        "file": "engine/transport/factory_gateway_bootstrap.go",
+        "line": 306,
+        "reason": "Optional redundant comment deletion; low value and caller-owned source mutations."
+      }
+    ],
+    "checks": {
+      "installer_unittest": "24/24 PASS",
+      "scoped_ruff": "PASS",
+      "companion_diff_check": "PASS",
+      "main_diff_check": "PASS",
+      "main_fixture_py_compile": "PASS"
+    },
+    "limitations": [
+      "No repo-root Go module/typecheck runner for installable artifacts; caller-owned reconstructed Go race receipts retained."
+    ],
+    "kept_comments": "Ownership, activation ordering, immutable policy, protocol storage constraints, synthetic proof boundaries."
+  },
+  "counterfactual_overlay_diff_independently_inspected": true,
+  "source_review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261104-231300-6c419410",
+    "run_id": "20261104-231300-6c419410",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "adversarial"
+    ],
+    "actionable_findings": [],
+    "testing_gaps": [
+      "Add a second successfully acquired exchange on the same runtime to exercise paidReady/warmReady reuse and verify no repeated activation/warmup or inherited prior-owner grant."
+    ],
+    "coverage": {
+      "depth": "full",
+      "reviewer_independence": "Serial reused local handle; no independent cross-model corroboration.",
+      "peer": "adversarial lens: in-process fallback (cross-model peer not run: Claude/acpx transport unavailable pre-egress: Internal error)",
+      "validation": {
+        "outcome": "empty-batch",
+        "selected": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "unresolved": 0,
+        "malformed": 0,
+        "failed": 0,
+        "shortcut_skipped": 0
+      },
+      "failed_reviewers": []
+    }
+  },
+  "bifrost_publication": {
+    "sha": "8a3fc655406e1bcc0f0961e0716dfdd412ca84f4",
+    "remote_sha": "8a3fc655406e1bcc0f0961e0716dfdd412ca84f4",
+    "clean": true,
+    "branch": "codex/remaining-source-audit-20261031"
+  },
+  "wallet_runtime_build": {
+    "native_build": {
+      "state": "complete",
+      "pid": 3838924,
+      "start_ticks": "268204438",
+      "command": [
+        "/home/bo/.cargo/bin/cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--features",
+        "restate",
+        "--example",
+        "runtime"
+      ],
+      "exit_code": 101,
+      "wall_seconds": 24.931795405223966
+    },
+    "container_build": {
+      "state": "complete",
+      "pid": 3846130,
+      "start_ticks": "268224684",
+      "command": [
+        "docker",
+        "run",
+        "--name",
+        "sfactory-owned-wallet-rehearsal-tpp126x6-builder",
+        "--network=none",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--pids-limit=512",
+        "--memory=2g",
+        "--cpus=2",
+        "--user",
+        "1000:1000",
+        "--mount",
+        "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/project,dst=/project,readonly",
+        "--mount",
+        "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/cargo,dst=/cargo",
+        "--mount",
+        "type=bind,src=/home/bo/.cargo/registry,dst=/cargo/registry,readonly",
+        "--mount",
+        "type=bind,src=/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/container-target,dst=/target",
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,size=256m",
+        "-e",
+        "CARGO_HOME=/cargo",
+        "-e",
+        "CARGO_TARGET_DIR=/target",
+        "-e",
+        "CARGO_NET_OFFLINE=true",
+        "-e",
+        "CARGO_BUILD_JOBS=2",
+        "-w",
+        "/project",
+        "sha256:3218c38b2401ec207861f6534dfd21f58a8b0f1f2c25df52feae22a6dfcd1b3f",
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--features",
+        "restate",
+        "--example",
+        "runtime"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 70.23174592386931
+    },
+    "project_sha256": {
+      "Cargo.lock": "81d5dd42e5b9a2899b92511a940e2654c16a76a0d0dd18674dd344c9b2d90835",
+      "Cargo.toml": "8e146c3feb92d412ded8ff8ef030b7a42f9f59b12c29d175ac4f6c20928d55aa",
+      "src/harness_spending_ingress.rs": "15dbc85aace1f64b8b38e2ae222c68bec3c29aa85b3467ff91755b283eda2578",
+      "src/harness_spending.rs": "fa61755a14429319b60b9c48fbda2625c3205f24028db37281f5fcb149a8797b",
+      "examples/runtime.rs": "c32dd1537a1ba74ad4e2bceb6854fffb7e80d45e3517e72c6e361e5beec9c312"
+    },
+    "runtime_sha256": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+    "boundary": "Standalone offline fixture crate with actual spending source files and the unchanged current disposable runtime fixture entrypoint; not a complete Rust workspace or production runtime build.",
+    "local_entrypoint": "clean-room/crates/control-plane/examples/harness_runtime_fixture.rs"
+  },
+  "fixture_review": {
+    "status": "complete",
+    "verdict": "Ready to merge",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261104-231533-ab642ef6",
+    "run_id": "20261104-231533-ab642ef6",
+    "reviewers": [
+      "correctness",
+      "project-standards",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "correctness-independent",
+      "adversarial"
+    ],
+    "actionable_findings": [],
+    "testing_gaps": [],
+    "coverage": {
+      "depth": "full",
+      "reviewer_independence": "Initial correctness, standards, security, reliability and maintainability ran in author context; supplemental fresh correctness, testing and adversarial contexts were collected. Same model family; no independent cross-model corroboration.",
+      "validation": {
+        "outcome": "empty-batch",
+        "selected": 0,
+        "confirmed": 0,
+        "rejected": 0,
+        "unresolved": 0,
+        "malformed": 0,
+        "failed": 0,
+        "shortcut_skipped": 0
+      },
+      "failed_reviewers": []
+    }
+  }
+}

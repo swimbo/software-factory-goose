@@ -209,7 +209,7 @@ Main-repository paths below are relative to `software-factory-goose`. Paths labe
 
 **Requirements:** R3–R5, R10, R11; AE2. **Dependencies:** U1.
 
-**Files:** **Bifrost** `engine/transport/factory_gateway_bootstrap.go`, `factory_gateway_exchange.go`, `factory_gateway_exchange_test.go`, `factory_gateway_bootstrap_native_test.go`, `factory_wallet_join_native_test.go`, and the pinned installer/test when artifact hashes change.
+**Files:** **Bifrost** `engine/transport/factory_gateway_bootstrap.go`, `factory_gateway_exchange.go`, `factory_gateway_exchange_test.go`, `factory_gateway_bootstrap_native_test.go`, `factory_wallet_join_native_test.go`, exact-preimage `factory_gateway_grant.go` and `factory_gateway_normalizer_startup.go` updates targeting the existing library grant and canonical activation body, and the pinned installer/test when artifact hashes change.
 
 **Approach:**
 1. Bind the reviewed principal on the authenticated owner-derived context using the actual governance/authentication path. Reuse the resulting grant/access for warmup and ordinary handler execution.
