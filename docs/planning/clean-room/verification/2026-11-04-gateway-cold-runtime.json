@@ -1,0 +1,389 @@
+{
+  "full_race": {
+    "state": "complete",
+    "pid": 3786787,
+    "start_ticks": "268095795",
+    "driver_pid": 3786786,
+    "command": [
+      "go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-count=1",
+      "-timeout=600s",
+      "github.com/maximhq/bifrost/transports/bifrost-http/server",
+      "github.com/maximhq/bifrost/transports/bifrost-http/lib",
+      "github.com/maximhq/bifrost/framework/configstore",
+      "github.com/maximhq/bifrost/plugins/governance",
+      "github.com/maximhq/bifrost/plugins/routing/..."
+    ],
+    "environment": {
+      "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+      "GOENV": "off",
+      "GOAUTH": "off",
+      "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+      "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+      "GOTMPDIR": "/tmp/csryzrup7q",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTOOLCHAIN": "local",
+      "GOMAXPROCS": "2",
+      "TMPDIR": "/tmp/csryzrup7q",
+      "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+      "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+      "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+    },
+    "exit_code": 0,
+    "wall_seconds": 237.16768037201837
+  },
+  "full_race_log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t98.430s\nok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/lib\t117.295s\nok  \tgithub.com/maximhq/bifrost/framework/configstore\t42.532s\nok  \tgithub.com/maximhq/bifrost/plugins/governance\t72.087s\nok  \tgithub.com/maximhq/bifrost/plugins/routing\t1.283s\nok  \tgithub.com/maximhq/bifrost/plugins/routing/complexity\t2.756s\nok  \tgithub.com/maximhq/bifrost/plugins/routing/rules\t1.158s\n",
+  "mutations": [
+    {
+      "name": "omit-cel-check",
+      "mode": "invalid-cel",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-overlay=/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/omit-cel-check-overlay.json",
+        "./bifrost-http/server",
+        "-run",
+        "^TestFactoryGatewayColdRuntime$"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 9.315212569665164,
+      "log_sha256": "7d3c80db91a586074369bca0772a5a63b7c41a8244acf98f84628691a2e28e5a",
+      "output": "--- FAIL: TestFactoryGatewayColdRuntime (0.75s)\n    factory_gateway_bootstrap_test.go:235: \n        \tError Trace:\t/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/source/transports/bifrost-http/server/factory_gateway_bootstrap_test.go:235\n        \tError:      \tAn error is expected but got nil.\n        \tTest:       \tTestFactoryGatewayColdRuntime\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.840s\nFAIL\n"
+    },
+    {
+      "name": "omit-owner-requirement",
+      "mode": "success",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-overlay=/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/omit-owner-requirement-overlay.json",
+        "./bifrost-http/server",
+        "-run",
+        "^TestFactoryGatewayColdRuntime$"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 9.38651643274352,
+      "log_sha256": "957b297f12ea77ca8b446017c53c3ecffa6132e58394bb162658d0a6699f531a",
+      "output": "--- FAIL: TestFactoryGatewayColdRuntime (0.83s)\n    factory_gateway_bootstrap_test.go:276: \n        \tError Trace:\t/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/source/transports/bifrost-http/server/factory_gateway_bootstrap_test.go:276\n        \tError:      \tExpected value not to be nil.\n        \tTest:       \tTestFactoryGatewayColdRuntime\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.923s\nFAIL\n"
+    },
+    {
+      "name": "flush-cold-snapshot",
+      "mode": "cold-counters",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-overlay=/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/flush-cold-snapshot-overlay.json",
+        "./bifrost-http/server",
+        "-run",
+        "^TestFactoryGatewayColdRuntime$"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 16.606465333141387,
+      "log_sha256": "f66fb02f315e72ae4840b02b3a14c8ada2d668656e093ac40c94dade210e172c",
+      "output": "--- FAIL: TestFactoryGatewayColdRuntime (0.77s)\n    factory_gateway_bootstrap_test.go:299: \n        \tError Trace:\t/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/source/transports/bifrost-http/server/factory_gateway_bootstrap_test.go:299\n        \tError:      \tShould be zero, but was 3\n        \tTest:       \tTestFactoryGatewayColdRuntime\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.869s\nFAIL\n"
+    }
+  ],
+  "status": "published_remote_verified",
+  "source_base": "db30a37ee6d122043260b80ba2f45e57db75b8e6",
+  "source_sha256": {
+    "factory_gateway_bootstrap.go": "8d695ed6618b92aa63d6dda134c3f30543465e6b89e283e391cb124c85b445ce",
+    "factory_gateway_bootstrap_test.go": "dd5226aa711e779d7df25f668a5a5c3ad0f699cb45fc96f2716c4ffba847ffb3",
+    "factory_gateway_store.go": "d3001a3f5c1c4fd61de87ec6cfc32a8fe0d6365508c42b100a8a1c9bbc9fc85e",
+    "factory_gateway_store_test.go": "1db63c84ade487d1559df9fd32e0fcb6b191a219b2e48e88801c071e92c81112",
+    "patch_factory_gateway_exchange.py": "9fa379298a18ccf2a5b304c0ee7e5c249ce36b61a4de556f9b45728cf1f9ad15",
+    "test_patch_factory_gateway_exchange.py": "143b20a739c427a6d10d30177d11389592c5a6c0ccc2e50eb893090eb7076687"
+  },
+  "installer": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-cold-runtime-installed-bj5lhu34/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "0567491548c17bd85ebd7be3f6387ec095a8719716b03a7c1cdaa44cbb8a57db",
+    "source_files": 1934,
+    "changed_composed_files": [
+      "governance/factory_gateway_store.go",
+      "governance/factory_gateway_store_test.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "hardlinked_update_refused_before_writes": true
+  },
+  "post_qualification_manifest": {
+    "files": 1934,
+    "post_qualification_manifest_matches": true
+  },
+  "nuc_stage": "/home/bo/sfactory-cold-sdk-qualified-xf2moxcw",
+  "installer_tests": 23,
+  "candidate_enabled": false,
+  "benchmark_attempts": 0,
+  "paid_retained_provider_calls": 0,
+  "prior_failed_qualification": {
+    "stage": "/home/bo/sfactory-cold-runtime-final-p9n7LX",
+    "exit_code": 1,
+    "reason": "Existing Unix-socket fixture path length exceeded kernel limit under long temporary directory. Final qualification uses owned short TMPDIR; no product or test bypass. Earlier stage preserved."
+  },
+  "checkout_recovery": {
+    "remote_head_verified": "db30a37ee6d122043260b80ba2f45e57db75b8e6",
+    "restored_checkout": "/Users/bo/code/bifrost-cold-runtime-review-20261104",
+    "reason": "Temporary source checkout partially removed including Git metadata. Fresh upstream clone plus six scoped artifacts; four Go artifacts match final installed manifest. No missing paths treated as source deletions."
+  },
+  "review": {
+    "status": "complete",
+    "verdict": "Ready with fixes",
+    "scope": {
+      "base": "db30a37ee6d122043260b80ba2f45e57db75b8e6",
+      "branch": "codex/remaining-source-audit-20261031",
+      "head_sha": "db30a37ee6d122043260b80ba2f45e57db75b8e6",
+      "pr_url": null,
+      "files_changed": 6
+    },
+    "intent": "Construct the actual retained-route cold runtime from scoped account/catalog/governor and canonical durable state, validate reviewed permissions/CEL/route/analyzer/corpus before actual core construction, and own cold cleanup without stale persistence while preserving active final accounting.",
+    "intent_confidence": "explicit",
+    "reviewers": [
+      "correctness",
+      "security",
+      "testing",
+      "maintainability",
+      "performance",
+      "reliability",
+      "adversarial"
+    ],
+    "findings": [
+      {
+        "#": 1,
+        "autofix_class": "manual",
+        "confidence": 75,
+        "evidence": [
+          "engine/transport/factory_gateway_bootstrap.go:197 -- client, e := bifrost.Init(life, schemas.BifrostConfig{Account: account, InitialPoolSize: cfg.ClientConfig.InitialPoolSize, DropExcessRequests: cfg.ClientConfig.DropExcessRequests, LLMPlugins: []schemas.LLMPlugin{factoryGatewayGovernorLifecycle{r.Governor}, r.Router}, Logger: logger, ModelCatalog: r.catalog})",
+          "Composed core/bifrost.go:412-419 calls prepareProvider, logs its error without returning it, then returns bifrost, nil.",
+          "Account loading calls ValidateCustomProvider, whose composed transports/bifrost-http/lib/config.go:7743-7744 returns nil when CustomProviderConfig is nil. Both retained aliases are nonstandard provider names.",
+          "Composed core/bifrost.go:createBaseProvider leaves targetProviderKey as the alias when CustomProviderConfig is nil and returns unsupported provider from the default switch branch. No provider is appended and no alias is registered after that failure.",
+          "Scenario: retain approved IDs/keys and policy, remove one alias's CustomProviderConfig, recompute the independently reviewed account digest for that canonical configuration, and construct. Existing permission checks use account/store metadata, core initialization silently skips the failed alias, fallback resolution skips unknown providers, and the constructor returns success."
+        ],
+        "file": "engine/transport/factory_gateway_bootstrap.go",
+        "first_evidence": "engine/transport/factory_gateway_bootstrap.go:197 -- client, e := bifrost.Init(life, schemas.BifrostConfig{Account: account, InitialPoolSize: cfg.ClientConfig.InitialPoolSize, DropExcessRequests: cfg.ClientConfig.DropExcessRequests, LLMPlugins: []schemas.LLMPlugin{factoryGatewayGovernorLifecycle{r.Governor}, r.Router}, Logger: logger, ModelCatalog: r.catalog})",
+        "independent_reviewers": [
+          "adversarial"
+        ],
+        "line": 197,
+        "owner": "downstream-resolver",
+        "pre_existing": false,
+        "requires_verification": true,
+        "reviewers": [
+          "adversarial"
+        ],
+        "severity": "P2",
+        "suggested_fix": "After assigning r.Server so deferred Close can shut the core down, require client.GetProviderByKey(\"ollama-cloud\") and client.GetProviderByKey(\"vercel-classifier\") to be non-nil, otherwise return refused. Add a fresh-child fixture case with missing custom-provider config and a recomputed reviewed account digest, asserting refusal and zero provider calls/writes.",
+        "title": "Construction succeeds after retained provider initialization fails",
+        "why_it_matters": "A canonical retained alias whose custom-provider configuration is absent can pass the account loader and reviewed digest checks, yet fail core provider initialization. Core logs that failure and still returns a nil error, so this constructor returns an apparently complete runtime with a missing retained provider; a subsequent exchange cannot use that route. Checking both actual retained providers after core construction makes the cold construction fail before the runtime is returned.",
+        "validation_status": "confirmed",
+        "validation_reason": "The newly added bootstrap checks only Init error at factory_gateway_bootstrap.go:197-200, while composed core/bifrost.go:412-419 logs prepareProvider failures and returns nil error; a retained alias with nil CustomProviderConfig passes lib/config.go:7743-7744 and account metadata validation but fails core provider creation at bifrost.go:4653, so with a matching independently reviewed account digest construction returns a runtime missing that provider, a reachable synthetic trigger also observed for both aliases in /tmp/sfactory-cold-runtime-sdk-red-results.json (production incidence not measured).",
+        "protected_subject": null
+      }
+    ],
+    "actionable_findings": [
+      {
+        "#": 1,
+        "autofix_class": "manual",
+        "confidence": 75,
+        "evidence": [
+          "engine/transport/factory_gateway_bootstrap.go:197 -- client, e := bifrost.Init(life, schemas.BifrostConfig{Account: account, InitialPoolSize: cfg.ClientConfig.InitialPoolSize, DropExcessRequests: cfg.ClientConfig.DropExcessRequests, LLMPlugins: []schemas.LLMPlugin{factoryGatewayGovernorLifecycle{r.Governor}, r.Router}, Logger: logger, ModelCatalog: r.catalog})",
+          "Composed core/bifrost.go:412-419 calls prepareProvider, logs its error without returning it, then returns bifrost, nil.",
+          "Account loading calls ValidateCustomProvider, whose composed transports/bifrost-http/lib/config.go:7743-7744 returns nil when CustomProviderConfig is nil. Both retained aliases are nonstandard provider names.",
+          "Composed core/bifrost.go:createBaseProvider leaves targetProviderKey as the alias when CustomProviderConfig is nil and returns unsupported provider from the default switch branch. No provider is appended and no alias is registered after that failure.",
+          "Scenario: retain approved IDs/keys and policy, remove one alias's CustomProviderConfig, recompute the independently reviewed account digest for that canonical configuration, and construct. Existing permission checks use account/store metadata, core initialization silently skips the failed alias, fallback resolution skips unknown providers, and the constructor returns success."
+        ],
+        "file": "engine/transport/factory_gateway_bootstrap.go",
+        "first_evidence": "engine/transport/factory_gateway_bootstrap.go:197 -- client, e := bifrost.Init(life, schemas.BifrostConfig{Account: account, InitialPoolSize: cfg.ClientConfig.InitialPoolSize, DropExcessRequests: cfg.ClientConfig.DropExcessRequests, LLMPlugins: []schemas.LLMPlugin{factoryGatewayGovernorLifecycle{r.Governor}, r.Router}, Logger: logger, ModelCatalog: r.catalog})",
+        "independent_reviewers": [
+          "adversarial"
+        ],
+        "line": 197,
+        "owner": "downstream-resolver",
+        "pre_existing": false,
+        "requires_verification": true,
+        "reviewers": [
+          "adversarial"
+        ],
+        "severity": "P2",
+        "suggested_fix": "After assigning r.Server so deferred Close can shut the core down, require client.GetProviderByKey(\"ollama-cloud\") and client.GetProviderByKey(\"vercel-classifier\") to be non-nil, otherwise return refused. Add a fresh-child fixture case with missing custom-provider config and a recomputed reviewed account digest, asserting refusal and zero provider calls/writes.",
+        "title": "Construction succeeds after retained provider initialization fails",
+        "why_it_matters": "A canonical retained alias whose custom-provider configuration is absent can pass the account loader and reviewed digest checks, yet fail core provider initialization. Core logs that failure and still returns a nil error, so this constructor returns an apparently complete runtime with a missing retained provider; a subsequent exchange cannot use that route. Checking both actual retained providers after core construction makes the cold construction fail before the runtime is returned.",
+        "validation_status": "confirmed",
+        "validation_reason": "The newly added bootstrap checks only Init error at factory_gateway_bootstrap.go:197-200, while composed core/bifrost.go:412-419 logs prepareProvider failures and returns nil error; a retained alias with nil CustomProviderConfig passes lib/config.go:7743-7744 and account metadata validation but fails core provider creation at bifrost.go:4653, so with a matching independently reviewed account digest construction returns a runtime missing that provider, a reachable synthetic trigger also observed for both aliases in /tmp/sfactory-cold-runtime-sdk-red-results.json (production incidence not measured).",
+        "protected_subject": null
+      }
+    ],
+    "triage_groups": [],
+    "pre_existing_findings": [],
+    "requirements_completeness": {
+      "plan": "/Users/bo/code/software-factory-goose/docs/plans/2026-11-03-production-gateway-bootstrap-plan.md",
+      "source": "explicit",
+      "scope": "U1 only; U2-U6 intentionally excluded",
+      "checks": [
+        {
+          "id": "R1",
+          "status": "partially addressed",
+          "evidence": "Retained route/model authorization and routing construction implemented; #1 allows a missing retained SDK after core initialization failure."
+        },
+        {
+          "id": "R2",
+          "status": "met",
+          "evidence": "Canonical DB-only catalog/account/governor; qualified HTTP0 and zero policy writes."
+        },
+        {
+          "id": "R6",
+          "status": "met",
+          "evidence": "Reviewed builtins, scoped providers, logging restrictions; no public/admin/tool listener introduced."
+        },
+        {
+          "id": "R10",
+          "status": "met",
+          "evidence": "Explicit required principal/model/key evaluation; no permission grants added."
+        },
+        {
+          "id": "AE1",
+          "status": "met within U1",
+          "evidence": "Actual public disk-backed cold construction and invalid-CEL/missing-classifier controls qualified; executable readiness receipt is later-unit scope."
+        },
+        {
+          "id": "U1",
+          "status": "partially addressed",
+          "evidence": "Constructor, owned cleanup, installer and proof tests implemented; #1 must be corrected for reliable retained-SDK construction."
+        }
+      ],
+      "unrequested_behavior_rules": []
+    },
+    "learnings": [],
+    "agent_native_gaps": [],
+    "deployment_notes": [],
+    "residual_risks": [],
+    "testing_gaps": [],
+    "coverage": {
+      "depth": "full",
+      "notes": [
+        "No urgent fast-pass findings.",
+        "No applicable project standards, REVIEW.md policy, declared packs, or learnings corpus.",
+        "Read-only actual composed dependency source at /Users/bo/code/bifrost-cold-runtime-composed-20261104.",
+        "Qualification reused from /tmp/sfactory-cold-runtime-final-results.json: exact1934 final tree; seven complete race suites pass; installer23 tests/Ruff/gofmt/diffcheck pass; semantic mutations removing CEL/owner/coldflush guards each fail their intended assertions. No source edits since qualification.",
+        "Only U1 reviewed; first authenticated warmup/real V2 exchange remains U2, not qualified here."
+      ],
+      "reviewer_reasons": {
+        "correctness": "always-on",
+        "security": "principal/key authorization and owner enforcement",
+        "testing": "proof/harness changes",
+        "maintainability": "new runtime abstraction and305 executable lines",
+        "performance": "canonical database reads and accounting persistence",
+        "reliability": "cancellation, joining, final cleanup",
+        "adversarial": "authorization persistence and failure semantics"
+      },
+      "suppressed_by_confidence": {},
+      "mode_aware_demotions": 0,
+      "first_evidence_backfilled": 1,
+      "missing_quote_demotions": 0,
+      "failed_reviewers": [],
+      "validator": {
+        "outcome": "verdicts",
+        "confirmed": 1,
+        "rejected": 0,
+        "unresolved": 0,
+        "malformed": 0,
+        "failed": 0,
+        "shortcut_skipped": 0,
+        "bound_exceeded": false,
+        "evidence": "Independent validator confirmed #1; both missing-SDK fresh-child synthetic controls expected refusal but construction returned nil error. Production incidence unmeasured."
+      },
+      "review_policy": {
+        "sources": [],
+        "removed": 0,
+        "regraded": 0,
+        "not_applied": []
+      },
+      "compound_packs": {
+        "roots": [],
+        "warnings": [],
+        "errors": []
+      },
+      "source_edits": 0
+    },
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: Claude route transport unavailable pre-egress: Internal error; no other attested-different installed eligible target)"
+    },
+    "verdict_reason": "Correct the confirmed retained-provider initialization failure before completing U1; no fixes were applied in this report-only review.",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261104-cold-runtime-3e34217f",
+    "run_id": "20261104-cold-runtime-3e34217f"
+  },
+  "review_followup": {
+    "applied": [
+      1
+    ],
+    "skipped": [],
+    "unresolved": [],
+    "sdk_missing_red": [
+      {
+        "mode": "missing-answer-sdk",
+        "exit_code": 1,
+        "wall_seconds": 14.299205867107958,
+        "output": "--- FAIL: TestFactoryGatewayColdRuntime (0.82s)\n    factory_gateway_bootstrap_test.go:248: \n        \tError Trace:\t/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/source/transports/bifrost-http/server/factory_gateway_bootstrap_test.go:248\n        \tError:      \tAn error is expected but got nil.\n        \tTest:       \tTestFactoryGatewayColdRuntime\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.921s\nFAIL\n"
+      },
+      {
+        "mode": "missing-classifier-sdk",
+        "exit_code": 1,
+        "wall_seconds": 5.604656205046922,
+        "output": "--- FAIL: TestFactoryGatewayColdRuntime (0.77s)\n    factory_gateway_bootstrap_test.go:248: \n        \tError Trace:\t/home/bo/sfactory-cold-runtime-reviewed-45Cg5t/source/transports/bifrost-http/server/factory_gateway_bootstrap_test.go:248\n        \tError:      \tAn error is expected but got nil.\n        \tTest:       \tTestFactoryGatewayColdRuntime\nFAIL\nFAIL\tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t0.877s\nFAIL\n"
+      }
+    ],
+    "verification": "Both missing-SDK cases and all19fresh-child constructor cases pass within final complete server race suite. All seven affected race suites exit0 on final reconstructed1934tree; exact post-run manifest matches.",
+    "residual_findings": []
+  },
+  "source_commit": "b2ec550e021f635752eba2b233a34b98f8fed0a0",
+  "remote_sha_verified": true,
+  "fresh_child_cases": 19,
+  "guard_mutation_provenance": {
+    "stage": "/home/bo/sfactory-cold-runtime-reviewed-45Cg5t",
+    "source_tree_sha256": "f7f82613d786670036c9d5a755bda796806b39953744a10452fcae1cdf373502",
+    "scope": "Three guard mutations precede the narrow SDK-readiness fix; CEL/owner/coldflush protections unchanged. The fourth missing-SDK guard has two additional observed red controls against that prior implementation and passes final full qualification."
+  },
+  "simplification": {
+    "mode": "pipeline",
+    "personas": [
+      "reuse",
+      "quality",
+      "efficiency",
+      "test-value",
+      "comments"
+    ],
+    "applied": {
+      "reuse": 0,
+      "quality": 0,
+      "efficiency": 0,
+      "tests": 0,
+      "comments": 0
+    },
+    "skipped": 0,
+    "changes": false,
+    "checks": "Root verified installer23, Ruff, gofmt, diffcheck, seven complete installed race suites; no source changes since qualification.",
+    "kept_comments": "Core shutdown, routing dependency behavior, exported cleanup API and caller canonical-state custody constraints."
+  }
+}

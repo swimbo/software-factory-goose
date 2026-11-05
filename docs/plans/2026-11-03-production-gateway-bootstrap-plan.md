@@ -217,7 +217,7 @@ Main-repository paths below are relative to `software-factory-goose`. Paths labe
 3. Perform KTD3 warmup before the first answer and reuse only a completed matching generation. Every physical call retains the acquired Root and existing durable reservation/capture order.
 4. Reuse the registered inference router, stream join, completion witness and `root.Close`; do not replace them with a decoder or direct provider callback in the claimed production constructor.
 
-**Execution note:** Extend the actual wallet/listener rehearsal with the new runtime before claiming an end-to-end join; synthetic authority/provider inputs remain explicitly labeled.
+**Execution note:** Extend the actual wallet/listener rehearsal with the new runtime before claiming an end-to-end join; synthetic authority/provider inputs remain explicitly labeled. The existing main-repository public fixture `clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py` may be extended for the retained component/tariff inventory required by that actual join; do not change production authority.
 
 **Test scenarios:**
 - A public loopback provider supplies actual warmup batches, request embedding, classifier fallback and answer through real governor/router/core; every observed callback carries the same owner and reviewed principal, and capture precedes returned success.

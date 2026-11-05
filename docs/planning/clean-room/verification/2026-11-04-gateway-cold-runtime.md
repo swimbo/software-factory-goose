@@ -1,0 +1,25 @@
+# Retained-route cold runtime qualification
+
+The dedicated cold constructor joins the published scoped account, DB-only catalog and governance store to the actual CEL rules, routing plugin and Bifrost core. It requires the reviewed principal, credential/key references, account configuration, normalized analyzer, ordered corpus and applicable rule bindings. It verifies actual governance and SDK model/key permissions for both retained answers and classifier embedding/chat/Responses paths. Missing classifier authorization remains a refusal; production permissions were not changed.
+
+The constructor enables physical-owner enforcement before SDK construction. Only routing receives a nil configuration store, with the explicit normalized analyzer and rule store, to avoid shared generation maintenance. The actual governor retains canonical database authority. Explicit CEL compilation errors refuse readiness. Effective legacy and object fallbacks are checked after core alias registration; an unreviewed model or inaccessible pinned key cannot enter the retained route.
+
+Cold shutdown cancels and joins owned components without dumping an unactivated usage snapshot over newer canonical counters. Ordinary cleanup and final accounting after actual accounted use retain flushing. A disposable SQLite regression exercises that active path. No listener, paid owner/pricing activation, owned warmup or production exchange is established by this constructor.
+
+## Verification
+
+- Final isolated NUC source: 1,934 files, tree SHA256 `0567491548c17bd85ebd7be3f6387ec095a8719716b03a7c1cdaa44cbb8a57db`. Every file still matches after qualification and mutations.
+- Complete race suites pass: server 98.430s, library 117.295s, configstore 42.532s, governance 72.087s, routing 1.283s, complexity 2.756s and routing rules 1.158s. Combined command exits zero in 237.168s.
+- Nineteen fresh-process constructor cases pass. Actual governor/router pre-request regressions first demonstrated acceptance of an unreviewed fallback model and inaccessible fallback key, then passed after constructor validation. Provider HTTP remains zero through cold teardown.
+- Removing CEL validation fails because invalid CEL construction returns no error. Removing owner enforcement fails because an unowned SDK request is accepted. Forcing cold snapshot flushing fails because three canonical writes occur where zero are required. These are assertion failures, not build/setup failures. Those three overlays used the preserved pre-review-fix tree; their guarded code is unchanged. The two missing-SDK red controls exercise the additional readiness fix, whose positive and negative cases pass on the final tree.
+- All 23 installer tests pass, as do Ruff, gofmt and staged whitespace checks. Reconstruction changes only the four intended Go artifacts; corrupt payload, replay and hard-linked update controls refuse before writes.
+
+The final stage is `/home/bo/sfactory-cold-sdk-qualified-xf2moxcw`. The pre-review-fix stage `/home/bo/sfactory-cold-runtime-reviewed-45Cg5t` remains preserved. The earlier failed stage `/home/bo/sfactory-cold-runtime-final-p9n7LX` is preserved: its long temporary directory exceeded existing Unix-socket fixture path limits. Final qualification uses an owned short temporary directory without changing product behavior or bypassing tests.
+
+The temporary publication checkout was partially removed, including Git metadata. A fresh clone restored the exact published base `db30a37ee6d122043260b80ba2f45e57db75b8e6`; only the six scoped files were transferred. The four Go payloads match the tested manifest. Missing temporary files were not treated as repository deletions.
+
+Five simplification personas made no changes. Seven local code-review lenses completed and independent validation confirmed one finding: the ordinary core can suppress individual provider initialization errors. Both missing-SDK fixture cases reproduced false readiness with a freshly matching account digest. The constructor now checks both actual retained SDKs after assigning core cleanup ownership and refuses if either is missing. Final full requalification passes, including both missing-SDK controls. No review findings remain unresolved. Bifrost source `b2ec550e021f635752eba2b233a34b98f8fed0a0` is pushed and its exact upstream SHA verified. The configured Claude review route failed before egress, so the adversarial lens used the prescribed local fallback; no cross-model coverage is claimed. Machine-readable receipts are in [the companion evidence](2026-11-04-gateway-cold-runtime.json).
+
+## Remaining boundary
+
+Next, join this runtime to the existing acquired owner, actual governance grant, owned semantic warmup, registered inference router, stream completion and durable capture. Then qualify the dedicated command, actual Root start lifecycle and handed-socket cleanup. Hosted pre-dispatch all-path charge bounds and explicit production classifier authorization remain unresolved. Candidate disabled; benchmark 0/120; no paid retained-provider inference or deployment.
