@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "status": "characterization_complete_production_fix_pending",
+  "scope": "Kernel peer identity under existing gateway namespace mapping; isolated public fixture only",
+  "source_checkpoint_main": "0b6bb68ad441d67fecbf1f972e86270378a39830",
+  "source_checkpoint_bifrost": "8a3fc655406e1bcc0f0961e0716dfdd412ca84f4",
+  "run": {
+    "stage": "/tmp/sfactory-peer-namespace-wVBSOmKP",
+    "container_id": "a8cb8f25266b0d833265e92a2d0ef0df03ab5109927ea6df8535f9e26c129fbe",
+    "create_command": [
+      "docker",
+      "create",
+      "--name",
+      "sfactory-peer-namespace-wVBSOmKP",
+      "--network=none",
+      "--read-only",
+      "--cap-drop=ALL",
+      "--cap-add=SETUID",
+      "--cap-add=SETGID",
+      "--cap-add=CHOWN",
+      "--cap-add=SETFCAP",
+      "--security-opt=no-new-privileges",
+      "--security-opt=seccomp=unconfined",
+      "--security-opt=apparmor=unconfined",
+      "--pids-limit=32",
+      "--memory=128m",
+      "--cpus=1",
+      "--tmpfs",
+      "/probe:rw,nosuid,nodev,size=8m,mode=0755",
+      "--mount",
+      "type=bind,src=/tmp/sfactory-peer-namespace-wVBSOmKP/probe.py,dst=/probe.py,readonly",
+      "sha256:ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+      "python3",
+      "/probe.py"
+    ],
+    "script_sha256": "bab90b5733acc4b9d92ac02ba8216ec999048a2e6a9decf09b27844032b9ac94",
+    "attach_exit_code": 0,
+    "stdout": "{\"schema\": 1, \"purpose\": \"existing namespace bidirectional service peer-identity characterization only\", \"results\": [{\"name\": \"existing-map\", \"expanded\": false, \"gateway_uid\": 2007, \"gateway_observed_broker\": [9, 65534, 2005], \"gateway_observed_capture\": [7, 65534, 65534], \"uid_map\": \"         0          0          1\\n      2007       2007          1\\n\", \"gid_map\": \"         0          0          1\\n      2005       2005          1\\n      2007       2007          1\\n\", \"broker_observed_gateway\": [8, 2007, 2007], \"capture_observed_gateway\": [8, 2007, 2007]}, {\"name\": \"reviewed-service-map\", \"expanded\": true, \"gateway_uid\": 2007, \"gateway_observed_broker\": [12, 2005, 2005], \"gateway_observed_capture\": [10, 2008, 65534], \"uid_map\": \"         0          0          1\\n      2005       2005          1\\n      2007       2007          1\\n      2008       2008          1\\n\", \"gid_map\": \"         0          0          1\\n      2005       2005          1\\n      2007       2007          1\\n\", \"broker_observed_gateway\": [11, 2007, 2007], \"capture_observed_gateway\": [11, 2007, 2007]}], \"production_changes\": 0, \"paid_calls\": 0, \"actual_Root_or_Bifrost_runtime\": false}\n",
+    "stderr": "",
+    "docker_state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-05T05:17:59.92409567Z",
+      "FinishedAt": "2026-11-05T05:18:00.145910606Z"
+    }
+  },
+  "receipt": {
+    "schema": 1,
+    "purpose": "existing namespace bidirectional service peer-identity characterization only",
+    "results": [
+      {
+        "name": "existing-map",
+        "expanded": false,
+        "gateway_uid": 2007,
+        "gateway_observed_broker": [
+          9,
+          65534,
+          2005
+        ],
+        "gateway_observed_capture": [
+          7,
+          65534,
+          65534
+        ],
+        "uid_map": "         0          0          1\n      2007       2007          1\n",
+        "gid_map": "         0          0          1\n      2005       2005          1\n      2007       2007          1\n",
+        "broker_observed_gateway": [
+          8,
+          2007,
+          2007
+        ],
+        "capture_observed_gateway": [
+          8,
+          2007,
+          2007
+        ]
+      },
+      {
+        "name": "reviewed-service-map",
+        "expanded": true,
+        "gateway_uid": 2007,
+        "gateway_observed_broker": [
+          12,
+          2005,
+          2005
+        ],
+        "gateway_observed_capture": [
+          10,
+          2008,
+          65534
+        ],
+        "uid_map": "         0          0          1\n      2005       2005          1\n      2007       2007          1\n      2008       2008          1\n",
+        "gid_map": "         0          0          1\n      2005       2005          1\n      2007       2007          1\n",
+        "broker_observed_gateway": [
+          11,
+          2007,
+          2007
+        ],
+        "capture_observed_gateway": [
+          11,
+          2007,
+          2007
+        ]
+      }
+    ],
+    "production_changes": 0,
+    "paid_calls": 0,
+    "actual_Root_or_Bifrost_runtime": false
+  },
+  "fixture_source": "import os,socket,struct,json,ctypes,select\nfrom pathlib import Path\n\ndef read(fd):\n if not select.select([fd],[],[],8)[0]:raise RuntimeError('owned pipe timeout')\n return os.read(fd,65536)\n\ndef peer(conn):return list(struct.unpack('3i',conn.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,12)))\n\ndef bound(path,uid,gid):\n s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);s.bind(path);os.chmod(path,0o660);os.chown(path,uid,gid);return s\n\ndef run(name,expanded):\n capture_path='/probe/'+name+'-capture.sock';capture=bound(capture_path,2008,2007)\n cr,cw=os.pipe();capture_pid=os.fork()\n if capture_pid==0:\n  try:\n   os.close(cr);os.setgroups([]);os.setgid(2008);os.setuid(2008);capture.listen(1);capture.settimeout(8);os.write(cw,b'C')\n   conn,_=capture.accept();observed=peer(conn);conn.sendall(b'C');conn.close();capture.close();os.write(cw,json.dumps({'capture_observed_gateway':observed}).encode());os._exit(0)\n  except BaseException:os._exit(1)\n os.close(cw);capture.close();assert read(cr)==b'C'\n path='/probe/'+name+'-gateway.sock';listener=bound(path,2007,2005)\n rr,rw=os.pipe();gr,gw=os.pipe();out_r,out_w=os.pipe();pid=os.fork()\n if pid==0:\n  try:\n   os.close(rr);os.close(gw);os.close(out_r);os.close(cr)\n   libc=ctypes.CDLL(None,use_errno=True)\n   if libc.unshare(0x10000000)!=0:raise OSError(ctypes.get_errno(),'unshare')\n   os.write(rw,b'R');os.close(rw);assert read(gr)==b'G';os.close(gr)\n   os.setgroups([]);os.setgid(2007);os.setuid(2007);listener.listen(1);listener.settimeout(8);os.write(out_w,b'R')\n   conn,_=listener.accept();broker_peer=peer(conn);conn.sendall(b'R');conn.close();listener.close()\n   client=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);client.settimeout(8);client.connect(capture_path);capture_peer=peer(client);assert client.recv(1)==b'C';client.close()\n   os.write(out_w,json.dumps({'gateway_uid':os.getuid(),'gateway_observed_broker':broker_peer,'gateway_observed_capture':capture_peer,'uid_map':Path('/proc/self/uid_map').read_text(),'gid_map':Path('/proc/self/gid_map').read_text()}).encode());os.close(out_w);os._exit(0)\n  except BaseException:os._exit(1)\n os.close(rw);os.close(gr);os.close(out_w)\n try:\n  assert read(rr)==b'R'\n  uids=[0,2007]+([2005,2008] if expanded else [])\n  Path('/proc/'+str(pid)+'/uid_map').write_text(''.join(str(i)+' '+str(i)+' 1\\n' for i in sorted(uids)))\n  Path('/proc/'+str(pid)+'/gid_map').write_text(''.join(str(i)+' '+str(i)+' 1\\n' for i in [0,2005,2007]))\n  os.write(gw,b'G');os.close(gw);gw=None;assert read(out_r)==b'R'\n  br,bw=os.pipe();broker=os.fork()\n  if broker==0:\n   try:\n    os.close(br);listener.close();os.setgroups([]);os.setgid(2005);os.setuid(2005)\n    c=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);c.settimeout(8);c.connect(path);observed=peer(c);assert c.recv(1)==b'R';c.close();os.write(bw,json.dumps({'broker_observed_gateway':observed}).encode());os._exit(0)\n   except BaseException:os._exit(1)\n  os.close(bw);b=json.loads(read(br));os.close(br);_,bs=os.waitpid(broker,0);assert os.waitstatus_to_exitcode(bs)==0\n  result=json.loads(read(out_r));_,status=os.waitpid(pid,0);assert os.waitstatus_to_exitcode(status)==0\n  cp=json.loads(read(cr));_,status=os.waitpid(capture_pid,0);assert os.waitstatus_to_exitcode(status)==0\n  return {'name':name,'expanded':expanded,**result,**b,**cp}\n finally:\n  listener.close()\n  for fd in [rr,gw,out_r,cr]:\n   if fd is not None:os.close(fd)\n\nresults=[run('existing-map',False),run('reviewed-service-map',True)]\nfor r in results:\n assert r['gateway_uid']==2007 and r['broker_observed_gateway'][1]==2007 and r['capture_observed_gateway'][1]==2007\nexpected=[(65534,65534),(2005,2008)]\nassert [(r['gateway_observed_broker'][1],r['gateway_observed_capture'][1]) for r in results]==expected\nprint(json.dumps({'schema':1,'purpose':'existing namespace bidirectional service peer-identity characterization only','results':results,'production_changes':0,'paid_calls':0,'actual_Root_or_Bifrost_runtime':False}))\n",
+  "source_bindings": {
+    "clean-room/crates/execution/harness/linux_supervisor.py": {
+      "sha256": "fd7fd9886e2d08889c6d1400b541d93830ac9db3f4ac22a66e6e79d33c66a1e3"
+    },
+    "clean-room/crates/execution/harness/linux_gateway_userns_bootstrap.py": {
+      "sha256": "3fe39cc36c47b303b8729c4a165d9a8acd9492afb1f84ed9532b181012d0c2f9"
+    },
+    "/Users/bo/code/bifrost-gateway-command-base-20261104/core/schemas/factory_owner_root.go": {
+      "sha256": "4e06d7926a737644e23dde06d621cae3eef378ebe8d3a73b7043ee0e377f8c91"
+    },
+    "/Users/bo/code/bifrost-gateway-command-base-20261104/transports/bifrost-http/server/factory_gateway_exchange.go": {
+      "sha256": "409de495339c6554205b0e475279bd1eab9affc436baa5fbf012a369764f9588"
+    }
+  },
+  "setup_failures": {
+    "first": {
+      "container_id": "7e1aaccf3e5df9c0402db8114b317c0dc5f6d9382ea6ca264b1482011dce53f9",
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-05T04:41:03.796244501Z",
+        "FinishedAt": "2026-11-05T04:41:04.001268829Z"
+      },
+      "stderr": "Traceback (most recent call last):\n  File \"/probe.py\", line 48, in <module>\n    results=[run('original',False),run('service-uids',True)]\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/probe.py\", line 9, in run\n    path='/probe/'+name+'.sock';listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);listener.bind(path);os.chown(path,2007,2005);os.chmod(path,0o660)\n                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '/probe/original.sock'\n",
+      "meaning": "Fixture setup/capability failure; not a semantic product result."
+    },
+    "v2": {
+      "container_id": "71de8fd2555f8620993c6df13abbcc579dd9385636442c43ff101a0cd694ecf6",
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-05T04:43:27.216912528Z",
+        "FinishedAt": "2026-11-05T04:43:27.411945876Z"
+      },
+      "stderr": "PermissionError: [Errno 1] Operation not permitted\nTraceback (most recent call last):\n\nDuring handling of the above exception, another exception occurred:\n\n  File \"/probe.py\", line 18, in run\nTraceback (most recent call last):\n  File \"/probe.py\", line 48, in <module>\n    if read(go_r)!=b'G':raise RuntimeError('map gate');\n    results=[run('original',False),run('service-uids',True)]\n             ^^^^^^^^^^^^^^^^^^^^^\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/probe.py\", line 30, in run\nRuntimeError: map gate\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/probe.py\", line 48, in <module>\n    Path('/proc/'+str(pid)+'/uid_map').write_text(''.join(str(i)+' '+str(i)+' 1\\n' for i in sorted(uids)))\n    results=[run('original',False),run('service-uids',True)]\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/probe.py\", line 25, in run\n  File \"/usr/local/lib/python3.11/pathlib.py\", line 1078, in write_text\n    os.write(out_w,json.dumps({'error':str(e)}).encode()+b'\\n');os._exit(1)\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nBrokenPipeError: [Errno 32] Broken pipe\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\nPermissionError: [Errno 1] Operation not permitted\n",
+      "meaning": "Fixture setup/capability failure; not a semantic product result."
+    },
+    "v3": {
+      "container_id": "54cb03cc0f260fb709317f7cd1715e9c23d06a564e19c22f4acd705bfdc65ec5",
+      "docker_state": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 1,
+        "Error": "",
+        "StartedAt": "2026-11-05T04:45:20.981878917Z",
+        "FinishedAt": "2026-11-05T04:45:21.205547011Z"
+      },
+      "stderr": "{\"map_owner\": 0, \"map_mode\": \"0o100644\", \"parent_euid\": 0}\nPermissionError: [Errno 1] Operation not permitted\nTraceback (most recent call last):\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/probe.py\", line 18, in run\n  File \"/probe.py\", line 49, in <module>\n    if read(go_r)!=b'G':raise RuntimeError('map gate');\n    results=[run('original',False),run('service-uids',True)]\n             ^^^^^^^^^^^^^^^^^^^^^\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/probe.py\", line 31, in run\nRuntimeError: map gate\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/probe.py\", line 49, in <module>\n    Path('/proc/'+str(pid)+'/uid_map').write_text(''.join(str(i)+' '+str(i)+' 1\\n' for i in sorted(uids)))\n    results=[run('original',False),run('service-uids',True)]\n             ^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/pathlib.py\", line 1078, in write_text\n  File \"/probe.py\", line 25, in run\n    os.write(out_w,json.dumps({'error':str(e)}).encode()+b'\\n');os._exit(1)\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nBrokenPipeError: [Errno 32] Broken pipe\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\nPermissionError: [Errno 1] Operation not permitted\n",
+      "meaning": "Fixture setup/capability failure; not a semantic product result."
+    }
+  },
+  "limits": [
+    "No actual Root launcher, Bifrost runtime, wallet, capture protocol or paid inference was run.",
+    "Existing-map observations reproduce the source mapping shape with public fixture UIDs; the expanded map is a tested proposal, not a production change.",
+    "Only service UID identity was tested; capture GID remains unmapped and no filesystem permission or full custody success is inferred.",
+    "Production fix must bind exact reviewed service roles across map creation, inspection, bootstrap and fingerprints; kernel peer validation remains unchanged."
+  ],
+  "mapping_capability_reference": "https://kernel.googlesource.com/pub/scm/docs/man-pages/man-pages/+/master/man/man7/user_namespaces.7"
+}

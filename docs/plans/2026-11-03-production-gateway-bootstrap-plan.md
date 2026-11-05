@@ -232,7 +232,7 @@ Main-repository paths below are relative to `software-factory-goose`. Paths labe
 
 **Requirements:** R2, R6, R7. **Dependencies:** U2.
 
-**Files:** **Bifrost** new `engine/transport/factory_gateway_main.go` and `factory_gateway_main_test.go` artifacts targeting a dedicated `transports/factory-gateway` command; `factory_gateway_command.go`/`factory_gateway_command_test.go` server artifacts; a production existing-store opener and test under `engine/transport` if the tagged-only opener cannot be reused without its historical route; pinned installer/test.
+**Files:** **Bifrost** new `engine/transport/factory_gateway_main.go` and `factory_gateway_main_test.go` artifacts targeting a dedicated `transports/factory-gateway` command; `factory_gateway_command.go`/`factory_gateway_command_test.go` server artifacts; the narrow existing `factory_gateway_bootstrap.go` typed-policy seam needed to consume sealed configuration while preserving its current path-based consumer; an exact-preimage `factory_gateway_normalizer_config.go` update extracting the shared canonical typed validator without changing ordinary file loading; a production existing-store opener and test under `engine/transport` if the tagged-only opener cannot be reused without its historical route; pinned installer/test.
 
 **Approach:**
 1. Decode a bounded, duplicate/unknown-field-rejecting sealed bootstrap record containing the existing protected store identity, immutable runtime/review bindings, roles and socket identity. Open only the existing disk-backed RDB without default import, migrations or new authority.
@@ -264,7 +264,7 @@ Main-repository paths below are relative to `software-factory-goose`. Paths labe
 **Test scenarios:**
 - Actual broker-to-Root start launches the exact U3 executable under current NUC filters, returns the bound cold-ready receipt and owns child joins.
 - Changed config digest, wrong process/start ticks, altered socket/namespace and a same-binary descendant cannot satisfy readiness/peer checks.
-- Lost release/readiness acknowledgements and owner loss at prepare/attach/release/readiness remain consumed, fence the owned group and do not launch another gateway or worker.
+- Lost release/readiness acknowledgements and owner loss at prepare/attach/release/readiness remain consumed, fence the owned group and do not launch another gateway or worker. Exercise closed-reader and full readiness-pipe controls with the actual command; require prompt refusal, HTTP0, joined owned resources and preservation of the recorded socket until cleanup is qualified.
 
 **Verification:** Existing supervisor/peer suites and the native actual-start fixture pass. Reconciliation mutation removing gateway-intent awareness is rejected. No production source/service configuration is activated.
 

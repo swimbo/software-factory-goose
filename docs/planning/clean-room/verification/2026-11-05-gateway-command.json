@@ -1,0 +1,1305 @@
+{
+  "schema": 1,
+  "status": "qualified_source_published",
+  "purpose": "Dedicated retained-route gateway executable and sealed cold-readiness qualification",
+  "bifrost_base": "8a3fc655406e1bcc0f0961e0716dfdd412ca84f4",
+  "installation": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-gateway-command-qualified-yzzy9j2p/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "bb903dd7c5376811cdf8286512ea90354a9e6b73a8aab8936c073ca428b75f2e",
+    "source_files": 1941,
+    "changed_composed_files": [
+      "framework/configstore/factory_gateway_existing_store.go",
+      "framework/configstore/factory_gateway_existing_store_test.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+      "transports/bifrost-http/server/factory_gateway_command.go",
+      "transports/bifrost-http/server/factory_gateway_command_test.go",
+      "transports/bifrost-http/server/normalizer_config.go",
+      "transports/factory-gateway/main.go",
+      "transports/factory-gateway/main_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "hardlinked_update_refused_before_writes": true
+  },
+  "reviewed_installation": {
+    "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-gateway-command-qualified-97yj9hep/source",
+    "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+    "post_install_sha256": "db242901c95a17c55081a555cd248450b62d49ead0e3913e4c8e7454d1521ef9",
+    "source_files": 1941,
+    "changed_composed_files": [
+      "framework/configstore/factory_gateway_existing_store.go",
+      "framework/configstore/factory_gateway_existing_store_test.go",
+      "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+      "transports/bifrost-http/server/factory_gateway_command.go",
+      "transports/bifrost-http/server/factory_gateway_command_test.go",
+      "transports/bifrost-http/server/normalizer_config.go",
+      "transports/factory-gateway/main.go",
+      "transports/factory-gateway/main_test.go"
+    ],
+    "corrupt_artifact_refused_before_writes": true,
+    "replay_refused_without_changes": true,
+    "hardlinked_update_refused_before_writes": true
+  },
+  "affected_race": {
+    "status": {
+      "state": "complete",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-buildvcs=false",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=600s",
+        "github.com/maximhq/bifrost/transports/bifrost-http/server",
+        "github.com/maximhq/bifrost/framework/configstore",
+        "github.com/maximhq/bifrost/transports/factory-gateway"
+      ],
+      "environment": {
+        "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+        "GOENV": "off",
+        "GOAUTH": "off",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTOOLCHAIN": "local",
+        "GOMAXPROCS": "2",
+        "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+        "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+        "GOTMPDIR": "/tmp/gch5zk0khn",
+        "TMPDIR": "/tmp/gch5zk0khn",
+        "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+        "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+        "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+      },
+      "pid": 516527,
+      "start_ticks": "274261773",
+      "driver_pid": 516525,
+      "boot_id": "98b86bb5-c04c-46f5-951d-22e497102f29",
+      "source_files": 1941,
+      "exit_code": 0,
+      "wall_seconds": 148.4272191002965,
+      "manifest_matches_after": true
+    },
+    "driver_log": "",
+    "log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t102.868s\nok  \tgithub.com/maximhq/bifrost/framework/configstore\t41.643s\nok  \tgithub.com/maximhq/bifrost/transports/factory-gateway\t1.103s\n"
+  },
+  "native_parent_audit": {
+    "containers": {
+      "sfactory-command-native-py8h5sbg": {
+        "id": "517b2779e97b51fbf521c3a6c9315f132384ce9bc419267d4ca3cb585c51e00e",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T18:49:51.868407941Z",
+          "FinishedAt": "2026-11-05T18:50:06.42081701Z"
+        },
+        "stdout": "=== RUN   TestFactoryGatewayCommandExecutableNative\n=== RUN   TestFactoryGatewayCommandExecutableNative/cancel\n    factory_gateway_command_test.go:275: scenario=cancel pid=15 start_ticks=274217194 terminal=true readiness_bytes=556 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/admin-refused\n    factory_gateway_command_test.go:275: scenario=admin-refused pid=36 start_ticks=274217406 terminal=true readiness_bytes=556 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/unsealed\n    factory_gateway_command_test.go:275: scenario=unsealed pid=57 start_ticks=274217456 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/changed-policy\n    factory_gateway_command_test.go:275: scenario=changed-policy pid=72 start_ticks=274217465 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/store-substitution\n    factory_gateway_command_test.go:275: scenario=store-substitution pid=88 start_ticks=274217473 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/missing-store\n    factory_gateway_command_test.go:275: scenario=missing-store pid=103 start_ticks=274217506 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/socket-substitution\n    factory_gateway_command_test.go:275: scenario=socket-substitution pid=119 start_ticks=274217537 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/wrong-role\n    factory_gateway_command_test.go:275: scenario=wrong-role pid=134 start_ticks=274217569 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/unknown\n    factory_gateway_command_test.go:275: scenario=unknown pid=149 start_ticks=274217577 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/duplicate\n    factory_gateway_command_test.go:275: scenario=duplicate pid=165 start_ticks=274217586 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/wrong-case\n    factory_gateway_command_test.go:275: scenario=wrong-case pid=181 start_ticks=274217594 terminal=true readiness_bytes=0 HTTP=0\n--- PASS: TestFactoryGatewayCommandExecutableNative (13.02s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/cancel (2.11s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/admin-refused (0.51s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/unsealed (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/changed-policy (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/store-substitution (0.33s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/missing-store (0.31s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/socket-substitution (0.31s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/wrong-role (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/unknown (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/duplicate (0.08s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/wrong-case (0.08s)\nPASS\n",
+        "stderr": ""
+      },
+      "sfactory-command-native-j_rca59o": {
+        "id": "0e8cd3b4e1a43def8629e0e20fe7bf8f330216a131f069d012fb38991c214061",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T18:52:39.284314794Z",
+          "FinishedAt": "2026-11-05T18:52:51.662732119Z"
+        },
+        "stdout": "=== RUN   TestFactoryGatewayCommandExecutableNative\n=== RUN   TestFactoryGatewayCommandExecutableNative/unsealed\n    factory_gateway_command_test.go:259: \n        \tError Trace:\t/tmp/gcmd-final-c0PFmJbL/transports/bifrost-http/server/factory_gateway_command_test.go:259\n        \tError:      \tShould be empty, but was [123 34 115 99 104 101 109 97 34 58 49 44 34 115 116 97 116 101 34 58 34 99 111 108 100 45 114 101 97 100 121 34 44 34 99 111 110 102 105 103 95 115 104 97 50 53 54 34 58 34 48 99 97 55 55 53 55 99 55 57 48 101 48 48 56 101 100 98 97 100 97 102 51 56 101 102 53 97 54 102 53 102 100 53 55 57 100 98 57 49 101 99 50 54 56 55 49 51 101 56 53 56 49 56 102 102 98 53 55 101 97 52 102 101 34 44 34 108 97 117 110 99 104 95 115 104 97 50 53 54 34 58 34 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 101 34 44 34 103 114 97 110 116 95 115 104 97 50 53 54 34 58 34 101 52 54 100 54 102 55 49 54 54 101 51 52 101 54 99 54 57 48 53 102 50 97 50 48 52 49 51 98 100 55 100 57 100 97 48 54 97 49 50 101 54 54 52 101 55 101 48 99 48 102 100 48 53 53 51 99 53 53 50 98 98 52 101 34 44 34 115 99 111 112 101 95 115 104 97 50 53 54 34 58 34 56 54 57 99 97 51 100 97 54 57 55 97 51 56 100 52 97 102 48 52 52 54 98 55 99 101 97 48 57 49 97 55 49 54 54 57 102 51 53 57 98 49 48 100 57 55 49 101 57 57 52 102 52 55 56 49 101 50 98 97 49 51 48 53 34 44 34 114 101 118 105 101 119 95 115 104 97 50 53 54 34 58 34 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 99 34 44 34 112 105 100 34 58 49 53 44 34 115 116 97 114 116 95 116 105 99 107 115 34 58 50 55 52 50 51 51 57 53 53 44 34 117 105 100 34 58 50 48 48 55 44 34 115 111 99 107 101 116 95 100 101 118 105 99 101 34 58 54 54 51 48 54 44 34 115 111 99 107 101 116 95 105 110 111 100 101 34 58 53 53 51 52 44 34 112 97 105 100 95 114 101 97 100 121 34 58 102 97 108 115 101 125 10]\n        \tTest:       \tTestFactoryGatewayCommandExecutableNative/unsealed\n        \tMessages:   \trefusal emitted readiness\n--- FAIL: TestFactoryGatewayCommandExecutableNative (11.75s)\n    --- FAIL: TestFactoryGatewayCommandExecutableNative/unsealed (2.54s)\nFAIL\n",
+        "stderr": ""
+      }
+    },
+    "binary_hashes": {
+      "/tmp/gcmd-final-c0PFmJbL/gateway-v7": "ed3f47367f4da8400685e26d4a2a0acea1f05d2c7c73cb3ea6caff87be3468a7",
+      "/tmp/gcmd-final-c0PFmJbL/command-native-v7.test": "98442ab1285e5ee34f739ad53904a8b6fe3f159ffaa05a0c8fbd34739c0fede3",
+      "/tmp/gcmd-seal-mutant-g2OncpdD/gateway-v7": "38ebc623ad4824e514dac1484937ba7b6332dcfd3c31bea99175cc50ff4a6a47"
+    }
+  },
+  "worker_verification": {
+    "installer_unittest": {
+      "command": "python3 -m unittest discover -s engine/transport -p test_patch_factory_gateway_exchange.py",
+      "result": "27 passed"
+    },
+    "ruff": {
+      "command": "ruff check engine/transport/patch_factory_gateway_exchange.py engine/transport/test_patch_factory_gateway_exchange.py",
+      "result": "passed"
+    },
+    "format_and_diff": {
+      "command": "gofmt on all owned Go artifacts; git diff --check",
+      "result": "passed"
+    },
+    "reconstruction": {
+      "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-gateway-command-installed-hv7_o3jj/source",
+      "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+      "post_install_sha256": "db242901c95a17c55081a555cd248450b62d49ead0e3913e4c8e7454d1521ef9",
+      "source_files": 1941,
+      "changed_composed_files": [
+        "framework/configstore/factory_gateway_existing_store.go",
+        "framework/configstore/factory_gateway_existing_store_test.go",
+        "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+        "transports/bifrost-http/server/factory_gateway_command.go",
+        "transports/bifrost-http/server/factory_gateway_command_test.go",
+        "transports/bifrost-http/server/normalizer_config.go",
+        "transports/factory-gateway/main.go",
+        "transports/factory-gateway/main_test.go"
+      ],
+      "corrupt_artifact_refused_before_writes": true,
+      "replay_refused_without_changes": true,
+      "hardlinked_update_refused_before_writes": true
+    },
+    "build": [
+      {
+        "label": "command-v7",
+        "pid": 509161,
+        "start_ticks": "274207504",
+        "command": [
+          "go",
+          "build",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-o",
+          "/tmp/gcmd-final-c0PFmJbL/gateway-v7",
+          "./factory-gateway"
+        ],
+        "cwd": "/tmp/gcmd-final-c0PFmJbL/transports",
+        "environment": {
+          "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+          "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+          "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+          "GOENV": "off",
+          "GOAUTH": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTOOLCHAIN": "local",
+          "GOMAXPROCS": "2",
+          "GOTMPDIR": "/tmp/gcmd-final-c0PFmJbL",
+          "TMPDIR": "/tmp/gcmd-final-c0PFmJbL"
+        },
+        "state": "terminal",
+        "exit_code": 0,
+        "wall_seconds": 43.03331763809547
+      },
+      {
+        "label": "native-test-v7",
+        "pid": 510009,
+        "start_ticks": "274211807",
+        "command": [
+          "go",
+          "test",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-c",
+          "-o",
+          "/tmp/gcmd-final-c0PFmJbL/command-native-v7.test",
+          "./bifrost-http/server"
+        ],
+        "cwd": "/tmp/gcmd-final-c0PFmJbL/transports",
+        "environment": {
+          "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+          "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+          "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+          "GOENV": "off",
+          "GOAUTH": "off",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOTOOLCHAIN": "local",
+          "GOMAXPROCS": "2",
+          "GOTMPDIR": "/tmp/gcmd-final-c0PFmJbL",
+          "TMPDIR": "/tmp/gcmd-final-c0PFmJbL"
+        },
+        "state": "terminal",
+        "exit_code": 0,
+        "wall_seconds": 13.551014917902648
+      }
+    ],
+    "focused_final": [
+      {
+        "name": "server-focused",
+        "command": [
+          "/tmp/gcmd-final-c0PFmJbL/command-native-v7.test",
+          "-test.count=1",
+          "-test.timeout=60s",
+          "-test.run=^TestFactoryGateway(OwnedRuntimeNative|CommandSealedBootstrap)$|^TestPrivatePolicyDefaultOffAndNoAmbiguousActivation$|^TestQualifiedPhysicalPolicyBindsPriceEvidenceToExactTransport$|^TestPricingRenewalConfigPermitsOnlyShapeUntilArtifactAuthority$",
+          "-test.v"
+        ],
+        "pid": 512011,
+        "start_ticks": "274225100",
+        "exit_code": 0
+      },
+      {
+        "name": "main",
+        "command": [
+          "go",
+          "test",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-count=1",
+          "-timeout=30s",
+          "./factory-gateway"
+        ],
+        "pid": 512025,
+        "start_ticks": "274225412",
+        "exit_code": 0
+      }
+    ],
+    "native_standalone": {
+      "public_image": "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+      "public_export_container": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+      "public_rootfs_sha256": "1ce8a6caabd9d530b2abfec7dac20b52cc33003f3fdb7f925a622a912d13fd57",
+      "root": "/home/bo/sfactory-command-native-py8h5sbg/rootfs",
+      "container_name": "sfactory-command-native-py8h5sbg",
+      "command": [
+        "docker",
+        "run",
+        "--name",
+        "sfactory-command-native-py8h5sbg",
+        "--network",
+        "none",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--cap-add=CHOWN",
+        "--cap-add=DAC_OVERRIDE",
+        "--cap-add=SETUID",
+        "--cap-add=SETGID",
+        "--cap-add=KILL",
+        "--cap-add=SYS_CHROOT",
+        "--cap-add=SYS_ADMIN",
+        "--security-opt=no-new-privileges",
+        "--security-opt=seccomp=unconfined",
+        "--security-opt=apparmor=unconfined",
+        "--cpus=2",
+        "--pids-limit=256",
+        "--memory=1g",
+        "--mount",
+        "type=bind,src=/home/bo/sfactory-command-native-py8h5sbg/rootfs,dst=/fixture",
+        "--mount",
+        "type=bind,src=/tmp/gcmd-final-c0PFmJbL/gateway-v7,dst=/fixture/gateway,readonly",
+        "--mount",
+        "type=bind,src=/tmp/gcmd-final-c0PFmJbL/command-native-v7.test,dst=/fixture/test,readonly",
+        "--mount",
+        "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+        "--mount",
+        "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+        "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+        "python3",
+        "-c",
+        "import os,ctypes,subprocess\nfrom pathlib import Path\nroot=Path('/fixture')\nfor p in [root]+list(root.rglob('*')):\n if not str(p).startswith('/fixture/dev/') and p.name not in ('test','gateway'):\n  os.chown(p,0,0,follow_symlinks=False)\nos.chmod(root,0o755);os.chmod(root/'tmp',0o1777);os.chmod(root/'var/lib/sfactory-harness',0o755)\nsubprocess.run(['mount','-t','proc','proc',str(root/'proc')],check=True)\nclass Header(ctypes.Structure):_fields_=[('version',ctypes.c_uint32),('pid',ctypes.c_int)]\nclass Data(ctypes.Structure):_fields_=[('effective',ctypes.c_uint32),('permitted',ctypes.c_uint32),('inheritable',ctypes.c_uint32)]\nlib=ctypes.CDLL(None,use_errno=True);header=Header(0x20080522,0);data=(Data*2)()\nassert lib.capget(ctypes.byref(header),ctypes.byref(data))==0\nfor field in ('effective','permitted','inheritable'):setattr(data[0],field,getattr(data[0],field)&~(1<<21))\nassert lib.capset(ctypes.byref(header),ctypes.byref(data))==0\nos.chroot(root);os.chdir('/')\nos.environ.clear();os.environ.update({'SFACTORY_COMMAND_FIXTURE':'1','TMPDIR':'/tmp','GOMAXPROCS':'2'})\nraise SystemExit(subprocess.run(['/test','-test.run=^TestFactoryGatewayCommandExecutableNative$','-test.v','-test.timeout=120s']).returncode)\n"
+      ],
+      "binary_hashes": {
+        "gateway-v7": "ed3f47367f4da8400685e26d4a2a0acea1f05d2c7c73cb3ea6caff87be3468a7",
+        "command-native-v7.test": "98442ab1285e5ee34f739ad53904a8b6fe3f159ffaa05a0c8fbd34739c0fede3"
+      },
+      "driver_pid": 510899,
+      "driver_ticks": "274216198",
+      "state": "terminal",
+      "exit_code": 0
+    },
+    "source_identity": {
+      "expected_files": 1941,
+      "mismatches": [],
+      "source_manifest_matches": true,
+      "root_available_bytes": 58825367552,
+      "boot_id": "98b86bb5-c04c-46f5-951d-22e497102f29"
+    },
+    "seal_mutant": {
+      "change": "Only seals&required != required became (seals&required != required && false) in isolated source clone",
+      "build": {
+        "command": [
+          "go",
+          "build",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-o",
+          "/tmp/gcmd-seal-mutant-g2OncpdD/gateway-v7",
+          "./factory-gateway"
+        ],
+        "pid": 512401,
+        "start_ticks": "274228799",
+        "exit_code": 0
+      },
+      "native": {
+        "public_image": "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+        "public_export_container": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+        "public_rootfs_sha256": "1ce8a6caabd9d530b2abfec7dac20b52cc33003f3fdb7f925a622a912d13fd57",
+        "root": "/home/bo/sfactory-command-native-j_rca59o/rootfs",
+        "container_name": "sfactory-command-native-j_rca59o",
+        "command": [
+          "docker",
+          "run",
+          "--name",
+          "sfactory-command-native-j_rca59o",
+          "--network",
+          "none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=KILL",
+          "--cap-add=SYS_CHROOT",
+          "--cap-add=SYS_ADMIN",
+          "--security-opt=no-new-privileges",
+          "--security-opt=seccomp=unconfined",
+          "--security-opt=apparmor=unconfined",
+          "--cpus=2",
+          "--pids-limit=256",
+          "--memory=1g",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-command-native-j_rca59o/rootfs,dst=/fixture",
+          "--mount",
+          "type=bind,src=/tmp/gcmd-seal-mutant-g2OncpdD/gateway-v7,dst=/fixture/gateway,readonly",
+          "--mount",
+          "type=bind,src=/tmp/gcmd-final-c0PFmJbL/command-native-v7.test,dst=/fixture/test,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import os,ctypes,subprocess\nfrom pathlib import Path\nroot=Path('/fixture')\nfor p in [root]+list(root.rglob('*')):\n if not str(p).startswith('/fixture/dev/') and p.name not in ('test','gateway'):\n  os.chown(p,0,0,follow_symlinks=False)\nos.chmod(root,0o755);os.chmod(root/'tmp',0o1777);os.chmod(root/'var/lib/sfactory-harness',0o755)\nsubprocess.run(['mount','-t','proc','proc',str(root/'proc')],check=True)\nclass Header(ctypes.Structure):_fields_=[('version',ctypes.c_uint32),('pid',ctypes.c_int)]\nclass Data(ctypes.Structure):_fields_=[('effective',ctypes.c_uint32),('permitted',ctypes.c_uint32),('inheritable',ctypes.c_uint32)]\nlib=ctypes.CDLL(None,use_errno=True);header=Header(0x20080522,0);data=(Data*2)()\nassert lib.capget(ctypes.byref(header),ctypes.byref(data))==0\nfor field in ('effective','permitted','inheritable'):setattr(data[0],field,getattr(data[0],field)&~(1<<21))\nassert lib.capset(ctypes.byref(header),ctypes.byref(data))==0\nos.chroot(root);os.chdir('/')\nos.environ.clear();os.environ.update({'SFACTORY_COMMAND_FIXTURE':'1','TMPDIR':'/tmp','GOMAXPROCS':'2'})\nraise SystemExit(subprocess.run(['/test','-test.run=^TestFactoryGatewayCommandExecutableNative$/unsealed$','-test.v','-test.timeout=120s']).returncode)\n"
+        ],
+        "binary_hashes": {
+          "gateway-v7": "38ebc623ad4824e514dac1484937ba7b6332dcfd3c31bea99175cc50ff4a6a47",
+          "command-native-v7.test": "98442ab1285e5ee34f739ad53904a8b6fe3f159ffaa05a0c8fbd34739c0fede3"
+        },
+        "driver_pid": 513208,
+        "driver_ticks": "274232743",
+        "state": "terminal",
+        "exit_code": 1
+      },
+      "result": "killed by real assertion: refusal emitted readiness; fully valid unsealed bootstrap emitted cold-ready. No compile/setup failure counted."
+    }
+  },
+  "handoff_contract": {
+    "fd_contract": {
+      "bootstrap_fd": "distinct inherited FD>=3, Root-owned UID0 regular memfd, size1..262144; F_SEAL_SEAL|F_SEAL_WRITE|F_SEAL_SHRINK|F_SEAL_GROW before release; exact raw bytes frozen by Root",
+      "cold_ready_fd": "distinct inherited FD>=3, Root-owned UID0 O_WRONLY pipe, separate from existing pre-exec ready/gate pipe; parent keeps read end. Command one nonblocking <=4096-byte newline-terminated JSON write then close; Root must require complete one record AND EOF within owned deadline",
+      "socket_fd": "distinct inherited AF_UNIX SOCK_STREAM already bound non-listening; both kernel FD(dev,ino) and pathname(dev,ino) recorded separately. Path UID gateway, mode0660, single link. Gateway itself calls listen under exact gateway UID. Root closes its own passed copies and retains inode/lock/process custody",
+      "existing_exec_extension": "Current Python helper retains only old socket/program/gate/preexec-ready descriptors and execs only --socket-fd/--socket-path. Next unit must explicitly allowlist/validate/preserve sealed bootstrap and cold-ready FD through helper/userns/exec and add the two command args, without exposing them to worker/evaluator"
+    },
+    "bootstrap_outer_fields": [
+      "schema",
+      "role",
+      "launch_sha256",
+      "scope_sha256",
+      "grant_sha256",
+      "program_sha256",
+      "parent_pid",
+      "parent_ticks",
+      "gateway_uid",
+      "broker_uid",
+      "capture_uid",
+      "broker_path",
+      "capture_path",
+      "store_path",
+      "store",
+      "socket_path",
+      "socket_device",
+      "socket_inode",
+      "socket_fd_device",
+      "socket_fd_inode",
+      "review",
+      "scope",
+      "allowance",
+      "wire",
+      "wire_sha256",
+      "policy",
+      "policy_sha256"
+    ],
+    "nested_exact_spelling": {
+      "store": [
+        "PathSHA256",
+        "Device",
+        "Inode",
+        "SchemaSHA256"
+      ],
+      "review": [
+        "PrincipalID",
+        "CredentialSHA256",
+        "KeyReferences",
+        "RulesSHA256",
+        "AnalyzerSHA256",
+        "CorpusSHA256",
+        "AccountSHA256"
+      ],
+      "scope": [
+        "Owner",
+        "AttemptID",
+        "RouteSHA256",
+        "TariffSHA256",
+        "ExpiresAt",
+        "MaxOutputTokens"
+      ],
+      "allowance": "FactoryScopeV2 snakecase JSON; route FactoryRouteV2 snakecase; exact struct order mirrors existing wallet serde preimage",
+      "wire": "factoryGatewayWireReview and component snakecase JSON from source",
+      "policy": "LocalNormalizationConfig canonical snakecase JSON from original normalizer_config.go; no alternate schema"
+    },
+    "ready_schema": {
+      "schema": 1,
+      "state": "cold-ready",
+      "config_sha256": "SHA256 exact raw sealed bytes",
+      "launch_sha256": "same protected consumed-launch identity",
+      "grant_sha256": "actual existing Root grant digest, distinct from wallet scope",
+      "scope_sha256": "Allowance.Digest",
+      "review_sha256": "Allowance.Route.ReviewSHA256",
+      "pid": "actual child PID",
+      "start_ticks": "actual /proc child ticks",
+      "uid": "actual exact gateway UID",
+      "socket_device": "recorded pathname device",
+      "socket_inode": "recorded pathname inode",
+      "paid_ready": false
+    },
+    "root_receipt_validation": "Root must reject unknown/duplicate/malformed/partial/extra data or missing EOF, compare every immutable identity/hash with independently frozen state, recheck exact live child PID/startticks/UID and socket inode, and preserve unresolved launch ownership. A ready record is cold only, never warmup/paid/provider/Root lifecycle acceptance.",
+    "hash_domains": {
+      "config_sha256": "raw sealed record bytes, no JSON reserialization",
+      "grant_sha256": "existing Root grant SHA, trusted Root-authored input; NOT wallet scope digest; command validates digest format and binds into raw config/receipt, creates no parallel grant authority",
+      "scope_sha256": "schemas.FactoryScopeV2.Digest JSON struct/serde order; use existing reviewed saved scope identity",
+      "policy_sha256": "sha256(json.Marshal(typed LocalNormalizationConfig)) BEFORE canonical typed validator defaults; Go struct order/omitempty matter",
+      "wire_sha256": "sha256(json.Marshal(typed factoryGatewayWireReview)); Go struct order matters",
+      "review_bindings": "existing constructor hashes of typed DB rules, normalized analyzer/corpus/account; preserve source-defined Go representations. Do not substitute Python sorted canonical_json for typed Go digests. Root may consume independently reviewed precomputed artifact digests"
+    },
+    "scope_rules": "Positive Scope.MaxOutputTokens<=Allowance.Route.MaxOutputTokens and <=16384; positive Scope.ExpiresAt<=Allowance.ExpiresAt; shorter Root scope must expire within180s; command lifetime uses Scope.ExpiresAt. Allowance may validly outlive180s. Actual acquired owner metadata still governs physical root deadlines.",
+    "namespace_roles": "This command fixture proves direct distinct UIDs, not userns custody. Next unit must explicitly map reviewed same-number broker/capture UIDs in Root-created userns; parent characterized old mapping as overflowUID65534. Never weaken exact peer comparisons. Namespace descriptor owner remains Root UID0."
+  },
+  "api": {
+    "production_entry": "server.RunFactoryGatewayCommand(ctx context.Context, configFile, readyFile, socketFile *os.File, socketPath string) error; consumes all inherited files on every outcome; closes own listener/runtime/store; never unlinks socket pathname",
+    "existing_store": "configstore.OpenExistingFactoryGatewaySQLite(ctx, absolutePath, expectedSchemaSHA256, logger) (*RDBConfigStore, FactoryGatewayDatabaseIdentity, error); mode=rw existing regular single-link gateway-owned file, no migrations/default import/reset/catalog sync/new ledger; actual identity compared to sealed review",
+    "typed_seam": "factoryGatewayColdRuntime.newPrivateGatewayPolicy(... LocalNormalizationConfig ...); deep-copy into zero-valued config, shared validateLocalNormalizationConfig; old path consumer retained and delegates after unchanged canonical file/decode checks",
+    "command": "transports/factory-gateway Linux main; only --socket-fd N --socket-path PATH --bootstrap-fd N --cold-ready-fd N; no public/admin bootstrap or environment configuration"
+  },
+  "changed_artifacts": [
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_bootstrap.go",
+      "sha256": "235306b5d9ad5b2c898d5e61f3f1be210a96996027ed312eec986da2a76984f0"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/patch_factory_gateway_exchange.py",
+      "sha256": "10eb043366c32cf01a94e0f29f6730261f74c51441310d160fa89057a7d490a4"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/test_patch_factory_gateway_exchange.py",
+      "sha256": "ed8c62967baa5be904def715321469077da5120c97a00caa09215692a71f1cad"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_command.go",
+      "sha256": "56a0d89355fb438b11d50112285c7f79ebf076970135fc237edb018e0c1f5815"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_command_test.go",
+      "sha256": "bb181c968fd547f9076736d292f3f08624f3a1720018ec98351ac3ae285f8035"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_existing_store.go",
+      "sha256": "a9a5278da5e65e3817243753ea96af2e60629e3c5e7dbd464cdf532317a34217"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_existing_store_test.go",
+      "sha256": "fa095521e6d1c3f87817d2a2e89d2eece3d332c1103ebb8f96c14ee4f892fceb"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_main.go",
+      "sha256": "8f2988dd829a06cde2aa79736110154acbe55b2c45f404e2aca3e70a5122e90d"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_main_test.go",
+      "sha256": "2aec04e4a2fd24b8dc4c42efc186e4e3adcdc81873545037bc09e37b44596ed3"
+    },
+    {
+      "path": "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_normalizer_config.go",
+      "sha256": "fecbdbd17dce98fdd85fe5c1981129c951b517db2bb3efb0833c0005f35d9778"
+    }
+  ],
+  "review": {
+    "status": "complete",
+    "verdict": "Ready with fixes",
+    "artifact_path": "/tmp/compound-engineering-501/ce-code-review/20261105-135555-gateway-command",
+    "run_id": "20261105-135555-gateway-command",
+    "reviewers": [
+      "correctness",
+      "testing",
+      "maintainability",
+      "security",
+      "reliability",
+      "api-contract",
+      "adversarial"
+    ],
+    "findings": [
+      {
+        "#": 1,
+        "autofix_class": "gated_auto",
+        "confidence": 75,
+        "evidence": [
+          "engine/transport/factory_gateway_command_test.go:243 -- require.NotZero(t, receipt.StartTicks)",
+          "engine/transport/factory_gateway_command_test.go:211 -- childTicks, tickErr := factoryGatewayProcessTicks(cmd.Process.Pid)",
+          "engine/transport/factory_gateway_command_test.go:225-234 decodes only state/config/grant/scope/PID/start_ticks/paid_ready/socket_inode; launch_sha256, review_sha256, uid, schema and socket_device are discarded.",
+          "engine/transport/factory_gateway_command.go:248 emits launch, grant, scope, review, actual PID/ticks/UID and socket device/inode in the cold-ready record."
+        ],
+        "file": "engine/transport/factory_gateway_command_test.go",
+        "first_evidence": "engine/transport/factory_gateway_command_test.go:243 -- require.NotZero(t, receipt.StartTicks)",
+        "independent_reviewers": [
+          "testing"
+        ],
+        "line": 243,
+        "owner": "downstream-resolver",
+        "pre_existing": false,
+        "requires_verification": true,
+        "reviewers": [
+          "testing"
+        ],
+        "severity": "P2",
+        "suggested_fix": "Extend the decoded receipt with Schema, LaunchSHA256, ReviewSHA256, UID and SocketDevice; assert their exact expected values from c and pathStat. Replace require.NotZero(receipt.StartTicks) with require.Equal(childTicks, receipt.StartTicks). Retain the existing hash, EOF, HTTP0 and termination assertions.",
+        "title": "Assert exact cold-ready process and launch bindings",
+        "why_it_matters": "The native qualification accepts any nonzero start_ticks and discards schema, launch hash, review hash, UID and socket device. Incorrect emitted bindings could therefore pass qualification and later fail Root receipt verification. This is a test-coverage defect; no production emission defect was observed.",
+        "validation_status": "confirmed",
+        "validation_reason": "The newly added native qualification reads childTicks at factory_gateway_command_test.go:211 but only checks emitted ticks are nonzero at :243 and discards schema, launch, review, UID and socket device at :225-234; therefore a receipt with incorrect nonzero ticks or incorrect discarded bindings passes these assertions, whereas independently expected equality assertions would reject it (a demonstrated coverage gap, not an observed production emission defect; mutation incidence was not measured)."
+      }
+    ],
+    "testing_gaps": [
+      "Native command tests do not close the readiness reader or fill its pipe. Add negative controls proving the post-construction nonblocking readiness write refuses promptly, terminates the cold runtime, preserves Root's socket pathname/inode, and makes no provider calls."
+    ],
+    "peer": {
+      "outcome": "in-process-fallback",
+      "coverage": "adversarial lens: in-process fallback (cross-model peer not run: transport unavailable before egress on Claude/acpx route: Internal error)"
+    }
+  },
+  "review_resolution": {
+    "finding": 1,
+    "review_artifact": "/tmp/compound-engineering-501/ce-code-review/20261105-135555-gateway-command",
+    "old_test_sha256": "4743fb1d5c8e9c312522093e9fd8cb31aeb8b3e1215c62d7a17cc4de6bab72bc",
+    "new_test_sha256": "bb181c968fd547f9076736d292f3f08624f3a1720018ec98351ac3ae285f8035",
+    "changes": "Exact schema/launch/review/UID/socket device and independently observed child startticks assertions; existing proof assertions retained. Production code unchanged.",
+    "paths": [
+      "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/factory_gateway_command_test.go",
+      "/Users/bo/code/bifrost-cold-runtime-review-20261104/engine/transport/patch_factory_gateway_exchange.py"
+    ],
+    "status": "resolved",
+    "verification": "/tmp/sfactory-gateway-command-readiness-fix-verification.json",
+    "parent_audit": "/tmp/sfactory-gateway-command-readiness-parent-audit.json",
+    "final_server": "/tmp/sfactory-gateway-command-final-server-results.json"
+  },
+  "canonical_validator_body_byte_identical": true,
+  "preserved_setup_failures": {
+    "summary": "Missing stale archive, output-buffer test race, chmod-after-chown under minimal caps, PID1 fixture parent, and rootfs harness directory0775 were setup/test failures. They are not semantic product RED. Exact corrected fresh fixture then passed all11 cases. Earlier negatives are not relied on independently. Provisional workstage binaries were rebuilt in place during diagnostics; final and mutant exact binaries are preserved under distinct paths with hashes.",
+    "containers": [
+      {
+        "id": "0e8cd3b4e1a43def8629e0e20fe7bf8f330216a131f069d012fb38991c214061",
+        "name": "/sfactory-command-native-j_rca59o",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T18:52:39.284314794Z",
+          "FinishedAt": "2026-11-05T18:52:51.662732119Z"
+        }
+      },
+      {
+        "id": "517b2779e97b51fbf521c3a6c9315f132384ce9bc419267d4ca3cb585c51e00e",
+        "name": "/sfactory-command-native-py8h5sbg",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T18:49:51.868407941Z",
+          "FinishedAt": "2026-11-05T18:50:06.42081701Z"
+        }
+      },
+      {
+        "id": "198fb5a7eecd5432ababd29ba64a137c4858ef4078b79450742b82b1c59780ab",
+        "name": "/sfactory-command-directory-diagnostic",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T05:57:52.923668641Z",
+          "FinishedAt": "2026-11-05T05:57:53.783120816Z"
+        }
+      },
+      {
+        "id": "529230fc42ed4cbfcaf2bb09d74afd4f44b5387def70c002f45a05c2390b1fbb",
+        "name": "/sfactory-command-native-vxwhcrjr",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T04:54:11.338275616Z",
+          "FinishedAt": "2026-11-05T04:54:27.339784243Z"
+        }
+      },
+      {
+        "id": "d212d267ca4ba7c4e6e82a6269ac08623c654e48114ff2b255e561d14c07d6fd",
+        "name": "/sfactory-command-native-4y3i2j0j",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T04:49:37.144848458Z",
+          "FinishedAt": "2026-11-05T04:49:45.749448887Z"
+        }
+      },
+      {
+        "id": "d1cf13ae31caab6dbdff7ed9c650c71f103a30ab76d08f3e7003a740fbae9fc1",
+        "name": "/sfactory-command-native-tgzq_qd1",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T04:49:11.456293708Z",
+          "FinishedAt": "2026-11-05T04:49:22.664383959Z"
+        }
+      },
+      {
+        "id": "fc78d55d26ad9b6daaadfcf10e2edf0a45d5dfc4fe0687e3658b0910e9d0c39f",
+        "name": "/sfactory-command-native-42cyu4gz",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T04:48:27.806040326Z",
+          "FinishedAt": "2026-11-05T04:48:38.371688982Z"
+        }
+      },
+      {
+        "id": "22260d09111b823512f9b57e905e0faa6438948842f7741c991ee37843e2774d",
+        "name": "/sfactory-command-native-nqzdlm4x",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T04:46:15.011557635Z",
+          "FinishedAt": "2026-11-05T04:46:26.675965116Z"
+        }
+      },
+      {
+        "id": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+        "name": "/sfactory-command-native-nqzdlm4x-public-export",
+        "state": {
+          "Status": "created",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "0001-01-01T00:00:00Z",
+          "FinishedAt": "0001-01-01T00:00:00Z"
+        }
+      }
+    ],
+    "recovery_record": "/tmp/sfactory-gateway-command-native-recovery.json"
+  },
+  "capacity": {
+    "temporary_hold": "Rootavailable8366764032 below8GiB caused v7 build to refuse before launch. Capacity later recovered externally; worker performed no cleanup/offload/service mutation; cause unknown.",
+    "final_root_available_bytes": 58671824896,
+    "boot_id": "98b86bb5-c04c-46f5-951d-22e497102f29"
+  },
+  "paid_calls": 0,
+  "benchmark_attempts": 0,
+  "candidate_disabled": true,
+  "production_admission": false,
+  "limits": [
+    "Actual public Root lifecycle, inherited filter/user-namespace custody, service role mapping and handed-socket cleanup remain unfinished.",
+    "Standalone native fixture proves distinct UID and actual runtime/SQLite HTTP0, not production deployment, provider guarantees or paid warmup.",
+    "No new grant, generic ConfigStore RPC, copied ledger or implicit classifier authorization. Canonical RDB remains authoritative.",
+    "Existing same-runtime second successful acquired exchange coverage remains for complete joined rehearsal.",
+    "Closed-reader/full-readiness-pipe failure controls are carried to actual Root lifecycle qualification."
+  ],
+  "final_server_race": {
+    "status": {
+      "state": "complete",
+      "command": [
+        "go",
+        "test",
+        "-mod=readonly",
+        "-buildvcs=false",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-timeout=600s",
+        "github.com/maximhq/bifrost/transports/bifrost-http/server"
+      ],
+      "environment": {
+        "PATH": "/home/bo/sfactory-gateway-responses-reviewed-7ud3GY/toolchain/bin:/usr/bin:/bin",
+        "GOENV": "off",
+        "GOAUTH": "off",
+        "GOPROXY": "off",
+        "GOSUMDB": "off",
+        "GOTOOLCHAIN": "local",
+        "GOMAXPROCS": "2",
+        "GOCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gocache",
+        "GOMODCACHE": "/home/bo/sfactory-dependency-restore-1rofjr1v/gomod",
+        "GOTMPDIR": "/tmp/gcd29ac4k0",
+        "TMPDIR": "/tmp/gcd29ac4k0",
+        "BIFROST_PRICING_RENEWAL_TESTDATA": "/home/bo/sfactory-gateway-wire-20261102/source/pricingrenewal/testdata",
+        "BIFROST_WORKER_SOURCE": "/home/bo/sfactory-gateway-wire-20261102/public-worker",
+        "BIFROST_WORKER_PYTHON": "/usr/bin/python3"
+      },
+      "pid": 536299,
+      "start_ticks": "274348301",
+      "driver_pid": 536207,
+      "boot_id": "98b86bb5-c04c-46f5-951d-22e497102f29",
+      "source_files": 1941,
+      "exit_code": 0,
+      "wall_seconds": 143.8145671626553,
+      "manifest_matches_after": true
+    },
+    "driver_log": "",
+    "log": "ok  \tgithub.com/maximhq/bifrost/transports/bifrost-http/server\t102.172s\n"
+  },
+  "readiness_fix_verification": {
+    "status": "complete",
+    "purpose": "Targeted verification and sensitivity evidence for exact cold-ready identity assertions; no further canonical source changes",
+    "supplements": "/tmp/sfactory-gateway-command-worker-handoff.json",
+    "caller_fix": "/tmp/sfactory-gateway-command-readiness-fix.json",
+    "review_artifact": "/tmp/compound-engineering-501/ce-code-review/20261105-135555-gateway-command/review.json",
+    "production_unchanged": true,
+    "installed_changes_since_reviewed_source": {
+      "transports/bifrost-http/server/factory_gateway_command_test.go": {
+        "reviewed_sha256": "4743fb1d5c8e9c312522093e9fd8cb31aeb8b3e1215c62d7a17cc4de6bab72bc",
+        "updated_sha256": "bb181c968fd547f9076736d292f3f08624f3a1720018ec98351ac3ae285f8035"
+      }
+    },
+    "reviewed_test_sha256": "4743fb1d5c8e9c312522093e9fd8cb31aeb8b3e1215c62d7a17cc4de6bab72bc",
+    "strengthened_test_sha256": "bb181c968fd547f9076736d292f3f08624f3a1720018ec98351ac3ae285f8035",
+    "reconstruction": {
+      "stage": "/var/folders/3b/9571c77j0078bs3mpjrqcxj80000gn/T/sfactory-readiness-fix-installed-rwbqk9_s/source",
+      "pre_exchange_sha256": "3d91f012413412eac60ed38707383f498bf1e9ffb4e93961ae052cdbecca5389",
+      "post_install_sha256": "bb903dd7c5376811cdf8286512ea90354a9e6b73a8aab8936c073ca428b75f2e",
+      "source_files": 1941,
+      "changed_composed_files": [
+        "framework/configstore/factory_gateway_existing_store.go",
+        "framework/configstore/factory_gateway_existing_store_test.go",
+        "transports/bifrost-http/server/factory_gateway_bootstrap.go",
+        "transports/bifrost-http/server/factory_gateway_command.go",
+        "transports/bifrost-http/server/factory_gateway_command_test.go",
+        "transports/bifrost-http/server/normalizer_config.go",
+        "transports/factory-gateway/main.go",
+        "transports/factory-gateway/main_test.go"
+      ],
+      "corrupt_artifact_refused_before_writes": true,
+      "replay_refused_without_changes": true,
+      "hardlinked_update_refused_before_writes": true
+    },
+    "source_manifest": "/tmp/sfactory-readiness-fix-source-manifest.json",
+    "source_archive": "/tmp/sfactory-readiness-fix-source.tar.gz",
+    "source_archive_sha256": "1f419c83fc1446bca632bfec3a6c19331e492ad3296e1df9f62ecc393ceac86c",
+    "guarded_source_manifest_matches": true,
+    "native_stage": "/tmp/readiness-fix-P3liXr7A",
+    "binary_hashes": {
+      "/tmp/readiness-fix-P3liXr7A/readiness-fixed.test": "e7c4b5ecc229e28e2ea072f2a46d52fde78dab31c4cad6f00b82d4fdb5b2fd85",
+      "/tmp/readiness-fix-P3liXr7A/timestamp-mutant": "7dd465f76d0b1feaa1be3953552a12c0db432ce451d1d61894b5fe146fef8161",
+      "/tmp/gcmd-final-c0PFmJbL/gateway-v7": "ed3f47367f4da8400685e26d4a2a0acea1f05d2c7c73cb3ea6caff87be3468a7",
+      "/tmp/gcmd-final-c0PFmJbL/command-native-v7.test": "98442ab1285e5ee34f739ad53904a8b6fe3f159ffaa05a0c8fbd34739c0fede3"
+    },
+    "exact_process_receipts": [
+      {
+        "label": "build-fixed-test",
+        "command": [
+          "go",
+          "test",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-c",
+          "-o",
+          "/tmp/readiness-fix-P3liXr7A/readiness-fixed.test",
+          "./bifrost-http/server"
+        ],
+        "cwd": "/tmp/readiness-fix-P3liXr7A/transports",
+        "pid": 534950,
+        "start_ticks": "274343152",
+        "state": "terminal",
+        "exit_code": 0
+      },
+      {
+        "label": "guarded",
+        "command": [
+          "/usr/bin/python3",
+          "/tmp/readiness-fix-P3liXr7A/guarded.py"
+        ],
+        "cwd": "/tmp/readiness-fix-P3liXr7A",
+        "pid": 538383,
+        "start_ticks": "274352125",
+        "state": "terminal",
+        "exit_code": 0
+      },
+      {
+        "label": "build-timestamp-mutant",
+        "command": [
+          "go",
+          "build",
+          "-buildvcs=false",
+          "-mod=readonly",
+          "-p=2",
+          "-race",
+          "-o",
+          "/tmp/readiness-fix-P3liXr7A/timestamp-mutant",
+          "./factory-gateway"
+        ],
+        "cwd": "/tmp/readiness-fix-P3liXr7A/mutant-source/transports",
+        "pid": 540735,
+        "start_ticks": "274360130",
+        "state": "terminal",
+        "exit_code": 0
+      },
+      {
+        "label": "old-mutant",
+        "command": [
+          "/usr/bin/python3",
+          "/tmp/readiness-fix-P3liXr7A/old-mutant.py"
+        ],
+        "cwd": "/tmp/readiness-fix-P3liXr7A",
+        "pid": 542221,
+        "start_ticks": "274364392",
+        "state": "terminal",
+        "exit_code": 0
+      },
+      {
+        "label": "new-mutant",
+        "command": [
+          "/usr/bin/python3",
+          "/tmp/readiness-fix-P3liXr7A/new-mutant.py"
+        ],
+        "cwd": "/tmp/readiness-fix-P3liXr7A",
+        "pid": 543761,
+        "start_ticks": "274372976",
+        "state": "terminal",
+        "exit_code": 1
+      }
+    ],
+    "native_receipts": [
+      {
+        "public_image": "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+        "public_export_container": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+        "public_rootfs_sha256": "1ce8a6caabd9d530b2abfec7dac20b52cc33003f3fdb7f925a622a912d13fd57",
+        "root": "/home/bo/sfactory-command-native-04vyxpq8/rootfs",
+        "container_name": "sfactory-command-native-04vyxpq8",
+        "command": [
+          "docker",
+          "run",
+          "--name",
+          "sfactory-command-native-04vyxpq8",
+          "--network",
+          "none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=KILL",
+          "--cap-add=SYS_CHROOT",
+          "--cap-add=SYS_ADMIN",
+          "--security-opt=no-new-privileges",
+          "--security-opt=seccomp=unconfined",
+          "--security-opt=apparmor=unconfined",
+          "--cpus=2",
+          "--pids-limit=256",
+          "--memory=1g",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-command-native-04vyxpq8/rootfs,dst=/fixture",
+          "--mount",
+          "type=bind,src=/tmp/readiness-fix-P3liXr7A/timestamp-mutant,dst=/fixture/gateway,readonly",
+          "--mount",
+          "type=bind,src=/tmp/readiness-fix-P3liXr7A/readiness-fixed.test,dst=/fixture/test,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import os,ctypes,subprocess\nfrom pathlib import Path\nroot=Path('/fixture')\nfor p in [root]+list(root.rglob('*')):\n if not str(p).startswith('/fixture/dev/') and p.name not in ('test','gateway'):\n  os.chown(p,0,0,follow_symlinks=False)\nos.chmod(root,0o755);os.chmod(root/'tmp',0o1777);os.chmod(root/'var/lib/sfactory-harness',0o755)\nsubprocess.run(['mount','-t','proc','proc',str(root/'proc')],check=True)\nclass Header(ctypes.Structure):_fields_=[('version',ctypes.c_uint32),('pid',ctypes.c_int)]\nclass Data(ctypes.Structure):_fields_=[('effective',ctypes.c_uint32),('permitted',ctypes.c_uint32),('inheritable',ctypes.c_uint32)]\nlib=ctypes.CDLL(None,use_errno=True);header=Header(0x20080522,0);data=(Data*2)()\nassert lib.capget(ctypes.byref(header),ctypes.byref(data))==0\nfor field in ('effective','permitted','inheritable'):setattr(data[0],field,getattr(data[0],field)&~(1<<21))\nassert lib.capset(ctypes.byref(header),ctypes.byref(data))==0\nos.chroot(root);os.chdir('/')\nos.environ.clear();os.environ.update({'SFACTORY_COMMAND_FIXTURE':'1','TMPDIR':'/tmp','GOMAXPROCS':'2'})\nraise SystemExit(subprocess.run(['/test','-test.run=^TestFactoryGatewayCommandExecutableNative$/cancel$','-test.v','-test.timeout=120s']).returncode)\n"
+        ],
+        "binary_hashes": {
+          "timestamp-mutant": "7dd465f76d0b1feaa1be3953552a12c0db432ce451d1d61894b5fe146fef8161",
+          "readiness-fixed.test": "e7c4b5ecc229e28e2ea072f2a46d52fde78dab31c4cad6f00b82d4fdb5b2fd85"
+        },
+        "driver_pid": 543816,
+        "driver_ticks": "274373096",
+        "state": "terminal",
+        "exit_code": 1,
+        "receipt_path": "/tmp/readiness-fix-P3liXr7A/native-run-sfactory-command-native-04vyxpq8.json",
+        "container_id": "4d6368f2fd0a7285c039cc353355029c833d102fe42e8e9bbe832487a92cf02e",
+        "docker_state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:16:04.418286076Z",
+          "FinishedAt": "2026-11-05T19:16:44.812055204Z"
+        }
+      },
+      {
+        "public_image": "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+        "public_export_container": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+        "public_rootfs_sha256": "1ce8a6caabd9d530b2abfec7dac20b52cc33003f3fdb7f925a622a912d13fd57",
+        "root": "/home/bo/sfactory-command-native-_vvranoi/rootfs",
+        "container_name": "sfactory-command-native-_vvranoi",
+        "command": [
+          "docker",
+          "run",
+          "--name",
+          "sfactory-command-native-_vvranoi",
+          "--network",
+          "none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=KILL",
+          "--cap-add=SYS_CHROOT",
+          "--cap-add=SYS_ADMIN",
+          "--security-opt=no-new-privileges",
+          "--security-opt=seccomp=unconfined",
+          "--security-opt=apparmor=unconfined",
+          "--cpus=2",
+          "--pids-limit=256",
+          "--memory=1g",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-command-native-_vvranoi/rootfs,dst=/fixture",
+          "--mount",
+          "type=bind,src=/tmp/readiness-fix-P3liXr7A/timestamp-mutant,dst=/fixture/gateway,readonly",
+          "--mount",
+          "type=bind,src=/tmp/gcmd-final-c0PFmJbL/command-native-v7.test,dst=/fixture/test,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import os,ctypes,subprocess\nfrom pathlib import Path\nroot=Path('/fixture')\nfor p in [root]+list(root.rglob('*')):\n if not str(p).startswith('/fixture/dev/') and p.name not in ('test','gateway'):\n  os.chown(p,0,0,follow_symlinks=False)\nos.chmod(root,0o755);os.chmod(root/'tmp',0o1777);os.chmod(root/'var/lib/sfactory-harness',0o755)\nsubprocess.run(['mount','-t','proc','proc',str(root/'proc')],check=True)\nclass Header(ctypes.Structure):_fields_=[('version',ctypes.c_uint32),('pid',ctypes.c_int)]\nclass Data(ctypes.Structure):_fields_=[('effective',ctypes.c_uint32),('permitted',ctypes.c_uint32),('inheritable',ctypes.c_uint32)]\nlib=ctypes.CDLL(None,use_errno=True);header=Header(0x20080522,0);data=(Data*2)()\nassert lib.capget(ctypes.byref(header),ctypes.byref(data))==0\nfor field in ('effective','permitted','inheritable'):setattr(data[0],field,getattr(data[0],field)&~(1<<21))\nassert lib.capset(ctypes.byref(header),ctypes.byref(data))==0\nos.chroot(root);os.chdir('/')\nos.environ.clear();os.environ.update({'SFACTORY_COMMAND_FIXTURE':'1','TMPDIR':'/tmp','GOMAXPROCS':'2'})\nraise SystemExit(subprocess.run(['/test','-test.run=^TestFactoryGatewayCommandExecutableNative$/cancel$','-test.v','-test.timeout=120s']).returncode)\n"
+        ],
+        "binary_hashes": {
+          "timestamp-mutant": "7dd465f76d0b1feaa1be3953552a12c0db432ce451d1d61894b5fe146fef8161",
+          "command-native-v7.test": "98442ab1285e5ee34f739ad53904a8b6fe3f159ffaa05a0c8fbd34739c0fede3"
+        },
+        "driver_pid": 542242,
+        "driver_ticks": "274364495",
+        "state": "terminal",
+        "exit_code": 0,
+        "receipt_path": "/tmp/readiness-fix-P3liXr7A/native-run-sfactory-command-native-_vvranoi.json",
+        "container_id": "679258ec27cd5a75126b0b0ae575d42269de86273434a1a65e59d2a6b793368c",
+        "docker_state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:14:59.198304Z",
+          "FinishedAt": "2026-11-05T19:15:52.369817018Z"
+        }
+      },
+      {
+        "public_image": "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+        "public_export_container": "9c8ba9c5d9e3c8d2a5789033f33eb5ed8517ac15f1626953c65dd5e2130960c8",
+        "public_rootfs_sha256": "1ce8a6caabd9d530b2abfec7dac20b52cc33003f3fdb7f925a622a912d13fd57",
+        "root": "/home/bo/sfactory-command-native-ogluwc2h/rootfs",
+        "container_name": "sfactory-command-native-ogluwc2h",
+        "command": [
+          "docker",
+          "run",
+          "--name",
+          "sfactory-command-native-ogluwc2h",
+          "--network",
+          "none",
+          "--read-only",
+          "--cap-drop=ALL",
+          "--cap-add=CHOWN",
+          "--cap-add=DAC_OVERRIDE",
+          "--cap-add=SETUID",
+          "--cap-add=SETGID",
+          "--cap-add=KILL",
+          "--cap-add=SYS_CHROOT",
+          "--cap-add=SYS_ADMIN",
+          "--security-opt=no-new-privileges",
+          "--security-opt=seccomp=unconfined",
+          "--security-opt=apparmor=unconfined",
+          "--cpus=2",
+          "--pids-limit=256",
+          "--memory=1g",
+          "--mount",
+          "type=bind,src=/home/bo/sfactory-command-native-ogluwc2h/rootfs,dst=/fixture",
+          "--mount",
+          "type=bind,src=/tmp/gcmd-final-c0PFmJbL/gateway-v7,dst=/fixture/gateway,readonly",
+          "--mount",
+          "type=bind,src=/tmp/readiness-fix-P3liXr7A/readiness-fixed.test,dst=/fixture/test,readonly",
+          "--mount",
+          "type=bind,src=/dev/null,dst=/fixture/dev/null,readonly",
+          "--mount",
+          "type=bind,src=/dev/urandom,dst=/fixture/dev/urandom,readonly",
+          "ae952e0a57138a4317b9b61caaa19a8217c2f356803f8d7e63aad08769950937",
+          "python3",
+          "-c",
+          "import os,ctypes,subprocess\nfrom pathlib import Path\nroot=Path('/fixture')\nfor p in [root]+list(root.rglob('*')):\n if not str(p).startswith('/fixture/dev/') and p.name not in ('test','gateway'):\n  os.chown(p,0,0,follow_symlinks=False)\nos.chmod(root,0o755);os.chmod(root/'tmp',0o1777);os.chmod(root/'var/lib/sfactory-harness',0o755)\nsubprocess.run(['mount','-t','proc','proc',str(root/'proc')],check=True)\nclass Header(ctypes.Structure):_fields_=[('version',ctypes.c_uint32),('pid',ctypes.c_int)]\nclass Data(ctypes.Structure):_fields_=[('effective',ctypes.c_uint32),('permitted',ctypes.c_uint32),('inheritable',ctypes.c_uint32)]\nlib=ctypes.CDLL(None,use_errno=True);header=Header(0x20080522,0);data=(Data*2)()\nassert lib.capget(ctypes.byref(header),ctypes.byref(data))==0\nfor field in ('effective','permitted','inheritable'):setattr(data[0],field,getattr(data[0],field)&~(1<<21))\nassert lib.capset(ctypes.byref(header),ctypes.byref(data))==0\nos.chroot(root);os.chdir('/')\nos.environ.clear();os.environ.update({'SFACTORY_COMMAND_FIXTURE':'1','TMPDIR':'/tmp','GOMAXPROCS':'2'})\nraise SystemExit(subprocess.run(['/test','-test.run=^TestFactoryGatewayCommandExecutableNative$','-test.v','-test.timeout=120s']).returncode)\n"
+        ],
+        "binary_hashes": {
+          "gateway-v7": "ed3f47367f4da8400685e26d4a2a0acea1f05d2c7c73cb3ea6caff87be3468a7",
+          "readiness-fixed.test": "e7c4b5ecc229e28e2ea072f2a46d52fde78dab31c4cad6f00b82d4fdb5b2fd85"
+        },
+        "driver_pid": 538442,
+        "driver_ticks": "274352433",
+        "state": "terminal",
+        "exit_code": 0,
+        "receipt_path": "/tmp/readiness-fix-P3liXr7A/native-run-sfactory-command-native-ogluwc2h.json",
+        "container_id": "3d876ee1707d39537a76604cfaa00c4bb9bed55f12618f06228502f049ad5499",
+        "docker_state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:12:49.108647029Z",
+          "FinishedAt": "2026-11-05T19:13:43.57809339Z"
+        }
+      }
+    ],
+    "verification_evidence": {
+      "strategy": "Guarded strengthened proof first, then a one-field counterfactual on the same actual standalone mutant compared with old and new native test binaries",
+      "guarded_result": "11/11 fresh native cases PASS with unchanged actual v7 standalone executable. HTTP0, exact Schema/Launch/Review/UID/SocketDevice and independent childTicks assertions pass; all previous assertions and negatives retained.",
+      "old_test_characterization": "Preserved old native binary98442ab... passed /cancel against timestamp-only mutant reporting start_ticks=1; confirms prior NotZero check accepted false process identity.",
+      "new_test_result": "Same mutant binary, fresh rootfs, strengthened native binarye7c4b5... fails /cancel at test line251 exact kernel childTicks equality: expected0x105aa98d (274377101), actual0x1.",
+      "semantic_control": "Both binaries compiled successfully; guarded new proof passed first; exact SAME mutant SHA appears in old/new runs. Failure is intended equality assertion, not compile/setup/custody failure.",
+      "existing_seal_control": "Prior real seal mutant proof remains valid; no routine rerun was performed. Guarded11-case run still includes unsealed rejection.",
+      "not_repeated": "No full package suite, code review, simplification, configstore or command-package rerun; caller owns final server-only authoritative test recheck."
+    },
+    "counterfactual": {
+      "production_field": "cold-ready start_ticks only",
+      "expression": "pidTicks -> pidTicks*0+1",
+      "overlay": {
+        "path": "/tmp/readiness-fix-P3liXr7A/mutant-source/transports/bifrost-http/server/factory_gateway_command.go",
+        "original_sha256": "56a0d89355fb438b11d50112285c7f79ebf076970135fc237edb018e0c1f5815",
+        "mutant_sha256": "003806be34884c95cea896fd42ff7a2353ec9dd1ddef668c761431de71de7529",
+        "change": "ready start_ticks only: pidTicks -> pidTicks*0+1"
+      },
+      "installed_production_differences": [
+        {
+          "path": "transports/bifrost-http/server/factory_gateway_command.go",
+          "original_sha256": "56a0d89355fb438b11d50112285c7f79ebf076970135fc237edb018e0c1f5815",
+          "mutant_sha256": "003806be34884c95cea896fd42ff7a2353ec9dd1ddef668c761431de71de7529"
+        }
+      ],
+      "mutant_source_tree_sha256": "ddcbdb5cb07db06edbbae4a6072385c5e2a5d8636ab5176554036aba29eb576f",
+      "old_exit_code": 0,
+      "new_exit_code": 1,
+      "intended_assertion": "require.Equal(t, childTicks, receipt.StartTicks)"
+    },
+    "test_commands": {
+      "guarded": "/test -test.run=^TestFactoryGatewayCommandExecutableNative$ -test.v -test.timeout=120s",
+      "old_mutant": "/test -test.run=^TestFactoryGatewayCommandExecutableNative$/cancel$ -test.v -test.timeout=120s",
+      "new_mutant": "/test -test.run=^TestFactoryGatewayCommandExecutableNative$/cancel$ -test.v -test.timeout=120s"
+    },
+    "preservation": {
+      "original_source_stage": "/tmp/gcmd-final-c0PFmJbL",
+      "original_test_binary": "/tmp/gcmd-final-c0PFmJbL/command-native-v7.test",
+      "original_gateway": "/tmp/gcmd-final-c0PFmJbL/gateway-v7",
+      "original_handoff_untouched": true,
+      "all_new_containers_terminal": true,
+      "all_new_rootfs_and_sources_retained": true,
+      "evidence": "/tmp/sfactory-readiness-fix-native-evidence.json",
+      "reconstruction_helper": "/tmp/sfactory-reconstruct-readiness-fix.py",
+      "stage_helper": "/tmp/sfactory-stage-readiness-fix.py",
+      "collector": "/tmp/sfactory-collect-readiness-fix.py"
+    },
+    "safety_scope": {
+      "no_cleanup": true,
+      "no_services_changed": true,
+      "no_paid_calls": true,
+      "no_canonical_source_edits_by_worker": true,
+      "no_index_or_commits_by_worker": true,
+      "root_available_bytes": 48897994752,
+      "boot_id": "98b86bb5-c04c-46f5-951d-22e497102f29",
+      "root_reserve_preserved": true,
+      "pipe_closed_reader_advisory": "Carried to next Root lifecycle unit; no new source case added"
+    },
+    "blockers": [],
+    "standalone_shipping_skipped": true
+  },
+  "readiness_parent_audit": {
+    "containers": {
+      "sfactory-command-native-04vyxpq8": {
+        "id": "4d6368f2fd0a7285c039cc353355029c833d102fe42e8e9bbe832487a92cf02e",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 1,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:16:04.418286076Z",
+          "FinishedAt": "2026-11-05T19:16:44.812055204Z"
+        },
+        "stdout": "=== RUN   TestFactoryGatewayCommandExecutableNative\n=== RUN   TestFactoryGatewayCommandExecutableNative/cancel\n    factory_gateway_command_test.go:251: \n        \tError Trace:\t/tmp/readiness-fix-P3liXr7A/transports/bifrost-http/server/factory_gateway_command_test.go:251\n        \tError:      \tNot equal: \n        \t            \texpected: 0x105aa98d\n        \t            \tactual  : 0x1\n        \tTest:       \tTestFactoryGatewayCommandExecutableNative/cancel\n--- FAIL: TestFactoryGatewayCommandExecutableNative (34.35s)\n    --- FAIL: TestFactoryGatewayCommandExecutableNative/cancel (0.53s)\nFAIL\n",
+        "stderr": ""
+      },
+      "sfactory-command-native-_vvranoi": {
+        "id": "679258ec27cd5a75126b0b0ae575d42269de86273434a1a65e59d2a6b793368c",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:14:59.198304Z",
+          "FinishedAt": "2026-11-05T19:15:52.369817018Z"
+        },
+        "stdout": "=== RUN   TestFactoryGatewayCommandExecutableNative\n=== RUN   TestFactoryGatewayCommandExecutableNative/cancel\n    factory_gateway_command_test.go:275: scenario=cancel pid=15 start_ticks=274371094 terminal=true readiness_bytes=545 HTTP=0\n--- PASS: TestFactoryGatewayCommandExecutableNative (41.01s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/cancel (2.21s)\nPASS\n",
+        "stderr": ""
+      },
+      "sfactory-command-native-ogluwc2h": {
+        "id": "3d876ee1707d39537a76604cfaa00c4bb9bed55f12618f06228502f049ad5499",
+        "state": {
+          "Status": "exited",
+          "Running": false,
+          "Paused": false,
+          "Restarting": false,
+          "OOMKilled": false,
+          "Dead": false,
+          "Pid": 0,
+          "ExitCode": 0,
+          "Error": "",
+          "StartedAt": "2026-11-05T19:12:49.108647029Z",
+          "FinishedAt": "2026-11-05T19:13:43.57809339Z"
+        },
+        "stdout": "=== RUN   TestFactoryGatewayCommandExecutableNative\n=== RUN   TestFactoryGatewayCommandExecutableNative/cancel\n    factory_gateway_command_test.go:285: scenario=cancel pid=15 start_ticks=274357335 terminal=true readiness_bytes=553 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/admin-refused\n    factory_gateway_command_test.go:285: scenario=admin-refused pid=36 start_ticks=274357596 terminal=true readiness_bytes=553 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/unsealed\n    factory_gateway_command_test.go:285: scenario=unsealed pid=57 start_ticks=274357726 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/changed-policy\n    factory_gateway_command_test.go:285: scenario=changed-policy pid=70 start_ticks=274357735 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/store-substitution\n    factory_gateway_command_test.go:285: scenario=store-substitution pid=82 start_ticks=274357744 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/missing-store\n    factory_gateway_command_test.go:285: scenario=missing-store pid=96 start_ticks=274357776 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/socket-substitution\n    factory_gateway_command_test.go:285: scenario=socket-substitution pid=109 start_ticks=274357807 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/wrong-role\n    factory_gateway_command_test.go:285: scenario=wrong-role pid=123 start_ticks=274357839 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/unknown\n    factory_gateway_command_test.go:285: scenario=unknown pid=137 start_ticks=274357848 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/duplicate\n    factory_gateway_command_test.go:285: scenario=duplicate pid=151 start_ticks=274357858 terminal=true readiness_bytes=0 HTTP=0\n=== RUN   TestFactoryGatewayCommandExecutableNative/wrong-case\n    factory_gateway_command_test.go:285: scenario=wrong-case pid=165 start_ticks=274357866 terminal=true readiness_bytes=0 HTTP=0\n--- PASS: TestFactoryGatewayCommandExecutableNative (37.27s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/cancel (2.60s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/admin-refused (1.32s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/unsealed (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/changed-policy (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/store-substitution (0.32s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/missing-store (0.31s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/socket-substitution (0.31s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/wrong-role (0.10s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/unknown (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/duplicate (0.09s)\n    --- PASS: TestFactoryGatewayCommandExecutableNative/wrong-case (0.09s)\nPASS\n",
+        "stderr": ""
+      }
+    },
+    "hashes": {
+      "/tmp/readiness-fix-P3liXr7A/readiness-fixed.test": "e7c4b5ecc229e28e2ea072f2a46d52fde78dab31c4cad6f00b82d4fdb5b2fd85",
+      "/tmp/readiness-fix-P3liXr7A/timestamp-mutant": "7dd465f76d0b1feaa1be3953552a12c0db432ce451d1d61894b5fe146fef8161"
+    }
+  },
+  "review_unresolved_actionable_findings": 0,
+  "publication": {
+    "sha": "f174154b6c48fdf5cd8704b92a5568ebcf2cb601",
+    "remote_sha": "f174154b6c48fdf5cd8704b92a5568ebcf2cb601",
+    "branch": "codex/remaining-source-audit-20261031",
+    "clean": true
+  },
+  "hosted_context_bound_check": {
+    "schema": 1,
+    "observed_utc": "2026-11-05T12:46:06Z",
+    "scope": "Public documentation check of smaller hosted input bound; no account access or inference",
+    "sources": [
+      {
+        "url": "https://docs.ollama.com/context-length",
+        "observation": "Cloud models default to maximum context; local server/app settings describe context changes."
+      },
+      {
+        "url": "https://docs.ollama.com/api/openai-compatibility",
+        "observation": "The documented OpenAI-compatible interface offers output max_tokens but no model context-size parameter. The documented context-resize procedure creates a different local Modelfile model."
+      },
+      {
+        "url": "https://docs.ollama.com/llms.txt",
+        "observation": "No pre-inference token-count endpoint found in the published index checked."
+      },
+      {
+        "url": "https://docs.ollama.com/api/anthropic-compatibility",
+        "observation": "Published endpoint section documents messages generation, not a token-count endpoint."
+      }
+    ],
+    "conclusion": "No supported smaller pre-dispatch input bound established for the frozen hosted OpenAI route. Private/account-specific capability remains unknown. Does not recheck model tags or tariff rates.",
+    "paid_calls": 0,
+    "account_changes": 0,
+    "production_admission": false
+  }
+}
