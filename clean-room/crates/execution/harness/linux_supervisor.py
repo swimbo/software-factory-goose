@@ -808,6 +808,39 @@ def gateway_socket_parent(attempt_id):
             os.close(fd)
 
 
+def require_gateway_custody_absent(custody):
+    namespace = custody["namespace"]
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            info = (entry / "ns/user").stat()
+        except FileNotFoundError:
+            continue
+        require(
+            (info.st_dev, info.st_ino) != (namespace["dev"], namespace["ino"]),
+            "root_gateway_namespace_retained",
+        )
+    pid, ticks = custody["parent_pid"], custody["parent_ticks"]
+    require_no_socket_copy((custody["kernel_dev"], custody["kernel_ino"]))
+    try:
+        if _ticks(pid) != ticks:
+            return
+        for entry in (Path("/proc") / str(pid) / "fd").iterdir():
+            try:
+                info = entry.stat()
+            except FileNotFoundError:
+                continue
+            require(
+                not stat.S_ISSOCK(info.st_mode)
+                or (info.st_dev, info.st_ino)
+                != (custody["kernel_dev"], custody["kernel_ino"]),
+                "root_gateway_socket_copy_retained",
+            )
+    except FileNotFoundError:
+        return
+
+
 def gateway_socket_absent(attempt_id):
     """Read-only absence check beneath Root-owned, non-writable ext4 parents."""
     with gateway_socket_parent(attempt_id) as (fd, name, _):
@@ -818,7 +851,7 @@ def gateway_socket_absent(attempt_id):
         return False
 
 
-def remove_unhanded_gateway_socket(attempt_id, identity):
+def remove_gateway_socket(attempt_id, identity, *, absent_ok=True):
     """Remove only the recorded inode; the caller must fence and hold the bind lock."""
     with gateway_socket_parent(attempt_id) as (fd, name, path):
         require(
@@ -832,6 +865,7 @@ def remove_unhanded_gateway_socket(attempt_id, identity):
         try:
             info = os.stat(name, dir_fd=fd, follow_symlinks=False)
         except FileNotFoundError:
+            require(absent_ok, "root_gateway_socket_absence_unknown")
             os.fsync(fd)
             return
         require(
@@ -2035,6 +2069,10 @@ class RootSupervisor:
             self._release_gateway(grant, process, release_fd)
             if self.cfg.get("schema") == 5:
                 self._accept_gateway_ready(grant, process, cold_r, frozen)
+                # Guard teardown cannot waitpid a living Root's child. Keep an
+                # owned waiter so a fenced gateway is reaped without another RPC.
+                # Popen serializes wait/poll with the existing cleanup waiter.
+                threading.Thread(target=process.wait, daemon=True).start()
             return process, attached
         except BaseException as error:
             if bound is not None:
@@ -2267,6 +2305,13 @@ class RootSupervisor:
                 "root_gateway_socket_changed",
             )
             store(case / "gateway-cold-ready.json", receipt)
+            with gateway_bind_lock(case):
+                closed = _decode(protected(case / "gateway-parent-closed.json", 0o600))
+                require_no_socket_copy((closed["kernel_dev"], closed["kernel_ino"]))
+                store(
+                    case / "gateway-cleanup-custody.json",
+                    self._gateway_cleanup_custody(case, grant),
+                )
 
     def _prepare_gateway(
         self,
@@ -3063,13 +3108,15 @@ class RootSupervisor:
                 process is not None
                 and process.pid == receipt["pid"]
                 and process.poll() is None
-                and _integer(
-                    frozen.get("deadline_ms"), time.time_ns() // 1000000 + 1
-                ),
+                and _integer(frozen.get("deadline_ms"), time.time_ns() // 1000000 + 1),
                 "root_gateway_lifetime_changed",
             )
             self._verify_gateway_launch(
-                case, grant, receipt["pid"], receipt["start_ticks"], self._saved_scope(grant)
+                case,
+                grant,
+                receipt["pid"],
+                receipt["start_ticks"],
+                self._saved_scope(grant),
             )
             inspect_gateway_peer(
                 grant,
@@ -3285,6 +3332,47 @@ class RootSupervisor:
             "root_fence_receipt_changed",
         )
 
+    def _gateway_cleanup_custody(self, case, grant):
+        names = (
+            "start-intent",
+            "gateway-bind-intent",
+            "gateway-created",
+            "gateway-bound",
+            "gateway-spawn-intent",
+            "gateway-parent-closed",
+            "gateway-userns",
+            "gateway-leaf-intent",
+            "gateway-leaf-created",
+            "gateway-attached",
+            "gateway-prepared",
+            "gateway-bootstrap",
+            "gateway-release-intent",
+            "gateway-released",
+            "gateway-cold-ready",
+            "guard-intent",
+        )
+        records = {
+            name: _decode(protected(case / (name + ".json"), 0o600)) for name in names
+        }
+        closed = records["gateway-parent-closed"]
+        prepared = records["gateway-prepared"]
+        return {
+            "schema": 1,
+            "grant_sha256": sha(grant),
+            "scope_sha256": self._saved_scope(grant),
+            "configuration_sha256": sha(self.cfg),
+            "exec_sha256": GATEWAY_EXEC_SHA256,
+            "userns_sha256": GATEWAY_USERNS_SHA256,
+            "records": {name: sha(value) for name, value in records.items()},
+            "namespace": prepared["namespace"]["namespace"],
+            "child": prepared["child"],
+            "socket": records["gateway-bound"]["socket"],
+            "parent_pid": records["guard-intent"]["owner_pid"],
+            "parent_ticks": records["guard-intent"]["owner_ticks"],
+            "kernel_dev": closed["kernel_dev"],
+            "kernel_ino": closed["kernel_ino"],
+        }
+
     def _cleanup(self, grant):
         case = self._saved(grant)
         self._fence_execution(grant)
@@ -3296,10 +3384,24 @@ class RootSupervisor:
                 raise SupervisorRefused("root_gateway_join_unknown") from None
         if self.cfg.get("schema") in (4, 5):
             with gateway_bind_lock(case):
-                require(
-                    not os.path.lexists(case / "gateway-bound.json"),
-                    "root_gateway_cleanup_unqualified",
-                )
+                if os.path.lexists(case / "gateway-bound.json"):
+                    require(
+                        self.cfg.get("schema") == 5, "root_gateway_cleanup_unqualified"
+                    )
+                    try:
+                        custody = _decode(
+                            protected(case / "gateway-cleanup-custody.json", 0o600)
+                        )
+                    except FileNotFoundError:
+                        raise SupervisorRefused(
+                            "root_gateway_cleanup_unqualified"
+                        ) from None
+                    require(
+                        custody == self._gateway_cleanup_custody(case, grant),
+                        "root_gateway_cleanup_custody_changed",
+                    )
+                    require_gateway_custody_absent(custody)
+                    return self._cleanup_after_fence(grant, case, custody=custody)
                 intent_path = case / "gateway-bind-intent.json"
                 created_path = case / "gateway-created.json"
                 require(
@@ -3323,9 +3425,7 @@ class RootSupervisor:
                             and created["intent"] == intent,
                             "root_gateway_created_receipt_changed",
                         )
-                        remove_unhanded_gateway_socket(
-                            grant["attempt_id"], created["socket"]
-                        )
+                        remove_gateway_socket(grant["attempt_id"], created["socket"])
                     else:
                         require(
                             gateway_socket_absent(grant["attempt_id"]),
@@ -3380,7 +3480,7 @@ class RootSupervisor:
                 return self._cleanup_after_fence(grant, case)
         return self._cleanup_after_fence(grant, case)
 
-    def _cleanup_after_fence(self, grant, case):
+    def _cleanup_after_fence(self, grant, case, *, custody=None):
         name = "sfactory-harness-" + grant["attempt_id"][4:]
         # A successful daemon query distinguishes absence from an unavailable daemon.
         identities = (
@@ -3410,6 +3510,21 @@ class RootSupervisor:
                 "root_create_requires_reconciliation",
             )
         self._kernel_scope(grant, empty=True)
+        if custody is not None:
+            require_gateway_custody_absent(custody)
+            child = custody["child"]
+            remove_fenced_gateway_leaf(
+                grant, {k: child[k] for k in ("path", "dev", "ino")}
+            )
+            remove_gateway_socket(
+                grant["attempt_id"],
+                custody["socket"],
+                absent_ok=os.path.lexists(case / "cleanup.json"),
+            )
+            require(
+                gateway_socket_absent(grant["attempt_id"]),
+                "root_gateway_cleanup_unknown",
+            )
         receipt = {"grant_sha256": sha(grant), "state": "absent"}
         if not os.path.lexists(case / "cleanup.json"):
             try:

@@ -5,6 +5,8 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -12,6 +14,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -97,7 +101,48 @@ func main() {
 	}
 	fd := flag.Int("socket-fd", -1, "")
 	path := flag.String("socket-path", "", "")
+	bootstrapFD := flag.Int("bootstrap-fd", -1, "")
+	readyFD := flag.Int("cold-ready-fd", -1, "")
 	flag.Parse()
+	var coldReady map[string]any
+	if *bootstrapFD >= 0 && *readyFD >= 0 {
+		file := os.NewFile(uintptr(*bootstrapFD), "public-bootstrap")
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			os.Exit(31)
+		}
+		raw, err := io.ReadAll(io.LimitReader(file, 262145))
+		file.Close()
+		if err != nil || len(raw) > 262144 {
+			os.Exit(31)
+		}
+		var config map[string]json.RawMessage
+		if json.Unmarshal(raw, &config) != nil {
+			os.Exit(31)
+		}
+		var allowance struct {
+			Route struct {
+				Review string `json:"review_sha256"`
+			} `json:"route"`
+		}
+		if json.Unmarshal(config["allowance"], &allowance) != nil {
+			os.Exit(31)
+		}
+		processStat, err := os.ReadFile("/proc/self/stat")
+		if err != nil {
+			os.Exit(31)
+		}
+		fields := strings.Fields(string(processStat)[strings.LastIndex(string(processStat), ")")+1:])
+		ticks, err := strconv.ParseUint(fields[19], 10, 64)
+		if err != nil {
+			os.Exit(31)
+		}
+		coldReady = map[string]any{"schema": 1, "state": "cold-ready", "config_sha256": fmt.Sprintf("%x", sha256.Sum256(raw)),
+			"pid": os.Getpid(), "start_ticks": ticks, "uid": os.Getuid(), "paid_ready": false, "review_sha256": allowance.Route.Review}
+		for _, key := range []string{"launch_sha256", "grant_sha256", "scope_sha256", "socket_device", "socket_inode"} {
+			coldReady[key] = config[key]
+		}
+		syscall.CloseOnExec(*readyFD)
+	}
 	value, _, dumpErr := syscall.Syscall6(syscall.SYS_PRCTL, 3, 0, 0, 0, 0, 0)
 	if dumpErr != 0 || value != 1 {
 		os.Exit(21)
@@ -168,6 +213,9 @@ func main() {
 	// Keep the listener private until the holding child has passed its probes.
 	syscall.CloseOnExec(*fd)
 	child := exec.Command("/proc/self/exe", "hold-child")
+	if coldReady != nil {
+		child.ExtraFiles = []*os.File{os.NewFile(uintptr(*fd), "public-descendant-socket")}
+	}
 	input, err := child.StdinPipe()
 	if err != nil {
 		os.Exit(29)
@@ -194,6 +242,17 @@ func main() {
 		unixListener.SetUnlinkOnClose(false)
 	}
 	fmt.Println("exec-ready")
+	if coldReady != nil {
+		raw, err := json.Marshal(coldReady)
+		if err != nil {
+			os.Exit(31)
+		}
+		file := os.NewFile(uintptr(*readyFD), "public-cold-ready")
+		if _, err = file.Write(append(raw, '\n')); err != nil {
+			os.Exit(31)
+		}
+		file.Close()
+	}
 	conn, err := listener.Accept()
 	if err != nil {
 		os.Exit(5)

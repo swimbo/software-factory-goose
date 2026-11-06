@@ -242,26 +242,53 @@ class CleanupOutcomeTests(unittest.TestCase):
         root._fence_execution = Mock()
         return root, case, {"attempt_id": "run_" + "a" * 64, "grant_id": "b" * 64}
 
+    def test_stale_boot_cannot_touch_a_current_cgroup_or_ack_cleanup(self):
+        import tempfile
+        from unittest.mock import patch
+        from linux_supervisor import RootSupervisor
+
+        with tempfile.TemporaryDirectory() as directory:
+            root, case, grant = self.make(directory)
+            grant["boot_id"] = "old-owned-boot"
+            with (
+                patch("linux_supervisor.Path.read_text", return_value="current-boot"),
+                patch("linux_supervisor.os.open") as opened,
+            ):
+                with self.assertRaisesRegex(
+                    SupervisorRefused, "root_fence_boot_changed"
+                ):
+                    RootSupervisor._fence_execution(root, grant)
+            opened.assert_not_called()
+            self.assertFalse((case / "execution-fenced.json").exists())
+            self.assertFalse((case / "cleanup.json").exists())
+
     def test_bound_gateway_intent_never_claims_cleanup(self):
         import contextlib
         import tempfile
         from unittest.mock import patch
 
-        with tempfile.TemporaryDirectory() as d:
-            root, case, grant = self.make(d)
-            root.cfg = {"schema": 4}
-            (case / "gateway-bound.json").write_text("{}")
-            with patch(
-                "linux_supervisor.gateway_bind_lock",
-                return_value=contextlib.nullcontext(),
-            ):
-                with self.assertRaisesRegex(
-                    SupervisorRefused, "root_gateway_cleanup_unqualified"
+        for schema in (4, 5):
+            with self.subTest(schema=schema), tempfile.TemporaryDirectory() as d:
+                root, case, grant = self.make(d)
+                root.cfg = {"schema": schema}
+                (case / "gateway-bound.json").write_text("{}")
+                with (
+                    patch(
+                        "linux_supervisor.gateway_bind_lock",
+                        return_value=contextlib.nullcontext(),
+                    ),
+                    patch(
+                        "linux_supervisor.protected",
+                        side_effect=lambda path, *args, **kwargs: path.read_bytes(),
+                    ),
                 ):
-                    root._cleanup(grant)
-            root._fence_execution.assert_called_once_with(grant)
-            root._docker.assert_not_called()
-            self.assertFalse((case / "cleanup.json").exists())
+                    with self.assertRaisesRegex(
+                        SupervisorRefused, "root_gateway_cleanup_unqualified"
+                    ):
+                        root._cleanup(grant)
+                root._fence_execution.assert_called_once_with(grant)
+                root._docker.assert_not_called()
+                self.assertFalse((case / "cleanup.json").exists())
 
     def test_gateway_leaf_cleanup_requires_durable_matching_receipts(self):
         import contextlib
@@ -433,7 +460,7 @@ class CleanupOutcomeTests(unittest.TestCase):
                     "linux_supervisor.protected",
                     side_effect=lambda p, *a, **k: p.read_bytes(),
                 ),
-                patch("linux_supervisor.remove_unhanded_gateway_socket") as remove,
+                patch("linux_supervisor.remove_gateway_socket") as remove,
             ):
                 with self.assertRaisesRegex(
                     SupervisorRefused, "root_gateway_created_receipt_changed"

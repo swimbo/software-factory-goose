@@ -45,7 +45,7 @@ def inside():
         RootSupervisor,
         SupervisorRefused,
         gateway_socket_absent,
-        remove_unhanded_gateway_socket,
+        remove_gateway_socket,
         sha,
         store,
     )
@@ -163,7 +163,7 @@ def inside():
         pending.close()
         require(unhanded == [pending_identity], "unhanded identity changed")
         try:
-            remove_unhanded_gateway_socket(
+            remove_gateway_socket(
                 "run_" + "b" * 64,
                 pending_identity | {"ino": pending_identity["ino"] + 1},
             )
@@ -175,8 +175,8 @@ def inside():
             not gateway_socket_absent("run_" + "b" * 64),
             "mismatched socket disappeared",
         )
-        remove_unhanded_gateway_socket("run_" + "b" * 64, pending_identity)
-        remove_unhanded_gateway_socket("run_" + "b" * 64, pending_identity)
+        remove_gateway_socket("run_" + "b" * 64, pending_identity)
+        remove_gateway_socket("run_" + "b" * 64, pending_identity)
         require(gateway_socket_absent("run_" + "b" * 64), "unhanded socket remains")
 
         def interrupted(_):

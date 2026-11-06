@@ -1,3 +1,4 @@
+
 """Root gateway process checks; synthetic proc files do not prove Linux custody."""
 
 import contextlib
@@ -8,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -157,6 +159,8 @@ class GatewayPeerTests(unittest.TestCase):
             )
 
             def record(path, *args, **kwargs):
+                if path.name == "gateway-parent-closed.json":
+                    return json.dumps({"kernel_dev": 12, "kernel_ino": 34}).encode()
                 return json.dumps(
                     prepared if path.name == "gateway-prepared.json" else frozen
                 ).encode()
@@ -172,10 +176,18 @@ class GatewayPeerTests(unittest.TestCase):
                 patch.object(root, "check_guard"),
                 patch.object(root, "inspect_gateway_peer"),
                 patch.object(root.os, "stat", return_value=socket_info),
+                patch.object(root, "require_no_socket_copy"),
+                patch.object(
+                    backend, "_gateway_cleanup_custody", return_value={"fixture": True}
+                ),
                 patch.object(root, "store") as save,
             ):
                 backend._accept_gateway_ready(grant, child, 99, frozen)
-                save.assert_called_once_with(case / "gateway-cold-ready.json", receipt)
+                self.assertEqual(save.call_count, 2)
+                save.assert_any_call(case / "gateway-cold-ready.json", receipt)
+                save.assert_any_call(
+                    case / "gateway-cleanup-custody.json", {"fixture": True}
+                )
 
     def test_root_freeze_preserves_reviewed_raw_template_hash_domains(self):
         # JSON RawMessage preserves lexical numbers, object order and escapes in
@@ -409,6 +421,55 @@ class GatewayPeerTests(unittest.TestCase):
                     if boundary == "prepare":
                         os.close(config_fd)
                         os.close(gate_writer)
+
+    def test_successful_cold_launch_reaps_exited_owned_child_without_observe(self):
+        import subprocess
+        import sys
+        import time
+
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 5}
+            backend.gateway_children = {}
+            grant = {"attempt_id": "run_" + "a" * 64}
+            backend._saved = Mock(return_value=case)
+            bound = Mock()
+            child = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(120)"]
+            )
+            config = os.open(os.devnull, os.O_RDONLY)
+            reader, writer = os.pipe()
+            backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+            backend._gateway_bootstrap = Mock(return_value=(config, {}))
+            backend._prepare_gateway = Mock(
+                return_value=(child, writer, {"pid": child.pid})
+            )
+            backend._release_gateway = lambda grant, process, fd: os.close(fd)
+            backend._accept_gateway_ready = Mock()
+            try:
+                with patch.object(
+                    root,
+                    "gateway_bind_lock",
+                    side_effect=lambda _: contextlib.nullcontext(),
+                ):
+                    launched, _ = backend._launch_gateway(grant, 99)
+                self.assertIs(launched, child)
+                os.kill(child.pid, signal.SIGKILL)
+                deadline = time.monotonic() + 2
+                while child.returncode is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertIsNotNone(
+                    child.returncode, "Root never joined its exited gateway"
+                )
+                with self.assertRaises(ChildProcessError):
+                    os.waitpid(child.pid, os.WNOHANG)
+                self.assertIs(backend.gateway_children[grant["attempt_id"]], child)
+                self.assertFalse((case / "cleanup.json").exists())
+            finally:
+                child.kill()
+                child.wait(timeout=5)
+                os.close(reader)
 
     def test_root_launch_composes_bind_prepare_and_one_release(self):
         backend = object.__new__(root.RootSupervisor)
@@ -1078,17 +1139,17 @@ class GatewayPeerTests(unittest.TestCase):
                         return_value=contextlib.nullcontext((fd, path.name, str(path))),
                     ):
                         with self.assertRaises(root.SupervisorRefused):
-                            root.remove_unhanded_gateway_socket(
+                            root.remove_gateway_socket(
                                 "run_" + "a" * 64, identity | {"ino": info.st_ino + 1}
                             )
                         self.assertTrue(path.exists())
-                        root.remove_unhanded_gateway_socket("run_" + "a" * 64, identity)
+                        root.remove_gateway_socket("run_" + "a" * 64, identity)
                         self.assertFalse(path.exists())
-                        root.remove_unhanded_gateway_socket("run_" + "a" * 64, identity)
+                        root.remove_gateway_socket("run_" + "a" * 64, identity)
                         path.write_text("public fixture")
                         other = path.lstat()
                         with self.assertRaises(root.SupervisorRefused):
-                            root.remove_unhanded_gateway_socket(
+                            root.remove_gateway_socket(
                                 "run_" + "a" * 64,
                                 {
                                     "path": str(path),

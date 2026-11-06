@@ -3,10 +3,12 @@
 
 Inputs are a fresh Root-owned qualification directory and the separately built
 public SQLite fixture generator. No wallet/capture exchange or paid call occurs.
-Handed socket cleanup remains deliberately unqualified and preserved.
+Cleanup controls use only newly created, individually recorded resources.
 """
 
 import contextlib
+import ctypes
+import errno
 import fcntl
 import hashlib
 import http.server
@@ -95,14 +97,123 @@ def broker(path, prepare, result_path):
     relay.close()
 
 
+def custody_attacks(base, pid, custody):
+    """Public controls target only this fixture's unchanged gateway process."""
+    from harness_apparmor_ptrace_fixture import run_victim
+
+    positive = run_victim("", False)
+    assert positive == {"duplicate_errno": 0, "trace_errno": 0}, positive
+    targets = {}
+    for entry in (Path("/proc") / str(pid) / "fd").iterdir():
+        link = os.readlink(entry)
+        if link == "socket:[" + str(custody["kernel_ino"]) + "]":
+            targets["socket"] = int(entry.name)
+        if "memfd:sfactory-gateway-bootstrap" in link:
+            targets["configuration"] = int(entry.name)
+    assert "socket" in targets, targets
+    config_closed = "configuration" not in targets
+    if config_closed:
+        spawn = json.loads((base / "actual-helper-spawn.json").read_bytes())
+        targets["configuration"] = json.loads(spawn["argv"][4])["helper_config"][
+            "bootstrap_fd"
+        ]
+    results = []
+    # Worker and evaluator-like external roles, plus an outside same-UID attacker.
+    for uid in (2001, 2006, 2007):
+        reader, writer = os.pipe()
+        child = os.fork()
+        if child == 0:
+            try:
+                os.close(reader)
+                os.setgroups([])
+                os.setgid(uid)
+                os.setuid(uid)
+                libc = ctypes.CDLL(None, use_errno=True)
+                pidfd = os.pidfd_open(pid)
+                values = {}
+                try:
+                    database = os.open(base / "gateway-state/public.db", os.O_RDONLY)
+                except OSError as error:
+                    database_access = {"readable": False, "errno": error.errno}
+                else:
+                    database_access = {
+                        "readable": os.read(database, 16) == b"SQLite format 3\0"
+                    }
+                    os.close(database)
+                for name, fd in targets.items():
+                    copied = libc.syscall(438, pidfd, fd, 0)
+                    values[name] = 0 if copied >= 0 else ctypes.get_errno()
+                    if copied >= 0:
+                        os.close(copied)
+                os.close(pidfd)
+                try:
+                    namespace = os.open(f"/proc/{pid}/ns/user", os.O_RDONLY)
+                except OSError as error:
+                    values["namespace"] = error.errno
+                else:
+                    changed = libc.setns(namespace, 0x10000000)
+                    values["namespace"] = 0 if changed == 0 else ctypes.get_errno()
+                    os.close(namespace)
+                os.write(
+                    writer,
+                    json.dumps(
+                        {
+                            "uid": uid,
+                            "errors": values,
+                            "public_database": database_access,
+                        }
+                    ).encode(),
+                )
+                os._exit(0)
+            except BaseException:
+                os._exit(1)
+        os.close(writer)
+        raw = os.read(reader, 4096)
+        os.close(reader)
+        _, status = os.waitpid(child, 0)
+        assert status == 0
+        value = json.loads(raw)
+        assert all(
+            code in (errno.EPERM, errno.EACCES) for code in value["errors"].values()
+        ), value
+        assert value["public_database"]["readable"] is (uid == 2007), value
+        results.append(value)
+    product.store(
+        base / "custody-attacks.json",
+        {
+            "positive": positive,
+            "targets": targets,
+            "configuration_descriptor_closed": config_closed,
+            "denied": results,
+        },
+    )
+
+
 def main(base, builder, binary, scenario="positive"):
     assert scenario in (
         "positive",
+        "cleanup-normal",
+        "cleanup-guard",
+        "cleanup-descendant-guard",
+        "cleanup-descendant-normal",
+        "cleanup-lease",
+        "cleanup-owner",
+        "cleanup-missing-inode",
+        "cleanup-replaced-inode",
+        "cleanup-changed-lineage",
+        "cleanup-daemon-outage",
+        "cleanup-revoke-unknown",
         "ready-reader-closed",
         "ready-pipe-full",
         "gateway-exits-during-create",
         "gateway-exits-before-observe",
     )
+    holding_descendant = scenario in (
+        "cleanup-descendant-guard",
+        "cleanup-descendant-normal",
+    )
+    if holding_descendant:
+        scenario = "cleanup-guard" if scenario.endswith("-guard") else "cleanup-normal"
     assert os.geteuid() == 0 and str(base).startswith(
         "/var/lib/sfactory-harness/qualification-"
     )
@@ -219,7 +330,13 @@ def main(base, builder, binary, scenario="positive"):
         },
     )
     worker = base / "idle-worker.py"
-    product.store(worker, b"import time\ntime.sleep(120)\n", 0o444)
+    product.store(
+        worker,
+        b"import time\ntime.sleep(3)\n"
+        if scenario == "cleanup-normal"
+        else b"import time\ntime.sleep(120)\n",
+        0o444,
+    )
     gate = base / "public-gate.py"
     product.store(
         gate,
@@ -264,6 +381,11 @@ def main(base, builder, binary, scenario="positive"):
                         result = scope_sha
                     else:
                         assert self.path == "/spending/revoke" and value == scope_sha
+                        if scenario == "cleanup-revoke-unknown":
+                            self.send_error(
+                                503, "public fixture lost revocation acknowledgement"
+                            )
+                            return
                         result = None
                     raw = json.dumps(result).encode()
                     self.send_response(200)
@@ -477,7 +599,12 @@ def main(base, builder, binary, scenario="positive"):
             except Exception as error:
                 product.store(
                     base / "start-error.json",
-                    error_record(error),
+                    error_record(error)
+                    | {
+                        "gateway_exit_codes": [
+                            p.returncode for p in self.gateway_children.values()
+                        ]
+                    },
                 )
                 raise
 
@@ -488,6 +615,24 @@ def main(base, builder, binary, scenario="positive"):
                 product.store(base / "observe-error.json", error_record(error))
                 raise
 
+    if scenario == "cleanup-guard":
+        import linux_service_guard as service_guard
+
+        original_policy = service_guard.service_policy
+
+        def logged_policy(*args):
+            return [
+                (
+                    "StandardErrorFileToAppend" if name == "StandardError" else name,
+                    kind,
+                    str(base / "guard-stderr.log")
+                    if name == "StandardError"
+                    else value,
+                )
+                for name, kind, value in original_policy(*args)
+            ]
+
+        service_guard.service_policy = logged_policy
     backend = TracedRoot(configuration)
     original_popen = product.subprocess.Popen
     helper_children = []
@@ -557,7 +702,7 @@ def main(base, builder, binary, scenario="positive"):
             result = json.loads((result_dir / "result.json").read_bytes())
             grant = result["grant"]
             product.store(base / "public-start-result.json", result)
-            if scenario == "positive":
+            if scenario == "positive" or scenario.startswith("cleanup-"):
                 if result["status"] != 200:
                     print(
                         "start-error.json",
@@ -621,12 +766,179 @@ def main(base, builder, binary, scenario="positive"):
                     ), result
                     assert (case / "worker.json").exists()
                     assert "start" in backend.public_docker_calls
-                    errors = json.loads((base / "observe-error.json").read_bytes())["errors"]
-                    assert any(item["reason"] == "root_gateway_lifetime_changed" for item in errors)
+                    errors = json.loads((base / "observe-error.json").read_bytes())[
+                        "errors"
+                    ]
+                    assert any(
+                        item["reason"] == "root_gateway_lifetime_changed"
+                        for item in errors
+                    )
                 assert (case / "execution-fenced.json").exists()
                 assert (case / "owner-revoked.json").exists()
                 assert not (case / "finished.json").exists()
                 product.store(base / "docker-calls.json", backend.public_docker_calls)
+            if scenario.startswith("cleanup-"):
+                case = backend._saved(grant)
+                custody = json.loads(
+                    (case / "gateway-cleanup-custody.json").read_bytes()
+                )
+                assert custody["child"]["pid"] == cold["pid"]
+                if holding_descendant:
+                    family = []
+                    for raw in (group / "gateway/cgroup.procs").read_text().split():
+                        pid = int(raw)
+                        namespace = Path(f"/proc/{pid}/ns/user").stat()
+                        descriptors = [
+                            int(entry.name)
+                            for entry in Path(f"/proc/{pid}/fd").iterdir()
+                            if os.readlink(entry) == f"socket:[{custody['kernel_ino']}]"
+                        ]
+                        assert descriptors and (namespace.st_dev, namespace.st_ino) == (
+                            custody["namespace"]["dev"],
+                            custody["namespace"]["ino"],
+                        )
+                        family.append(
+                            {
+                                "pid": pid,
+                                "ticks": product._ticks(pid),
+                                "socket_descriptors": descriptors,
+                                "namespace": {
+                                    "dev": namespace.st_dev,
+                                    "ino": namespace.st_ino,
+                                },
+                                "cgroup": Path(f"/proc/{pid}/cgroup").read_text(),
+                                "executable_sha256": digest(f"/proc/{pid}/exe"),
+                            }
+                        )
+                    assert len(family) >= 2 and cold["pid"] in [
+                        p["pid"] for p in family
+                    ]
+                    product.store(base / "live-synthetic-gateway-family.json", family)
+                if scenario == "cleanup-guard":
+                    custody_attacks(base, cold["pid"], custody)
+                if scenario == "cleanup-normal":
+                    identity = json.loads((case / "container.json").read_bytes())["id"]
+                    backend._docker("wait", identity)
+                    closed = backend.observe(
+                        {"grant": grant, "worker": json.loads(result["response"])}
+                    )
+                    assert closed["state"] == "finished" and closed["exit_code"] == 0
+                    product.store(base / "normal-close.json", closed)
+                elif scenario == "cleanup-guard":
+                    guard = json.loads((case / "guard-intent.json").read_bytes())
+                    from linux_service_guard import _manager
+
+                    with _manager(backend) as manager:
+
+                        def stop(message):
+                            manager._basic(message, "s", guard["unit"])
+                            manager._basic(message, "s", "replace")
+
+                        job = manager._call("StopUnit", stop)
+                    deadline = time.monotonic() + 35
+                    namespace_members = []
+                    while (
+                        not (case / "cleanup.json").exists()
+                        and time.monotonic() < deadline
+                    ):
+                        for entry in Path("/proc").iterdir():
+                            if not entry.name.isdecimal():
+                                continue
+                            try:
+                                info = (entry / "ns/user").stat()
+                                if (info.st_dev, info.st_ino) == (
+                                    custody["namespace"]["dev"],
+                                    custody["namespace"]["ino"],
+                                ):
+                                    fields = (
+                                        (entry / "stat")
+                                        .read_text()
+                                        .rsplit(") ", 1)[1]
+                                        .split()
+                                    )
+                                    observation = {
+                                        "pid": int(entry.name),
+                                        "ticks": fields[19],
+                                        "state": fields[0],
+                                        "fd_names": [
+                                            p.name for p in (entry / "fd").iterdir()
+                                        ],
+                                        "cgroup": (entry / "cgroup").read_text(),
+                                    }
+                                    if observation not in namespace_members:
+                                        namespace_members.append(observation)
+                            except FileNotFoundError:
+                                continue
+                        time.sleep(0.05)
+                    product.store(
+                        base / "guard-namespace-observations.json", namespace_members
+                    )
+                    product.store(
+                        base / "guard-stop-job.json",
+                        {"unit": guard["unit"], "job": job},
+                    )
+                    assert (case / "cleanup.json").exists(), (
+                        "guard stop-post did not retire gateway"
+                    )
+                    product.store(
+                        base / "guard-stop-post.json",
+                        {"unit": guard["unit"], "cleanup": True},
+                    )
+                elif scenario == "cleanup-lease":
+                    changed = json.loads(lease_path.read_bytes()) | {"expires_at_ms": 1}
+                    lease_path.unlink()
+                    product.store(lease_path, changed)
+                    deadline = time.monotonic() + 35
+                    while (
+                        not (case / "cleanup.json").exists()
+                        and time.monotonic() < deadline
+                    ):
+                        time.sleep(0.05)
+                    assert (case / "cleanup.json").exists(), (
+                        "lease-loss guard did not retire gateway"
+                    )
+                    product.store(
+                        base / "lease-loss.json",
+                        {"cleanup": True, "owned_lease_expired": True},
+                    )
+                elif scenario == "cleanup-owner":
+                    product.store(
+                        base / "owner-loss-control.json",
+                        {
+                            "pid": os.getpid(),
+                            "ticks": product._ticks(os.getpid()),
+                            "case": str(case),
+                            "grant": grant,
+                            "custody": custody,
+                        },
+                    )
+                    os.kill(os.getpid(), signal.SIGKILL)
+                elif scenario in ("cleanup-missing-inode", "cleanup-replaced-inode"):
+                    # Preserve the exact fresh inode under an owned alternative name.
+                    path = Path(custody["socket"]["path"])
+                    path.rename(path.with_suffix(".preserved-missing-control"))
+                    if scenario == "cleanup-replaced-inode":
+                        replacement = socket.socket(socket.AF_UNIX)
+                        replacement.bind(str(path))
+                        replacement.close()
+                elif scenario == "cleanup-changed-lineage":
+                    path = case / "gateway-released.json"
+                    changed = json.loads(path.read_bytes()) | {
+                        "prepared_sha256": "0" * 64
+                    }
+                    path.unlink()
+                    product.store(path, changed)
+                elif scenario == "cleanup-daemon-outage":
+                    original_docker = backend._docker
+
+                    def unavailable(*args):
+                        if args[:2] == ("container", "ls"):
+                            raise product.SupervisorRefused(
+                                "fixture_owned_daemon_unavailable"
+                            )
+                        return original_docker(*args)
+
+                    backend._docker = unavailable
             assert not calls
             server.shutdown()
     finally:
@@ -635,12 +947,25 @@ def main(base, builder, binary, scenario="positive"):
         if grant is None and (result_dir / "prepared.json").exists():
             grant = json.loads((result_dir / "prepared.json").read_bytes())
         if grant is not None:
-            with contextlib.suppress(product.SupervisorRefused):
+            try:
                 backend.revoke({"grant": grant})
+            except Exception as error:
+                product.store(base / "cleanup-error.json", error_record(error))
+                print("cleanup-error", error_record(error), flush=True)
+                expected_revocation_loss = (
+                    scenario == "cleanup-revoke-unknown"
+                    and isinstance(error, product.LinuxRunnerRefused)
+                    and str(error) == "root_launch_outcome_unknown"
+                )
+                if (
+                    not isinstance(error, product.SupervisorRefused)
+                    and not expected_revocation_loss
+                ):
+                    raise
             case = backend._saved(grant)
-            assert (case / "execution-fenced.json").exists() and (
-                case / "owner-revoked.json"
-            ).exists()
+            assert (case / "execution-fenced.json").exists()
+            if scenario != "cleanup-revoke-unknown":
+                assert (case / "owner-revoked.json").exists()
             assert "populated 0" in (group / "cgroup.events").read_text().splitlines()
             for process in backend.gateway_children.values():
                 assert process.poll() is not None
@@ -665,6 +990,81 @@ def main(base, builder, binary, scenario="positive"):
                 bound = None
             else:
                 bound = json.loads((case / "gateway-bound.json").read_bytes())
+            if scenario in (
+                "cleanup-missing-inode",
+                "cleanup-replaced-inode",
+                "cleanup-changed-lineage",
+                "cleanup-daemon-outage",
+            ):
+                assert not (case / "cleanup.json").exists(), (
+                    "unknown resource cleanup incorrectly acknowledged"
+                )
+                assert not (case / "finished.json").exists(), "unknown cleanup finished"
+                expected_reason = {
+                    "cleanup-missing-inode": "root_gateway_socket_absence_unknown",
+                    "cleanup-replaced-inode": "root_gateway_created_identity_changed",
+                    "cleanup-changed-lineage": "root_gateway_cleanup_custody_changed",
+                    "cleanup-daemon-outage": "fixture_owned_daemon_unavailable",
+                }[scenario]
+                errors = json.loads((base / "cleanup-error.json").read_bytes())["errors"]
+                assert any(
+                    item["type"] == "SupervisorRefused"
+                    and item["reason"] == expected_reason
+                    for item in errors
+                ), ("cleanup refused for an unrelated reason", scenario, errors)
+                product.store(
+                    base / "negative-cleanup.json",
+                    {"scenario": scenario, "cleanup_acknowledged": False},
+                )
+            if scenario == "cleanup-revoke-unknown":
+                assert (case / "cleanup.json").exists() and not (
+                    case / "owner-revoked.json"
+                ).exists()
+                assert not (case / "finished.json").exists()
+            if bound is not None and scenario in (
+                "positive",
+                "cleanup-normal",
+                "cleanup-guard",
+                "cleanup-lease",
+                "cleanup-revoke-unknown",
+                "gateway-exits-during-create",
+                "gateway-exits-before-observe",
+            ):
+                assert (case / "cleanup.json").exists(), (
+                    "qualified handed gateway cleanup missing"
+                )
+                assert not os.path.lexists(bound["socket"]["path"]), (
+                    "handed socket retained"
+                )
+                assert not (group / "gateway").exists(), "gateway cgroup leaf retained"
+                if holding_descendant:
+                    family = json.loads(
+                        (base / "live-synthetic-gateway-family.json").read_bytes()
+                    )
+                    assert all(
+                        not Path(f"/proc/{entry['pid']}").exists() for entry in family
+                    ), "synthetic family PID retained"
+                product.store(
+                    base / "cleanup-terminal.json",
+                    {
+                        "socket_absent": bound["socket"],
+                        "leaf_absent": str(group / "gateway"),
+                        "cleanup": json.loads((case / "cleanup.json").read_bytes()),
+                        "http_calls": len(calls),
+                        "scenario": scenario,
+                    },
+                )
+                bound = None
+            if bound is not None and scenario in (
+                "cleanup-missing-inode",
+                "cleanup-replaced-inode",
+            ):
+                assert (
+                    Path(bound["socket"]["path"])
+                    .with_suffix(".preserved-missing-control")
+                    .exists()
+                )
+                bound = None
             if bound is not None:
                 info = os.stat(bound["socket"]["path"], follow_symlinks=False)
                 assert (info.st_dev, info.st_ino) == (
