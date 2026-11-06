@@ -1,0 +1,343 @@
+{
+  "schema": 1,
+  "status": "paused_unfinished_checkpoint",
+  "recorded_at_utc": "2026-11-06T04:04:29.984650+00:00",
+  "publication_authority": "User explicitly requested current-status update and add/commit/push of all current changes after pausing goal. This saves unfinished fixtures; no completed qualification or activation is claimed.",
+  "base_commit": "a035d840ec4882953d5ba8f704020909862dbfa2",
+  "worker_checkpoint": {
+    "status": "blocked",
+    "pause_reason": "User explicitly paused goal and requested unfinished checkpoint publication; no further implementation authorized.",
+    "plan_path": null,
+    "changed_files": [
+      "clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py",
+      "clean-room/tests/fixtures/harness_gateway_public_start_fixture.py"
+    ],
+    "changed_file_sha256": {
+      "clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py": "de006cc78f4a12972878f3397e2826f688432a6c54ed16dd39687d4a51fc5131",
+      "clean-room/tests/fixtures/harness_gateway_public_start_fixture.py": "8e08603e0f2c595ac72669b0fb0873d08dd41641aa231b91a184962119c3b352"
+    },
+    "u_ids_attempted": [
+      "U6"
+    ],
+    "u_ids_completed": [],
+    "behavior_change": true,
+    "implementation_engine_binding": null,
+    "requested_route": "native fresh serial Codex worker",
+    "actual_route": "native fresh serial Codex worker",
+    "requested_model": null,
+    "actual_model": "unverified",
+    "requested_effort": null,
+    "fallback_reason": null,
+    "run_id": null,
+    "source_kind": "prompt",
+    "source_digest": "fa37453f38ab4c8631a9b6e6359a5f42974a0537e1257002078bb0931e1d7175",
+    "standalone_shipping_skipped": true,
+    "plan_checkpoint": null,
+    "settled_decision_conflicts": [],
+    "active_processes": {
+      "unified_exec_sessions": "All worker command sessions returned terminal completion; latest provider-unknown session87306 returned exit1. No active worker native/build command known.",
+      "fresh_readonly_docker_inspection": "All11 named main fixture containers exited; State.Pid0; exact exit codes match native records.",
+      "terminal_process_namespace_cgroup_socket_guard_audits": "Not executed before pause. Auditor script prepared but not run; do not infer all child/guard/resource terminal states from main container exit."
+    },
+    "native_cases": [
+      {
+        "label": "first",
+        "base": "/var/lib/sfactory-harness/qualification-510024d501744a61b76a21c020c1a974",
+        "container_name": "sfactory-root-cold-4795eee1fc5e4ee3",
+        "exit_code": 1,
+        "outcome": "Setup failure: private pivot lacked public CA bundle; Restate version-check initialization panicked before gateway.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-first.log",
+        "preserved": true
+      },
+      {
+        "label": "second",
+        "base": "/var/lib/sfactory-harness/qualification-c2ba6801ba0e4dfeb5e4016b4a02f2a3",
+        "container_name": "sfactory-root-cold-3c8f13704e9b4457",
+        "exit_code": 1,
+        "outcome": "Fixture input failure: attempt metadata changed without updating lease hash.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-second.log",
+        "preserved": true
+      },
+      {
+        "label": "third",
+        "base": "/var/lib/sfactory-harness/qualification-f87ab92c6c9c4497b380b5570a41baaa",
+        "container_name": "sfactory-root-cold-64b1c9c1dbd44494",
+        "exit_code": 1,
+        "outcome": "Fixture input failure: builder 600s allowance exceeds actual wallet 300s maximum.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-third.log",
+        "preserved": true
+      },
+      {
+        "label": "fourth",
+        "base": "/var/lib/sfactory-harness/qualification-533a1bd862f84c7f973f39350c9268ab",
+        "container_name": "sfactory-root-cold-941ae38db0ff4ea9",
+        "exit_code": 1,
+        "outcome": "Fixture broker supplementary groups omitted worker2001 required for relay chown.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-fourth.log",
+        "preserved": true
+      },
+      {
+        "label": "fifth",
+        "base": "/var/lib/sfactory-harness/qualification-9bd8bc8fa988485eb0d53c0607814eea",
+        "container_name": "sfactory-root-cold-8e4ff6c44c364478",
+        "exit_code": 1,
+        "outcome": "Consumed unknown: cold-only builder lacked full owned public loopback/pricing/corpus profile; no successful exchange.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-fifth.log",
+        "preserved": true
+      },
+      {
+        "label": "sixth",
+        "base": "/var/lib/sfactory-harness/qualification-396348d9c088489ba8bfec5ed2d57b44",
+        "container_name": "sfactory-root-cold-1ee2d88ecb684e7b",
+        "exit_code": 1,
+        "outcome": "Consumed unknown: six embedding plus classifier calls, verified7, no answer. Public profile8 not qualified; exact cause unproven.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-sixth.log",
+        "preserved": true
+      },
+      {
+        "label": "seventh",
+        "base": "/var/lib/sfactory-harness/qualification-d1d26139658a483fac342726ae559715",
+        "container_name": "sfactory-root-cold-94964e8d6e974d1e",
+        "exit_code": 0,
+        "outcome": "Actual same-runtime two exchanges succeeded/settled with acquired physical root counts8/3; cleanup passed. Earlier source before strengthened controls.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-seventh.log",
+        "preserved": true
+      },
+      {
+        "label": "eighth",
+        "base": "/var/lib/sfactory-harness/qualification-8d458df918f44959b5231f135c2e469d",
+        "container_name": "sfactory-root-cold-afe080f8c92f462c",
+        "exit_code": 1,
+        "outcome": "Fixture expectation failure: wrong peer denial is503 public API, fixture incorrectly expected403. No valid launch.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-eighth.log",
+        "preserved": true
+      },
+      {
+        "label": "ninth",
+        "base": "/var/lib/sfactory-harness/qualification-a787e09c1f2343f4a1382f2f07235f44",
+        "container_name": "sfactory-root-cold-c915e2e76cc64de8",
+        "exit_code": 0,
+        "outcome": "Final-source actual joined positive, two distinct acquired roots8/3; wallet journal restart, completed replay denial, reset409, six exhausted permanent-task attempt identities remainDenied; qualified cleanup passed.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-ninth.log",
+        "preserved": true
+      },
+      {
+        "label": "missing-classifier",
+        "base": "/var/lib/sfactory-harness/qualification-831815659e354c85997d7debf9a5ae97",
+        "container_name": "sfactory-root-cold-f36bb1a410494e7a",
+        "exit_code": 0,
+        "outcome": "Final-source expected missing public classifier permission refusal: start503, HTTP0, owners0, no worker; partial/unqualified gateway resources preserved.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-missing-classifier.log",
+        "preserved": true
+      },
+      {
+        "label": "provider-unknown",
+        "base": "/var/lib/sfactory-harness/qualification-1d14d0a51f9340d9bba11401cd761123",
+        "container_name": "sfactory-root-cold-396e4acfdc624f83",
+        "exit_code": 1,
+        "outcome": "Final-source unknown provider control reached two successes then third unknown, verified wallet consumption/restart/cap controls; fixture subsequently failed unconditional gateway-still-alive assertion line989. Gateway poisoning can terminate actual command. No correction applied after pause.",
+        "raw_log_remote": "/tmp/sfactory-joined-native-provider-unknown.log",
+        "preserved": true
+      }
+    ],
+    "verification_results": {
+      "focused_command": "SCRIPT_HOST=/tmp/sfactory-phase11a-fixes/script-host NORMALIZER=/Users/bo/code/software-factory-goose/clean-room/target/debug/sfactory_normalize python3 -m unittest test_gateway_custody test_gateway_transport test_gateway_scope_v2 test_scope_preimage_v2 test_physical_settlement test_physical_usage",
+      "focused_cwd": "/Users/bo/code/software-factory-goose/clean-room/crates/execution/harness",
+      "focused_result": "49 tests passed,0.031s. No claim full configured harness ran.",
+      "ruff": "Passed on both changed fixtures after latest changes.",
+      "diff_check": "Passed after latest changes.",
+      "python_compile": "Passed before wrong-broker expected-status-only correction.",
+      "production_files_changed": false
+    },
+    "verification_evidence": [
+      {
+        "task": "Joined wallet and public Root rehearsal",
+        "behavior_changed": true,
+        "existing_tests_inspected": [
+          "existing wallet/custody joined fixture",
+          "existing public Root lifecycle fixture",
+          "gateway custody/transport/scope/physical usage/settlement tests",
+          "existing Bifrost owned runtime and joined wallet Go fixture tests"
+        ],
+        "tests_added_or_changed": [
+          "clean-room/tests/fixtures/harness_wallet_gateway_join_replay.py",
+          "clean-room/tests/fixtures/harness_gateway_public_start_fixture.py"
+        ],
+        "tests_used_unchanged": [
+          "test_gateway_custody",
+          "test_gateway_transport",
+          "test_gateway_scope_v2",
+          "test_scope_preimage_v2",
+          "test_physical_settlement",
+          "test_physical_usage"
+        ],
+        "characterization": "Before writes, AST/source recorded old wallet fixture uses object.__new__(RootSupervisor), public-start genuine constructor uses synthetic authority and always500 provider. /tmp/sfactory-joined-characterization.json. No fabricated RED.",
+        "native_result": "Positive and missing-classifier final-source passed; provider-unknown final-source fixture exit1; capture-unknown not executed.",
+        "exception_reason": "Paused by user before unit completion and independent terminal verification."
+      }
+    ],
+    "runtime_provenance": {
+      "runtime_sha256": "218494e66b7c6c5d1318c18672e41def9c452b54a7c366714ed941ae5b676bfe",
+      "restate_sha256": "a45eba5044e331636b9da5a8f37fc901dec4cd3ccfcb10889241f76fe9c209db",
+      "asset_paths": "/home/bo/sfactory-owned-wallet-rehearsal-tpp126x6/rootfs-positive3/opt/{runtime,restate-server}",
+      "prior_stage_record": "/tmp/sfactory-owned-wallet-stage.json",
+      "prior_stage_main_published_sha": "c0d6f7eb8d66106a65b25e9e34d85f11a5330e92",
+      "wallet_relevant_source_comparison": {
+        "clean-room/crates/control-plane/examples/harness_runtime_fixture.rs": {
+          "prior_sha256": "c32dd1537a1ba74ad4e2bceb6854fffb7e80d45e3517e72c6e361e5beec9c312",
+          "current_sha256": "c32dd1537a1ba74ad4e2bceb6854fffb7e80d45e3517e72c6e361e5beec9c312",
+          "equal": true
+        },
+        "clean-room/crates/control-plane/src/harness_spending.rs": {
+          "prior_sha256": "fa61755a14429319b60b9c48fbda2625c3205f24028db37281f5fcb149a8797b",
+          "current_sha256": "fa61755a14429319b60b9c48fbda2625c3205f24028db37281f5fcb149a8797b",
+          "equal": true
+        },
+        "clean-room/crates/control-plane/src/harness_spending_ingress.rs": {
+          "prior_sha256": "15dbc85aace1f64b8b38e2ae222c68bec3c29aa85b3467ff91755b283eda2578",
+          "current_sha256": "15dbc85aace1f64b8b38e2ae222c68bec3c29aa85b3467ff91755b283eda2578",
+          "equal": true
+        }
+      },
+      "git_comparison": "git diff c0d6f7eb8d66106a65b25e9e34d85f11a5330e92..HEAD -- harness_spending.rs harness_owner.rs returned no changes. Exact prior source manifest hashes for runtime fixture/spending/ingress equal current files.",
+      "limits": "Full runtime build receipt and Restate source/build revision were not independently recovered. Asset SHA and actual protocol behavior verified; do not imply all current Rust modules compiled into old asset."
+    },
+    "builder_provenance": {
+      "old_pinned_builder": "c6ac72736be5c45882ed0817023143599438f5bedcba4a4e03c90e1ae1dc6575",
+      "new_public_helper_builder": "458e1b4d5626212463fa6b07ac43f59d9baf70324f1cb552bd71a8143c9f3d94",
+      "stage": "/home/bo/sfactory-joined-build-g_rvqs4q",
+      "raw_build_receipt_remote": "/tmp/sfactory-joined-build-v2-state.json",
+      "raw_build_log_remote": "/tmp/sfactory-joined-build-v2.log",
+      "source": "Fresh extracted copy of1941 immutable files; every hash checked by build driver. Local source comparison to /Users/bo/code/bifrost-root-lifecycle-base-20261105 found1941 matches0 mismatches. Only public_root_fixture_test.go added.",
+      "source_manifest_file_sha256": "2e72933d2b0ca3f4febe40a396de1536a937b382e1db979a2ba18554e935f967",
+      "public_helper_source": "Embedded public_root_joined_builder_source() in owned wallet fixture and /tmp/joined-builder-v2.go",
+      "build": "Go1.27.2 reviewed offline PATH/cache; GOENV/GOAUTH/GOPROXY/GOSUMDBoff,GOTOOLCHAINlocal,GOMAXPROCS2,-mod=readonly,-buildvcs=false,-p2,-race.",
+      "public_inputs": "Loopback AllowPrivateNetwork/full fictional pricing/150-example corpus/rules from existing owned runtime fixture. No real provider/principal/network permission changed."
+    },
+    "unchanged_gateway_sha256": "ed3f47367f4da8400685e26d4a2a0acea1f05d2c7c73cb3ea6caff87be3468a7",
+    "bifrost_readonly_head": "f174154b6c48fdf5cd8704b92a5568ebcf2cb601",
+    "local_artifacts": {
+      "/tmp/sfactory-joined-native-v9-driver.py": "8dd8a3b743387a900d6c70faab09fa1e6d0cfa3c323e651fcc58c2447a44d93f",
+      "/tmp/sfactory-joined-audit.py": "1c05b938d8757e8ba781775f4ab42a080ca5d63f97f5b456de05b986767c9188",
+      "/tmp/sfactory-root-lifetime-joined-v9.tar": "aad0066e1216f5a1bf5d7a9542e2dcd978fc8de793915f5f034b3c1e10ae6b5f",
+      "/tmp/joined-builder-v2.go": "1bc0e51bf9f297aefbd7fe311388e02d162653d5c04a4deee791966c3ebc1df5",
+      "/tmp/sfactory-joined-build-v2-driver.py": "ee089087dcd7c07e11739997fc29d127a057b8a4a49cbde2d4b78c76a79f4bde",
+      "/tmp/sfactory-joined-characterization.json": "dbca4960e940dcdc3a4630cd86fd2bfc06e0f1276f2f2a94aee07bf70905f462",
+      "/tmp/sfactory-owned-wallet-stage.json": "1039dad2d5923153f332c8f751638b2c385c6606f585182f9c1621e905c0d20f",
+      "/tmp/sfactory-owned-wallet-source-manifest.json": "f1aeeb0c96f43d4f372e0c97791be40c8ff39351d879dd9e1e2b17d1862c23c1"
+    },
+    "unit_receipts": [
+      {
+        "task": "Joined wallet/public lifecycle",
+        "implementation": "Unfinished fixture-only checkpoint",
+        "canonical_commit": "Caller owned; worker made none",
+        "cleanup": "Exact prior native artifacts preserved; independent final audit pending",
+        "verification": "Partial as listed",
+        "model": "unverified"
+      }
+    ],
+    "blockers": [
+      "User pause; source unit unfinished.",
+      "Provider-unknown fixture currently wrongly requires gateway liveness after poisoned operation; requires diagnosis/narrow assertion correction on authorized resume.",
+      "Capture-unknown native variant unexecuted.",
+      "Final independent process/namespace/cgroup/socket/worker/guard/source/config audits unexecuted.",
+      "Authoritative full harness, final quality/review and coherent completed-unit publication remain caller work.",
+      "Precise classifier/principal/key and production provisioning proposal not finalized.",
+      "Paid provider affordable all-path bounds and real principal/provisioning remain held; benchmark0/120."
+    ],
+    "recovery_path": "/tmp/sfactory-joined-paused-handoff.json",
+    "provisioning_draft_unapplied": {
+      "principal": "LastNov3 software-factory-goose-int-loop-c085b7e Ollama-only/unassigned is stale; not refreshed. Propose reviewed unassigned principal with explicit retained Ollama pro/flash and classifier embedding/luna model/key references; no borrowed keys, skip flags or applied grants.",
+      "identities": "Fixture broker UID/GID2005 supplementary2001(worker relay),2007(capture); capture UID2008 socket GID2007; UID2008 same-number mapped, GID2008 unmapped. Root setup capabilities are fixture only; production dedicated UID/filesystem/mapping/capability approval still required.",
+      "authority": "Retain canonical durable RDB and owner lock, pinned trusted gateway; outsider sharing UID2007 remains filesystem threat.",
+      "money": "5USD UTC/day,0.75USD permanent task all6 paired attempts; no refund/reset/retry after unknown. Supported affordable all-path hard bounds still absent; fullPro input envelope1.384121USD exceeds0.75USD."
+    }
+  },
+  "parent_checkpoint_checks": {
+    "ruff": "PASS both changed fixture files",
+    "syntax": "ast.parse PASS both current fixture files",
+    "diff_check": "PASS",
+    "full_suite_after_joined_changes": "not run",
+    "independent_native_terminal_audit": "not run",
+    "final_simplification_and_code_review": "not run",
+    "known_native_failure": "provider-unknown exited1 at post-poison gateway-alive assertion; unfixed",
+    "capture_unknown_native": "not run"
+  },
+  "existing_benchmark_contract_audit": {
+    "recorded_at_utc": "2026-11-06T03:34:39.384479+00:00",
+    "source_only": true,
+    "existing_frozen_tasks": 20,
+    "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
+    "task_ids": [
+      "atomic-config",
+      "bounded-queue",
+      "csv-totals",
+      "dependency-impact",
+      "duration-format",
+      "event-dedup",
+      "file-manifest",
+      "ini-roundtrip",
+      "intervals",
+      "invoice-rounding",
+      "json-lines",
+      "log-summary",
+      "lru-cache",
+      "markdown-toc",
+      "matrix-transform",
+      "query-encoding",
+      "retry-schedule",
+      "semver-sort",
+      "text-index",
+      "topological-order"
+    ],
+    "public_specs_frozen_match": true,
+    "file_sha256": {
+      "public-tasks.json": "5e152e37fa9aed8364993a04c7178831a5f18ab28ced750f414b531b443a077f",
+      "frozen-suite.json": "9062ef9d85545d3ea43cc8a6e2916048b5c95b8564bd32646006b704ea71dfbf",
+      "paired_runner.py": "215e77c76a900bdababa42df930000f6d5339e5178678f46e080ae5ef5793338",
+      "benchmark-spending-policy.json": "95aa705949bb71f38702b2eeb2e906f3d4b024a010ddd1c258445b6049228623",
+      "harness_evaluation.py": "01190b4dd64b95f94458313eb9558d68b3edc0daa139986f032dba5b54246ef7",
+      "candidate-profile.json": "1078d0454da9184a95b05ee0cd55b00639d1e82f39721cf826a8d1b755734593"
+    },
+    "policy": {
+      "schema": 2,
+      "benchmark": "phase11a-paired-20261030",
+      "suite_sha256": "e3a876ec0780c2ea4a7c4c46f5e5bbc95af9582d1ebd5a457196c2a09ae26082",
+      "approved_daily_cap_microusd": 5000000,
+      "daily_cap_microusd": 5000000,
+      "task_cap_microusd": 750000,
+      "daily_boundary": "UTC",
+      "task_scope": "permanent task total across attempts and days",
+      "approval_source": "User approved $5 per day in this chat on 2026-10-30",
+      "candidate_enabled": false,
+      "production_registered": false,
+      "require_explicit_opening_task_and_day_inventory": true,
+      "require_exclusive_predecessor_fence": true,
+      "refund_reservations": false,
+      "retry_unknown_inference": false,
+      "require_all_path_reviewed_charge_bounds": true,
+      "require_complete_provider_billed_receipts": false,
+      "note": "Reviewed source policy only. Audited usage-rated costs are a separately labeled performance metric, not provider-confirmed debits. The protected supervisor must bind an exact frozen tariff, complete authenticated usage, conservative all-path charge bounds, owner/inventory/fences and live launch grants before dispatch. Reservations are never refunded. This file does not activate production.",
+      "performance_cost_basis": "audited_usage_rated",
+      "performance_tariff_profile": "constant_peak",
+      "performance_metric_approval_source": "User explicitly accepted audited usage-rated costs for the performance gate in this chat on 2026-10-30",
+      "require_complete_authenticated_usage": true,
+      "require_frozen_tariff": true
+    },
+    "remaining_bindings": [
+      "Exact production Goose build and current baseline/candidate source fingerprints",
+      "Frozen retained model/route/corpus/provider/key/principal configuration",
+      "Supported affordable all-path bounds and qualified launch/provisioning permissions",
+      "Frozen actual tariff and complete authenticated usage",
+      "Trusted independent evaluator/acceptance and opening permanent-task/day allowance inventory",
+      "120 live paired attempts and full performance/safety acceptance"
+    ],
+    "actual_benchmark_attempts_executed": 0,
+    "production_activated": false,
+    "scope_note": "Read-only canonical JSON identity check and source inspection, not runner execution or live allowance attestation."
+  },
+  "goal_status": "paused",
+  "candidate_enabled": false,
+  "benchmark_attempts": 0,
+  "production_deployment": false
+}

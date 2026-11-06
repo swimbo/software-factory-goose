@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import sqlite3
 import socket
 import struct
 import subprocess
@@ -58,9 +59,12 @@ def rpc(path, method, body):
 
 
 def broker(path, prepare, result_path):
-    os.setgroups([2001])
-    os.setgid(2005)
-    os.setuid(2005)
+    if os.geteuid() == 0:
+        os.setgroups([2001])
+        os.setgid(2005)
+        os.setuid(2005)
+    else:
+        assert os.geteuid() == 2005
     status, raw = rpc(path, "prepare", prepare)
     assert status == 200, (status, raw)
     grant = json.loads(raw)
@@ -190,8 +194,14 @@ def custody_attacks(base, pid, custody):
 
 
 def main(base, builder, binary, scenario="positive"):
+    joined = None
+    if scenario in ("joined-success", "joined-provider-unknown", "joined-capture-unknown", "joined-missing-classifier"):
+        from harness_wallet_gateway_join_replay import PublicRootWalletRehearsal
+        joined = PublicRootWalletRehearsal(base, scenario.removeprefix("joined-"))
+        scenario = "missing-classifier" if joined.mode == "missing-classifier" else "positive"
     assert scenario in (
         "positive",
+        "missing-classifier",
         "cleanup-normal",
         "cleanup-guard",
         "cleanup-descendant-guard",
@@ -227,7 +237,10 @@ def main(base, builder, binary, scenario="positive"):
 
         def do_POST(self):
             calls.append(self.path)
-            self.send_error(500)
+            if joined is not None:
+                joined.provider(self)
+            else:
+                self.send_error(500)
 
     os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = "unix:path=/run/systemd/private"
     upstream = http.server.HTTPServer(("127.0.0.1", 0), Upstream)
@@ -248,6 +261,9 @@ def main(base, builder, binary, scenario="positive"):
         timeout=40,
     )
     allowance = json.loads((base / "allowance.json").read_bytes())
+    if joined is not None:
+        allowance = joined.configure(allowance)
+        (base / "allowance.json").write_text(json.dumps(allowance))
     scope_sha = product.factory_scope_digest(allowance)
     configuration, placeholder, saved, _, group = prior.setup(base, "case")
     configuration.parent.chmod(
@@ -258,6 +274,12 @@ def main(base, builder, binary, scenario="positive"):
     entry_path = catalog / (placeholder["attempt_id"] + ".json")
     active = json.loads(entry_path.read_bytes())
     attempt = active["attempt"]
+    if joined is not None:
+        attempt.update(budget_owner=joined.owner, cost_basis="audited_usage_rated",
+                       tariff_sha256=joined.card.sha256())
+        active["control_grant"].update(cost_basis="audited_usage_rated",
+                                         tariff_sha256=joined.card.sha256())
+        active["control_grant"]["attempt_sha256"] = product.sha(attempt)
     active["scope"] = allowance
     active["scope_sha256"] = scope_sha
     active["control_grant"]["scope_sha256"] = scope_sha
@@ -275,6 +297,8 @@ def main(base, builder, binary, scenario="positive"):
         }
     )
     lease["expires_at_ms"] = deadline
+    if joined is not None:
+        lease["attempt_sha256"] = product.sha(attempt)
     lease_path.unlink()
     product.store(lease_path, lease)
     admission = json.loads((saved / "prepare-intent.json").read_bytes())["admission"]
@@ -326,7 +350,7 @@ def main(base, builder, binary, scenario="positive"):
             ).hexdigest(),
             "declarations_sha256": "7" * 64,
             "profile_sha256": attempt["profile"],
-            "max_output_tokens": 8,
+            "max_output_tokens": 16 if joined is not None else 8,
         },
     )
     worker = base / "idle-worker.py"
@@ -346,7 +370,9 @@ def main(base, builder, binary, scenario="positive"):
     # Three separate service UIDs. Broker/capture sockets are public no-call
     # endpoints; the wallet owner only acknowledges synthetic admit/revoke.
     children = []
-    for name, uid in (("owner", OWNER_UID), ("broker", 2005), ("capture", 2008)):
+    if joined is not None:
+        joined.start_services()
+    for name, uid in (() if joined is not None else (("owner", OWNER_UID), ("broker", 2005), ("capture", 2008))):
         directory = base / name
         directory.mkdir(mode=0o755)
         os.chown(directory, uid, uid)
@@ -419,7 +445,7 @@ def main(base, builder, binary, scenario="positive"):
         worker_program_sha256=digest(worker),
         worker_image=product.WORKER_IMAGE,
         owner_socket=str(base / "owner/socket"),
-        owner_service_uid=OWNER_UID,
+        owner_service_uid=2004 if joined is not None else OWNER_UID,
         registry_gate=str(gate),
         registry_gate_sha256=digest(gate),
         python="/usr/bin/python3.13",
@@ -633,6 +659,9 @@ def main(base, builder, binary, scenario="positive"):
             ]
 
         service_guard.service_policy = logged_policy
+    if joined is not None:
+        joined.start_broker(cfg, {"attempt": attempt, "admission": admission, "recipe": cfg["recipe"]},
+                            result_dir / "result.json")
     backend = TracedRoot(configuration)
     original_popen = product.subprocess.Popen
     helper_children = []
@@ -671,7 +700,11 @@ def main(base, builder, binary, scenario="positive"):
     try:
         with product.Server(backend) as server:
             threading.Thread(target=server.serve_forever, daemon=True).start()
-            child = os.fork()
+            child = os.fork() if joined is None else joined.broker_pid
+            if joined is not None:
+                joined.wrong_broker(cfg, {"attempt": attempt, "admission": admission, "recipe": cfg["recipe"]})
+                assert not any(state.iterdir()), "wrong broker created consumed intent"
+                (base / "broker-start").touch(mode=0o644)
             if child == 0:
                 try:
                     broker(
@@ -723,6 +756,15 @@ def main(base, builder, binary, scenario="positive"):
                 ]
                 assert result["observed_status"] == 200, result
                 assert json.loads(result["observed_response"])["state"] == "running"
+            elif scenario == "missing-classifier":
+                case = backend._saved(grant)
+                assert result["status"] == 503 and not (case / "gateway-cold-ready.json").exists()
+                assert not (case / "worker.json").exists() and not calls
+                with sqlite3.connect(base / "w/capture/state/capture.db") as db:
+                    assert db.execute("SELECT count(*) FROM roots").fetchone() == (0,)
+                product.store(base / "missing-classifier-proof.json", {
+                    "start_status": 503, "provider_http": 0, "acquired_owners": 0,
+                    "cold_ready": False, "worker_started": False})
             elif scenario in ("ready-reader-closed", "ready-pipe-full"):
                 assert result["status"] == 503, result
                 case = backend._saved(grant)
@@ -939,7 +981,14 @@ def main(base, builder, binary, scenario="positive"):
                         return original_docker(*args)
 
                     backend._docker = unavailable
-            assert not calls
+            if joined is None:
+                assert not calls
+            elif joined.mode != "missing-classifier":
+                assert len(calls) == (11 if joined.mode == "success" else 14), calls
+                joined.verify_restart()
+                assert product._owner_alive(cold["pid"], cold["start_ticks"])
+                assert digest(f"/proc/{cold['pid']}/exe") == cfg["gateway_executable_sha256"]
+                product.store(base / "joined-provider-calls.json", joined.calls)
             server.shutdown()
     finally:
         product.subprocess.Popen = original_popen
@@ -1103,11 +1152,23 @@ def main(base, builder, binary, scenario="positive"):
                         "scenario": scenario,
                     },
                 )
+        if joined is not None:
+            before = json.loads((base / "gateway-before.json").read_bytes())
+            after = {}
+            for path in Path("/var/lib/sfactory-harness/gw").iterdir():
+                info = path.lstat()
+                after[path.name] = {"dev": info.st_dev, "ino": info.st_ino,
+                                    "mode": info.st_mode, "uid": info.st_uid, "gid": info.st_gid}
+            assert all(after.get(name) == metadata for name, metadata in before.items())
+            if not (base / "gateway-after.json").exists():
+                product.store(base / "gateway-after.json", after)
         for child in children:
             with contextlib.suppress(ProcessLookupError):
                 os.kill(child, signal.SIGKILL)
             os.waitpid(child, 0)
         upstream.shutdown()
+        if joined is not None:
+            joined.finish()
 
 
 if __name__ == "__main__":

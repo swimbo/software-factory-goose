@@ -160,7 +160,7 @@ def start_root(backend):
     return pid
 
 
-def open_capture(profiles, card, route):
+def open_capture(profiles, card, route, *, lost_ack_call=None):
     def run(write):
         from gateway_custody import ProtectedCaptureStore, PrivateCustodyServer
         store = ProtectedCaptureStore(
@@ -168,6 +168,16 @@ def open_capture(profiles, card, route):
             tariff=card, profiles=profiles, components=COMPONENTS,
             broker_uid=2005, gateway_uid=2007, collector_uid=2006,
         )
+        if lost_ack_call is not None:
+            original_dispatch = store.dispatch
+
+            def lost_ack(uid, method, body):
+                result = original_dispatch(uid, method, body)
+                if method == "close" and body["binding"]["call_id"] == lost_ack_call:
+                    raise RuntimeError("public fixture loses acknowledged durable closure")
+                return result
+
+            store.dispatch = lost_ack
         server = PrivateCustodyServer(base.CAPTURE, store, service_uid=2008,
                                      socket_gid=base.GROUP, prefix="/capture/")
         os.write(write, b"1")
@@ -713,6 +723,456 @@ def inside():
                 base.stop_pid(children[name])
         for name in ("gateway", "frontend", "restate", "sdk"):
             base.stop_process(processes[name])
+
+
+def public_root_joined_builder_source():
+    """Return public Go test-helper source; the gateway binary is unchanged."""
+    return r'''//go:build linux
+package server
+import("testing";"os";"path/filepath";"context";"crypto/sha256";"encoding/json";"fmt";"syscall";"strings";"time";"github.com/stretchr/testify/require";"github.com/maximhq/bifrost/core/schemas";"github.com/maximhq/bifrost/framework/configstore";"github.com/maximhq/bifrost/framework/configstore/tables";"github.com/maximhq/bifrost/plugins/routing/complexity")
+func TestPublicRootFixture(t *testing.T){
+ base:=os.Getenv("PUBLIC_ROOT_BASE"); require.NotEmpty(t,base); upstream:=os.Getenv("PUBLIC_ROOT_UPSTREAM"); require.NotEmpty(t,upstream)
+ cs,review:=factoryJoinedStoreFixture(t,upstream)
+ var dbPath string; rows,e:=cs.DB().Raw("PRAGMA database_list").Rows();require.NoError(t,e);for rows.Next(){var seq int;var name,path string;require.NoError(t,rows.Scan(&seq,&name,&path));if name=="main"{dbPath=path}};require.NoError(t,rows.Close())
+ schemaRows,e:=cs.DB().Raw("SELECT type,name,tbl_name,coalesce(sql,'') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name,tbl_name").Rows();require.NoError(t,e);h:=sha256.New();for schemaRows.Next(){var row [4]string;require.NoError(t,schemaRows.Scan(&row[0],&row[1],&row[2],&row[3]));raw,_:=json.Marshal(row);h.Write(raw);h.Write([]byte{'\n'})};require.NoError(t,schemaRows.Close());require.NoError(t,cs.Close(context.Background()))
+ state:=filepath.Join(base,"gateway-state");require.NoError(t,os.Mkdir(state,0700));require.NoError(t,os.Chown(state,2007,2007));dest:=filepath.Join(state,"public.db");require.NoError(t,os.Rename(dbPath,dest));require.NoError(t,os.Chmod(dest,0600));require.NoError(t,os.Chown(dest,2007,2007));var st syscall.Stat_t;require.NoError(t,syscall.Stat(dest,&st));pathHash:=sha256.Sum256([]byte(dest));identity:=configstore.FactoryGatewayDatabaseIdentity{PathSHA256:fmt.Sprintf("%x",pathHash),Device:uint64(st.Dev),Inode:st.Ino,SchemaSHA256:fmt.Sprintf("%x",h.Sum(nil))}
+ policy,e:=loadLocalNormalizationConfig(factoryOwnedRuntimePolicy(t,upstream));require.NoError(t,e)
+ now:=uint64(time.Now().UnixMilli());tariff:=strings.Repeat("d",64)
+ allowance:=schemas.FactoryScopeV2{Task:"01K00000000000000000000001",Attempt:1,Generation:"01K00000000000000000000000",Worker:"public-worker",LeaseSHA256:strings.Repeat("a",64),IssuedAtMS:now-1000,ExpiresAtMS:now+600000,Route:schemas.FactoryRouteV2{RouteSHA256:strings.Repeat("e",64),ReviewSHA256:strings.Repeat("c",64),UsageTariffSHA256:&tariff,ValidFromMS:now-1000,ValidUntilMS:now+600000,MaxRequestBytes:65536,MaxOutputTokens:16,Components:[]schemas.FactoryChargeV2{{ID:"embedding",MaxChargeMicrousd:60000},{ID:"classifier",MaxChargeMicrousd:10000},{ID:"classifier_responses",MaxChargeMicrousd:10000},{ID:"answer",MaxChargeMicrousd:20000},{ID:"fallback",MaxChargeMicrousd:1}}}}
+ wire:=factoryOwnedWireFixture(allowance,upstream,16)
+ template:=map[string]any{"store_path":dest,"store":identity,"review":review,"wire":wire,"wire_sha256":factoryBootstrapTestDigest(wire),"policy":policy,"policy_sha256":factoryBootstrapTestDigest(policy),"broker_path":filepath.Join(base,"broker/socket"),"capture_path":filepath.Join(base,"capture/socket")}
+ for name,value:=range map[string]any{"template.json":template,"allowance.json":allowance}{raw,e:=json.Marshal(value);require.NoError(t,e);require.NoError(t,os.WriteFile(filepath.Join(base,name),raw,0600))}
+}
+
+func factoryJoinedStoreFixture(t *testing.T, base string) (*configstore.RDBConfigStore, factoryGatewayBootstrapReview) {
+	t.Helper()
+	cs, review := factoryBootstrapFixture(t, base)
+	accounts := map[schemas.ModelProvider]configstore.ProviderConfig{}
+	for _, name := range []schemas.ModelProvider{"ollama-cloud", "vercel-classifier"} {
+		cfg, err := cs.GetProviderConfig(t.Context(), name)
+		require.NoError(t, err)
+		cfg.NetworkConfig.AllowPrivateNetwork = true
+		require.NoError(t, cs.UpdateProvidersConfig(t.Context(), map[schemas.ModelProvider]configstore.ProviderConfig{name: *cfg}))
+		cfg, err = cs.GetProviderConfig(t.Context(), name)
+		require.NoError(t, err)
+		accounts[name] = *cfg
+	}
+	input, output, zero := 0.0000001, 0.0000002, 0.0
+	prices := []tables.TableModelPricing{}
+	for _, target := range []struct{ provider, model, mode string }{{"ollama-cloud", "deepseek-v4-pro:0813", "chat"}, {"ollama-cloud", "deepseek-v4.1-flash:1017", "chat"}, {"vercel-classifier", "openai/gpt-6-luna", "chat"}, {"vercel-classifier", "openai/gpt-6-luna", "responses"}, {"vercel-classifier", "openai/text-embedding-3-small", "embedding"}} {
+		out := &output
+		if target.mode == "embedding" {
+			out = &zero
+		}
+		prices = append(prices, tables.TableModelPricing{Provider: target.provider, Model: target.model, Mode: target.mode, InputCostPerToken: &input, OutputCostPerToken: out, CacheReadInputTokenCost: &input, CacheCreationInputTokenCost: &input, MaxInputTokens: schemas.Ptr(8192), MaxOutputTokens: schemas.Ptr(512)})
+	}
+	require.NoError(t, cs.UpsertModelPricesBatch(t.Context(), prices))
+	review.AccountSHA256 = factoryBootstrapTestDigest(accounts)
+	analyzer := complexity.DefaultAnalyzerConfig()
+	corpus := []struct{ Tier, Phrase string }{}
+	for _, tier := range []string{"SIMPLE", "MEDIUM", "COMPLEX"} {
+		for i := 0; i < 50; i++ {
+			phrase := fmt.Sprintf("%s public normalized exemplar %03d", strings.ToLower(tier), i)
+			switch tier {
+			case "SIMPLE":
+				analyzer.Keywords.SimpleKeywords = append(analyzer.Keywords.SimpleKeywords, phrase)
+			case "MEDIUM":
+				analyzer.Keywords.MediumKeywords = append(analyzer.Keywords.MediumKeywords, phrase)
+			case "COMPLEX":
+				analyzer.Keywords.ComplexKeywords = append(analyzer.Keywords.ComplexKeywords, phrase)
+			}
+			corpus = append(corpus, struct{ Tier, Phrase string }{tier, phrase})
+		}
+	}
+	// Defaults are not part of the reviewed public ordered corpus.
+	analyzer.Keywords.SimpleKeywords = analyzer.Keywords.SimpleKeywords[len(analyzer.Keywords.SimpleKeywords)-50:]
+	analyzer.Keywords.MediumKeywords = analyzer.Keywords.MediumKeywords[len(analyzer.Keywords.MediumKeywords)-50:]
+	analyzer.Keywords.ComplexKeywords = analyzer.Keywords.ComplexKeywords[len(analyzer.Keywords.ComplexKeywords)-50:]
+	analyzer.Semantic = &configstore.ComplexitySemanticConfig{Provider: "vercel-classifier", EmbeddingModel: "openai/text-embedding-3-small", VectorStore: "embedded", Fallback: "llm", CountTowardBudgets: true, MinSimilarity: 0.8}
+	analyzer.LLM = &configstore.ComplexityLLMConfig{Provider: "vercel-classifier", Model: "openai/gpt-6-luna", CountTowardBudgets: true}
+	require.NoError(t, cs.UpdateComplexityAnalyzerConfig(t.Context(), &analyzer))
+	normalized, err := complexity.ValidateAndNormalize(&analyzer)
+	require.NoError(t, err)
+	review.AnalyzerSHA256 = factoryBootstrapTestDigest(normalized)
+	review.CorpusSHA256 = factoryBootstrapTestDigest(corpus)
+	require.NoError(t, cs.DB().Exec("UPDATE routing_rules SET cel_expression = ?", "model == 'auto' && complexity_tier == 'SIMPLE'").Error)
+	require.NoError(t, cs.DB().Exec("UPDATE routing_targets SET model = ?", "deepseek-v4-pro:0813").Error)
+	rows, err := cs.GetRoutingRulesByScope(t.Context(), "global", "")
+	require.NoError(t, err)
+	selected, err := cs.GetRoutingRulesByScope(t.Context(), "virtual_key", review.PrincipalID)
+	require.NoError(t, err)
+	review.RulesSHA256 = factoryBootstrapTestDigest(append(rows, selected...))
+ return cs, review
+}
+'''
+
+
+class PublicRootWalletRehearsal:
+    """Real wallet/capture services for the genuine public Root fixture.
+
+    Authority inputs and provider responses are public fixtures. The gateway,
+    Root methods, journal, custody and settlement are unchanged production code.
+    """
+
+    def __init__(self, directory, mode="success"):
+        self.directory = directory
+        self.mode = mode
+        self.processes = []
+        self.children = []
+        self.calls = []
+        self.owner = "public-owner"
+
+    def configure(self, allowance):
+        from usage_rating import TariffCard, TariffRate
+        from physical_usage import UsageSchemaProfile
+
+        self.card = TariffCard(
+            "1", "constant_peak", "https://example.org/pricing", "b" * 64,
+            1, 1, 2**63 - 1,
+            tuple(TariffRate(provider, model, "0.0000001", "0.0000001",
+                            "0.0000001", output, "0")
+                  for provider, model, output in (
+                      ("ollama-cloud", "deepseek-v4-pro:0813", "0.0000002"),
+                      ("ollama-cloud", "deepseek-v4.1-flash:1017", "0.0000002"),
+                      ("vercel-classifier", "openai/gpt-6-luna", "0.0000002"),
+                      ("vercel-classifier", "openai/text-embedding-3-small", "0"))))
+        self.profiles = (
+            UsageSchemaProfile("embedding-v1", "vercel-classifier", "openai/text-embedding-3-small",
+                               ("embedding",), "a" * 64, "usage.prompt_tokens", None,
+                               "embedding_no_output", None, None, None),
+            UsageSchemaProfile("classifier-chat-v1", "vercel-classifier", "openai/gpt-6-luna",
+                               ("classifier",), "a" * 64, "usage.prompt_tokens", "usage.completion_tokens",
+                               "inclusive_output_total", None, None, None),
+            *(UsageSchemaProfile("answer-chat-v1", "ollama-cloud", model, roles, "a" * 64,
+                                 "usage.prompt_tokens", "usage.completion_tokens",
+                                 "inclusive_output_total", None, None, None)
+              for model, roles in (("deepseek-v4-pro:0813", ("answer",)),
+                                   ("deepseek-v4.1-flash:1017", ("fallback",)))),
+        )
+        allowance["route"]["usage_tariff_sha256"] = self.card.sha256()
+        allowance["expires_at_ms"] = min(time.time_ns() // 1_000_000 + 150_000,
+                                          (time.time_ns() // 86_400_000_000_000 + 1) * 86_400_000)
+        self.allowance = allowance
+        if self.mode == "missing-classifier":
+            with sqlite3.connect(self.directory / "gateway-state/public.db") as db:
+                cursor = db.execute("DELETE FROM governance_virtual_key_provider_configs WHERE virtual_key_id=? AND provider=?",
+                                    ("public-principal", "vercel-classifier"))
+                assert cursor.rowcount == 1
+                assert db.execute("SELECT count(*) FROM governance_virtual_key_provider_configs WHERE virtual_key_id=? AND provider=?",
+                                  ("public-principal", "vercel-classifier")).fetchone() == (0,)
+        return allowance
+
+    def provider(self, handler):
+        body = json.loads(handler.rfile.read(int(handler.headers["Content-Length"])))
+        model = body.get("model")
+        self.calls.append({"path": handler.path, "model": model})
+        if self.mode == "provider-unknown" and model == "deepseek-v4-pro:0813" and sum(
+                row["model"] == model for row in self.calls) == 3:
+            (self.directory / "joined-provider-progress.json").write_text(base.canonical(self.calls))
+            handler.connection.shutdown(socket.SHUT_RDWR)
+            handler.connection.close()
+            return
+        (self.directory / "joined-provider-progress.json").write_text(base.canonical(self.calls))
+        handler.send_response(200)
+        if handler.path == "/v1/embeddings":
+            texts = body["input"]
+            texts = texts if isinstance(texts, list) else [texts]
+            data = []
+            for index, _ in enumerate(texts):
+                vector = [0.0] * 1536
+                vector[index % 3 if len(texts) > 1 else 3] = 1.0
+                data.append({"object": "embedding", "index": index, "embedding": vector})
+            result = {"object": "list", "model": model, "data": data,
+                      "usage": {"prompt_tokens": 2 * len(texts), "total_tokens": 2 * len(texts)}}
+            raw = json.dumps(result).encode()
+            handler.send_header("Content-Type", "application/json")
+        elif model == "openai/gpt-6-luna":
+            result = {"id": "public-classifier", "object": "chat.completion", "model": model,
+                      "choices": [{"index": 0, "finish_reason": "stop", "message": {
+                          "role": "assistant", "content": '{"tier":"SIMPLE","reasoning":"public fixture"}'}}],
+                      "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}}
+            raw = json.dumps(result).encode()
+            handler.send_header("Content-Type", "application/json")
+        else:
+            assert handler.path == "/v1/chat/completions" and model == "deepseek-v4-pro:0813"
+            events = [
+                {"choices": [{"index": 0, "delta": {"content": "public result"}, "finish_reason": None}]},
+                {"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]},
+                {"choices": [], "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}},
+            ]
+            raw = "".join("data: " + json.dumps({"id": "public", "object": "chat.completion.chunk",
+                                               "created": 1, "model": model, **event}) + "\n\n"
+                          for event in events).encode() + b"data: [DONE]\n\n"
+            handler.send_header("Content-Type", "text/event-stream")
+        handler.send_header("Content-Length", str(len(raw)))
+        handler.end_headers()
+        handler.wfile.write(raw)
+
+    def start_services(self):
+        owned = self.directory
+        base.OWNER = self.owner
+        base.GROUP = 2007
+        base.PREFIX = str(owned / "w")
+        base.WALLET = str(owned / "owner/socket")
+        base.BACKEND = str(owned / "w/wallet/backend/journal.sock")
+        base.GATEWAY = str(owned / "broker/socket")
+        base.CAPTURE = str(owned / "capture/socket")
+        base.SETTLEMENT = str(owned / "settlement/socket")
+        base.DATABASE = str(owned / "w/capture/state/capture.db")
+        for path, uid, gid, mode in (
+            (Path("/logs"), 0, 0, 0o700),
+            (owned / "w", 0, 0, 0o755),
+            (owned / "w/wallet", 0, 0, 0o755),
+            (owned / "w/wallet/state", 2004, 2004, 0o700),
+            (Path(base.BACKEND).parent, 2004, 2004, 0o700),
+            (owned / "owner", 2004, 2004, 0o755),
+            (owned / "broker", 2005, 2007, 0o750),
+            (owned / "capture", 2008, 2007, 0o750),
+            (owned / "settlement", 2006, base.GROUP, 0o750),
+            (owned / "w/capture", 0, 0, 0o755),
+            (Path(base.DATABASE).parent, 2008, 2008, 0o700),
+        ):
+            path.mkdir(exist_ok=True)
+            path.chmod(mode)
+            os.chown(path, uid, gid)
+        self.start_wallet()
+        now = time.time_ns() // 1_000_000
+        self.bootstrap = {
+            "owner": self.owner, "policy_sha256": "a" * 64,
+            "predecessor_fence_sha256": "b" * 64, "inventory_sha256": "c" * 64,
+            "observed_at_ms": now, "approved_daily_cap_microusd": 5_000_000,
+            "daily_cap_microusd": 5_000_000, "opening_tasks": {TASK: 0, DAY_FILL_TASK: 750_000},
+            "opening_days": {str(now // 86_400_000): 750_000}, "scopes": []}
+        assert base.post(base.WALLET, "initialize", self.bootstrap)[0] == 200
+        self.children.append(open_capture(self.profiles, self.card, ROUTE,
+            lost_ack_call="logical-2" if self.mode == "capture-unknown" else None))
+        self.children.append(open_settlement(self.profiles, self.card, ROUTE))
+
+    def start_wallet(self):
+        sdk = base.start_binary(["/opt/runtime", "sdk", "127.0.0.1:19080"], "sdk")
+        self.processes.append(sdk)
+        deadline = time.monotonic() + 15
+        while True:
+            with socket.socket() as probe:
+                if probe.connect_ex(("127.0.0.1", 19080)) == 0:
+                    break
+            assert sdk.poll() is None and time.monotonic() < deadline
+            time.sleep(0.05)
+        journal, ports = base.start_journal()
+        self.processes.append(journal)
+        assert base.tcp_post(ports["admin-api-server"], "/deployments",
+                             {"uri": "http://127.0.0.1:19080", "force": False, "breaking": False})[0] in (200, 201)
+        self.backend_pid = base.start_backend(ports["http-ingress-server"])
+        self.children.append(self.backend_pid)
+        self.processes.append(base.start_frontend())
+
+    def start_broker(self, cfg, prepare, result_path):
+        def run(write):
+            from gateway_custody import PrivateCaptureOpenClient, PrivateCustodyServer, ProtectedGatewayAcquisitionAuthority
+            from gateway_transport import PrivateGatewayClient, ProtectedGatewayTransport
+            from linux_runner import PrivateRootSupervisorClient
+            from linux_supervisor import factory_scope_digest
+            from physical_settlement import PrivateSettlementClient
+            from protected_spending_control import PrivateSpendingClient
+            import harness_gateway_public_start_fixture as public
+
+            journal = PrivateSpendingClient(base.WALLET, service_uid=2004, broker_uid=2005, owner=self.owner)
+            capture = PrivateCaptureOpenClient(base.CAPTURE, service_uid=2008, broker_uid=2005, owner=self.owner)
+            authority = ProtectedGatewayAcquisitionAuthority(journal, capture, gateway_uid=2007)
+            server = PrivateCustodyServer(base.GATEWAY, authority, service_uid=2005,
+                                          socket_gid=2007, prefix="/gateway/")
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            os.write(write, b"1")
+            os.close(write)
+            signal_path = self.directory / "broker-start"
+            deadline = time.monotonic() + 25
+            while not signal_path.exists():
+                assert time.monotonic() < deadline
+                time.sleep(0.02)
+            public.broker(cfg["socket_path"], prepare, result_path)
+            started = json.loads(result_path.read_bytes())
+            if self.mode == "missing-classifier":
+                assert started["status"] == 503 and not authority.roots
+                server.shutdown()
+                thread.join(timeout=3)
+                assert not thread.is_alive()
+                server.server_close()
+                return
+            assert started["status"] == started["observed_status"] == 200, started
+            assert not (self.directory / "joined-provider-progress.json").exists(), "cold start called provider"
+            native_grant = started["grant"]
+            grant = {"attempt_id": native_grant["attempt_id"], "owner": self.owner,
+                     "route_sha256": ROUTE, "tariff_sha256": self.card.sha256(),
+                     "scope_sha256": factory_scope_digest(self.allowance),
+                     "expires_at_ms": native_grant["expires_at_ms"]}
+            attempt = prepare["attempt"]
+            root = PrivateRootSupervisorClient(cfg["socket_path"], broker_uid=2005)
+            transport = ProtectedGatewayTransport(
+                journal, authority, PrivateGatewayClient("/var/lib/sfactory-harness/gw/" + native_grant["attempt_id"][4:] + ".sock", gateway_uid=2007,
+                                                         broker_uid=2005, owner=self.owner),
+                route_sha256=ROUTE, tariff_sha256=self.card.sha256(), mode="rehearsal", scope_client=root)
+            settlement = PrivateSettlementClient(base.SETTLEMENT, collector_uid=2006, broker_uid=2005,
+                worker_uid=2001, owner=self.owner, route_sha256=ROUTE,
+                tariff_sha256=self.card.sha256(), mode="rehearsal")
+            results = []
+            for sequence in range(2 if self.mode == "success" else 3):
+                request = {"model": "auto", "messages": [{"role": "user", "content": "public " + str(sequence)}],
+                           "tools": [], "max_tokens": 16, "stream": True, "stream_options": {"include_usage": True}}
+                call = {"call_id": "logical-" + str(sequence), "scope_sha256": grant["scope_sha256"],
+                        "request_sha256": digest_value(request), "sequence": sequence,
+                        "request_bytes": len(base.canonical(request).encode()), "output_tokens": 16}
+                assert journal("reserve", call) == "Reserved"
+                try:
+                    response = transport.exchange_reserved(attempt, grant, call, request)
+                except Exception as error:
+                    from protected_spending_control import ControlRefused
+                    assert self.mode != "success" and sequence == 2 and isinstance(error, ControlRefused)
+                    assert str(error) == "gateway_outcome_unknown"
+                    assert journal("verify_inflight", call) is True
+                    try:
+                        journal("begin", call)
+                    except ControlRefused:
+                        pass
+                    else:
+                        raise AssertionError("unknown dispatch rearmed")
+                    next_call = call | {"call_id": "after-unknown", "sequence": sequence + 1}
+                    try:
+                        journal("reserve", next_call)
+                    except ControlRefused:
+                        pass
+                    else:
+                        raise AssertionError("unknown dispatch admitted another sequence")
+                    (result_path.parent / "joined-unknown.json").write_text(base.canonical({
+                        "mode": self.mode, "call": call, "next_call": next_call,
+                        "acquired_roots": len(authority.roots),
+                        "verified_physical_calls": [row[6] for row in authority.roots.values()]}))
+                    break
+                assert b"public result" in response["sse"]
+                receipt = settlement.settle(attempt, call, response)
+                assert receipt["all_calls_complete"] is True
+                results.append({"call": call, "response": {k: v for k, v in response.items() if k != "sse"},
+                                "settlement": receipt})
+            assert len(authority.roots) == (2 if self.mode == "success" else 3)
+            counts = sorted(row[6] for row in authority.roots.values())
+            assert counts == ([3, 8] if self.mode == "success" else [3, 3, 8]), counts
+            (result_path.parent / "joined-exchanges.json").write_text(base.canonical({
+                "exchanges": results, "physical_calls_per_new_owner": counts,
+                "owner_acquisitions": len(authority.roots), "native_grant_sha256": digest_value(native_grant),
+                "same_runtime": True}))
+            server.shutdown()
+            thread.join(timeout=3)
+            assert not thread.is_alive()
+            server.server_close()
+        original_drop = base.drop
+
+        def broker_identity(uid):
+            assert uid == 2005
+            os.setgroups([2001, 2007])
+            os.setgid(uid)
+            os.setuid(uid)
+
+        base.drop = broker_identity
+        try:
+            self.broker_pid = base.fork_service(2005, "joined-broker", run)
+        finally:
+            base.drop = original_drop
+        return self.broker_pid
+
+    def wrong_broker(self, cfg, prepare):
+        original_drop = base.drop
+
+        def attacker(uid):
+            assert uid == 2006
+            os.setgroups([2005, 2007])  # Reach the socket; kernel UID must still deny.
+            os.setgid(uid)
+            os.setuid(uid)
+
+        base.drop = attacker
+        try:
+            observed = base.actor(2006, lambda: base.post(
+                cfg["socket_path"], "prepare", prepare, prefix="/harness-launch/"))
+        finally:
+            base.drop = original_drop
+        assert observed == [503, None], observed
+        (self.directory / "wrong-broker.json").write_text(base.canonical({
+            "uid": 2006, "primary_gid": 2006, "supplementary_gids": [2005, 2007],
+            "public_prepare_status": 503, "consumed_intent_created": False}))
+
+    def verify_restart(self):
+        from linux_supervisor import factory_scope_digest
+
+        results = json.loads((self.directory / "broker-result/joined-exchanges.json").read_bytes())
+        with sqlite3.connect(base.DATABASE) as db:
+            rows = db.execute("SELECT binding, closure, audit FROM roots ORDER BY id").fetchall()
+        completed = [(json.loads(binding), json.loads(closure), json.loads(audit))
+                     for binding, closure, audit in rows if closure is not None and audit is not None]
+        assert len(completed) == 2
+        assert sorted(len(closure["snapshot"]["calls"]) for _, closure, _ in completed) == [3, 8]
+        assert {binding["call_id"] for binding, _, _ in completed} == {"logical-0", "logical-1"}
+        assert len({closure["binding"]["physical_manifest_sha256"] for _, closure, _ in completed}) == 2
+        assert all(binding["scope_sha256"] == factory_scope_digest(self.allowance)
+                   for binding, _, _ in completed)
+        if self.mode != "success":
+            assert len(rows) == 3
+            unknown = [(binding, closure, audit) for binding, closure, audit in rows
+                       if json.loads(binding)["call_id"] == "logical-2"]
+            assert len(unknown) == 1 and unknown[0][2] is None
+            assert (unknown[0][1] is not None) == (self.mode == "capture-unknown")
+        # An independent permanent task starts already exhausted. All six
+        # admitted attempt identities retain that same exhausted allowance.
+        denied = []
+        for attempt in range(1, 7):
+            scope = copy.deepcopy(self.allowance)
+            scope.update(task=DAY_FILL_TASK, attempt=attempt)
+            status, scope_hash = base.post(base.WALLET, "admit_attempt", scope)
+            assert status == 200 and scope_hash == factory_scope_digest(scope)
+            call = {"call_id": "exhausted-" + str(attempt), "scope_sha256": scope_hash,
+                    "request_sha256": "a" * 64, "sequence": 0, "request_bytes": 1, "output_tokens": 1}
+            assert base.actor(2005, lambda: base.post(base.WALLET, "reserve", call)) == [200, "Denied"]
+            assert base.actor(2005, lambda: base.post(base.WALLET, "begin", call))[0] == 409
+            assert base.post(base.WALLET, "revoke", scope_hash)[0] == 200
+            denied.append(call)
+        for process in reversed(self.processes):
+            base.stop_process(process)
+        self.processes.clear()
+        base.stop_pid(self.backend_pid)
+        self.children.remove(self.backend_pid)
+        Path("/logs/restate.log").rename("/logs/restate-before-restart.log")
+        self.start_wallet()
+        assert base.post(base.WALLET, "initialize", self.bootstrap)[0] == 200
+        changed = copy.deepcopy(self.bootstrap)
+        changed["opening_tasks"][DAY_FILL_TASK] = 0
+        assert base.post(base.WALLET, "initialize", changed)[0] == 409
+        for call in denied:
+            assert base.actor(2005, lambda: base.post(base.WALLET, "reserve", call)) == [200, "Denied"]
+            assert base.actor(2005, lambda: base.post(base.WALLET, "begin", call))[0] == 409
+        for exchange in results["exchanges"]:
+            call = exchange["call"]
+            assert base.actor(2005, lambda: base.post(base.WALLET, "begin", call))[0] == 409
+        if self.mode != "success":
+            unknown = json.loads((self.directory / "broker-result/joined-unknown.json").read_bytes())
+            assert base.actor(2005, lambda: base.post(base.WALLET, "begin", unknown["call"]))[0] == 409
+            assert base.actor(2005, lambda: base.post(base.WALLET, "reserve", unknown["next_call"]))[0] == 409
+            assert base.actor(2005, lambda: base.post(base.WALLET, "verify_inflight", unknown["call"])) == [200, True]
+        with sqlite3.connect(self.directory / "gateway-state/public.db") as db:
+            principals = sorted({row[1] for row in db.execute("SELECT * FROM normalization_ledger_holds")})
+        assert principals == ["public-principal"]
+        (self.directory / "joined-restart-proof.json").write_text(base.canonical({
+            "mode": self.mode, "completed_capture_roots": [binding for binding, _, _ in completed],
+            "canonical_governance_principals": principals, "permanent_allowance_denied_attempts": denied,
+            "wallet_restarted_with_same_journal": True, "reset_refused": True,
+            "completed_replays_denied": True, "unknown_consumed_after_restart": self.mode != "success"}))
+
+    def finish(self):
+        for process in reversed(self.processes):
+            base.stop_process(process)
+        for child in reversed(self.children):
+            base.stop_pid(child)
+
+
+def digest_value(value):
+    return hashlib.sha256(base.canonical(value).encode()).hexdigest()
 
 
 def main():
