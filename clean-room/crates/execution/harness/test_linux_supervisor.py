@@ -591,5 +591,41 @@ class CleanupOutcomeTests(unittest.TestCase):
             self.assertFalse((case / "cleanup.json").exists())
 
 
+class GatewayReconciliationTests(unittest.TestCase):
+    def test_gateway_intent_consumes_attempt_before_worker_intent(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from linux_supervisor import RootSupervisor
+
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            backend = object.__new__(RootSupervisor)
+            backend.recipe = {"public_fixture": True}
+            backend._case = lambda _: case
+            attempt = {"attempt_id": "run_" + "a" * 64}
+            (case / "prepare-intent.json").write_text(json.dumps({"attempt": attempt}))
+            body = {
+                "attempt": attempt,
+                "record": {},
+                "recipe_sha256": sha(backend.recipe),
+            }
+            with patch(
+                "linux_supervisor.protected",
+                side_effect=lambda p, *a, **k: p.read_bytes(),
+            ):
+                self.assertEqual(backend.reconcile(body)["state"], "not_started")
+                for name in (
+                    "gateway-bind-intent.json",
+                    "gateway-spawn-intent.json",
+                    "gateway-release-intent.json",
+                ):
+                    with self.subTest(name=name):
+                        (case / name).write_text("{}")
+                        self.assertEqual(backend.reconcile(body)["state"], "unknown")
+                        (case / name).unlink()
+
+
 if __name__ == "__main__":
     unittest.main()

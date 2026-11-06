@@ -32,6 +32,9 @@ class ProfileBinding(unittest.TestCase):
     def test_gateway_userns_source_is_bound_in_both_profiles(self):
         self.check_source("linux_gateway_userns_bootstrap.py")
 
+    def test_gateway_guard_source_is_bound_in_both_profiles(self):
+        self.check_source("linux_service_guard.py")
+
     def test_scope_client_source_is_bound_in_both_profiles(self):
         self.check_source("linux_runner.py")
 

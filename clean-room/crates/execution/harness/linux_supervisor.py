@@ -8,6 +8,7 @@ are retained; lost start acknowledgements never authorize another launch.
 """
 
 import copy
+from datetime import datetime, timezone
 from contextlib import contextmanager
 import errno
 import fcntl
@@ -60,9 +61,9 @@ MOUNT_TARGETS = {
 GATEWAY_SOCKET_SHA256 = (
     "61f27706562c229da7fe704c1b5e6e3620d2f62fb82cfff4ea188c45d4813567"
 )
-GATEWAY_EXEC_SHA256 = "2515abf195768608ac83b9a46bb3f6bb8051d754a154bf970fa12a5545d42aef"
+GATEWAY_EXEC_SHA256 = "dc07fd6a7a9c231537cf5ca48be776396ea267fa472c17b12382d307e1591f21"
 GATEWAY_USERNS_SHA256 = (
-    "3fe39cc36c47b303b8729c4a165d9a8acd9492afb1f84ed9532b181012d0c2f9"
+    "d9f14679b9c66e9c8f43dce9d0351b96c3cdfd07795a904c992a76f7277af09a"
 )
 
 
@@ -73,6 +74,77 @@ class SupervisorRefused(LinuxRunnerRefused):
 def require(value, reason):
     if not value:
         raise SupervisorRefused(reason)
+
+
+def read_gateway_cold_ready(fd, deadline_ms):
+    """Accept one bounded newline JSON record only after the writer closes."""
+    raw = bytearray()
+    while True:
+        wait = min(5.0, (deadline_ms - time.time_ns() // 1000000) / 1000)
+        require(
+            wait > 0 and select.select([fd], [], [], wait)[0],
+            "root_gateway_cold_ready_timeout",
+        )
+        block = os.read(fd, 4097 - len(raw))
+        if not block:
+            break
+        raw.extend(block)
+        require(len(raw) <= 4096, "root_gateway_cold_ready_overflow")
+    require(
+        raw.endswith(b"\n") and raw.count(b"\n") == 1,
+        "root_gateway_cold_ready_incomplete",
+    )
+    try:
+        return _decode(bytes(raw))
+    except (ValueError, ControlRefused, UnicodeError):
+        raise SupervisorRefused("root_gateway_cold_ready_invalid") from None
+
+
+def gateway_bootstrap_bytes(config, template_raw):
+    """Retain reviewed Go RawMessage hash domains in a Root-authored record.
+
+    The caller has strictly decoded, hash-pinned and checked the exact template
+    fields. Structural decoder offsets preserve each selected value's lexical
+    representation, including pricing numbers, key order and escaped strings.
+    """
+    text = template_raw.decode("utf-8")
+    decoder = json.JSONDecoder()
+    offset = 0
+
+    def whitespace(position):
+        while position < len(text) and text[position] in " \t\r\n":
+            position += 1
+        return position
+
+    offset = whitespace(offset)
+    require(text[offset] == "{", "root_gateway_template_changed")
+    offset += 1
+    fragments = {}
+    while True:
+        offset = whitespace(offset)
+        if text[offset] == "}":
+            break
+        key, offset = decoder.raw_decode(text, offset)
+        offset = whitespace(offset)
+        require(text[offset] == ":", "root_gateway_template_changed")
+        start = whitespace(offset + 1)
+        _, offset = decoder.raw_decode(text, start)
+        fragments[key] = text[start:offset].encode("utf-8")
+        offset = whitespace(offset)
+        if text[offset] == "}":
+            break
+        require(text[offset] == ",", "root_gateway_template_changed")
+        offset += 1
+    return (
+        b"{"
+        + b",".join(
+            canonical(key).encode()
+            + b":"
+            + (fragments[key] if key in fragments else canonical(config[key]).encode())
+            for key in sorted(config)
+        )
+        + b"}"
+    )
 
 
 @contextmanager
@@ -180,7 +252,9 @@ def require_no_socket_copy(identity):
         )
 
 
-def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
+def inspect_gateway_user_namespace(
+    process, ticks, uid, broker_gid, identity, *, capture_uid=None
+):
     """Inspect a pinned child namespace; this alone grants no launch authority.
 
     The trusted launcher must create and pin the namespace before untrusted
@@ -192,6 +266,13 @@ def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
         and _integer(uid, 1, 2**31 - 1)
         and _integer(broker_gid, 1, 2**31 - 1)
         and uid != broker_gid
+        and (
+            capture_uid is None
+            or (
+                _integer(capture_uid, 1, 2**31 - 1)
+                and len({0, uid, broker_gid, capture_uid, 65534}) == 5
+            )
+        )
         and type(identity) is dict
         and set(identity) == {"dev", "ino"}
         and _integer(identity["dev"], 1)
@@ -231,7 +312,7 @@ def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
 
         def mappings(name):
             rows = (base / name).read_text().splitlines()
-            require(len(rows) <= 3, "root_gateway_userns_changed")
+            require(len(rows) <= 4, "root_gateway_userns_changed")
             try:
                 result = [tuple(int(value) for value in row.split()) for row in rows]
             except ValueError:
@@ -245,7 +326,15 @@ def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
             if ":" in line
         )
         require(
-            mappings("uid_map") == sorted([(0, 0, 1), (uid, uid, 1)])
+            mappings("uid_map")
+            == sorted(
+                [(0, 0, 1), (uid, uid, 1)]
+                + (
+                    [(broker_gid, broker_gid, 1), (capture_uid, capture_uid, 1)]
+                    if capture_uid is not None
+                    else []
+                )
+            )
             and mappings("gid_map")
             == sorted([(0, 0, 1), (uid, uid, 1), (broker_gid, broker_gid, 1)])
             and fields.get("PPid", "").strip() == str(os.getpid())
@@ -272,7 +361,7 @@ def inspect_gateway_user_namespace(process, ticks, uid, broker_gid, identity):
                 os.close(fd)
 
 
-def map_gateway_user_namespace(process, ticks, uid, broker_gid):
+def map_gateway_user_namespace(process, ticks, uid, broker_gid, *, capture_uid=None):
     """Map a gated direct child and return its pinned namespace identity.
 
     The caller owns the child, has received its namespace-ready byte, and must
@@ -285,6 +374,13 @@ def map_gateway_user_namespace(process, ticks, uid, broker_gid):
         and _integer(uid, 1, 2**31 - 1)
         and _integer(broker_gid, 1, 2**31 - 1)
         and uid != broker_gid
+        and (
+            capture_uid is None
+            or (
+                _integer(capture_uid, 1, 2**31 - 1)
+                and len({0, uid, broker_gid, capture_uid, 65534}) == 5
+            )
+        )
         and signal.getsignal(signal.SIGCHLD) == signal.SIG_DFL,
         "root_gateway_userns_invalid",
     )
@@ -330,7 +426,15 @@ def map_gateway_user_namespace(process, ticks, uid, broker_gid):
             "root_gateway_userns_changed",
         )
         for name, entries in (
-            ("uid_map", [(0, 0, 1), (uid, uid, 1)]),
+            (
+                "uid_map",
+                [(0, 0, 1), (uid, uid, 1)]
+                + (
+                    [(broker_gid, broker_gid, 1), (capture_uid, capture_uid, 1)]
+                    if capture_uid is not None
+                    else []
+                ),
+            ),
             ("gid_map", [(0, 0, 1), (uid, uid, 1), (broker_gid, broker_gid, 1)]),
         ):
             data = "".join(
@@ -1445,6 +1549,18 @@ class RootSupervisor:
                 == fields
                 | {"gateway_uid", "gateway_executable_sha256", "gateway_socket_sha256"}
                 and self.cfg["schema"] == 4
+                or set(self.cfg)
+                == fields
+                | {
+                    "gateway_uid",
+                    "gateway_executable_sha256",
+                    "gateway_socket_sha256",
+                    "gateway_program",
+                    "gateway_bootstrap_template",
+                    "gateway_bootstrap_template_sha256",
+                    "capture_service_uid",
+                }
+                and self.cfg["schema"] == 5
             )
             and type(self.cfg["schema"]) is int
             and self.cfg["worker_image"] == WORKER_IMAGE,
@@ -1481,7 +1597,7 @@ class RootSupervisor:
             not in (0, self.recipe["broker_uid"], self.recipe["worker_uid"]),
             "root_role_alias",
         )
-        if self.cfg["schema"] in (3, 4):
+        if self.cfg["schema"] in (3, 4, 5):
             require(
                 _integer(self.cfg["gateway_uid"], 1, 2**31 - 1)
                 and self.cfg["gateway_uid"]
@@ -1493,7 +1609,7 @@ class RootSupervisor:
                 and _digest(self.cfg["gateway_executable_sha256"]),
                 "root_gateway_identity_invalid",
             )
-        if self.cfg["schema"] == 4:
+        if self.cfg["schema"] in (4, 5):
             require(
                 self.cfg["gateway_socket_sha256"] == GATEWAY_SOCKET_SHA256,
                 "root_gateway_socket_digest_invalid",
@@ -1563,7 +1679,32 @@ class RootSupervisor:
             self.owner = RootOwnerClient(
                 self.cfg["owner_socket"], self.cfg["owner_service_uid"]
             )
-        self.guard = threading.Lock()
+        if self.cfg["schema"] == 5:
+            require(
+                _integer(self.cfg["capture_service_uid"], 1, 2**31 - 1)
+                and len(
+                    {
+                        0,
+                        65534,
+                        self.cfg["gateway_uid"],
+                        self.recipe["broker_uid"],
+                        self.recipe["worker_uid"],
+                        self.cfg["owner_service_uid"],
+                        self.cfg["capture_service_uid"],
+                    }
+                )
+                == 7
+                and _digest(self.cfg["gateway_bootstrap_template_sha256"]),
+                "root_gateway_roles_changed",
+            )
+            protected(
+                self.cfg["gateway_bootstrap_template"],
+                0o600,
+                maximum=262144,
+                expected=self.cfg["gateway_bootstrap_template_sha256"],
+            )
+        self.gateway_children = {}
+        self.guard = threading.RLock()
 
     def _case(self, identity):
         require(
@@ -1790,7 +1931,7 @@ class RootSupervisor:
 
     def _bind_gateway_socket(self, grant):
         """Bind once under the current grant; this does not launch a gateway."""
-        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        require(self.cfg.get("schema") in (4, 5), "root_gateway_socket_unconfigured")
         with self.gate.admission(), self.guard:
             case = self._saved(grant)
             with gateway_bind_lock(case):
@@ -1864,20 +2005,36 @@ class RootSupervisor:
                     raise
 
     def _launch_gateway(self, grant, program_fd):
-        """Privately bind, prepare and release one gateway under Root authority.
-
-        The returned Popen must stay owned and joined by the future production
-        lifecycle. This method does not establish gateway readiness, route or
-        spending authority, and is not exposed as a public launch entry point.
-        """
-        bound = process = gate_fd = None
+        """Privately bind, prepare and release one gateway under Root authority."""
+        bound = process = gate_fd = config_fd = cold_r = cold_w = None
         try:
             bound, _ = self._bind_gateway_socket(grant)
-            process, gate_fd, attached = self._prepare_gateway(grant, bound, program_fd)
+            if self.cfg.get("schema") == 5:
+                with gateway_bind_lock(self._saved(grant)):
+                    config_fd, frozen = self._gateway_bootstrap(grant, bound)
+                cold_r, cold_w = os.pipe()
+                process, gate_fd, attached = self._prepare_gateway(
+                    grant,
+                    bound,
+                    program_fd,
+                    bootstrap_config_fd=config_fd,
+                    cold_ready_fd=cold_w,
+                )
+                self.gateway_children[grant["attempt_id"]] = process
+                os.close(cold_w)
+                cold_w = None
+                os.close(config_fd)
+                config_fd = None
+            else:
+                process, gate_fd, attached = self._prepare_gateway(
+                    grant, bound, program_fd
+                )
             bound = None  # _prepare_gateway owns and closes the socket.
             release_fd = gate_fd
             gate_fd = None  # _release_gateway consumes the descriptor on all paths.
             self._release_gateway(grant, process, release_fd)
+            if self.cfg.get("schema") == 5:
+                self._accept_gateway_ready(grant, process, cold_r, frozen)
             return process, attached
         except BaseException as error:
             if bound is not None:
@@ -1902,14 +2059,231 @@ class RootSupervisor:
                         ) from error
             raise
 
-    def _prepare_gateway(self, grant, bound_socket, program_fd):
+        finally:
+            for fd in (config_fd, cold_r, cold_w):
+                if fd is not None:
+                    os.close(fd)
+
+    def _gateway_namespace_roles(self):
+        return (
+            {"capture_uid": self.cfg["capture_service_uid"]}
+            if self.cfg.get("schema") == 5
+            else {}
+        )
+
+    def _gateway_bootstrap(self, grant, bound):
+        case = self._current(grant)
+        require(
+            os.path.lexists(case / "start-intent.json"),
+            "root_gateway_start_intent_missing",
+        )
+        intent = _decode(protected(case / "prepare-intent.json", 0o600))
+        entry, lease = self._catalog(intent["attempt"], intent["admission"])
+        scope = self._saved_scope(grant)
+        require(
+            factory_scope_digest(entry["scope"]) == scope, "root_gateway_scope_changed"
+        )
+        template_raw = protected(
+            self.cfg["gateway_bootstrap_template"],
+            0o600,
+            maximum=262144,
+            expected=self.cfg["gateway_bootstrap_template_sha256"],
+        )
+        template = _decode(template_raw)
+        require(
+            type(template) is dict
+            and set(template)
+            == {
+                "store_path",
+                "store",
+                "review",
+                "wire",
+                "wire_sha256",
+                "policy",
+                "policy_sha256",
+                "broker_path",
+                "capture_path",
+            },
+            "root_gateway_template_changed",
+        )
+        contract = _decode(
+            protected(self.catalog / (grant["attempt_id"] + ".launch.json"), 0o600)
+        )
+        route = entry["scope"]["route"]
+        deadline = min(
+            grant["expires_at_ms"],
+            lease["expires_at_ms"],
+            entry["control_grant"]["expires_at_ms"],
+            entry["scope"]["expires_at_ms"],
+            route["valid_until_ms"],
+        )
+        now = time.time_ns() // 1000000
+        require(
+            now < deadline <= now + 180000 and route["valid_from_ms"] <= now,
+            "root_gateway_deadline_expired",
+        )
+        token_cap = contract["max_output_tokens"]
+        require(
+            _integer(token_cap, 1, 16384) and token_cap <= route["max_output_tokens"],
+            "root_gateway_output_changed",
+        )
+        socket_info = os.fstat(bound.fileno())
+        bound_receipt = _decode(protected(case / "gateway-bound.json", 0o600))
+        launch = sha(_decode(protected(case / "start-intent.json", 0o600)))
+        config = template | {
+            "schema": 1,
+            "role": "factory-gateway",
+            "launch_sha256": launch,
+            "scope_sha256": scope,
+            "grant_sha256": sha(grant),
+            "program_sha256": self.cfg["gateway_executable_sha256"],
+            "parent_pid": os.getpid(),
+            "parent_ticks": _ticks(os.getpid()),
+            "gateway_uid": self.cfg["gateway_uid"],
+            "broker_uid": grant["broker_uid"],
+            "capture_uid": self.cfg["capture_service_uid"],
+            "socket_path": bound_receipt["socket"]["path"],
+            "socket_device": bound_receipt["socket"]["dev"],
+            "socket_inode": bound_receipt["socket"]["ino"],
+            "socket_fd_device": socket_info.st_dev,
+            "socket_fd_inode": socket_info.st_ino,
+            "allowance": entry["scope"],
+            "scope": {
+                "Owner": entry["control_grant"]["owner"],
+                "AttemptID": grant["attempt_id"],
+                "RouteSHA256": route["route_sha256"],
+                "TariffSHA256": route["usage_tariff_sha256"],
+                "ExpiresAt": datetime.fromtimestamp(deadline / 1000, timezone.utc)
+                .isoformat(timespec="milliseconds")
+                .replace("+00:00", "Z"),
+                "MaxOutputTokens": token_cap,
+            },
+        }
+        raw = gateway_bootstrap_bytes(config, template_raw)
+        require(1 <= len(raw) <= 262144, "root_gateway_bootstrap_size")
+        fd = os.memfd_create(
+            "sfactory-gateway-bootstrap", os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING
+        )
+        try:
+            view = memoryview(raw)
+            while view:
+                count = os.write(fd, view)
+                require(count > 0, "root_gateway_bootstrap_write")
+                view = view[count:]
+            seals = (
+                fcntl.F_SEAL_SEAL
+                | fcntl.F_SEAL_WRITE
+                | fcntl.F_SEAL_SHRINK
+                | fcntl.F_SEAL_GROW
+            )
+            fcntl.fcntl(fd, fcntl.F_ADD_SEALS, seals)
+            require(
+                fcntl.fcntl(fd, fcntl.F_GET_SEALS) == seals,
+                "root_gateway_bootstrap_seal",
+            )
+            frozen = {
+                "config_sha256": hashlib.sha256(raw).hexdigest(),
+                "launch_sha256": launch,
+                "grant_sha256": sha(grant),
+                "scope_sha256": scope,
+                "review_sha256": route["review_sha256"],
+                "deadline_ms": deadline,
+                "socket_device": config["socket_device"],
+                "socket_inode": config["socket_inode"],
+            }
+            store(case / "gateway-bootstrap.json", frozen)
+            return fd, frozen
+        except BaseException:
+            os.close(fd)
+            raise
+
+    def _accept_gateway_ready(self, grant, process, reader, frozen):
+        case = self._current(grant)
+        prepared = _decode(protected(case / "gateway-prepared.json", 0o600))
+        receipt = read_gateway_cold_ready(
+            reader, min(frozen["deadline_ms"], prepared["deadline_ms"])
+        )
+        expected = {
+            k: frozen[k]
+            for k in (
+                "config_sha256",
+                "launch_sha256",
+                "grant_sha256",
+                "scope_sha256",
+                "review_sha256",
+                "socket_device",
+                "socket_inode",
+            )
+        }
+        expected.update(
+            schema=1,
+            state="cold-ready",
+            pid=process.pid,
+            start_ticks=prepared["child"]["ticks"],
+            uid=self.cfg["gateway_uid"],
+            paid_ready=False,
+        )
+        require(
+            type(receipt) is dict
+            and receipt == expected
+            and all(type(receipt[k]) is type(v) for k, v in expected.items()),
+            "root_gateway_cold_ready_changed",
+        )
+        with self.gate.admission(), self.guard:
+            with gateway_bind_lock(case):
+                require(
+                    _decode(protected(case / "gateway-bootstrap.json", 0o600))
+                    == frozen,
+                    "root_gateway_bootstrap_changed",
+                )
+            self._current(grant)
+            require(
+                self._saved_scope(grant) == frozen["scope_sha256"],
+                "root_gateway_scope_changed",
+            )
+            check_guard(self, grant)
+            self._verify_gateway_launch(
+                case, grant, process.pid, receipt["start_ticks"], frozen["scope_sha256"]
+            )
+            inspect_gateway_peer(
+                grant,
+                process.pid,
+                receipt["start_ticks"],
+                self.cfg["gateway_uid"],
+                self.cfg["gateway_executable_sha256"],
+            )
+            named = os.stat(
+                "/var/lib/sfactory-harness/gw/" + grant["attempt_id"][4:] + ".sock",
+                follow_symlinks=False,
+            )
+            require(
+                stat.S_ISSOCK(named.st_mode)
+                and named.st_uid == self.cfg["gateway_uid"]
+                and named.st_gid == grant["broker_uid"]
+                and stat.S_IMODE(named.st_mode) == 0o660
+                and named.st_nlink == 1
+                and (named.st_dev, named.st_ino)
+                == (frozen["socket_device"], frozen["socket_inode"]),
+                "root_gateway_socket_changed",
+            )
+            store(case / "gateway-cold-ready.json", receipt)
+
+    def _prepare_gateway(
+        self,
+        grant,
+        bound_socket,
+        program_fd,
+        *,
+        bootstrap_config_fd=None,
+        cold_ready_fd=None,
+    ):
         """Start and attach a gated child; return its still-closed release gate.
 
         This private construction path grants no inference authority. The
         caller owns the returned process and gate and must fence/reconcile on
         failure. Socket handoff cleanup and production bootstrap remain gated.
         """
-        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        require(self.cfg.get("schema") in (4, 5), "root_gateway_socket_unconfigured")
         process = None
         helper_fd = bootstrap_fd = gate_r = gate_w = ready_r = ready_w = None
         ns_r = ns_w = map_r = map_w = None
@@ -1988,6 +2362,20 @@ class RootSupervisor:
                         "ready_fd": ready_w,
                         "deadline_ms": deadline,
                     }
+                    extra_fds = ()
+                    bootstrap_extra = {}
+                    if self.cfg.get("schema") == 5:
+                        require(
+                            type(bootstrap_config_fd) is int
+                            and type(cold_ready_fd) is int,
+                            "root_gateway_bootstrap_unconfigured",
+                        )
+                        config.update(
+                            bootstrap_fd=bootstrap_config_fd,
+                            cold_ready_fd=cold_ready_fd,
+                        )
+                        extra_fds = (bootstrap_config_fd, cold_ready_fd)
+                        bootstrap_extra = self._gateway_namespace_roles()
                     process = subprocess.Popen(
                         [
                             self.cfg["python"],
@@ -1996,6 +2384,7 @@ class RootSupervisor:
                             f"/proc/self/fd/{bootstrap_fd}",
                             canonical(
                                 {
+                                    **bootstrap_extra,
                                     "uid": self.cfg["gateway_uid"],
                                     "broker_gid": grant["broker_uid"],
                                     "owner_pid": config["owner_pid"],
@@ -2021,6 +2410,7 @@ class RootSupervisor:
                             ready_w,
                             ns_w,
                             map_r,
+                            *extra_fds,
                         ),
                         cwd="/",
                         env={},
@@ -2082,6 +2472,7 @@ class RootSupervisor:
                         child_ticks,
                         self.cfg["gateway_uid"],
                         grant["broker_uid"],
+                        **self._gateway_namespace_roles(),
                     )
                     namespace_receipt = {
                         "grant_sha256": sha(grant),
@@ -2118,6 +2509,7 @@ class RootSupervisor:
                 self.cfg["gateway_uid"],
                 grant["broker_uid"],
                 namespace,
+                **self._gateway_namespace_roles(),
             )
             attached = self._attach_gateway(grant, process)
             require(attached["ticks"] == child_ticks, "root_gateway_userns_changed")
@@ -2166,9 +2558,9 @@ class RootSupervisor:
         """Attach a gated child under current authority; never release its gate.
 
         The caller owns the child and must close its gate and fence the attempt
-        on any failure or unknown result. Production invocation is not exposed.
+        on any failure or unknown result.
         """
-        require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+        require(self.cfg.get("schema") in (4, 5), "root_gateway_socket_unconfigured")
         with self.gate.admission(), self.guard:
             case = self._saved(grant)
             with gateway_bind_lock(case):
@@ -2285,7 +2677,9 @@ class RootSupervisor:
         and reconciliation, never another release or inference retry.
         """
         try:
-            require(self.cfg.get("schema") == 4, "root_gateway_socket_unconfigured")
+            require(
+                self.cfg.get("schema") in (4, 5), "root_gateway_socket_unconfigured"
+            )
             with self.gate.admission(), self.guard:
                 case = self._saved(grant)
                 with gateway_bind_lock(case):
@@ -2361,6 +2755,7 @@ class RootSupervisor:
                         self.cfg["gateway_uid"],
                         grant["broker_uid"],
                         userns["namespace"],
+                        **self._gateway_namespace_roles(),
                     )
                     release = {
                         "grant_sha256": sha(grant),
@@ -2385,6 +2780,7 @@ class RootSupervisor:
                         self.cfg["gateway_uid"],
                         grant["broker_uid"],
                         userns["namespace"],
+                        **self._gateway_namespace_roles(),
                     )
                     info = os.fstat(gate_fd)
                     require(
@@ -2465,6 +2861,7 @@ class RootSupervisor:
                 self.cfg["gateway_uid"],
                 grant["broker_uid"],
                 userns["namespace"],
+                **self._gateway_namespace_roles(),
             )
 
     def gateway_peer_v1(self, body):
@@ -2478,7 +2875,7 @@ class RootSupervisor:
             and _integer(body["start_ticks"], 1, 2**63 - 1),
             "root_gateway_peer_invalid",
         )
-        require(self.cfg.get("schema") == 4, "root_gateway_peer_unconfigured")
+        require(self.cfg.get("schema") in (4, 5), "root_gateway_peer_unconfigured")
         self.scope_preimage_v2(
             {"attempt": body["attempt"], "scope_sha256": body["scope_sha256"]}
         )
@@ -2497,6 +2894,18 @@ class RootSupervisor:
                 and ready["owner_ticks"] == _ticks(os.getpid()),
                 "root_gateway_guard_owner_changed",
             )
+            if self.cfg.get("schema") == 5:
+                cold = _decode(protected(case / "gateway-cold-ready.json", 0o600))
+                frozen = _decode(protected(case / "gateway-bootstrap.json", 0o600))
+                require(
+                    cold.get("pid") == body["pid"]
+                    and cold.get("start_ticks") == body["start_ticks"]
+                    and cold.get("grant_sha256") == sha(grant)
+                    and cold.get("scope_sha256") == body["scope_sha256"]
+                    and cold.get("config_sha256") == frozen.get("config_sha256")
+                    and cold.get("paid_ready") is False,
+                    "root_gateway_cold_ready_changed",
+                )
             self._verify_gateway_launch(
                 case, grant, body["pid"], body["start_ticks"], body["scope_sha256"]
             )
@@ -2643,6 +3052,36 @@ class RootSupervisor:
         )
         return validate_worker(result, grant, host_network=(own.st_dev, own.st_ino))
 
+    def _require_current_gateway(self, grant, process=None):
+        try:
+            case = self._current(grant)
+            receipt = _decode(protected(case / "gateway-cold-ready.json", 0o600))
+            frozen = _decode(protected(case / "gateway-bootstrap.json", 0o600))
+            if process is None:
+                process = self.gateway_children.get(grant["attempt_id"])
+            require(
+                process is not None
+                and process.pid == receipt["pid"]
+                and process.poll() is None
+                and _integer(
+                    frozen.get("deadline_ms"), time.time_ns() // 1000000 + 1
+                ),
+                "root_gateway_lifetime_changed",
+            )
+            self._verify_gateway_launch(
+                case, grant, receipt["pid"], receipt["start_ticks"], self._saved_scope(grant)
+            )
+            inspect_gateway_peer(
+                grant,
+                receipt["pid"],
+                receipt["start_ticks"],
+                self.cfg["gateway_uid"],
+                self.cfg["gateway_executable_sha256"],
+            )
+        except Exception:
+            self.revoke({"grant": grant})
+            raise
+
     def start(self, body):
         require(
             set(body) == {"grant", "prompt", "declarations_sha256", "worker_protocol"}
@@ -2704,6 +3143,16 @@ class RootSupervisor:
             )
             store(case / "goose-profile.json", canonical(goose_profile).encode(), 0o444)
             start_guard(self, grant)
+            gateway = None
+            if self.cfg.get("schema") == 5:
+                program = os.open(
+                    self.cfg["gateway_program"],
+                    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+                )
+                try:
+                    gateway, _ = self._launch_gateway(grant, program)
+                finally:
+                    os.close(program)
             mounts = case / "mounts"
             os.mkdir(mounts, 0o700)
             expected = dict(
@@ -2758,6 +3207,8 @@ class RootSupervisor:
                 image = json.loads(self._docker("image", "inspect", WORKER_IMAGE))[0]
                 require(not image["Config"].get("Volumes"), "root_image_volume_changed")
                 check_guard(self, grant)
+                if self.cfg.get("schema") == 5:
+                    self._require_current_gateway(grant, gateway)
                 identity = (
                     self._docker(*docker_arguments(grant, **paths)).decode().strip()
                 )
@@ -2766,6 +3217,8 @@ class RootSupervisor:
                 self._inspect(grant)
                 self._current(grant)
                 check_guard(self, grant)
+                if self.cfg.get("schema") == 5:
+                    self._require_current_gateway(grant, gateway)
                 self._docker("start", identity)
                 observed = self._worker(grant, self._inspect(grant))
                 store(case / "worker.json", observed)
@@ -2835,7 +3288,13 @@ class RootSupervisor:
     def _cleanup(self, grant):
         case = self._saved(grant)
         self._fence_execution(grant)
-        if self.cfg.get("schema") == 4:
+        process = getattr(self, "gateway_children", {}).get(grant["attempt_id"])
+        if process is not None:
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                raise SupervisorRefused("root_gateway_join_unknown") from None
+        if self.cfg.get("schema") in (4, 5):
             with gateway_bind_lock(case):
                 require(
                     not os.path.lexists(case / "gateway-bound.json"),
@@ -3013,6 +3472,8 @@ class RootSupervisor:
                 )
             else:
                 if item["State"]["Running"]:
+                    if self.cfg.get("schema") == 5:
+                        self._require_current_gateway(grant)
                     require(
                         self._worker(grant, item) == body["worker"],
                         "root_worker_changed",
@@ -3095,7 +3556,15 @@ class RootSupervisor:
         attempt = body["attempt"]
         case = self._case(attempt["attempt_id"])
         state = "unknown"
-        if case.is_dir() and not os.path.lexists(case / "start-intent.json"):
+        if case.is_dir() and not any(
+            os.path.lexists(case / name)
+            for name in (
+                "start-intent.json",
+                "gateway-bind-intent.json",
+                "gateway-spawn-intent.json",
+                "gateway-release-intent.json",
+            )
+        ):
             intent = _decode(protected(case / "prepare-intent.json", 0o600))
             if intent["attempt"] == attempt:
                 state = "not_started"

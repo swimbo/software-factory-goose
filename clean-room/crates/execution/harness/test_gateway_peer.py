@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -23,6 +24,281 @@ import gateway_custody as custody
 
 
 class GatewayPeerTests(unittest.TestCase):
+    def test_cold_ready_requires_exact_bounded_record_and_eof(self):
+        cases = (
+            (b'{"state":"cold-ready"}\n', True),
+            (b'{"state":"cold-ready"}', False),
+            (b'{"state":"cold-ready","state":"cold-ready"}\n', False),
+            (b"{}\n{}\n", False),
+            (b"{}\nextra", False),
+            (b"x" * 4097, False),
+            (b"", False),
+        )
+        for payload, accepted in cases:
+            with self.subTest(payload=payload[:70]):
+                reader, writer = os.pipe()
+                try:
+                    os.write(writer, payload)
+                    os.close(writer)
+                    writer = None
+                    if accepted:
+                        self.assertEqual(
+                            root.read_gateway_cold_ready(
+                                reader, int(time.time() * 1000) + 1000
+                            ),
+                            {"state": "cold-ready"},
+                        )
+                    else:
+                        with self.assertRaises(root.SupervisorRefused):
+                            root.read_gateway_cold_ready(
+                                reader, int(time.time() * 1000) + 1000
+                            )
+                finally:
+                    os.close(reader)
+                    if writer is not None:
+                        os.close(writer)
+
+    def test_cold_ready_complete_record_without_eof_is_not_ready(self):
+        reader, writer = os.pipe()
+        try:
+            os.write(writer, b"{}\n")
+            started = time.monotonic()
+            with self.assertRaisesRegex(
+                root.SupervisorRefused, "root_gateway_cold_ready_timeout"
+            ):
+                root.read_gateway_cold_ready(reader, int(time.time() * 1000) + 40)
+            self.assertLess(time.monotonic() - started, 1)
+        finally:
+            os.close(reader)
+            os.close(writer)
+
+    def test_cold_ready_rejects_each_changed_protected_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 5, "gateway_uid": 2007}
+            backend._current = Mock(return_value=case)
+            child = SimpleNamespace(pid=456)
+            grant = {
+                "fixture": "public",
+                "attempt_id": "run_" + "a" * 64,
+                "broker_uid": 2005,
+            }
+            frozen = {
+                "config_sha256": "a" * 64,
+                "launch_sha256": "b" * 64,
+                "grant_sha256": root.sha(grant),
+                "scope_sha256": "c" * 64,
+                "review_sha256": "d" * 64,
+                "deadline_ms": int(time.time() * 1000) + 1000,
+                "socket_device": 12,
+                "socket_inode": 34,
+            }
+            prepared = {"deadline_ms": frozen["deadline_ms"], "child": {"ticks": 789}}
+            receipt = {k: v for k, v in frozen.items() if k != "deadline_ms"}
+            receipt.update(
+                schema=1,
+                state="cold-ready",
+                pid=456,
+                start_ticks=789,
+                uid=2007,
+                paid_ready=False,
+            )
+            substitutions = {
+                "schema": True,
+                "state": "paid-ready",
+                "pid": 457,
+                "start_ticks": 790,
+                "uid": 2008,
+                "paid_ready": 0,
+                "socket_device": 13,
+                "socket_inode": 35,
+                **{
+                    k: "f" * 64
+                    for k in (
+                        "config_sha256",
+                        "launch_sha256",
+                        "grant_sha256",
+                        "scope_sha256",
+                        "review_sha256",
+                    )
+                },
+            }
+            changed = [(k, receipt | {k: v}) for k, v in substitutions.items()]
+            changed += [
+                ("extra", receipt | {"unexpected": True}),
+                ("missing", {k: v for k, v in receipt.items() if k != "paid_ready"}),
+            ]
+            for name, value in changed:
+                with (
+                    self.subTest(field=name),
+                    patch.object(
+                        root, "protected", return_value=json.dumps(prepared).encode()
+                    ),
+                    patch.object(root, "read_gateway_cold_ready", return_value=value),
+                ):
+                    with self.assertRaisesRegex(
+                        root.SupervisorRefused, "^root_gateway_cold_ready_changed$"
+                    ):
+                        backend._accept_gateway_ready(grant, child, 99, frozen)
+            self.assertFalse((case / "gateway-cold-ready.json").exists())
+            backend.cfg["gateway_executable_sha256"] = "e" * 64
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.RLock()
+            backend._saved_scope = Mock(return_value=frozen["scope_sha256"])
+            backend._verify_gateway_launch = Mock()
+            socket_info = SimpleNamespace(
+                st_mode=stat.S_IFSOCK | 0o660,
+                st_uid=2007,
+                st_gid=2005,
+                st_nlink=1,
+                st_dev=12,
+                st_ino=34,
+            )
+
+            def record(path, *args, **kwargs):
+                return json.dumps(
+                    prepared if path.name == "gateway-prepared.json" else frozen
+                ).encode()
+
+            with (
+                patch.object(root, "protected", side_effect=record),
+                patch.object(root, "read_gateway_cold_ready", return_value=receipt),
+                patch.object(
+                    root,
+                    "gateway_bind_lock",
+                    side_effect=lambda _: contextlib.nullcontext(),
+                ),
+                patch.object(root, "check_guard"),
+                patch.object(root, "inspect_gateway_peer"),
+                patch.object(root.os, "stat", return_value=socket_info),
+                patch.object(root, "store") as save,
+            ):
+                backend._accept_gateway_ready(grant, child, 99, frozen)
+                save.assert_called_once_with(case / "gateway-cold-ready.json", receipt)
+
+    def test_root_freeze_preserves_reviewed_raw_template_hash_domains(self):
+        # JSON RawMessage preserves lexical numbers, object order and escapes in
+        # Go's typed policy digest. Outer Root metadata has a separate raw hash.
+        policy = b'{"pricing_entries":[{"pricing":{"z":0.0000001,"a":1e+09,"null":null,"escaped":"\\u003c"}}]}'
+        wire = b'{"later":1e-07,"earlier":null}'
+        template_raw = (
+            b'{"store_path":"/public.db","store":{},"review":{},"wire":'
+            + wire
+            + b',"wire_sha256":"'
+            + b"f" * 64
+            + b'","policy":'
+            + policy
+            + b',"policy_sha256":"'
+            + b"e" * 64
+            + b'","broker_path":"/broker","capture_path":"/capture"}'
+        )
+        now = int(time.time() * 1000)
+        grant = {
+            "attempt_id": "run_" + "a" * 64,
+            "expires_at_ms": now + 60000,
+            "broker_uid": 2005,
+        }
+        backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {
+            "gateway_bootstrap_template": "/public-template.json",
+            "gateway_bootstrap_template_sha256": hashlib.sha256(
+                template_raw
+            ).hexdigest(),
+            "gateway_executable_sha256": "b" * 64,
+            "gateway_uid": 2007,
+            "capture_service_uid": 2008,
+        }
+        backend.catalog = Path("/public-catalog")
+        backend._current = Mock(return_value=Path("/public-case"))
+        backend._saved_scope = Mock(return_value="c" * 64)
+        route = {
+            "valid_from_ms": now - 1000,
+            "valid_until_ms": now + 120000,
+            "max_output_tokens": 16,
+            "route_sha256": "d" * 64,
+            "review_sha256": "e" * 64,
+            "usage_tariff_sha256": "f" * 64,
+        }
+        backend._catalog = Mock(
+            return_value=(
+                {
+                    "scope": {"route": route, "expires_at_ms": now + 120000},
+                    "control_grant": {"expires_at_ms": now + 120000, "owner": "public"},
+                },
+                {"expires_at_ms": now + 120000},
+            )
+        )
+        records = {
+            "prepare-intent.json": b'{"attempt":{},"admission":{}}',
+            "start-intent.json": b'{"public":true}',
+            "public-template.json": template_raw,
+            "gateway-bound.json": b'{"socket":{"path":"/public.sock","dev":12,"ino":34}}',
+        }
+        captured = bytearray()
+
+        def write(fd, raw):
+            captured.extend(raw)
+            return len(raw)
+
+        from contextlib import ExitStack
+
+        with ExitStack() as stack:
+            for name, value in {"MFD_CLOEXEC": 1, "MFD_ALLOW_SEALING": 2}.items():
+                stack.enter_context(patch.object(root.os, name, value, create=True))
+            for name, value in {
+                "F_SEAL_SEAL": 1,
+                "F_SEAL_SHRINK": 2,
+                "F_SEAL_GROW": 4,
+                "F_SEAL_WRITE": 8,
+                "F_ADD_SEALS": 1033,
+                "F_GET_SEALS": 1034,
+            }.items():
+                stack.enter_context(patch.object(root.fcntl, name, value, create=True))
+            stack.enter_context(
+                patch.object(
+                    root,
+                    "protected",
+                    side_effect=lambda p, *a, **k: records.get(
+                        Path(p).name, b'{"max_output_tokens":8}'
+                    ),
+                )
+            )
+            stack.enter_context(
+                patch.object(root.os.path, "lexists", return_value=True)
+            )
+            stack.enter_context(
+                patch.object(root, "factory_scope_digest", return_value="c" * 64)
+            )
+            stack.enter_context(patch.object(root, "_ticks", return_value=123))
+            stack.enter_context(
+                patch.object(
+                    root.os, "fstat", return_value=SimpleNamespace(st_dev=56, st_ino=78)
+                )
+            )
+            stack.enter_context(
+                patch.object(root.os, "memfd_create", return_value=99, create=True)
+            )
+            stack.enter_context(patch.object(root.os, "write", side_effect=write))
+            stack.enter_context(
+                patch.object(
+                    root.fcntl,
+                    "fcntl",
+                    side_effect=lambda fd, command, *a: 15 if command == 1034 else 0,
+                )
+            )
+            stack.enter_context(patch.object(root, "store"))
+            fd, frozen = backend._gateway_bootstrap(
+                grant, SimpleNamespace(fileno=lambda: 98)
+            )
+        self.assertEqual(fd, 99)
+        self.assertIn(b'"policy":' + policy, captured)
+        self.assertIn(b'"wire":' + wire, captured)
+        self.assertEqual(frozen["config_sha256"], hashlib.sha256(captured).hexdigest())
+        decoded = json.loads(captured)
+        self.assertEqual(decoded["grant_sha256"], root.sha(grant))
+        self.assertEqual(decoded["scope_sha256"], "c" * 64)
+
     def test_socket_copy_scan_ignores_only_closed_descriptor_races(self):
         with patch.object(root.os, "listdir", return_value=["9"]):
             with patch.object(
@@ -35,8 +311,108 @@ class GatewayPeerTests(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     root.require_no_socket_copy((1, 2))
 
+    def test_schema_five_public_start_cannot_relaunch_consumed_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            case = Path(directory)
+            consumed = b'{"public_consumed_start":true}'
+            (case / "start-intent.json").write_bytes(consumed)
+            backend = object.__new__(root.RootSupervisor)
+            backend.cfg = {"schema": 5}
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.guard = threading.RLock()
+            backend._current = Mock(return_value=case)
+            backend._launch_gateway = Mock()
+            backend._docker = Mock()
+            with self.assertRaisesRegex(
+                root.SupervisorRefused, "^root_start_already_attempted$"
+            ):
+                backend.start(
+                    {
+                        "grant": {"public": True},
+                        "prompt": "public",
+                        "declarations_sha256": "a" * 64,
+                        "worker_protocol": "unix-json-v1",
+                    }
+                )
+            backend._launch_gateway.assert_not_called()
+            backend._docker.assert_not_called()
+            self.assertEqual((case / "start-intent.json").read_bytes(), consumed)
+
+    def test_schema_five_launch_fences_consumed_owner_loss_at_boundaries(self):
+        for boundary in ("prepare", "release", "readiness"):
+            with (
+                self.subTest(boundary=boundary),
+                tempfile.TemporaryDirectory() as directory,
+            ):
+                case = Path(directory)
+                # Existing public start consumes this before any bind/launch.
+                (case / "start-intent.json").write_text('{"public":true}')
+                backend = object.__new__(root.RootSupervisor)
+                backend.cfg = {"schema": 5}
+                backend.gateway_children = {}
+                grant = {"attempt_id": "run_" + "a" * 64}
+                backend._saved = Mock(return_value=case)
+                bound = Mock()
+                child = Mock(pid=456)
+                config_fd = os.open(os.devnull, os.O_RDONLY)
+                gate_reader, gate_writer = os.pipe()
+                backend._bind_gateway_socket = Mock(return_value=(bound, {}))
+                backend._gateway_bootstrap = Mock(return_value=(config_fd, {}))
+                backend._prepare_gateway = Mock(
+                    return_value=(child, gate_writer, {"pid": 456})
+                )
+                backend._accept_gateway_ready = Mock()
+                backend.revoke = Mock()
+                if boundary == "prepare":
+                    backend._gateway_bootstrap.side_effect = root.SupervisorRefused(
+                        "root_owner_lost"
+                    )
+
+                def release(actual_grant, process, fd):
+                    os.close(fd)
+                    if boundary == "release":
+                        raise root.SupervisorRefused("root_owner_lost")
+
+                backend._release_gateway = Mock(side_effect=release)
+                if boundary == "readiness":
+                    backend._accept_gateway_ready.side_effect = root.SupervisorRefused(
+                        "root_owner_lost"
+                    )
+                try:
+                    with patch.object(
+                        root,
+                        "gateway_bind_lock",
+                        side_effect=lambda _: contextlib.nullcontext(),
+                    ):
+                        with self.assertRaisesRegex(
+                            root.SupervisorRefused, "^root_owner_lost$"
+                        ):
+                            backend._launch_gateway(grant, 99)
+                    backend.revoke.assert_called_once_with({"grant": grant})
+                    backend._bind_gateway_socket.assert_called_once()
+                    self.assertTrue((case / "start-intent.json").exists())
+                    self.assertFalse((case / "worker.json").exists())
+                    if boundary == "prepare":
+                        backend._prepare_gateway.assert_not_called()
+                        backend._release_gateway.assert_not_called()
+                        child.wait.assert_not_called()
+                    else:
+                        child.wait.assert_called_once_with(timeout=5)
+                        self.assertIs(
+                            backend.gateway_children[grant["attempt_id"]], child
+                        )
+                        self.assertEqual(os.read(gate_reader, 1), b"")
+                    if boundary != "readiness":
+                        backend._accept_gateway_ready.assert_not_called()
+                finally:
+                    os.close(gate_reader)
+                    if boundary == "prepare":
+                        os.close(config_fd)
+                        os.close(gate_writer)
+
     def test_root_launch_composes_bind_prepare_and_one_release(self):
         backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {"schema": 4}
         grant = {"public": "fixture"}
         bound = Mock()
         child = Mock()
@@ -63,6 +439,7 @@ class GatewayPeerTests(unittest.TestCase):
 
     def test_root_launch_revokes_and_joins_after_unknown_release(self):
         backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {"schema": 4}
         grant = {"public": "fixture"}
         bound = Mock()
         child = Mock()
@@ -87,6 +464,7 @@ class GatewayPeerTests(unittest.TestCase):
 
     def test_root_launch_reports_unknown_cleanup_without_rearming(self):
         backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {"schema": 4}
         grant = {"public": "fixture"}
         bound = Mock()
         backend._bind_gateway_socket = Mock(return_value=(bound, {}))
@@ -103,6 +481,7 @@ class GatewayPeerTests(unittest.TestCase):
 
     def test_root_launch_does_not_claim_cleanup_when_child_will_not_join(self):
         backend = object.__new__(root.RootSupervisor)
+        backend.cfg = {"schema": 4}
         grant = {"public": "fixture"}
         bound = Mock()
         child = Mock()
@@ -387,6 +766,12 @@ class GatewayPeerTests(unittest.TestCase):
                     os.close(other_writer)
 
     def test_root_prepare_spawns_gated_child_and_never_releases_it(self):
+        self.prepare_child_scenario()
+
+    def test_root_prepare_joins_schema_five_child_on_attachment_owner_loss(self):
+        self.prepare_child_scenario(fail_attach=True)
+
+    def prepare_child_scenario(self, *, fail_attach=False):
         with (
             tempfile.TemporaryDirectory() as directory,
             socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bound,
@@ -403,7 +788,8 @@ class GatewayPeerTests(unittest.TestCase):
             }
             backend = object.__new__(root.RootSupervisor)
             backend.cfg = {
-                "schema": 4,
+                "schema": 5,
+                "capture_service_uid": 2008,
                 "gateway_uid": 2007,
                 "gateway_executable_sha256": "b" * 64,
                 "python": sys.executable,
@@ -437,11 +823,18 @@ class GatewayPeerTests(unittest.TestCase):
                 },
             }
             (case / "gateway-bound.json").write_text(json.dumps(record))
+            if fail_attach:
+                backend._attach_gateway.side_effect = root.SupervisorRefused(
+                    "root_owner_lost"
+                )
             child = Mock(pid=456)
+            child.poll.return_value = None
             original_socket = bound.fileno()
             program = os.open(os.devnull, os.O_RDONLY)
             helper = os.open(os.devnull, os.O_RDONLY)
             bootstrap = os.open(os.devnull, os.O_RDONLY)
+            config_fd = os.open(os.devnull, os.O_RDONLY)
+            cold_reader, cold_writer = os.pipe()
             held_map = []
 
             def spawn(argv, **kwargs):
@@ -450,6 +843,11 @@ class GatewayPeerTests(unittest.TestCase):
                 self.assertEqual(kwargs["env"], {})
                 self.assertIn(original_socket, kwargs["pass_fds"])
                 config = json.loads(argv[-1])
+                self.assertEqual(config["capture_uid"], 2008)
+                self.assertEqual(config["helper_config"]["bootstrap_fd"], config_fd)
+                self.assertEqual(config["helper_config"]["cold_ready_fd"], cold_writer)
+                self.assertIn(config_fd, kwargs["pass_fds"])
+                self.assertIn(cold_writer, kwargs["pass_fds"])
                 held_map.append(os.dup(config["map_fd"]))
                 os.write(config["ready_fd"], b"N")
                 os.write(config["helper_config"]["ready_fd"], b"R")
@@ -480,8 +878,31 @@ class GatewayPeerTests(unittest.TestCase):
                     patch.object(root, "require_no_socket_copy"),
                     patch.object(root.subprocess, "Popen", side_effect=spawn),
                 ):
+                    if fail_attach:
+                        with self.assertRaisesRegex(
+                            root.SupervisorRefused, "^root_owner_lost$"
+                        ):
+                            backend._prepare_gateway(
+                                grant,
+                                bound,
+                                program,
+                                bootstrap_config_fd=config_fd,
+                                cold_ready_fd=cold_writer,
+                            )
+                        child.kill.assert_called_once()
+                        child.wait.assert_called_once_with(timeout=5)
+                        self.assertTrue((case / "gateway-spawn-intent.json").exists())
+                        self.assertFalse((case / "gateway-prepared.json").exists())
+                        self.assertFalse(
+                            (case / "gateway-release-intent.json").exists()
+                        )
+                        return
                     actual, gate, receipt = backend._prepare_gateway(
-                        grant, bound, program
+                        grant,
+                        bound,
+                        program,
+                        bootstrap_config_fd=config_fd,
+                        cold_ready_fd=cold_writer,
                     )
                 try:
                     self.assertEqual((actual, receipt), (child, attached))
@@ -498,6 +919,9 @@ class GatewayPeerTests(unittest.TestCase):
                 for fd in held_map:
                     os.close(fd)
                 os.close(program)
+                os.close(config_fd)
+                os.close(cold_reader)
+                os.close(cold_writer)
 
     def test_root_prepare_kills_child_when_barrier_fails_before_ready(self):
         with (
@@ -1331,9 +1755,13 @@ class GatewayPeerTests(unittest.TestCase):
                 stale_cases.append(stale)
                 stale = json.loads(json.dumps(records))
                 stale["gateway-userns.json"]["scope_sha256"] = "d" * 64
-                stale["gateway-prepared.json"]["namespace"] = stale["gateway-userns.json"]
+                stale["gateway-prepared.json"]["namespace"] = stale[
+                    "gateway-userns.json"
+                ]
                 for name in ("gateway-released.json", "gateway-release-intent.json"):
-                    stale[name]["prepared_sha256"] = root.sha(stale["gateway-prepared.json"])
+                    stale[name]["prepared_sha256"] = root.sha(
+                        stale["gateway-prepared.json"]
+                    )
                 stale_cases.append(stale)
                 for stale in stale_cases:
                     for name, value in stale.items():
@@ -1360,3 +1788,217 @@ class GatewayPeerTests(unittest.TestCase):
                 with self.assertRaises(root.SupervisorRefused):
                     backend.gateway_peer_v1(body | {"pid": True})
                 self.assertEqual(inspect.call_count, 1)
+
+
+class GatewayLifetimeTests(unittest.TestCase):
+    @contextlib.contextmanager
+    def backend(self):
+        from contextlib import ExitStack
+
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            case = Path(directory)
+            catalog = case / "catalog"
+            catalog.mkdir()
+            backend = object.__new__(root.RootSupervisor)
+            child = Mock(pid=456)
+            child.poll.return_value = None
+            grant = {
+                "attempt_id": "run_" + "a" * 64,
+                "worker_uid": 2001,
+                "broker_uid": 2005,
+                "cgroup_path": "/sys/fs/cgroup/public-fixture.slice",
+            }
+            worker = {"pid": 789, "public_fixture": True}
+            backend.cfg = {
+                "schema": 5,
+                "gateway_uid": 2007,
+                "gateway_executable_sha256": "e" * 64,
+                "gateway_program": str(case / "gateway"),
+                "goose": str(case / "goose"),
+                "worker_program": str(case / "worker"),
+                "worker_program_sha256": "b" * 64,
+            }
+            for name in ("gateway", "goose", "worker", "relay"):
+                (case / name).write_text("public unit fixture")
+            grant["relay_path"] = str(case / "relay")
+            backend.catalog = catalog
+            backend.recipe = {
+                "purpose": "public-fixture",
+                "goose_sha256": "a" * 64,
+                "max_runtime_ms": 180000,
+            }
+            backend.guard = threading.RLock()
+            backend.gate = SimpleNamespace(admission=contextlib.nullcontext)
+            backend.gateway_children = {grant["attempt_id"]: child}
+            backend._saved = Mock(return_value=case)
+            backend._current = Mock(return_value=case)
+            backend._saved_scope = Mock(return_value="c" * 64)
+            backend._catalog = Mock(
+                return_value=(
+                    {"factory_task_id": "public-task", "scope": {"generation": "g"}},
+                    {},
+                )
+            )
+            backend._launch_gateway = Mock(return_value=(child, {}))
+            backend._verify_gateway_launch = Mock()
+            backend._inspect = Mock(return_value={"State": {"Running": True}})
+            backend._worker = Mock(return_value=worker)
+            backend._fence_execution = Mock(
+                side_effect=lambda _: root.store(case / "execution-fenced.json", {})
+            )
+            backend._revoke_spending = Mock(
+                side_effect=lambda _: root.store(case / "owner-revoked.json", {})
+            )
+            body = {
+                "grant": grant,
+                "prompt": "public fixture",
+                "declarations_sha256": "7" * 64,
+                "worker_protocol": "unix-json-v1",
+            }
+            records = {
+                "prepare-intent.json": {
+                    "attempt": {"profile": "d" * 64},
+                    "admission": {},
+                },
+                "gateway-cold-ready.json": {
+                    "pid": child.pid,
+                    "start_ticks": 123,
+                    "scope_sha256": "c" * 64,
+                    "paid_ready": False,
+                },
+                "gateway-bootstrap.json": {
+                    "deadline_ms": int(time.time() * 1000) + 60000
+                },
+                "gateway-bound.json": {},
+            }
+            for name, value in records.items():
+                root.store(case / name, value)
+            root.store(
+                catalog / (grant["attempt_id"] + ".launch.json"),
+                {
+                    "prompt_sha256": hashlib.sha256(
+                        body["prompt"].encode()
+                    ).hexdigest(),
+                    "declarations_sha256": body["declarations_sha256"],
+                    "profile_sha256": "d" * 64,
+                    "max_output_tokens": 8,
+                },
+            )
+            original_open, original_fstat = os.open, os.fstat
+            relay_fd = []
+
+            def open_source(path, flags, *args, **kwargs):
+                if str(path) == grant["relay_path"]:
+                    fd = original_open("/dev/null", os.O_RDONLY | os.O_CLOEXEC)
+                    relay_fd.append(fd)
+                    return fd
+                return original_open(path, flags, *args, **kwargs)
+
+            def metadata(fd):
+                value = original_fstat(fd)
+                if relay_fd and fd == relay_fd[0]:
+                    return SimpleNamespace(
+                        st_mode=stat.S_IFSOCK | 0o660, st_uid=2005, st_gid=2001
+                    )
+                return SimpleNamespace(st_mode=value.st_mode, st_uid=0, st_gid=0)
+
+            for name, replacement in (
+                ("protected", lambda p, *a, **k: Path(p).read_bytes()),
+                ("start_guard", Mock()),
+                ("check_guard", Mock()),
+                ("stage_launch_source", lambda fd, path, target, expected: str(target)),
+                ("docker_arguments", lambda *a, **k: ["create"]),
+                ("gateway_bind_lock", lambda _: contextlib.nullcontext()),
+            ):
+                stack.enter_context(patch.object(root, name, replacement))
+            peer = stack.enter_context(patch.object(root, "inspect_gateway_peer"))
+            stack.enter_context(
+                patch.object(root.os, "O_PATH", os.O_RDONLY, create=True)
+            )
+            stack.enter_context(patch.object(root.os, "open", side_effect=open_source))
+            stack.enter_context(patch.object(root.os, "fstat", side_effect=metadata))
+            yield backend, case, grant, child, worker, body, peer
+
+    def test_start_refuses_gateway_loss_or_deadline_expiry_during_docker_preparation(
+        self,
+    ):
+        for phase in ("image", "create"):
+            for failure in ("exited", "expired"):
+                with (
+                    self.subTest(phase=phase, failure=failure),
+                    self.backend() as fixture,
+                ):
+                    backend, case, grant, child, _, body, _ = fixture
+                    calls = []
+
+                    def docker(*args):
+                        calls.append(args[0])
+                        if args[0] == phase:
+                            if failure == "exited":
+                                child.poll.return_value = 0
+                            else:
+                                (case / "gateway-bootstrap.json").write_text(
+                                    json.dumps(
+                                        {"deadline_ms": int(time.time() * 1000) - 1}
+                                    )
+                                )
+                        return {
+                            "info": b"systemd",
+                            "image": b'[{"Config":{"Volumes":null}}]',
+                            "create": b"f" * 64,
+                            "start": b"",
+                        }[args[0]]
+
+                    backend._docker = Mock(side_effect=docker)
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.start(body)
+                    self.assertNotIn("start", calls)
+                    if phase == "image":
+                        self.assertNotIn("create", calls)
+                    self.assertTrue((case / "start-intent.json").exists())
+                    self.assertTrue((case / "execution-fenced.json").exists())
+                    self.assertTrue((case / "owner-revoked.json").exists())
+                    self.assertFalse((case / "cleanup.json").exists())
+                    backend._fence_execution.assert_called_once_with(grant)
+
+    def test_live_gateway_allows_worker_start(self):
+        with self.backend() as fixture:
+            backend, case, _, _, worker, body, _ = fixture
+            backend._docker = Mock(
+                side_effect=lambda *a: {
+                    "info": b"systemd",
+                    "image": b'[{"Config":{"Volumes":null}}]',
+                    "create": b"f" * 64,
+                    "start": b"",
+                }[a[0]]
+            )
+            self.assertEqual(backend.start(body), worker)
+            self.assertTrue((case / "container.json").exists())
+            backend._fence_execution.assert_not_called()
+
+    def test_observe_running_worker_requires_current_gateway(self):
+        for failure in (None, "missing", "launch", "peer"):
+            with self.subTest(failure=failure), self.backend() as fixture:
+                backend, case, grant, _, worker, _, peer = fixture
+                root.store(case / "worker.json", worker)
+                if failure == "missing":
+                    (case / "gateway-cold-ready.json").unlink()
+                elif failure == "launch":
+                    backend._verify_gateway_launch.side_effect = root.SupervisorRefused(
+                        "launch lost"
+                    )
+                elif failure == "peer":
+                    peer.side_effect = root.SupervisorRefused("peer changed")
+                if failure is None:
+                    self.assertEqual(
+                        backend.observe({"grant": grant, "worker": worker})["state"],
+                        "running",
+                    )
+                    backend._fence_execution.assert_not_called()
+                else:
+                    with self.assertRaises(root.SupervisorRefused):
+                        backend.observe({"grant": grant, "worker": worker})
+                    backend._fence_execution.assert_called_once_with(grant)
+                    self.assertTrue((case / "stop.json").exists())
+                    self.assertTrue((case / "owner-revoked.json").exists())
+                    self.assertFalse((case / "finished.json").exists())

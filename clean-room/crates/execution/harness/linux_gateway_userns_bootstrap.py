@@ -68,9 +68,17 @@ def run(config):
         "python",
         "deadline_ms",
     }
+    enhanced = "capture_uid" in config
+    if enhanced:
+        keys.add("capture_uid")
     require(sys.platform == "linux" and type(config) is dict and set(config) == keys)
     require(os.getuid() == os.geteuid() == 0)
     uid, broker = config["uid"], config["broker_gid"]
+    capture = config.get("capture_uid")
+    require(
+        not enhanced
+        or (number(capture, 1) and len({0, uid, broker, capture, 65534}) == 5)
+    )
     require(number(uid, 1) and number(broker, 1) and uid != broker)
     require(
         number(config["owner_pid"], 2) and number(config["owner_ticks"], 1, 2**63 - 1)
@@ -86,7 +94,10 @@ def run(config):
     require(type(config["helper_config"]) is dict)
     helper = config["helper_config"]
     fds = [config["ready_fd"], config["map_fd"], config["helper_fd"]]
-    for key in ("socket_fd", "program_fd", "gate_fd", "ready_fd"):
+    inherited = ("socket_fd", "program_fd", "gate_fd", "ready_fd") + (
+        ("bootstrap_fd", "cold_ready_fd") if enhanced else ()
+    )
+    for key in inherited:
         require(key in helper)
         fds.append(helper[key])
     require(all(number(fd, 3, 1048575) for fd in fds) and len(set(fds)) == len(fds))
@@ -138,13 +149,17 @@ def run(config):
 
     def mappings(name):
         rows = (Path("/proc/self") / name).read_text().splitlines()
-        require(len(rows) <= 3)
+        require(len(rows) <= 4)
         result = [tuple(int(item) for item in row.split()) for row in rows]
         require(all(len(row) == 3 for row in result))
         return sorted(result)
 
     require(
-        mappings("uid_map") == sorted([(0, 0, 1), (uid, uid, 1)])
+        mappings("uid_map")
+        == sorted(
+            [(0, 0, 1), (uid, uid, 1)]
+            + ([(broker, broker, 1), (capture, capture, 1)] if enhanced else [])
+        )
         and mappings("gid_map")
         == sorted([(0, 0, 1), (uid, uid, 1), (broker, broker, 1)])
     )
@@ -172,7 +187,7 @@ def run(config):
     )
     for fd in (
         config["helper_fd"],
-        *(helper[key] for key in ("socket_fd", "program_fd", "gate_fd", "ready_fd")),
+        *(helper[key] for key in inherited),
     ):
         os.set_inheritable(fd, True)
     os.execve(

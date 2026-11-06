@@ -70,6 +70,7 @@ def profile_fingerprints(
         "linux_gateway_socket.py",
         "linux_gateway_exec.py",
         "linux_gateway_userns_bootstrap.py",
+        "linux_service_guard.py",
         "factory_harness.py",
         "harness_mcp.py",
         "harness_session.py",

@@ -99,7 +99,7 @@ class GuardContractTests(unittest.TestCase):
 
 
 class GuardStartStateTests(unittest.TestCase):
-    def test_binding_accepts_schema_four_and_still_checks_pinned_inputs(self):
+    def test_binding_accepts_gateway_schemas_and_still_checks_pinned_inputs(self):
         import json
         from pathlib import Path
         from types import SimpleNamespace
@@ -150,11 +150,11 @@ class GuardStartStateTests(unittest.TestCase):
                     )
                 ],
             )
-            for invalid in (1, 5, 4.0, True):
+            for invalid in (1, 6, 4.0, True):
                 with self.subTest(schema=invalid), self.assertRaises(GuardRefused):
                     guard._binding(SimpleNamespace(cfg=cfg | {"schema": invalid}))
 
-        for schema in (2, 3):
+        for schema in (2, 3, 5):
             prior = cfg | {"schema": schema}
             with (
                 self.subTest(schema=schema),

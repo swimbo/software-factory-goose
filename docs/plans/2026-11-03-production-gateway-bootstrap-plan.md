@@ -253,7 +253,7 @@ Main-repository paths below are relative to `software-factory-goose`. Paths labe
 
 **Requirements:** R7, R8; AE3. **Dependencies:** U3.
 
-**Files:** `clean-room/crates/execution/harness/linux_supervisor.py`, `linux_gateway_exec.py`, `linux_gateway_userns_bootstrap.py`, `test_linux_supervisor.py`, `test_gateway_peer.py`, both existing harness profile fingerprints, and `clean-room/tests/fixtures/harness_gateway_userns_root_prepare_fixture.py` or its focused joined successor.
+**Files:** `clean-room/crates/execution/harness/linux_supervisor.py`, `linux_gateway_exec.py`, `linux_gateway_userns_bootstrap.py`, the narrow `linux_service_guard.py` typed-schema allowlist and `test_service_guard.py` compatibility checks, `test_linux_supervisor.py`, `test_gateway_peer.py`, both existing harness profile fingerprints, and `clean-room/tests/fixtures/harness_gateway_userns_root_prepare_fixture.py` or its focused joined successor.
 
 **Approach:**
 1. Extend the typed Root configuration/source pins for the immutable bootstrap-config and readiness handoff. Update all helper/profile bindings together.

@@ -299,7 +299,13 @@ def run(config):
         "ready_fd",
         "deadline_ms",
     }
+    enhanced = "bootstrap_fd" in config
+    if enhanced:
+        keys.update(("bootstrap_fd", "cold_ready_fd"))
     require(sys.platform == "linux" and type(config) is dict and set(config) == keys)
+    inherited = ("socket_fd", "program_fd", "gate_fd", "ready_fd") + (
+        ("bootstrap_fd", "cold_ready_fd") if enhanced else ()
+    )
     require(
         number(config["gateway_uid"], 1, 2**31 - 1)
         and number(config["gateway_gid"], 1, 2**31 - 1)
@@ -309,14 +315,10 @@ def run(config):
         and number(config["owner_ticks"], 1)
     )
     require(
-        all(
-            number(config[k], 3, 1048575)
-            for k in ("socket_fd", "program_fd", "gate_fd", "ready_fd")
-        )
-        and len({config[k] for k in ("socket_fd", "program_fd", "gate_fd", "ready_fd")})
-        == 4
+        all(number(config[k], 3, 1048575) for k in inherited)
+        and len({config[k] for k in inherited}) == len(inherited)
     )
-    kept = {config[k] for k in ("socket_fd", "program_fd", "gate_fd", "ready_fd")}
+    kept = {config[k] for k in inherited}
     for item in os.listdir("/proc/self/fd"):
         fd = int(item)
         if fd >= 3 and fd not in kept:
@@ -333,12 +335,30 @@ def run(config):
     )
     now = time.time_ns() // 1000000
     require(now < config["deadline_ms"] <= now + 180000)
-    for key, access in (("gate_fd", os.O_RDONLY), ("ready_fd", os.O_WRONLY)):
+    for key, access in (("gate_fd", os.O_RDONLY), ("ready_fd", os.O_WRONLY)) + (
+        (("cold_ready_fd", os.O_WRONLY),) if enhanced else ()
+    ):
         fd = config[key]
         require(
             stat.S_ISFIFO(os.fstat(fd).st_mode)
             and fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == access
         )
+    if enhanced:
+        fd = config["bootstrap_fd"]
+        info = os.fstat(fd)
+        seals = (
+            fcntl.F_SEAL_SEAL
+            | fcntl.F_SEAL_WRITE
+            | fcntl.F_SEAL_SHRINK
+            | fcntl.F_SEAL_GROW
+        )
+        require(
+            stat.S_ISREG(info.st_mode)
+            and info.st_uid == 0
+            and 1 <= info.st_size <= 262144
+            and fcntl.fcntl(fd, fcntl.F_GET_SEALS) == seals
+        )
+        require(os.fstat(config["cold_ready_fd"]).st_uid == 0)
     require(
         isinstance(config["program_sha256"], str)
         and re.fullmatch(r"[0-9a-f]{64}", config["program_sha256"]) is not None
@@ -372,6 +392,9 @@ def run(config):
     # inherited filter denies ioctl. No exec occurs before the release gate.
     os.set_inheritable(config["socket_fd"], True)
     os.set_inheritable(config["program_fd"], False)
+    if enhanced:
+        os.set_inheritable(config["bootstrap_fd"], True)
+        os.set_inheritable(config["cold_ready_fd"], True)
     install_transfer_filter()
     require(time.time_ns() // 1000000 < config["deadline_ms"])
     require(os.write(config["ready_fd"], b"R") == 1)
@@ -396,6 +419,16 @@ def run(config):
             str(config["socket_fd"]),
             "--socket-path",
             config["socket_path"],
+            *(
+                [
+                    "--bootstrap-fd",
+                    str(config["bootstrap_fd"]),
+                    "--cold-ready-fd",
+                    str(config["cold_ready_fd"]),
+                ]
+                if enhanced
+                else []
+            ),
         ],
         {},
     )
